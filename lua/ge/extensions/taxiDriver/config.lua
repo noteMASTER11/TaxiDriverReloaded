@@ -28,13 +28,25 @@ M.offer = {
   initialDelay = 1.5,
   intervalMin = 1.2,
   intervalMax = 2.2,
-  generationStepInterval = 0.08,
+  generationStepInterval = 0.02,
   semanticScanBatchSize = 6,
+  semanticCandidateAttempts = 40,
+  randomRouteAttempts = 24,
+  semanticLongitudinalJitterMax = 70,
+  randomDistanceExponent = 1.15,
+  recentStopLimit = 48,
+  recentStopSeparation = 150,
+  routeDiversityMinimumShare = 0.65,
+  routeDiversityAttempts = 3,
+  routeDiversityCellSize = 400,
+  routeDiversityEndpointSeparation = 280,
+  recentRouteLimit = 20,
   minVisible = 10,
   maxVisible = 12,
   nextOfferDuration = 5,
   nextOfferRetryMin = 5,
   nextOfferRetryMax = 10,
+  nextOfferProgressThreshold = 0.80,
   pickupTimeMultiplier = 1.35,
   pickupTimeGraceSeconds = 60,
   pickupTimeMinSeconds = 120,
@@ -127,10 +139,38 @@ M.realisticFuel = {
   fallbackPricePerUnit = 1,
   fuelRatePerSecond = 2,
   electricPercentRatePerSecond = 4,
+  dashboardRefreshInterval = 1,
+  estimatedConsumptionPer100Km = {
+    gasoline = 10,
+    diesel = 8.5,
+    kerosine = 12.5,
+    electricEnergy = 22
+  },
   priceByEnergyType = {
     gasoline = 0.93,
     electricEnergy = 0.50
   }
+}
+
+M.delivery = {
+  visibleMin = 5,
+  visibleMax = 7,
+  chance = 0.22,
+  minimumWeightKg = 2,
+  maximumWeightKg = 250,
+  weightDistributionExponent = 1.55,
+  minimumDistance = 2000,
+  maximumDistance = 25000,
+  routeAttempts = 28,
+  diversityAttempts = 3,
+  fareMultiplier = 0.82,
+  weightFareBonusThresholdKg = 15,
+  maximumWeightFareBonus = 1.50,
+  collisionDamageThreshold = 20,
+  minimumImpactDamagePercent = 1,
+  maximumImpactDamagePercent = 35,
+  impactDamageScale = 4500,
+  ratingDamageThresholdPercent = 5
 }
 
 M.difficultyPresets = {

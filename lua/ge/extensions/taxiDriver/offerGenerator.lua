@@ -17,11 +17,10 @@ function M.step(job, dtSim)
   job.cooldown = math.max(0, (job.cooldown or 0) - math.max(0, tonumber(dtSim) or 0))
   if job.cooldown > 0 then return "pending" end
 
-  local result = {coroutine.resume(job.thread)}
-  local ok = table.remove(result, 1)
-  if not ok then return "error", result[1] end
+  local ok, firstResult, secondResult = coroutine.resume(job.thread)
+  if not ok then return "error", firstResult end
   if coroutine.status(job.thread) == "dead" then
-    return "complete", unpack(result)
+    return "complete", firstResult, secondResult
   end
   job.cooldown = job.stepInterval
   return "pending"

@@ -14,9 +14,11 @@ local offerGenerator = require("taxiDriver/offerGenerator")
 local taxiConfig = require("taxiDriver/config")
 local identity = require("taxiDriver/identity")
 local passengerMood = require("taxiDriver/passengerMood")
+local routeDiversity = require("taxiDriver/routeDiversity")
+local delivery = require("taxiDriver/delivery")
 
 local logTag = "taxiDriver"
-local modVersion = "2.14.1"
+local modVersion = "2.18.0"
 local settingsSchemaVersion = 1
 local profileSchemaVersion = 1
 local progressSchemaVersion = 1
@@ -73,6 +75,15 @@ local realisticFuel = {
   options = {},
   dataPending = false,
   dataTimer = 0,
+  dashboardEnergyPending = false,
+  dashboardEnergyTimer = 0,
+  dashboardEnergy = {
+    available = false,
+    energyType = "",
+    quantity = 0,
+    unit = "",
+    estimatedRangeKm = 0
+  },
   refuelingCompletionId = 0,
   refueling = {
     active = false,
@@ -131,6 +142,7 @@ local function createDefaultUserSettings()
     rememberLanguage = false,
     difficulty = "standard",
     fontBoost = 2,
+    appVolume = 0.65,
     silentMode = false,
     showRouteGuidance = true,
     realisticMode = false
@@ -166,7 +178,8 @@ local offerGeneration = {
   multiStopUnavailableForPool = false,
   poolJob = nil,
   poolRequestedType = nil,
-  nextJob = nil
+  nextJob = nil,
+  recentRoutes = {}
 }
 local nextOfferId = 1
 local minimapOriginalMode = nil
@@ -177,8 +190,8 @@ local minimapZoomMultiplier = nil
 local stopCandidateCache = nil
 local stopCandidateLevel = nil
 local recentTaxiStopPositions = {}
-local recentTaxiStopLimit = 24
-local recentTaxiStopSeparation = 90
+local recentTaxiStopLimit = offerConfig.recentStopLimit
+local recentTaxiStopSeparation = offerConfig.recentStopSeparation
 local navigationVisualOverrideActive = false
 local originalNavigationGroundmarkers = nil
 local originalNavigationArrows = nil
@@ -215,6 +228,8 @@ local function sanitizeUserSettings(source, requireSchema)
   if fontBoost then
     result.fontBoost = math.floor(clampValue(fontBoost, 0, 5) + 0.5)
   end
+  local appVolume = tonumber(source.appVolume)
+  if appVolume then result.appVolume = clampValue(appVolume, 0, 1) end
   result.silentMode = source.silentMode == true
   result.showRouteGuidance = source.showRouteGuidance ~= false
   result.realisticMode = source.realisticMode == true
@@ -481,22 +496,40 @@ end
 
 local function buildOfferTypePlan(targetCount, allowMultiStop)
   local plan = {}
+  local deliveryCount = math.min(
+    math.max(0, targetCount - 1),
+    math.random(taxiConfig.delivery.visibleMin, taxiConfig.delivery.visibleMax)
+  )
   local multiStopCount = 0
   if allowMultiStop then
     multiStopCount = math.min(
-      targetCount,
+      math.max(0, targetCount - deliveryCount - 2),
       math.random(offerConfig.multiStopVisibleMin, offerConfig.multiStopVisibleMax)
     )
   end
   local rushCount = math.min(
-    targetCount - multiStopCount,
+    math.max(0, targetCount - deliveryCount - multiStopCount - 1),
     math.random(offerConfig.rushVisibleMin, offerConfig.rushVisibleMax)
   )
 
+  for _ = 1, deliveryCount do table.insert(plan, "delivery") end
   for _ = 1, multiStopCount do table.insert(plan, "multiStop") end
   for _ = 1, rushCount do table.insert(plan, "rush") end
   while #plan < targetCount do table.insert(plan, "normal") end
-  return shuffleArray(plan)
+  shuffleArray(plan)
+
+  -- Never let a long-distance or multi-stop graph search block the first
+  -- visible card. Specialized orders remain mixed throughout the rest of the
+  -- pool, while dispatch can show a regular order promptly.
+  if plan[1] ~= "normal" then
+    for index = 2, #plan do
+      if plan[index] == "normal" then
+        plan[1], plan[index] = plan[index], plan[1]
+        break
+      end
+    end
+  end
+  return plan
 end
 
 local function tableHasValues(value)
@@ -509,6 +542,14 @@ end
 
 local function getVehicleSpeedKmh(vehicle)
   return vehicle and vehicle:getVelocity():length() * 3.6 or 0
+end
+
+function delivery.applyVehicleMass(vehicle, massKg)
+  if not vehicle then return end
+  vehicle:queueLuaCommand(string.format(
+    "if extensions.taxiDriverCargo then extensions.taxiDriverCargo.setCargoMass(%.3f) end",
+    math.max(0, tonumber(massKg) or 0)
+  ))
 end
 
 local function calculateEtaMinutes(distanceMeters)
@@ -616,6 +657,9 @@ end
 
 local function getPenaltyTotal()
   if not trip then return 0 end
+  if trip.isDelivery then
+    return clampValue((trip.cargoDamagePercent or 0) / 100, 0, 1)
+  end
   return clampValue(
     (trip.speedPenalty or 0) +
     (trip.collisionPenalty or 0) +
@@ -713,7 +757,7 @@ function realisticFuel.adjustPassengerMood(delta, blockSeconds)
 end
 
 function realisticFuel.updatePassengerMood(dtSim)
-  if not trip then return end
+  if not trip or trip.isDelivery then return end
   trip.passengerMoodGoodDrivingBlockedTimer = math.max(
     0,
     (trip.passengerMoodGoodDrivingBlockedTimer or 0) - math.max(0, dtSim or 0)
@@ -746,6 +790,11 @@ local function buildHudOffer(offer)
   return {
     id = offer.id,
     passengerName = offer.passengerName,
+    isDelivery = offer.isDelivery == true,
+    cargoWeightKg = offer.cargoWeightKg or 0,
+    cargoWeightBonusPercent = (offer.cargoWeightBonusRate or 0) * 100,
+    cargoWeightBonusAmount = offer.cargoWeightBonusAmount or 0,
+    cargoDamagePercent = offer.cargoDamagePercent or 0,
     passengerCalmness = offer.passengerCalmness or 50,
     pickupDistance = offer.pickup.routeDistance or 0,
     pickupEtaMinutes = calculateEtaMinutes(offer.pickup.routeDistance),
@@ -787,6 +836,7 @@ local function buildHudPenaltyEvents()
       speedExcess = event.speedExcess or 0,
       duration = event.duration or 0,
       damage = event.damage or 0,
+      cargoDamagePercent = event.cargoDamagePercent or 0,
       peakG = event.peakG or 0,
       lateSeconds = event.lateSeconds or 0,
       stationName = event.stationName or "",
@@ -895,11 +945,14 @@ local function buildHudState()
     completedRides = state.completedRides,
     driverProfile = {fullName = profile.fullName, avatar = profile.avatar},
     passengerOnboard = trip ~= nil and isPassengerOnboardPhase(state.phase),
+    deliveryOnboard = trip ~= nil and trip.isDelivery == true and
+      isPassengerOnboardPhase(state.phase),
     offlinePenaltyExtraPercent = abandonmentPreview.extraPercent,
     offlinePenaltyRatingLoss = abandonmentPreview.ratingLoss,
     offlinePenaltyFinalRating = abandonmentPreview.finalRating,
     difficulty = state.difficulty,
     realisticMode = state.realisticMode == true,
+    vehicleEnergy = realisticFuel.dashboardEnergy,
     fuelStation = realisticFuel.buildHud(),
     fuelDetour = {
       active = realisticFuel.detour.active == true,
@@ -919,6 +972,11 @@ local function buildHudState()
     penaltyEvents = buildHudPenaltyEvents(),
     activeTripId = trip and trip.id or 0,
     passengerName = trip and trip.passengerName or "",
+    isDelivery = trip and trip.isDelivery == true or false,
+    cargoWeightKg = trip and trip.cargoWeightKg or 0,
+    cargoWeightBonusPercent = trip and (trip.cargoWeightBonusRate or 0) * 100 or 0,
+    cargoWeightBonusAmount = trip and trip.cargoWeightBonusAmount or 0,
+    cargoDamagePercent = trip and trip.cargoDamagePercent or 0,
     passengerCalmness = trip and trip.passengerCalmness or 50,
     passengerInitialCalmness = trip and trip.passengerInitialCalmness or 50,
     passengerMoodMaximum = trip and math.min(
@@ -942,6 +1000,8 @@ local function buildHudState()
     driverAbandonmentExtraPercent = trip and (trip.driverAbandonmentExtraLoss or 0) * 100 or 0,
     estimatedFare = trip and trip.estimatedFare or 0,
     adjustedFare = getAdjustedFare(),
+    finalFare = trip and trip.finalFare or 0,
+    rideRating = trip and trip.rideRating or 0,
     rideDistance = trip and trip.rideDistance or 0,
     distanceToTarget = remainingDistance,
     etaMinutes = calculateEtaMinutes(remainingDistance),
@@ -1068,6 +1128,81 @@ function realisticFuel.readableUnitToEnergy(quantity, energyType)
   local factor = realisticFuel.energyMJPerUnit[energyType]
   if not factor then return 0 end
   return math.max(0, tonumber(quantity) or 0) * 1000000 * factor
+end
+
+function realisticFuel.resetDashboardEnergy()
+  realisticFuel.dashboardEnergyPending = false
+  realisticFuel.dashboardEnergyTimer = 0
+  realisticFuel.dashboardEnergy = {
+    available = false,
+    energyType = "",
+    quantity = 0,
+    unit = "",
+    estimatedRangeKm = 0
+  }
+end
+
+function realisticFuel.refreshDashboardEnergy()
+  if realisticFuel.dashboardEnergyPending or not state.active then return end
+  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  if not vehicle then
+    realisticFuel.resetDashboardEnergy()
+    return
+  end
+
+  realisticFuel.dashboardEnergyPending = true
+  local vehicleId = vehicle:getID()
+  core_vehicleBridge.requestValue(vehicle, function(data)
+    realisticFuel.dashboardEnergyPending = false
+    if not state.active or tonumber(state.activeVehicleId) ~= tonumber(vehicleId) then return end
+
+    local tanks = type(data) == "table" and data[1] or nil
+    local aggregated = {}
+    for _, tank in ipairs(type(tanks) == "table" and tanks or {}) do
+      local energyType = tostring(tank.energyType or "")
+      local consumption = realisticFuel.config.estimatedConsumptionPer100Km[energyType]
+      if consumption and consumption > 0 then
+        aggregated[energyType] = (aggregated[energyType] or 0) +
+          realisticFuel.energyToReadableUnit(tank.currentEnergy, energyType)
+      end
+    end
+
+    local selected = nil
+    for energyType, quantity in pairs(aggregated) do
+      local consumption = realisticFuel.config.estimatedConsumptionPer100Km[energyType]
+      local estimatedRangeKm = quantity / consumption * 100
+      if not selected or estimatedRangeKm > selected.estimatedRangeKm then
+        selected = {
+          available = true,
+          energyType = energyType,
+          quantity = quantity,
+          unit = realisticFuel.readableUnit[energyType] or "unit",
+          estimatedRangeKm = estimatedRangeKm
+        }
+      end
+    end
+
+    realisticFuel.dashboardEnergy = selected or {
+      available = false,
+      energyType = "",
+      quantity = 0,
+      unit = "",
+      estimatedRangeKm = 0
+    }
+    notifyHud()
+  end, "energyStorage")
+end
+
+function realisticFuel.updateDashboardEnergy(dtSim)
+  if not state.active then return end
+  realisticFuel.dashboardEnergyTimer = math.max(
+    0,
+    realisticFuel.dashboardEnergyTimer - math.max(0, dtSim or 0)
+  )
+  if realisticFuel.dashboardEnergyTimer <= 0 then
+    realisticFuel.dashboardEnergyTimer = realisticFuel.config.dashboardRefreshInterval
+    realisticFuel.refreshDashboardEnergy()
+  end
 end
 
 function realisticFuel.getPrice(gasStation, energyType)
@@ -1367,6 +1502,7 @@ function realisticFuel.finishPurchase()
   }
   realisticFuel.resetRefueling()
   realisticFuel.refuelingCompletionId = realisticFuel.refuelingCompletionId + 1
+  realisticFuel.dashboardEnergyTimer = 0
   showPhoneNotification("notify_realisticRefueled", {
     quantity = string.format("%.1f", completed.quantity),
     unit = realisticFuel.readableUnit[completed.energyType] or "unit",
@@ -1834,7 +1970,10 @@ local function projectAnchorToRoadEdge(anchorPos, preferredNodeA, preferredNodeB
   -- single building, parking area, or bus stop does not always yield the exact
   -- same pickup coordinate.
   local endpointMargin = math.min(0.25, 4 / segmentLength)
-  local longitudinalJitter = math.min(35, segmentLength * 0.32)
+  local longitudinalJitter = math.min(
+    offerConfig.semanticLongitudinalJitterMax,
+    segmentLength * 0.38
+  )
   interpolation = clampValue(
     baseInterpolation + randomRange(-longitudinalJitter, longitudinalJitter) / segmentLength,
     endpointMargin,
@@ -1875,7 +2014,10 @@ end
 local function getStopCandidates()
   local level = getCurrentLevelIdentifier() or ""
   if stopCandidateCache and stopCandidateLevel == level then return stopCandidateCache end
-  if stopCandidateLevel ~= level then recentTaxiStopPositions = {} end
+  if stopCandidateLevel ~= level then
+    recentTaxiStopPositions = {}
+    offerGeneration.recentRoutes = {}
+  end
 
   local candidates = {}
   local occupiedCells = {}
@@ -1948,12 +2090,14 @@ local function chooseSemanticStopPoint(startPos, minimumDistance, maximumDistanc
     order[index], order[swapIndex] = order[swapIndex], order[index]
   end
 
-  local maximumAttempts = math.min(#order, 80)
+  local maximumAttempts = math.min(#order, offerConfig.semanticCandidateAttempts)
   local recentFallback = nil
   for attempt = 1, maximumAttempts do
     offerGenerator.yield()
     local candidate = candidates[order[attempt]]
-    if startPos:distance(candidate.anchor) <= maximumDistance + 500 then
+    local directDistance = startPos:distance(candidate.anchor)
+    if directDistance >= minimumDistance * 0.2 and
+      directDistance <= maximumDistance + 500 then
       local stop = projectAnchorToRoadEdge(candidate.anchor, nil, nil, true)
       if stop then
         local actualDistance = calculateRouteDistance(startPos, stop.pos)
@@ -1967,7 +2111,9 @@ local function chooseSemanticStopPoint(startPos, minimumDistance, maximumDistanc
       end
     end
   end
-  return recentFallback
+  -- Keep a recently used semantic point only as a last resort. Returning it
+  -- separately lets the caller try a fresh graph-derived road edge first.
+  return nil, recentFallback
 end
 
 local function buildRandomPath(nodes, startNode, startDirection, maximumDistance)
@@ -2025,14 +2171,17 @@ local function chooseRandomRoadPoint(startPos, startDirection, minimumDistance, 
   end
 
   local recentFallback = nil
-  for attempt = 1, math.max(1, tonumber(maximumAttempts) or 60) do
+  for attempt = 1, math.max(
+    1,
+    tonumber(maximumAttempts) or offerConfig.randomRouteAttempts
+  ) do
     offerGenerator.yield()
     local searchDirection = vec3(forward)
     if attempt % 4 == 0 then
       searchDirection:setScaled(-1)
     end
 
-    local distanceRatio = math.random() ^ 1.65
+    local distanceRatio = math.random() ^ offerConfig.randomDistanceExponent
     local desiredDistance = minimumDistance + (maximumDistance - minimumDistance) * distanceRatio
     local planner = buildRandomPath(nodes, nodeA, searchDirection, maximumDistance)
 
@@ -2078,15 +2227,22 @@ local function chooseRandomRoadPoint(startPos, startDirection, minimumDistance, 
 end
 
 local function chooseTaxiStopPoint(startPos, startDirection, minimumDistance, maximumDistance, maximumAttempts)
-  local semanticStop = chooseSemanticStopPoint(startPos, minimumDistance, maximumDistance)
+  local semanticStop, semanticFallback = chooseSemanticStopPoint(
+    startPos,
+    minimumDistance,
+    maximumDistance
+  )
   if semanticStop then return semanticStop end
-  return chooseRandomRoadPoint(
+  local randomStop, randomError = chooseRandomRoadPoint(
     startPos,
     startDirection,
     minimumDistance,
     maximumDistance,
     maximumAttempts
   )
+  if randomStop then return randomStop end
+  if semanticFallback then return semanticFallback end
+  return nil, randomError
 end
 
 local function addPenaltyEvent(kind, label, penalty, detail)
@@ -2135,6 +2291,9 @@ local function resetTripMetrics()
   trip.collisionCooldown = 0
   trip.activeCollisionEvent = nil
   trip.activeCollisionDisposition = nil
+  trip.activeDeliveryImpactDamage = 0
+  trip.activeDeliveryImpactPercent = 0
+  trip.cargoDamagePercent = 0
   trip.ratingCollisionCount = 0
   trip.aggressionCooldown = 0
   trip.aggressionActive = false
@@ -2190,11 +2349,13 @@ local function stopModeInternal(message, showNotification, notificationKey)
   end
   releaseForcedPassengerStop(vehicle)
   setTelemetryEnabled(vehicle, false)
+  delivery.applyVehicleMass(vehicle, 0)
   hideNativeMinimap()
   clearNavigation()
   restoreNavigationVisualSettings()
   realisticFuel.restoreEconomy()
   realisticFuel.resetDetour()
+  realisticFuel.resetDashboardEnergy()
 
   state.active = false
   state.phase = phases.inactive
@@ -2231,8 +2392,12 @@ local function createOffer(requestedType, generationFailureCount)
   )
   if not pickup then return nil, pickupError end
 
-  local wantsMultiStop = requestedType == "multiStop" or
+  local isDelivery = requestedType == "delivery" or
+    (requestedType == nil and math.random() < taxiConfig.delivery.chance)
+  local wantsMultiStop = not isDelivery and (
+    requestedType == "multiStop" or
     (requestedType == nil and math.random() < offerConfig.multiStopChance)
+  )
   local isMultiStop = wantsMultiStop and
     #getStopCandidates() >= offerConfig.multiStopMinimumCandidates
   local stops = {}
@@ -2262,15 +2427,20 @@ local function createOffer(requestedType, generationFailureCount)
   end
 
   local multiStopRelaxation = math.min(3, math.max(0, tonumber(generationFailureCount) or 0))
-  local destinationMinDistance = isMultiStop and
-    math.max(1500, offerConfig.multiStopSegmentMin - multiStopRelaxation * 500) or minRideDistance
-  local destinationMaxDistance = isMultiStop and offerConfig.multiStopSegmentMax or maxRideDistance
+  local destinationMinDistance = isDelivery and taxiConfig.delivery.minimumDistance or
+    (isMultiStop and math.max(
+      1500,
+      offerConfig.multiStopSegmentMin - multiStopRelaxation * 500
+    ) or minRideDistance)
+  local destinationMaxDistance = isDelivery and taxiConfig.delivery.maximumDistance or
+    (isMultiStop and offerConfig.multiStopSegmentMax or maxRideDistance)
   local destination, destinationError = chooseTaxiStopPoint(
     routeOrigin.pos,
     routeOrigin.dir,
     destinationMinDistance,
     destinationMaxDistance,
-    isMultiStop and offerConfig.multiStopRouteAttempts or nil
+    isDelivery and taxiConfig.delivery.routeAttempts or
+      (isMultiStop and offerConfig.multiStopRouteAttempts or nil)
   )
   if not destination then return nil, destinationError end
 
@@ -2286,11 +2456,24 @@ local function createOffer(requestedType, generationFailureCount)
   end
 
   local waitingSeconds = #stops * stopWaitingDuration
+  local cargoWeightKg = isDelivery and delivery.generateWeight(taxiConfig.delivery) or 0
+  local cargoWeightBonusRate = 0
+  local cargoWeightBonusAmount = 0
   local baseFare = calculateFare(rideDistance, waitingSeconds)
+  if isDelivery then
+    local deliveryFare
+    deliveryFare, cargoWeightBonusRate, cargoWeightBonusAmount = delivery.calculateFare(
+      baseFare,
+      cargoWeightKg,
+      taxiConfig.delivery
+    )
+    baseFare = roundMoney(deliveryFare)
+    cargoWeightBonusAmount = roundMoney(cargoWeightBonusAmount)
+  end
   local ratingBonusRate = calculateRatingBonusRate(state.rating)
   local ratingAdjustedFare = roundMoney(baseFare * (1 + ratingBonusRate))
   local ratingBonusAmount = roundMoney(ratingAdjustedFare - baseFare)
-  local isRush = not isMultiStop and (
+  local isRush = not isDelivery and not isMultiStop and (
     requestedType == "rush" or
     (requestedType == nil and math.random() < offerConfig.rushChance)
   )
@@ -2311,7 +2494,12 @@ local function createOffer(requestedType, generationFailureCount)
   local passengerCalmness = math.random(0, 100)
   local offer = {
     id = nextOfferId,
-    passengerName = identity.createPassengerName(),
+    passengerName = isDelivery and "Delivery" or identity.createPassengerName(),
+    isDelivery = isDelivery,
+    cargoWeightKg = cargoWeightKg,
+    cargoWeightBonusRate = cargoWeightBonusRate,
+    cargoWeightBonusAmount = cargoWeightBonusAmount,
+    cargoDamagePercent = 0,
     passengerCalmness = passengerCalmness,
     passengerInitialCalmness = passengerCalmness,
     pickup = pickup,
@@ -2325,7 +2513,7 @@ local function createOffer(requestedType, generationFailureCount)
     ratingBonusRate = ratingBonusRate,
     ratingBonusAmount = ratingBonusAmount,
     estimatedFare = estimatedFare,
-    pickupWaitLimit = calculatePickupWaitSeconds(pickup.routeDistance),
+    pickupWaitLimit = isDelivery and 0 or calculatePickupWaitSeconds(pickup.routeDistance),
     isRush = isRush,
     bonusPercent = bonusPercent,
     bonusAmount = roundMoney(estimatedFare - ratingAdjustedFare),
@@ -2333,6 +2521,42 @@ local function createOffer(requestedType, generationFailureCount)
   }
   nextOfferId = nextOfferId + 1
   return offer
+end
+
+local function createDiverseOffer(requestedType, generationFailureCount, strictEndpoints)
+  local references = {}
+  for _, offer in ipairs(offers) do table.insert(references, offer) end
+  if trip then table.insert(references, trip) end
+  if nextOffer then table.insert(references, nextOffer) end
+
+  local fallback, fallbackError = nil, nil
+  local diversityAttempts = requestedType == "delivery" and
+    taxiConfig.delivery.diversityAttempts or offerConfig.routeDiversityAttempts
+  for attempt = 1, diversityAttempts do
+    local candidate, errorMessage = createOffer(
+      requestedType,
+      (generationFailureCount or 0) + attempt - 1
+    )
+    if candidate then
+      fallback = fallback or candidate
+      if routeDiversity.isDiverse(
+        candidate,
+        references,
+        offerGeneration.recentRoutes,
+        offerConfig,
+        strictEndpoints
+      ) then
+        return candidate
+      end
+    else
+      fallbackError = errorMessage or fallbackError
+    end
+    if attempt < diversityAttempts then offerGenerator.yield() end
+  end
+
+  -- Sparse maps must remain playable even when the requested spatial separation
+  -- cannot be achieved after several incremental generation attempts.
+  return fallback, fallbackError
 end
 
 local function scheduleNextOffer()
@@ -2372,8 +2596,11 @@ local function addOffer(dtSim)
       requestedType = "normal"
     end
     offerGeneration.poolRequestedType = requestedType
+    local strictDiversity = #offers < math.ceil(
+      offerTargetCount * offerConfig.routeDiversityMinimumShare
+    )
     offerGeneration.poolJob = offerGenerator.create(function()
-      return createOffer(requestedType, offerGeneration.failures)
+      return createDiverseOffer(requestedType, offerGeneration.failures, strictDiversity)
     end, offerConfig.generationStepInterval)
   end
 
@@ -2423,9 +2650,15 @@ local function startAcceptedOffer(selected)
   local pickupDistance = calculateRouteDistance(vehicle:getPosition(), selected.pickup.pos)
   if not pickupDistance then return false, "Не удалось построить маршрут к пассажиру" end
   selected.pickup.routeDistance = pickupDistance
-  selected.pickupWaitLimit = calculatePickupWaitSeconds(pickupDistance)
+  selected.pickupWaitLimit = selected.isDelivery and 0 or calculatePickupWaitSeconds(pickupDistance)
 
   clearNextOffer()
+  routeDiversity.remember(
+    offerGeneration.recentRoutes,
+    selected,
+    offerConfig.recentRouteLimit,
+    offerConfig.routeDiversityCellSize
+  )
   trip = selected
   offers = {}
   resetTripMetrics()
@@ -2435,10 +2668,15 @@ local function startAcceptedOffer(selected)
   trip.currentStopIndex = 0
 
   state.phase = phases.toPickup
-  state.message = string.format("Пассажир: %s", trip.passengerName)
+  state.message = trip.isDelivery and "Drive to the cargo" or
+    string.format("Пассажир: %s", trip.passengerName)
   phaseTimer = 0
   setNavigationTarget(trip.pickup)
-  showPhoneNotification("notify_orderAccepted", {name = trip.passengerName}, "success")
+  if trip.isDelivery then
+    showPhoneNotification("notify_deliveryAccepted", {}, "success")
+  else
+    showPhoneNotification("notify_orderAccepted", {name = trip.passengerName}, "success")
+  end
   notifyHud()
   return true
 end
@@ -2483,7 +2721,7 @@ local function updateNextOfferOpportunity(dtSim)
 
   if not trip.nextOfferPrompted then
     local progress = getRouteProgress(getRemainingDistance())
-    if progress <= 0.90 then return end
+    if progress <= offerConfig.nextOfferProgressThreshold then return end
     trip.nextOfferPrompted = true
     trip.nextOfferRetryTimer = 0
   end
@@ -2493,7 +2731,7 @@ local function updateNextOfferOpportunity(dtSim)
 
   if not offerGeneration.nextJob then
     offerGeneration.nextJob = offerGenerator.create(function()
-      return createOffer()
+      return createDiverseOffer(nil, 0, true)
     end, offerConfig.generationStepInterval)
   end
   local status, generatedOffer, errorMessage = offerGenerator.step(offerGeneration.nextJob, dtSim)
@@ -2532,18 +2770,22 @@ local function beginBoarding()
   clearNavigation()
   restoreNavigationVisualSettings()
   state.phase = phases.boarding
-  state.message = "Открываем пассажирскую дверь"
-  if phoneNotification and phoneNotification.key == "notify_orderAccepted" then
+  state.message = trip.isDelivery and "Loading cargo" or
+    "Открываем пассажирскую дверь"
+  if phoneNotification and (phoneNotification.key == "notify_orderAccepted" or
+    phoneNotification.key == "notify_deliveryAccepted") then
     phoneNotification = nil
   end
   phaseTimer = boardingDuration
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
-  trip.passengerDoorTriggerId = togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
+  if not trip.isDelivery then
+    trip.passengerDoorTriggerId = togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
+  end
   notifyHud()
 end
 
 local function updatePickupDeadline(dtSim)
-  if not trip or state.phase ~= phases.toPickup then return end
+  if not trip or trip.isDelivery or state.phase ~= phases.toPickup then return end
   local previousRemaining = trip.pickupTimeRemaining or trip.pickupWaitLimit or 0
   local rawRemaining = previousRemaining - dtSim
   trip.pickupTimeRemaining = math.max(0, rawRemaining)
@@ -2607,7 +2849,11 @@ end
 local function beginRide()
   if not trip then return end
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
-  togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
+  if trip.isDelivery then
+    delivery.applyVehicleMass(vehicle, trip.cargoWeightKg or 0)
+  else
+    togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
+  end
   preparePassengerRideMetrics()
   if trip.isRush then
     trip.rushTimeRemaining = trip.rushTimeLimit
@@ -2615,10 +2861,16 @@ local function beginRide()
   end
   trip.completedRideDistance = 0
   trip.currentStopIndex = 1
-  state.message = trip.isRush and
+  state.message = trip.isDelivery and
+    string.format("Cargo loaded: %.0f kg", trip.cargoWeightKg or 0) or trip.isRush and
     string.format("Срочный заказ: сохраните бонус $%.2f", trip.bonusAmount or 0) or
     string.format("%s в автомобиле", trip.passengerName)
-  if trip.isMultiStop and trip.stops and trip.stops[1] then
+  if trip.isDelivery then
+    startPassengerLeg(trip.destination, phases.toDestination)
+    showPhoneNotification("notify_deliveryLoaded", {
+      weight = string.format("%.0f", trip.cargoWeightKg or 0)
+    }, "success")
+  elseif trip.isMultiStop and trip.stops and trip.stops[1] then
     startPassengerLeg(trip.stops[1], phases.toStop)
     showPhoneNotification("notify_multiStopStarted", {count = #trip.stops}, "success")
   else
@@ -2676,10 +2928,13 @@ local function beginAlighting()
   clearNavigation()
   restoreNavigationVisualSettings()
   state.phase = phases.alighting
-  state.message = "Открываем пассажирскую дверь"
+  state.message = trip.isDelivery and "Unloading cargo" or
+    "Открываем пассажирскую дверь"
   phaseTimer = alightingDuration
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
-  trip.passengerDoorTriggerId = togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
+  if not trip.isDelivery then
+    trip.passengerDoorTriggerId = togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
+  end
   notifyHud()
 end
 
@@ -2711,11 +2966,18 @@ local function applyDriverAbandonmentRatingLoss()
   if state.ratingCount <= 0 then state.ratingCount = 1 end
   state.ratingTotal = state.rating * state.ratingCount
   trip.reviewRecorded = true
-  recordProgressEvent(trip.passengerName, "🤬", 0, 0, "driverAbandonment")
+  recordProgressEvent(
+    trip.isDelivery and "Delivery" or trip.passengerName,
+    "🤬",
+    0,
+    0,
+    trip.isDelivery and "deliveryAbandonment" or "driverAbandonment"
+  )
 end
 
 beginPassengerStopDemand = function()
-  if not trip or not isPassengerDrivingPhase(state.phase) or trip.passengerStopRequested then return end
+  if not trip or trip.isDelivery or not isPassengerDrivingPhase(state.phase) or
+    trip.passengerStopRequested then return end
   trip.passengerStopRequested = true
   hideNativeMinimap()
   clearNavigation()
@@ -2777,7 +3039,9 @@ local function beginDriverAbandonment()
   phaseTimer = forcedExitDuration
   setVehicleForcedStop(vehicle, true)
   setVehicleFrozen(vehicle, true)
-  trip.passengerDoorTriggerId = togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
+  if not trip.isDelivery then
+    trip.passengerDoorTriggerId = togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
+  end
   notifyHud()
 end
 
@@ -2791,12 +3055,14 @@ local function finishRide()
   clearNavigation()
   local penalty = getPenaltyTotal()
   local fare = getAdjustedFare()
-  local rideRating = clampValue(
-    5 - penalty * balanceConfig.ratingPenaltyScale -
-    (trip.ratingCollisionCount or 0) * balanceConfig.collisionRatingPenalty,
-    balanceConfig.minimumRideRating,
-    5
-  )
+  local rideRating = trip.isDelivery and
+    delivery.calculateRating(trip.cargoDamagePercent or 0, taxiConfig.delivery) or
+    clampValue(
+      5 - penalty * balanceConfig.ratingPenaltyScale -
+      (trip.ratingCollisionCount or 0) * balanceConfig.collisionRatingPenalty,
+      balanceConfig.minimumRideRating,
+      5
+    )
 
   trip.finalFare = fare
   trip.rideRating = rideRating
@@ -2808,11 +3074,11 @@ local function finishRide()
   if not trip.reviewRecorded then
     trip.reviewRecorded = true
     recordProgressEvent(
-      trip.passengerName,
+      trip.isDelivery and "Delivery" or trip.passengerName,
       getPassengerReviewEmoji(rideRating),
       rideRating / 5 * 100,
       fare,
-      "completed"
+      trip.isDelivery and "delivery" or "completed"
     )
   else
     writeUserProgress()
@@ -2821,7 +3087,15 @@ local function finishRide()
   state.message = string.format("Получено $%.2f", fare)
   phaseTimer = completedDuration
 
-  showPhoneNotification("notify_rideComplete", {fare = string.format("$%.2f", fare)}, "success")
+  delivery.applyVehicleMass(
+    state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil,
+    0
+  )
+  showPhoneNotification(
+    trip.isDelivery and "notify_deliveryComplete" or "notify_rideComplete",
+    {fare = string.format("$%.2f", fare)},
+    "success"
+  )
   notifyHud()
 end
 
@@ -2840,7 +3114,7 @@ local function getNearestRoadSpeedLimit(pos)
 end
 
 local function updateSpeedPenalty(vehicle, dtSim)
-  if not trip or not isPassengerDrivingPhase(state.phase) then return end
+  if not trip or trip.isDelivery or not isPassengerDrivingPhase(state.phase) then return end
 
   local speed = getVehicleSpeedKmh(vehicle)
   local speedLimit = getNearestRoadSpeedLimit(vehicle:getPosition())
@@ -2968,7 +3242,7 @@ local function updateTripCooldowns(dtSim)
 end
 
 function realisticFuel.calculatePassengerWaitPenalty(stationId)
-  if not trip or not isPassengerOnboardPhase(state.phase) then return 0 end
+  if not trip or trip.isDelivery or not isPassengerOnboardPhase(state.phase) then return 0 end
   if trip.fuelVisitedStations and trip.fuelVisitedStations[tostring(stationId or "")] then return 0 end
   local baseByDifficulty = {
     elementary = 0.006,
@@ -3009,7 +3283,8 @@ end
 function realisticFuel.beginDetour(facility, position, routeDistance, arrived)
   if not facility or not position or realisticFuel.detour.active then return false end
   local previousPhase = state.phase
-  local passengerOnboard = trip ~= nil and isPassengerOnboardPhase(previousPhase)
+  local passengerOnboard = trip ~= nil and not trip.isDelivery and
+    isPassengerOnboardPhase(previousPhase)
   local penaltyPercent = passengerOnboard and
     realisticFuel.calculatePassengerWaitPenalty(facility.id) or 0
   realisticFuel.detour = {
@@ -3175,6 +3450,7 @@ local function updateActiveMode(dtSim)
   if dtSim <= 0 then return end
 
   updateTripCooldowns(dtSim)
+  realisticFuel.updateDashboardEnergy(dtSim)
   realisticFuel.updateStation(dtSim)
   realisticFuel.updatePassengerMood(dtSim)
 
@@ -3244,7 +3520,9 @@ local function updateActiveMode(dtSim)
   elseif state.phase == phases.alighting then
     phaseTimer = phaseTimer - dtSim
     if phaseTimer <= 0 then
-      togglePassengerDoor(vehicle, trip and trip.passengerDoorTriggerId or nil)
+      if trip and not trip.isDelivery then
+        togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
+      end
       finishRide()
     end
   elseif state.phase == phases.complete then
@@ -3287,6 +3565,7 @@ function M.startMode()
   state.activeVehicleId = vehicle:getID()
   state.realisticMode = userSettings.realisticMode == true
   state.message = ""
+  realisticFuel.resetDashboardEnergy()
   if state.realisticMode then
     if not realisticFuel.installEconomy() then
       state.active = false
@@ -3559,7 +3838,43 @@ function M.onTelemetry(vehicleId, data)
     local damageDelta = damage - lastDamage
     trip.lastDamage = damage
 
-    if damageDelta >= balanceConfig.collisionDamageThreshold then
+    if trip.isDelivery and (damageDelta >= taxiConfig.delivery.collisionDamageThreshold or
+      ((trip.collisionCooldown or 0) > 0 and trip.activeCollisionEvent)) then
+      local isNewImpact = (trip.collisionCooldown or 0) <= 0 or not trip.activeCollisionEvent
+      if isNewImpact then
+        trip.collisionCount = (trip.collisionCount or 0) + 1
+        trip.activeDeliveryImpactDamage = 0
+        trip.activeDeliveryImpactPercent = 0
+        trip.activeCollisionEvent = addPenaltyEvent(
+          "cargoDamage",
+          "Package damage",
+          0,
+          "Package damaged"
+        )
+      end
+
+      trip.activeDeliveryImpactDamage = (trip.activeDeliveryImpactDamage or 0) + damageDelta
+      local impactPercent = delivery.calculateImpactDamage(
+        trip.activeDeliveryImpactDamage,
+        taxiConfig.delivery
+      )
+      local addedPercent = math.max(0, impactPercent - (trip.activeDeliveryImpactPercent or 0))
+      trip.activeDeliveryImpactPercent = impactPercent
+      trip.cargoDamagePercent = clampValue(
+        (trip.cargoDamagePercent or 0) + addedPercent,
+        0,
+        100
+      )
+      trip.collisionDamage = (trip.collisionDamage or 0) + damageDelta
+      trip.collisionPenalty = trip.cargoDamagePercent / 100
+      if trip.activeCollisionEvent then
+        trip.activeCollisionEvent.penalty = impactPercent / 100
+        trip.activeCollisionEvent.damage = trip.activeDeliveryImpactDamage
+        trip.activeCollisionEvent.cargoDamagePercent = impactPercent
+        trip.activeCollisionEvent.detail = string.format("Package damaged by %.1f%%", impactPercent)
+      end
+      trip.collisionCooldown = balanceConfig.collisionCooldownSeconds
+    elseif not trip.isDelivery and damageDelta >= balanceConfig.collisionDamageThreshold then
       local previousPenalty = trip.collisionPenalty
       local isNewCollision = trip.collisionCooldown <= 0
       trip.collisionDamage = trip.collisionDamage + damageDelta
@@ -3611,6 +3926,8 @@ function M.onTelemetry(vehicleId, data)
       trip.collisionCooldown = balanceConfig.collisionCooldownSeconds
     end
   end
+
+  if trip.isDelivery then return end
 
   local longitudinal = math.abs(telemetry.longitudinalG)
   local lateral = telemetry.lateralG
@@ -3710,6 +4027,7 @@ function M.onExtensionLoaded()
   loadUserSettings()
   loadDriverProfile()
   loadUserProgress()
+  delivery.applyVehicleMass(getPlayerVehicle(), 0)
   notifyHud()
 end
 
@@ -3721,6 +4039,8 @@ function M.onClientEndMission()
   stopCandidateCache = nil
   stopCandidateLevel = nil
   recentTaxiStopPositions = {}
+  offerGeneration.recentRoutes = {}
+  realisticFuel.resetDashboardEnergy()
   phoneNotification = nil
   if state.active then
     stopModeInternal(nil, false)
@@ -3731,8 +4051,11 @@ end
 
 function M.onExtensionUnloaded()
   hideNativeMinimap()
+  delivery.applyVehicleMass(getPlayerVehicle(), 0)
   realisticFuel.restoreEconomy()
   recentTaxiStopPositions = {}
+  offerGeneration.recentRoutes = {}
+  realisticFuel.resetDashboardEnergy()
   if state.active then
     stopModeInternal(nil, false)
   end
@@ -3754,6 +4077,7 @@ end
 function M.onDeserialized(data)
   data = data or {}
   realisticFuel.restoreEconomy()
+  delivery.applyVehicleMass(getPlayerVehicle(), 0)
   if progressNeedsLegacyImport then
     state.balance = math.max(0, tonumber(data.balance) or 0)
     state.ratingTotal = math.max(0, tonumber(data.ratingTotal) or 0)
@@ -3780,6 +4104,8 @@ function M.onDeserialized(data)
   stopCandidateCache = nil
   stopCandidateLevel = nil
   recentTaxiStopPositions = {}
+  offerGeneration.recentRoutes = {}
+  realisticFuel.resetDashboardEnergy()
   notifyHud()
 end
 

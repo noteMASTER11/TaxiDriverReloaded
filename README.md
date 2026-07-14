@@ -22,7 +22,7 @@
 
 ---
 
-TaxiDriver Reloaded turns ordinary free roam into a complete taxi-driving loop. Go online from the in-game phone, choose a passenger request, drive to a realistic roadside pickup point, complete the fare, protect your rating, and continue into the next queued ride.
+TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
 It is not a fixed scenario and does not depend on hardcoded pickup lists for one map. Orders are generated from the current road network, making the mode usable across compatible official and community maps.
 
@@ -31,7 +31,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 ### A taxi app inside the game
 
 - Start and stop taxi work directly from the `TaxiDriverHUD` UI App.
-- Use a phone-inspired interface with animated screens, loaders, notifications, settings, and minimization.
+- Use a phone-inspired interface with animated screens, loaders, notifications, settings, and a separate minimized dashboard with a full map and essential trip statistics.
 - Keep dispatch messages, penalties, passenger chat, and order confirmations inside the phone instead of the global game notification tray.
 - Scale interface text to suit the size of your UI layout.
 
@@ -39,10 +39,21 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 
 - Browse a gradually populated pool of **10–12 mixed requests**.
 - Compare passenger, pickup deadline, trip time, distance, fare, rating bonus, Calmness, and scheduled stops.
-- Choose between regular, rush, and multi-stop work.
+- Choose between regular rides, rush requests, multi-stop work, and long-distance cargo deliveries.
 - Rush requests offer additional pay but impose a tighter arrival target.
 - Multi-stop requests create longer routes and require a **10-second stationary wait** at every intermediate stop.
 - Sparse maps automatically avoid multi-stop orders when there are not enough safe route points.
+
+### Long-distance cargo deliveries
+
+- Each dispatcher pool targets **5–7 delivery requests**, mixed with regular, rush, and multi-stop passenger work.
+- Cargo weighs between **2 and 250 kg** and is physically added to the active vehicle after loading, affecting handling and real powertrain consumption.
+- Cargo above **15 kg** earns a linear weight premium, rising from 0% at the threshold to **+150% at 250 kg** before the driver-rating bonus.
+- Deliveries cover routes from approximately **2 to 25 km**; their pre-weight base rate is slightly lower than comparable passenger work.
+- Passenger-specific penalties do not apply: only collisions can damage the package.
+- Each impact can add **1–35% package damage**, proportionally reducing the delivery payout; cumulative damage is capped at 100%.
+- Package damage from 5% upward lowers the delivery review, reaching **1 star at 100% damage**.
+- Dedicated loading, unloading, cargo-weight, damage, progress, notification, and review states are available in all seven interface languages.
 
 ### Universal and more believable destinations
 
@@ -51,6 +62,8 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - The generator prefers suitable roadside locations near buildings and bus stops when map data is available.
 - Lane-aware placement aims for the road edge instead of dropping passengers into inner traffic lanes.
 - Controlled positional variation reduces visibly repeated pickup locations.
+- Spatial route history treats A-to-B and B-to-A as the same pair and prioritizes distinct map areas for more than half of every dispatcher pool.
+- On sparse maps, diversity checks relax after several attempts so order generation can continue instead of stalling.
 
 ### Passengers with personality
 
@@ -76,7 +89,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - The phone calculates an estimated fare before the trip.
 - Speeding, collisions, harsh maneuvers, and late pickup can reduce the final payment.
 - Every applied reduction appears in the in-phone **Penalties** list with its value and event details.
-- Total fare reduction is capped at **50%**.
+- Passenger fare reduction is capped at **50%**; cargo damage can reduce a delivery payout by up to 100%.
 - Difficulty presets range from **Elementary** to **Professional**.
 - A strong driver rating increases earnings, reaching a **15% rating bonus at 5.00**.
 - The persistent driver rating is displayed on a five-star progress scale from `0.00` to `5.00`.
@@ -87,6 +100,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - The map zooms in at low speeds and pulls back more aggressively at higher speeds.
 - ETA is calculated using a city-driving reference speed of **40 km/h**.
 - Arrival time, remaining distance, route progress, speed limit, stop markers, and trip metrics remain visible around the map.
+- The ride footer shows current fuel or charge to two decimal places and an approximate remaining driving range.
 - Road-surface route arrows can be disabled in settings.
 
 ### Pickup, stops, and continuous work
@@ -94,7 +108,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Reaching a pickup or destination opens a dedicated boarding or alighting screen.
 - The mod attempts to open and close a passenger-side door for extra immersion; unsupported vehicles continue safely without it.
 - Pickup deadlines can produce a gradually increasing late-arrival penalty.
-- When a trip is more than 90% complete, another offer may appear for a limited time.
+- When a trip is more than 80% complete, another offer may appear for a limited time.
 - Accepted offers enter a queue and never overwrite the current passenger.
 - Expired offers disappear and another may arrive after a short delay.
 - Gameplay pause freezes pickup, rush, stop, transfer, and floating-offer countdowns without penalizing the driver.
@@ -122,6 +136,7 @@ Open the gear icon in the TaxiDriver phone to configure:
 - language;
 - difficulty preset;
 - text size;
+- TaxiDriver sound volume with a random sound test button;
 - silent mode;
 - road-surface route guidance.
 
@@ -137,7 +152,7 @@ Settings, profile details, and driver progress are stored separately outside the
 
 If any file is missing, invalid, or uses an unsupported schema, safe defaults for that file are restored and saved automatically.
 
-All application sounds—including clicks, online/offline cues, passenger messages, penalties, and new offers—follow BeamNG.drive's **Interface Volume** setting in real time.
+All application sounds—including clicks, online/offline cues, passenger messages, penalties, and new offers—follow BeamNG.drive's **Interface Volume** setting in real time and can be reduced further with TaxiDriver's own volume slider.
 
 ## Installation
 
@@ -165,7 +180,7 @@ All application sounds—including clicks, online/offline cues, passenger messag
 
 ```text
 lua/ge/extensions/taxiDriver/       Runtime controller and focused Lua modules
-lua/vehicle/extensions/auto/        Vehicle telemetry bridge
+lua/vehicle/extensions/auto/        Vehicle telemetry bridge and physical cargo mass
 ui/modules/apps/TaxiDriverHUD/      Phone UI, styles, localizations, assets, and sounds
 mod_info/TaxiDriver/                BeamNG mod metadata
 ```

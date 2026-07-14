@@ -46,6 +46,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         const initialDifficulty = difficulties.includes(persisted.difficulty) ? persisted.difficulty : "standard";
         const savedFontBoost = persisted.fontBoost === undefined ? 2 : persisted.fontBoost;
         const initialFontBoost = Math.max(0, Math.min(5, Number(savedFontBoost)));
+        const savedAppVolume = persisted.appVolume === undefined ? 0.65 : Number(persisted.appVolume);
+        const initialAppVolume = Math.max(0, Math.min(1, Number.isFinite(savedAppVolume) ? savedAppVolume : 0.65));
         const initialSilentMode = persisted.silentMode === true;
         const initialShowRouteGuidance = persisted.showRouteGuidance !== false;
         const initialRealisticMode = persisted.realisticMode === true;
@@ -75,6 +77,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           rememberLanguage: persisted.rememberLanguage === true,
           difficulty: initialDifficulty,
           fontBoost: initialFontBoost,
+          appVolume: initialAppVolume,
           silentMode: initialSilentMode,
           showRouteGuidance: initialShowRouteGuidance,
           realisticMode: initialRealisticMode,
@@ -123,7 +126,9 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           completedRides: 0,
           driverProfile: { fullName: "John Doe", avatar: "🙂" },
           passengerOnboard: false,
+          deliveryOnboard: false,
           realisticMode: false,
+          vehicleEnergy: { available: false, energyType: "", quantity: 0, unit: "", estimatedRangeKm: 0 },
           fuelStation: {
             available: false, id: "", name: "", options: [], balance: 0,
             refueling: { active: false, completing: false, energyType: "", quantity: 0, cost: 0, duration: 0, elapsed: 0, progress: 0, remainingSeconds: 0, completionId: 0 },
@@ -137,6 +142,11 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           penaltyEvents: [],
           activeTripId: 0,
           passengerName: "",
+          isDelivery: false,
+          cargoWeightKg: 0,
+          cargoWeightBonusPercent: 0,
+          cargoWeightBonusAmount: 0,
+          cargoDamagePercent: 0,
           passengerCalmness: 50,
           passengerInitialCalmness: 50,
           passengerMoodMaximum: 90,
@@ -151,6 +161,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           driverAbandonmentExtraPercent: 0,
           estimatedFare: 0,
           adjustedFare: 0,
+          finalFare: 0,
+          rideRating: 0,
           rideDistance: 0,
           distanceToTarget: 0,
           etaMinutes: 0,
@@ -257,9 +269,10 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
 
         const clampAudioVolume = (value) => Math.max(0, Math.min(1, Number(value) || 0));
         const applyGameUiVolume = () => {
+          const appVolume = clampAudioVolume($scope.settings.appVolume);
           Object.keys(appAudio).forEach((soundId) => {
             const pool = appAudio[soundId];
-            const volume = clampAudioVolume(pool.baseVolume * gameUiVolume);
+            const volume = clampAudioVolume(pool.baseVolume * gameUiVolume * appVolume);
             pool.players.forEach((audio) => { audio.volume = volume; });
           });
         };
@@ -280,7 +293,9 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           const audio = pool.players[pool.cursor];
           pool.cursor = (pool.cursor + 1) % pool.players.length;
           try {
-            audio.volume = clampAudioVolume(pool.baseVolume * gameUiVolume);
+            audio.volume = clampAudioVolume(
+              pool.baseVolume * gameUiVolume * clampAudioVolume($scope.settings.appVolume)
+            );
             audio.currentTime = 0;
             const playback = audio.play();
             if (playback && playback.catch) playback.catch(() => {});
@@ -293,6 +308,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         const isPassengerChatEligible = () =>
           $scope.state.active === true &&
           $scope.state.phase === "toPickup" &&
+          $scope.state.isDelivery !== true &&
           Number($scope.state.activeTripId || 0) > 0 &&
           String($scope.state.passengerName || "").length > 0;
         const dismissPassengerChat = () => {
@@ -381,6 +397,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         const handleAppClick = (event) => {
           let target = event.target;
           while (target && target !== appRoot) {
+            if (target.getAttribute && target.getAttribute("data-taxi-no-click-sound") === "true") return;
             const tagName = String(target.tagName || "").toLowerCase();
             if (tagName === "button" || tagName === "input" || tagName === "select") {
               playAppSound("click");
@@ -434,11 +451,13 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         const normalizeSettings = (source) => {
           const value = source && typeof source === "object" ? source : {};
           const fontBoost = value.fontBoost === undefined ? 2 : Number(value.fontBoost);
+          const appVolume = value.appVolume === undefined ? 0.65 : Number(value.appVolume);
           return {
             language: i18n[value.language] ? value.language : "en",
             rememberLanguage: value.rememberLanguage === true,
             difficulty: difficulties.includes(value.difficulty) ? value.difficulty : "standard",
             fontBoost: Math.max(0, Math.min(5, Math.round(Number.isFinite(fontBoost) ? fontBoost : 2))),
+            appVolume: Math.max(0, Math.min(1, Number.isFinite(appVolume) ? appVolume : 0.65)),
             silentMode: value.silentMode === true,
             showRouteGuidance: value.showRouteGuidance !== false,
             realisticMode: value.realisticMode === true,
@@ -644,11 +663,12 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         let minimapVisible = false;
         let uiVisible = true;
         const minimapPhases = new Set(["toPickup", "toStop", "toDestination", "toFuelStation"]);
-        const canRenderMinimap = (hudState) => uiVisible && !$scope.phoneMinimized &&
-          !$scope.settingsOpen && !$scope.profileOpen && !$scope.offlineConfirmOpen &&
-          !$scope.fuelStationOpen &&
-          hudState && hudState.active === true &&
-          minimapPhases.has(hudState.phase);
+        const canRenderMinimap = (hudState) => uiVisible && hudState &&
+          hudState.active === true && minimapPhases.has(hudState.phase) &&
+          ($scope.phoneMinimized || (
+            !$scope.settingsOpen && !$scope.profileOpen && !$scope.offlineConfirmOpen &&
+            !$scope.fuelStationOpen
+          ));
         const hideMinimap = (force) => {
           if (!force && !minimapVisible && !lastMinimapRect) return;
           lastMinimapRect = "";
@@ -664,7 +684,11 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             return;
           }
 
-          const surface = $element[0].querySelector(".taxi-minimap-surface");
+          const surface = $element[0].querySelector(
+            $scope.phoneMinimized
+              ? ".taxi-compact .taxi-minimap-surface"
+              : ".taxi-phone .taxi-minimap-surface"
+          );
           if (!surface) {
             hideMinimap();
             return;
@@ -689,9 +713,15 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           };
 
           const values = normalizeRect(surface);
-          const routeInfoValues = normalizeRect($element[0].querySelector(".taxi-map__route-info"));
-          const speedLimitValues = normalizeRect($element[0].querySelector(".taxi-map__speed"));
-          const notificationValues = normalizeRect($element[0].querySelector(".taxi-phone-toast"));
+          const routeInfoValues = normalizeRect($element[0].querySelector(
+            $scope.phoneMinimized ? ".taxi-compact__route-info" : ".taxi-map__route-info"
+          ));
+          const speedLimitValues = normalizeRect($element[0].querySelector(
+            $scope.phoneMinimized ? ".taxi-compact__speed" : ".taxi-map__speed"
+          ));
+          const notificationValues = $scope.phoneMinimized
+            ? [0, 0, 0, 0]
+            : normalizeRect($element[0].querySelector(".taxi-phone-toast"));
           const layoutKey = values
             .concat(routeInfoValues, speedLimitValues, notificationValues)
             .map((value) => value.toFixed(5))
@@ -752,9 +782,9 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           $scope.phoneMinimized = !$scope.phoneMinimized;
           if ($scope.phoneMinimized) {
             dismissPassengerChat();
-            hideMinimap();
           }
-          else scheduleMinimapUpdate();
+          lastMinimapRect = "";
+          scheduleMinimapUpdate();
         };
         this.toggleSettings = () => {
           $scope.settingsOpen = !$scope.settingsOpen;
@@ -811,9 +841,23 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           if (difficulties.includes(preset)) $scope.settings.difficulty = preset;
           $scope.settingsSaved = false;
         };
+        this.previewAppVolume = () => {
+          $scope.settings.appVolume = Math.max(
+            0,
+            Math.min(1, Number($scope.settings.appVolume) || 0)
+          );
+          $scope.settingsSaved = false;
+          applyGameUiVolume();
+        };
+        this.testAppVolume = () => {
+          this.previewAppVolume();
+          const soundIds = ["click", "newRide", "offline", "online", "violation", "message"];
+          playAppSound(soundIds[Math.floor(Math.random() * soundIds.length)]);
+        };
         this.saveSettings = () => {
           $scope.settings = normalizeSettings($scope.settings);
           $scope.language = $scope.settings.language;
+          applyGameUiVolume();
           saveSettingsToLua($scope.settings);
           $scope.settingsSaved = true;
           $scope.settingsOpen = false;
@@ -941,6 +985,11 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           if (calmness < 90) return "😌";
           return "😇";
         };
+        $scope.getOfferName = (offer) => offer && offer.isDelivery
+          ? $scope.t("deliveryOrder")
+          : String(offer && offer.passengerName || "");
+        $scope.formatCargoWeight = (value) =>
+          $scope.t("cargoWeightValue", { weight: Number(value || 0).toFixed(0) });
         $scope.getProgressPercent = () =>
           Math.max(0, Math.min(100, Number($scope.state.routeProgress || 0) * 100));
         $scope.getStarFill = (star) => {
@@ -950,6 +999,9 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         $scope.getRatingPercent = () =>
           Math.max(0, Math.min(100, Number($scope.state.rating || 0) / 5 * 100));
         $scope.getFontPercent = () => 100 + Number($scope.settings.fontBoost || 0) * 10;
+        $scope.getAppVolumePercent = () => Math.round(
+          Math.max(0, Math.min(1, Number($scope.settings.appVolume) || 0)) * 100
+        );
         $scope.formatRating = (value) => Number(value || 0).toFixed(2);
         $scope.formatBonusPercent = (value) => Number(value || 0).toFixed(1).replace(/\.0$/, "");
         $scope.getSelectedFuelOption = () => getFuelOption($scope.selectedFuelType);
@@ -998,12 +1050,29 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           const queuedTripIsCurrent = activeTripId > 0 && Number(offer.id || 0) === activeTripId;
           return !queuedTripIsCurrent || $scope.state.phase === "toPickup";
         };
-        $scope.getPhaseLabel = () => $scope.t(`phase_${$scope.state.phase || "inactive"}`);
+        $scope.getPhaseLabel = () => {
+          if ($scope.state.isDelivery && $scope.state.phase === "toPickup") return $scope.t("phase_deliveryPickup");
+          if ($scope.state.isDelivery && $scope.state.phase === "toDestination") return $scope.t("phase_deliveryDestination");
+          if ($scope.state.isDelivery && $scope.state.phase === "boarding") return $scope.t("loadingCargo");
+          if ($scope.state.isDelivery && $scope.state.phase === "alighting") return $scope.t("unloadingCargo");
+          return $scope.t(`phase_${$scope.state.phase || "inactive"}`);
+        };
+        $scope.isNavigationPhase = () => minimapPhases.has($scope.state.phase);
+        $scope.getCompactTitle = () => {
+          if (!$scope.state.active) return "TaxiDriver";
+          if ($scope.state.phase === "toFuelStation") {
+            return $scope.state.fuelDetour.stationName || $scope.t("fuelRouteTitle");
+          }
+          if ($scope.state.isDelivery) return $scope.t("deliveryOrder");
+          return $scope.state.passengerName || $scope.getPhaseLabel();
+        };
         $scope.getProgressLabel = () => {
           const map = {
-            toPickup: "progress_pickup", boarding: "progress_boarding",
+            toPickup: $scope.state.isDelivery ? "progress_deliveryPickup" : "progress_pickup",
+            boarding: "progress_boarding",
             toStop: "progress_stop", stopWaiting: "progress_stopWaiting",
-            toDestination: "progress_ride", toFuelStation: "progress_fuel",
+            toDestination: $scope.state.isDelivery ? "progress_delivery" : "progress_ride",
+            toFuelStation: "progress_fuel",
             alighting: "progress_alighting",
           };
           return $scope.t(map[$scope.state.phase] || "progress_route");
@@ -1031,6 +1100,9 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           if (event.kind === "collision") return $scope.t("detail_collision", {
             damage: Number(event.damage || 0).toFixed(0),
           });
+          if (event.kind === "cargoDamage") return $scope.t("detail_cargoDamage", {
+            damage: Number(event.cargoDamagePercent || 0).toFixed(1),
+          });
           if (event.kind === "aggression") return $scope.t("detail_aggression", {
             g: Number(event.peakG || 0).toFixed(2),
           });
@@ -1043,11 +1115,17 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           });
           return event.detail || "";
         };
-        $scope.getQuality = () =>
-          Math.max(50, 100 - Number($scope.state.penaltyPercent || 0));
+        $scope.getQuality = () => Math.max(
+          $scope.state.isDelivery ? 0 : 50,
+          100 - Number($scope.state.penaltyPercent || 0)
+        );
 
         $scope.$on("TaxiDriverHUDState", (_, data) => {
           if (!data) return;
+          data.vehicleEnergy = Object.assign(
+            { available: false, energyType: "", quantity: 0, unit: "", estimatedRangeKm: 0 },
+            data.vehicleEnergy || {}
+          );
           data.fuelStation = normalizeFuelStation(data.fuelStation);
           data.fuelDetour = normalizeFuelDetour(data.fuelDetour);
           const refuelingJustCompleted = hudStateReceived &&
@@ -1067,7 +1145,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             $scope.nextOfferAcceptedVisible = false;
             if (acceptedOfferTimer) clearTimeout(acceptedOfferTimer);
             acceptedOfferTimer = null;
-            if ($scope.phoneToast && $scope.phoneToast.key === "notify_orderAccepted") {
+            if ($scope.phoneToast && ["notify_orderAccepted", "notify_deliveryAccepted"].includes($scope.phoneToast.key)) {
               $scope.phoneToast = null;
               if (phoneToastTimer) clearTimeout(phoneToastTimer);
               phoneToastTimer = null;
@@ -1082,6 +1160,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
               if (!backendSettings.rememberLanguage) backendSettings.language = "en";
               $scope.settings = backendSettings;
               $scope.language = backendSettings.language;
+              applyGameUiVolume();
               settingsInitializedFromBackend = true;
               try { localStorage.removeItem(settingsKey); } catch (_) {}
             }
@@ -1097,7 +1176,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           const hasNewAcceptedOffer = !pickupJustStarted && data.nextOffer && data.nextOffer.accepted &&
             (!$scope.state.nextOffer || !$scope.state.nextOffer.accepted);
           const hasNewNotification = data.notification && data.notification.id !== lastPhoneNotificationId &&
-            !(pickupJustStarted && data.notification.key === "notify_orderAccepted");
+            !(pickupJustStarted && ["notify_orderAccepted", "notify_deliveryAccepted"].includes(data.notification.key));
           const becameOnline = hudStateReceived && data.active === true && $scope.state.active !== true;
           const becameOffline = hudStateReceived && data.active === false && $scope.state.active === true;
           if (becameOnline) playAppSound("online");
