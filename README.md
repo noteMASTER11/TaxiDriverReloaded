@@ -140,7 +140,6 @@ lua/ge/extensions/taxiDriver/       Main taxi-mode logic
 lua/vehicle/extensions/auto/        Vehicle telemetry bridge
 ui/modules/apps/TaxiDriverHUD/      Phone UI App, assets, and sounds
 mod_info/TaxiDriver/                BeamNG mod metadata
-docs/                               WYSIWYG and promotional materials
 ```
 
 Packaged builds are distributed through [GitHub Releases](https://github.com/noteMASTER11/TaxiDriverReloaded/releases) and are intentionally excluded from the source tree.
