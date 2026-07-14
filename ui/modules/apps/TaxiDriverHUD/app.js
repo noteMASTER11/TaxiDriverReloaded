@@ -174,6 +174,38 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
         Object.keys(featureI18n).forEach((language) => Object.assign(i18n[language], featureI18n[language]));
 
+        const profileI18n = {
+          en: {
+            profileTitle: "Driver profile", tabIdentity: "Profile", tabReviews: "Reviews", tabAnalytics: "Analytics", fullName: "Full name", birthDate: "Date of birth", age: "Age", years: "years", avatar: "Profile avatar", saveProfile: "SAVE PROFILE", profileSaved: "Profile saved", noReviews: "No passenger reviews yet", reviewPage: "Page {current} of {total}", ratingTrend: "Rating history", balanceTrend: "Wallet balance", historyHint: "Complete history · visually sampled when needed", holdOffline: "HOLD TO GO OFFLINE", holdSeconds: "2 seconds", offlineConfirmTitle: "Passenger is still in the car", offlineConfirmDesc: "Ending the shift now cancels the ride with no payout, clears the queued order, and produces an angry review.", offlinePenaltyWarning: "Penalty: −1.00★ and −{percent}% · new rating {rating}", cancel: "CANCEL", confirmOffline: "END RIDE AND GO OFFLINE", driverAbandoningTitle: "Ride cancelled by driver", driverAbandoningDesc: "The passenger is leaving the vehicle. Controls remain locked until the door closes.", driverAbandoningPenalty: "Rating lost: −{loss}★ · difficulty penalty {percent}%", phase_driverAbandoning: "Ending the ride", notify_offlinePassengerBlocked: "Hold the offline button and confirm the passenger penalty first."
+          },
+          ru: {
+            profileTitle: "Профиль водителя", tabIdentity: "Профиль", tabReviews: "Отзывы", tabAnalytics: "Статистика", fullName: "Ф. И. О.", birthDate: "Дата рождения", age: "Возраст", years: "лет", avatar: "Аватар профиля", saveProfile: "СОХРАНИТЬ ПРОФИЛЬ", profileSaved: "Профиль сохранён", noReviews: "Отзывов пассажиров пока нет", reviewPage: "Страница {current} из {total}", ratingTrend: "История рейтинга", balanceTrend: "Баланс кошелька", historyHint: "Вся история · при необходимости график прореживается", holdOffline: "УДЕРЖИВАЙТЕ ДЛЯ УХОДА С ЛИНИИ", holdSeconds: "2 секунды", offlineConfirmTitle: "Пассажир всё ещё в машине", offlineConfirmDesc: "Уход с линии отменит поездку без оплаты, очистит очередь и добавит злой отзыв пассажира.", offlinePenaltyWarning: "Штраф: −1.00★ и −{percent}% · новый рейтинг {rating}", cancel: "ОТМЕНА", confirmOffline: "ОТМЕНИТЬ ПОЕЗДКУ И УЙТИ", driverAbandoningTitle: "Водитель отменил поездку", driverAbandoningDesc: "Пассажир выходит из автомобиля. Управление заблокировано до закрытия двери.", driverAbandoningPenalty: "Потеря рейтинга: −{loss}★ · штраф сложности {percent}%", phase_driverAbandoning: "Завершение поездки", notify_offlinePassengerBlocked: "Сначала удерживайте кнопку ухода с линии и подтвердите штраф пассажира."
+          },
+          de: {
+            profileTitle: "Fahrerprofil", tabIdentity: "Profil", tabReviews: "Bewertungen", tabAnalytics: "Statistik", fullName: "Vollständiger Name", birthDate: "Geburtsdatum", age: "Alter", years: "Jahre", avatar: "Profilbild", saveProfile: "PROFIL SPEICHERN", profileSaved: "Profil gespeichert", noReviews: "Noch keine Fahrgastbewertungen", reviewPage: "Seite {current} von {total}", ratingTrend: "Bewertungsverlauf", balanceTrend: "Guthabenverlauf", historyHint: "Gesamter Verlauf · bei Bedarf visuell reduziert", holdOffline: "ZUM ABMELDEN GEDRÜCKT HALTEN", holdSeconds: "2 Sekunden", offlineConfirmTitle: "Fahrgast ist noch im Auto", offlineConfirmDesc: "Das Schichtende storniert die Fahrt ohne Vergütung, löscht den Folgeauftrag und erzeugt eine verärgerte Bewertung.", offlinePenaltyWarning: "Strafe: −1,00★ und −{percent}% · neue Bewertung {rating}", cancel: "ABBRECHEN", confirmOffline: "FAHRT BEENDEN UND ABMELDEN", driverAbandoningTitle: "Fahrt vom Fahrer storniert", driverAbandoningDesc: "Der Fahrgast steigt aus. Die Steuerung bleibt bis zum Schließen der Tür gesperrt.", driverAbandoningPenalty: "Bewertungsverlust: −{loss}★ · Schwierigkeitsstrafe {percent}%", phase_driverAbandoning: "Fahrt wird beendet", notify_offlinePassengerBlocked: "Offline-Schaltfläche halten und Fahrgaststrafe bestätigen."
+          },
+          fr: {
+            profileTitle: "Profil du chauffeur", tabIdentity: "Profil", tabReviews: "Avis", tabAnalytics: "Statistiques", fullName: "Nom complet", birthDate: "Date de naissance", age: "Âge", years: "ans", avatar: "Avatar du profil", saveProfile: "ENREGISTRER LE PROFIL", profileSaved: "Profil enregistré", noReviews: "Aucun avis de passager", reviewPage: "Page {current} sur {total}", ratingTrend: "Évolution de la note", balanceTrend: "Solde du portefeuille", historyHint: "Historique complet · échantillonné visuellement si nécessaire", holdOffline: "MAINTENIR POUR SE DÉCONNECTER", holdSeconds: "2 secondes", offlineConfirmTitle: "Le passager est encore à bord", offlineConfirmDesc: "Quitter la ligne annule la course sans paiement, vide la file et génère un avis mécontent.", offlinePenaltyWarning: "Pénalité : −1,00★ et −{percent}% · nouvelle note {rating}", cancel: "ANNULER", confirmOffline: "ANNULER LA COURSE ET QUITTER", driverAbandoningTitle: "Course annulée par le chauffeur", driverAbandoningDesc: "Le passager descend. Les commandes restent bloquées jusqu’à la fermeture de la porte.", driverAbandoningPenalty: "Note perdue : −{loss}★ · pénalité de difficulté {percent}%", phase_driverAbandoning: "Annulation de la course", notify_offlinePassengerBlocked: "Maintenez le bouton de déconnexion puis confirmez la pénalité."
+          },
+          es: {
+            profileTitle: "Perfil del conductor", tabIdentity: "Perfil", tabReviews: "Reseñas", tabAnalytics: "Estadísticas", fullName: "Nombre completo", birthDate: "Fecha de nacimiento", age: "Edad", years: "años", avatar: "Avatar del perfil", saveProfile: "GUARDAR PERFIL", profileSaved: "Perfil guardado", noReviews: "Aún no hay reseñas", reviewPage: "Página {current} de {total}", ratingTrend: "Historial de valoración", balanceTrend: "Saldo de la cartera", historyHint: "Historial completo · muestreo visual cuando sea necesario", holdOffline: "MANTÉN PARA DESCONECTARTE", holdSeconds: "2 segundos", offlineConfirmTitle: "El pasajero sigue en el coche", offlineConfirmDesc: "Desconectarte cancela el viaje sin pago, vacía la cola y genera una reseña enfadada.", offlinePenaltyWarning: "Penalización: −1,00★ y −{percent}% · nueva valoración {rating}", cancel: "CANCELAR", confirmOffline: "CANCELAR VIAJE Y DESCONECTAR", driverAbandoningTitle: "Viaje cancelado por el conductor", driverAbandoningDesc: "El pasajero está bajando. Los controles siguen bloqueados hasta cerrar la puerta.", driverAbandoningPenalty: "Valoración perdida: −{loss}★ · penalización de dificultad {percent}%", phase_driverAbandoning: "Cancelando el viaje", notify_offlinePassengerBlocked: "Mantén el botón de desconexión y confirma primero la penalización."
+          },
+          pl: {
+            profileTitle: "Profil kierowcy", tabIdentity: "Profil", tabReviews: "Opinie", tabAnalytics: "Statystyki", fullName: "Imię i nazwisko", birthDate: "Data urodzenia", age: "Wiek", years: "lat", avatar: "Awatar profilu", saveProfile: "ZAPISZ PROFIL", profileSaved: "Profil zapisany", noReviews: "Brak opinii pasażerów", reviewPage: "Strona {current} z {total}", ratingTrend: "Historia oceny", balanceTrend: "Saldo portfela", historyHint: "Pełna historia · w razie potrzeby próbkowana na wykresie", holdOffline: "PRZYTRZYMAJ, ABY ZEJŚĆ Z LINII", holdSeconds: "2 sekundy", offlineConfirmTitle: "Pasażer nadal jest w samochodzie", offlineConfirmDesc: "Zejście z linii anuluje kurs bez zapłaty, czyści kolejkę i dodaje złą opinię.", offlinePenaltyWarning: "Kara: −1,00★ i −{percent}% · nowa ocena {rating}", cancel: "ANULUJ", confirmOffline: "ANULUJ KURS I ZEJDŹ Z LINII", driverAbandoningTitle: "Kurs anulowany przez kierowcę", driverAbandoningDesc: "Pasażer wysiada. Sterowanie pozostaje zablokowane do zamknięcia drzwi.", driverAbandoningPenalty: "Utrata oceny: −{loss}★ · kara trudności {percent}%", phase_driverAbandoning: "Anulowanie kursu", notify_offlinePassengerBlocked: "Przytrzymaj przycisk zejścia z linii i potwierdź karę."
+          },
+          uk: {
+            profileTitle: "Профіль водія", tabIdentity: "Профіль", tabReviews: "Відгуки", tabAnalytics: "Статистика", fullName: "П. І. Б.", birthDate: "Дата народження", age: "Вік", years: "років", avatar: "Аватар профілю", saveProfile: "ЗБЕРЕГТИ ПРОФІЛЬ", profileSaved: "Профіль збережено", noReviews: "Відгуків пасажирів поки немає", reviewPage: "Сторінка {current} із {total}", ratingTrend: "Історія рейтингу", balanceTrend: "Баланс гаманця", historyHint: "Уся історія · за потреби графік проріджується", holdOffline: "УТРИМУЙТЕ, ЩОБ ПІТИ З ЛІНІЇ", holdSeconds: "2 секунди", offlineConfirmTitle: "Пасажир усе ще в авто", offlineConfirmDesc: "Вихід із лінії скасує поїздку без оплати, очистить чергу та додасть сердитий відгук.", offlinePenaltyWarning: "Штраф: −1,00★ і −{percent}% · новий рейтинг {rating}", cancel: "СКАСУВАТИ", confirmOffline: "СКАСУВАТИ ПОЇЗДКУ Й ПІТИ", driverAbandoningTitle: "Водій скасував поїздку", driverAbandoningDesc: "Пасажир виходить з автомобіля. Керування заблоковано до закриття дверей.", driverAbandoningPenalty: "Втрата рейтингу: −{loss}★ · штраф складності {percent}%", phase_driverAbandoning: "Завершення поїздки", notify_offlinePassengerBlocked: "Спочатку утримуйте кнопку виходу з лінії та підтвердьте штраф."
+          }
+        };
+        Object.keys(profileI18n).forEach((language) => Object.assign(i18n[language], profileI18n[language]));
+        const offlineLabels = {
+          en: "Offline", ru: "Оффлайн", de: "Offline", fr: "Hors ligne",
+          es: "Sin conexión", pl: "Offline", uk: "Офлайн",
+        };
+        Object.keys(offlineLabels).forEach((language) => {
+          i18n[language].holdOffline = offlineLabels[language];
+        });
+
         const settingsKey = "taxiDriverHUD.settings.v1";
         const languages = [
           { code: "en", label: "English" }, { code: "de", label: "Deutsch" },
@@ -206,6 +238,13 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         $scope.language = initialLanguage;
         $scope.settingsOpen = false;
         $scope.settingsSaved = false;
+        $scope.profileOpen = false;
+        $scope.profileTab = "identity";
+        $scope.profileSaved = false;
+        $scope.reviewPage = 1;
+        $scope.reviewsPerPage = 6;
+        $scope.offlineHoldProgress = 0;
+        $scope.offlineConfirmOpen = false;
         $scope.phoneMinimized = false;
         $scope.phoneToast = null;
         $scope.passengerChat = null;
@@ -218,6 +257,19 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           silentMode: initialSilentMode,
           showRouteGuidance: initialShowRouteGuidance,
         };
+        $scope.driverProfile = { fullName: "John Doe", birthDate: "", avatar: "🙂" };
+        $scope.profileDraft = Object.assign({}, $scope.driverProfile);
+        $scope.profileProgress = {
+          reviews: [], ratingHistory: [], balanceHistory: [],
+          balance: 0, rating: 5, completedRides: 0,
+        };
+        $scope.profileReviews = [];
+        $scope.avatarOptions = [
+          "🙂", "😊", "😎", "🤓", "🧑", "👨", "👩", "🧔",
+          "👨‍🦰", "👩‍🦰", "👨‍🦱", "👩‍🦱", "👨‍🦳", "👩‍🦳", "🧑‍✈️", "🧑‍💼",
+          "🧑‍🔧", "🦸", "🥷", "🤠", "🧢", "🎩", "🚕", "🏁",
+          "🐻", "🦊", "🐼", "🐯", "🦁", "🐸", "🐵", "🐧",
+        ];
 
         $scope.t = (key, values) => {
           const dictionary = i18n[$scope.language] || i18n.en;
@@ -247,6 +299,11 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           rating: 5,
           ratingCount: 0,
           completedRides: 0,
+          driverProfile: { fullName: "John Doe", avatar: "🙂" },
+          passengerOnboard: false,
+          offlinePenaltyExtraPercent: 30,
+          offlinePenaltyRatingLoss: 2.5,
+          offlinePenaltyFinalRating: 2.5,
           offers: [],
           offerTargetCount: 10,
           penaltyEvents: [],
@@ -257,6 +314,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           forcedExitDuration: 5,
           forcedExitRemaining: 0,
           earlyExitRatingLossPercent: 0,
+          driverAbandonmentRatingLoss: 0,
+          driverAbandonmentExtraPercent: 0,
           estimatedFare: 0,
           adjustedFare: 0,
           rideDistance: 0,
@@ -342,7 +401,6 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         let phoneToastTimer = null;
         let acceptedOfferTimer = null;
         let trackedNextOfferId = null;
-        let nextOfferDeadline = 0;
         const expiredNextOfferIds = new Set();
         $scope.nextOfferUiRemaining = 0;
         let settingsInitializedFromBackend = false;
@@ -359,6 +417,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         let passengerChatMessageTarget = 0;
         let passengerChatMessageCount = 0;
         let gameUiVolume = 1;
+        let offlineHoldStartedAt = 0;
+        let offlineHoldTimer = null;
 
         const clampAudioVolume = (value) => Math.max(0, Math.min(1, Number(value) || 0));
         const applyGameUiVolume = () => {
@@ -429,7 +489,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           passengerChatTimer = setTimeout(() => $scope.$evalAsync(() => {
             passengerChatTimer = null;
             if (generation !== passengerChatGeneration || !isPassengerChatEligible()) return;
-            if ($scope.settingsOpen || $scope.phoneMinimized || $scope.phoneToast) {
+            if ($scope.settingsOpen || $scope.profileOpen || $scope.phoneMinimized || $scope.phoneToast) {
               schedulePassengerChat(false, 2500);
               return;
             }
@@ -504,7 +564,6 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
 
         const clearNextOfferCountdown = () => {
           trackedNextOfferId = null;
-          nextOfferDeadline = 0;
           $scope.nextOfferUiRemaining = 0;
         };
 
@@ -522,17 +581,6 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           );
         };
 
-        const updateNextOfferCountdown = () => {
-          if (!trackedNextOfferId) return;
-          const remaining = Math.max(0, (nextOfferDeadline - Date.now()) / 1000);
-          $scope.$evalAsync(() => {
-            $scope.nextOfferUiRemaining = remaining;
-            if (remaining <= 0 && trackedNextOfferId) {
-              expireNextOfferLocally(trackedNextOfferId);
-            }
-          });
-        };
-
         const syncNextOfferCountdown = (offer) => {
           if (!offer || offer.accepted) {
             clearNextOfferCountdown();
@@ -540,10 +588,11 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           }
           const id = Math.floor(Number(offer.id || 0));
           if (id <= 0 || expiredNextOfferIds.has(id)) return;
-          if (trackedNextOfferId === id) return;
           trackedNextOfferId = id;
-          const remaining = Math.max(0, Number(offer.timeRemaining || offer.duration || 5));
-          nextOfferDeadline = Date.now() + remaining * 1000;
+          const reportedRemaining = Number(offer.timeRemaining);
+          const remaining = Math.max(0, Number.isFinite(reportedRemaining)
+            ? reportedRemaining
+            : Number(offer.duration || 5));
           $scope.nextOfferUiRemaining = remaining;
         };
 
@@ -567,12 +616,111 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           );
         };
 
+        const normalizeProfile = (source) => {
+          const value = source && typeof source === "object" ? source : {};
+          const fullName = String(value.fullName || "John Doe").trim().replace(/\s+/g, " ");
+          const birthDate = /^\d{4}-\d{2}-\d{2}$/.test(String(value.birthDate || ""))
+            ? String(value.birthDate)
+            : "";
+          const avatar = $scope.avatarOptions.includes(value.avatar) ? value.avatar : "🙂";
+          return { fullName: fullName || "John Doe", birthDate, avatar };
+        };
+
+        const requestProfileData = () => bngApi.engineLua(
+          'if taxiDriver_taxiDriver then taxiDriver_taxiDriver.requestProfileData() end'
+        );
+
+        const saveProfileToLua = (profile) => {
+          const luaProfile = bngApi.serializeToLua(normalizeProfile(profile));
+          bngApi.engineLua(
+            `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.saveDriverProfile(${luaProfile}) end`
+          );
+        };
+
+        const stopOfflineHold = () => {
+          if (offlineHoldTimer) clearInterval(offlineHoldTimer);
+          offlineHoldTimer = null;
+          offlineHoldStartedAt = 0;
+          $scope.offlineHoldProgress = 0;
+        };
+
+        const completeOfflineHold = () => {
+          stopOfflineHold();
+          if ($scope.state.passengerOnboard) {
+            $scope.offlineConfirmOpen = true;
+            dismissPassengerChat();
+            hideMinimap();
+          } else {
+            callTaxiDriver("stopMode");
+          }
+        };
+
+        const sampleHistory = (source, limit) => {
+          const values = Array.isArray(source) ? source : [];
+          if (values.length <= limit) return values;
+          const sampled = [];
+          const step = (values.length - 1) / (limit - 1);
+          for (let index = 0; index < limit; index += 1) {
+            sampled.push(values[Math.round(index * step)]);
+          }
+          return sampled;
+        };
+
+        $scope.getChartPoints = (history, chartType) => {
+          const values = sampleHistory(history, 80);
+          if (!values.length) return "";
+          const width = 320;
+          const height = 92;
+          const padding = 8;
+          const numbers = values.map((item) => Number(item.value || 0));
+          let minimum = chartType === "rating" ? 0 : Math.min(0, ...numbers);
+          let maximum = chartType === "rating" ? 5 : Math.max(...numbers);
+          if (maximum <= minimum) maximum = minimum + 1;
+          return values.map((item, index) => {
+            const x = padding + (width - padding * 2) * (values.length === 1 ? 0.5 : index / (values.length - 1));
+            const ratio = (Number(item.value || 0) - minimum) / (maximum - minimum);
+            const y = height - padding - ratio * (height - padding * 2);
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+          }).join(" ");
+        };
+
+        $scope.getAge = (birthDate) => {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(String(birthDate || ""))) return "—";
+          const birthday = new Date(`${birthDate}T12:00:00`);
+          if (Number.isNaN(birthday.getTime()) || birthday > new Date()) return "—";
+          const now = new Date();
+          let age = now.getFullYear() - birthday.getFullYear();
+          const beforeBirthday = now.getMonth() < birthday.getMonth() ||
+            (now.getMonth() === birthday.getMonth() && now.getDate() < birthday.getDate());
+          if (beforeBirthday) age -= 1;
+          return Math.max(0, age);
+        };
+
+        $scope.getReviewPageCount = () => Math.max(
+          1,
+          Math.ceil($scope.profileReviews.length / $scope.reviewsPerPage)
+        );
+        $scope.getPagedReviews = () => {
+          const maximumPage = $scope.getReviewPageCount();
+          $scope.reviewPage = Math.max(1, Math.min(maximumPage, $scope.reviewPage));
+          const offset = ($scope.reviewPage - 1) * $scope.reviewsPerPage;
+          return $scope.profileReviews.slice(offset, offset + $scope.reviewsPerPage);
+        };
+        $scope.formatReviewDate = (timestamp) => {
+          const value = Number(timestamp || 0);
+          if (!value) return "—";
+          return new Date(value * 1000).toLocaleDateString($scope.language || "en", {
+            year: "numeric", month: "short", day: "numeric",
+          });
+        };
+
         let lastMinimapRect = "";
         let minimapVisible = false;
         let uiVisible = true;
         const minimapPhases = new Set(["toPickup", "toStop", "toDestination"]);
         const canRenderMinimap = (hudState) => uiVisible && !$scope.phoneMinimized &&
-          !$scope.settingsOpen && hudState && hudState.active === true &&
+          !$scope.settingsOpen && !$scope.profileOpen && !$scope.offlineConfirmOpen &&
+          hudState && hudState.active === true &&
           minimapPhases.has(hudState.phase);
         const hideMinimap = (force) => {
           if (!force && !minimapVisible && !lastMinimapRect) return;
@@ -648,6 +796,31 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
 
         this.startMode = () => callTaxiDriver("startMode");
         this.stopMode = () => callTaxiDriver("stopMode");
+        this.beginOfflineHold = (event) => {
+          if ($scope.offlineConfirmOpen || offlineHoldTimer) return;
+          if (event && event.button !== undefined && event.button !== 0) return;
+          if (event) event.preventDefault();
+          offlineHoldStartedAt = Date.now();
+          $scope.offlineHoldProgress = 0;
+          offlineHoldTimer = setInterval(() => {
+            const progress = Math.min(100, (Date.now() - offlineHoldStartedAt) / 20);
+            $scope.$evalAsync(() => {
+              $scope.offlineHoldProgress = progress;
+              if (progress >= 100 && offlineHoldTimer) completeOfflineHold();
+            });
+          }, 25);
+        };
+        this.cancelOfflineHold = () => stopOfflineHold();
+        this.cancelOfflineConfirmation = () => {
+          $scope.offlineConfirmOpen = false;
+          scheduleMinimapUpdate();
+        };
+        this.confirmOfflineWithPassenger = () => {
+          $scope.offlineConfirmOpen = false;
+          bngApi.engineLua(
+            'if taxiDriver_taxiDriver then taxiDriver_taxiDriver.confirmDriverAbandonment() end'
+          );
+        };
         this.toggleMinimized = () => {
           $scope.phoneMinimized = !$scope.phoneMinimized;
           if ($scope.phoneMinimized) {
@@ -658,12 +831,46 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
         this.toggleSettings = () => {
           $scope.settingsOpen = !$scope.settingsOpen;
+          $scope.profileOpen = false;
+          $scope.offlineConfirmOpen = false;
           $scope.settingsSaved = false;
           if ($scope.settingsOpen) {
             dismissPassengerChat();
             hideMinimap();
           }
           else scheduleMinimapUpdate();
+        };
+        this.toggleProfile = () => {
+          $scope.profileOpen = !$scope.profileOpen;
+          $scope.settingsOpen = false;
+          $scope.offlineConfirmOpen = false;
+          $scope.profileSaved = false;
+          stopOfflineHold();
+          if ($scope.profileOpen) {
+            dismissPassengerChat();
+            hideMinimap();
+            requestProfileData();
+          } else {
+            scheduleMinimapUpdate();
+          }
+        };
+        this.selectProfileTab = (tab) => {
+          if (["identity", "reviews", "analytics"].includes(tab)) $scope.profileTab = tab;
+        };
+        this.selectAvatar = (avatar) => {
+          if ($scope.avatarOptions.includes(avatar)) $scope.profileDraft.avatar = avatar;
+          $scope.profileSaved = false;
+        };
+        this.saveProfile = () => {
+          $scope.profileDraft = normalizeProfile($scope.profileDraft);
+          saveProfileToLua($scope.profileDraft);
+          $scope.profileSaved = true;
+        };
+        this.previousReviewPage = () => {
+          $scope.reviewPage = Math.max(1, $scope.reviewPage - 1);
+        };
+        this.nextReviewPage = () => {
+          $scope.reviewPage = Math.min($scope.getReviewPageCount(), $scope.reviewPage + 1);
         };
         this.selectLanguage = (languageCode) => {
           if (!i18n[languageCode]) return;
@@ -758,6 +965,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         $scope.formatBonusPercent = (value) => Number(value || 0).toFixed(1).replace(/\.0$/, "");
         $scope.shouldShowNextOffer = () => {
           const offer = $scope.state.nextOffer;
+          if ($scope.settingsOpen || $scope.profileOpen || $scope.offlineConfirmOpen) return false;
           if (!offer || $scope.state.phase !== "toDestination") return false;
           return offer.accepted ? $scope.nextOfferAcceptedVisible : $scope.nextOfferUiRemaining > 0;
         };
@@ -814,6 +1022,10 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
 
         $scope.$on("TaxiDriverHUDState", (_, data) => {
           if (!data) return;
+          if (!data.active || data.phase === "driverAbandoning") {
+            stopOfflineHold();
+            $scope.offlineConfirmOpen = false;
+          }
           const pickupJustStarted = data.phase === "boarding" && $scope.state.phase === "toPickup";
           if (pickupJustStarted) {
             $scope.nextOfferAcceptedVisible = false;
@@ -904,6 +1116,25 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           if (canRenderMinimap($scope.state)) scheduleMinimapUpdate();
           else hideMinimap(minimapVisible);
         });
+        $scope.$on("TaxiDriverProfileData", (_, data) => {
+          if (!data) return;
+          if (Array.isArray(data.avatarOptions) && data.avatarOptions.length) {
+            $scope.avatarOptions = data.avatarOptions;
+          }
+          const profile = normalizeProfile(data.profile);
+          const progress = data.progress && typeof data.progress === "object" ? data.progress : {};
+          progress.reviews = Array.isArray(progress.reviews) ? progress.reviews : [];
+          progress.ratingHistory = Array.isArray(progress.ratingHistory) ? progress.ratingHistory : [];
+          progress.balanceHistory = Array.isArray(progress.balanceHistory) ? progress.balanceHistory : [];
+          $scope.driverProfile = profile;
+          $scope.profileDraft = Object.assign({}, profile);
+          $scope.profileProgress = Object.assign({
+            balance: 0, rating: 5, completedRides: 0,
+            reviews: [], ratingHistory: [], balanceHistory: [],
+          }, progress);
+          $scope.profileReviews = progress.reviews.slice().reverse();
+          $scope.reviewPage = Math.min($scope.reviewPage, $scope.getReviewPageCount());
+        });
         $scope.$on("onCefVisibilityChanged", (_, visible) => {
           uiVisible = visible !== false;
           if (uiVisible) {
@@ -922,14 +1153,13 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         refreshGameUiVolume();
         const clockTimer = setInterval(() => $scope.$evalAsync(updateClock), 30000);
         const minimapTimer = setInterval(updateMinimap, 500);
-        const nextOfferCountdownTimer = setInterval(updateNextOfferCountdown, 50);
         window.addEventListener("resize", updateMinimap);
         $scope.$on("$destroy", () => {
           clearInterval(clockTimer);
           clearInterval(minimapTimer);
-          clearInterval(nextOfferCountdownTimer);
           if (phoneToastTimer) clearTimeout(phoneToastTimer);
           if (acceptedOfferTimer) clearTimeout(acceptedOfferTimer);
+          stopOfflineHold();
           stopPassengerChat();
           appRoot.removeEventListener("click", handleAppClick, true);
           window.removeEventListener("resize", updateMinimap);

@@ -61,6 +61,14 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Calm passengers may ignore some penalty events; sensitive passengers react more strongly to poor driving.
 - A passenger who becomes critically dissatisfied can demand an immediate stop and end the ride early.
 
+### Persistent driver profile
+
+- Edit the driver's full name and date of birth, with age calculated automatically.
+- Choose an avatar from a large emoji grid directly in the phone.
+- Passenger reviews are retained without a fixed limit and displayed with pagination.
+- Profile analytics chart rating and wallet balance changes from ride to ride.
+- Rating, balance, reviews, and profile details persist independently of the mod archive.
+
 ### Driving quality that affects the fare
 
 - The phone calculates an estimated fare before the trip.
@@ -87,6 +95,8 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - When a trip is more than 90% complete, another offer may appear for a limited time.
 - Accepted offers enter a queue and never overwrite the current passenger.
 - Expired offers disappear and another may arrive after a short delay.
+- Gameplay pause freezes pickup, rush, stop, transfer, and floating-offer countdowns without penalizing the driver.
+- Going offline requires a two-second hold; cancelling with a passenger aboard requires confirmation and applies the displayed difficulty-based rating penalty.
 - Vehicle reset clears both the active trip and the queued request to prevent stale state.
 
 ## Settings
@@ -101,13 +111,15 @@ Open the gear icon in the TaxiDriver phone to configure:
 
 The interface includes English, German, French, Spanish, Polish, Russian, and Ukrainian. English is used by default unless another language is explicitly saved.
 
-Settings are stored outside the mod at:
+Settings, profile details, and driver progress are stored separately outside the mod at:
 
 ```text
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\settings.json
+%LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\profile.json
+%LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\progress.json
 ```
 
-If the file is missing, invalid, or uses an unsupported schema, safe defaults are restored and saved automatically.
+If any file is missing, invalid, or uses an unsupported schema, safe defaults for that file are restored and saved automatically.
 
 All application sounds—including clicks, online/offline cues, passenger messages, penalties, and new offers—follow BeamNG.drive's **Interface Volume** setting in real time.
 

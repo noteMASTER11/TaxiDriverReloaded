@@ -14,7 +14,7 @@
   },
   "description": "Taxi driver phone with native BeamNG minimap, fares and ride quality",
   "author": "IncoCode",
-  "version": "2.10.6",
+  "version": "2.11.1",
   "directive": "taxiDriverHud",
   "preserveAspectRatio": false
 }

@@ -11,10 +11,14 @@ local Route = require("gameplay/route/route")
 local trafficUtils = require("gameplay/traffic/trafficUtils")
 
 local logTag = "taxiDriver"
-local modVersion = "2.10.6"
+local modVersion = "2.11.1"
 local settingsSchemaVersion = 1
+local profileSchemaVersion = 1
+local progressSchemaVersion = 1
 local settingsDirectoryPath = "/settings/TaxiDriver"
 local settingsFilePath = settingsDirectoryPath .. "/settings.json"
+local profileFilePath = settingsDirectoryPath .. "/profile.json"
+local progressFilePath = settingsDirectoryPath .. "/progress.json"
 
 local supportedLanguages = {
   en = true, de = true, fr = true, es = true,
@@ -115,6 +119,23 @@ local earlyExitRatingLoss = {
   professional = 0.45
 }
 
+local driverAbandonmentExtraLoss = {
+  elementary = 0.10,
+  easy = 0.20,
+  standard = 0.30,
+  professional = 0.45
+}
+
+local driverAvatarOptions = {
+  "🙂", "😊", "😎", "🤓", "🧑", "👨", "👩", "🧔",
+  "👨‍🦰", "👩‍🦰", "👨‍🦱", "👩‍🦱", "👨‍🦳", "👩‍🦳", "🧑‍✈️", "🧑‍💼",
+  "🧑‍🔧", "🦸", "🥷", "🤠", "🧢", "🎩", "🚕", "🏁",
+  "🐻", "🦊", "🐼", "🐯", "🦁", "🐸", "🐵", "🐧"
+}
+
+local driverAvatarSet = {}
+for _, avatar in ipairs(driverAvatarOptions) do driverAvatarSet[avatar] = true end
+
 local difficultyPresets = {
   elementary = {
     speedToleranceKmh = 15, speedToleranceRatio = 0.25, speedGraceSeconds = 6,
@@ -168,6 +189,7 @@ local phases = {
   toDestination = "toDestination",
   passengerStopDemand = "passengerStopDemand",
   passengerForcedExit = "passengerForcedExit",
+  driverAbandoning = "driverAbandoning",
   alighting = "alighting",
   complete = "complete",
   error = "error"
@@ -183,6 +205,7 @@ local phaseLabels = {
   toDestination = "Доставьте пассажира",
   passengerStopDemand = "Пассажир требует немедленно остановиться",
   passengerForcedExit = "Пассажир досрочно покидает машину",
+  driverAbandoning = "Водитель завершает поездку",
   alighting = "Пассажир выходит",
   complete = "Поездка завершена",
   error = "Заказ недоступен"
@@ -230,6 +253,9 @@ end
 
 local userSettings = createDefaultUserSettings()
 local settingsNeedsLegacyImport = false
+local driverProfile = nil
+local userProgress = nil
+local progressNeedsLegacyImport = false
 
 local trip = nil
 local offers = {}
@@ -338,6 +364,218 @@ local function roundMoney(value)
   return math.floor(value * 100 + 0.5) / 100
 end
 
+local function ensureSettingsDirectory()
+  if not FS:directoryExists(settingsDirectoryPath) then
+    FS:directoryCreate(settingsDirectoryPath)
+  end
+end
+
+local function trimText(value)
+  local text = tostring(value or "")
+  text = text:gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s%s+", " ")
+  return text
+end
+
+local function sanitizeBirthDate(value)
+  local text = trimText(value)
+  if text == "" then return "" end
+  local year, month, day = text:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
+  year, month, day = tonumber(year), tonumber(month), tonumber(day)
+  local currentYear = tonumber(os.date("%Y")) or 2026
+  if not year or year < 1900 or year > currentYear or
+    not month or month < 1 or month > 12 or not day or day < 1 or day > 31 then
+    return ""
+  end
+  local timestamp = os.time({year = year, month = month, day = day, hour = 12})
+  local verified = timestamp and os.date("*t", timestamp) or nil
+  if not verified or verified.year ~= year or verified.month ~= month or verified.day ~= day then
+    return ""
+  end
+  return string.format("%04d-%02d-%02d", year, month, day)
+end
+
+local function createDefaultDriverProfile()
+  return {
+    schemaVersion = profileSchemaVersion,
+    modVersion = modVersion,
+    fullName = "John Doe",
+    birthDate = "",
+    avatar = "🙂"
+  }
+end
+
+local function sanitizeDriverProfile(source, requireSchema)
+  local result = createDefaultDriverProfile()
+  if type(source) ~= "table" then return result, false end
+  if requireSchema and tonumber(source.schemaVersion) ~= profileSchemaVersion then
+    return result, false
+  end
+
+  local fullName = trimText(source.fullName)
+  if fullName ~= "" and #fullName <= 160 then result.fullName = fullName end
+  result.birthDate = sanitizeBirthDate(source.birthDate)
+  local avatar = tostring(source.avatar or "")
+  if driverAvatarSet[avatar] then result.avatar = avatar end
+  return result, true
+end
+
+local function createDefaultUserProgress()
+  local now = os.time()
+  return {
+    schemaVersion = progressSchemaVersion,
+    modVersion = modVersion,
+    balance = 0,
+    rating = 5,
+    ratingTotal = 0,
+    ratingCount = 0,
+    completedRides = 0,
+    sequence = 0,
+    reviews = {},
+    ratingHistory = {{index = 0, value = 5, timestamp = now}},
+    balanceHistory = {{index = 0, value = 0, timestamp = now}}
+  }
+end
+
+local reviewEmojiSet = {
+  ["🤩"] = true, ["😍"] = true, ["😄"] = true, ["😊"] = true,
+  ["🙂"] = true, ["😐"] = true, ["😕"] = true, ["😠"] = true,
+  ["😡"] = true, ["🤬"] = true
+}
+
+local function sanitizeProgressHistory(source, minimum, maximum)
+  local result = {}
+  if type(source) ~= "table" then return result end
+  for _, item in ipairs(source) do
+    if type(item) == "table" then
+      local index = math.max(0, math.floor(tonumber(item.index) or 0))
+      local value = tonumber(item.value)
+      if value then
+        table.insert(result, {
+          index = index,
+          value = roundMoney(clampValue(value, minimum, maximum)),
+          timestamp = math.max(0, math.floor(tonumber(item.timestamp) or 0))
+        })
+      end
+    end
+  end
+  return result
+end
+
+local function sanitizeUserProgress(source, requireSchema)
+  local result = createDefaultUserProgress()
+  if type(source) ~= "table" then return result, false end
+  if requireSchema and tonumber(source.schemaVersion) ~= progressSchemaVersion then
+    return result, false
+  end
+
+  result.balance = roundMoney(math.max(0, tonumber(source.balance) or 0))
+  result.ratingCount = math.max(0, math.floor(tonumber(source.ratingCount) or 0))
+  result.completedRides = math.max(0, math.floor(tonumber(source.completedRides) or result.ratingCount))
+  result.rating = clampValue(tonumber(source.rating) or 5, 0, 5)
+  result.ratingTotal = math.max(0, tonumber(source.ratingTotal) or 0)
+  if result.ratingCount > 0 then
+    if result.ratingTotal <= 0 then result.ratingTotal = result.rating * result.ratingCount end
+    result.rating = clampValue(result.ratingTotal / result.ratingCount, 0, 5)
+  end
+
+  result.sequence = math.max(0, math.floor(tonumber(source.sequence) or result.completedRides))
+  result.reviews = {}
+  if type(source.reviews) == "table" then
+    for _, review in ipairs(source.reviews) do
+      if type(review) == "table" then
+        local id = math.max(1, math.floor(tonumber(review.id) or (#result.reviews + 1)))
+        local passengerName = trimText(review.passengerName)
+        if passengerName == "" or #passengerName > 160 then passengerName = "Passenger" end
+        local emoji = tostring(review.emoji or "😐")
+        if not reviewEmojiSet[emoji] then emoji = "😐" end
+        table.insert(result.reviews, {
+          id = id,
+          passengerName = passengerName,
+          emoji = emoji,
+          quality = clampValue(tonumber(review.quality) or 0, 0, 100),
+          fare = roundMoney(math.max(0, tonumber(review.fare) or 0)),
+          rating = clampValue(tonumber(review.rating) or result.rating, 0, 5),
+          timestamp = math.max(0, math.floor(tonumber(review.timestamp) or 0)),
+          outcome = tostring(review.outcome or "completed")
+        })
+        result.sequence = math.max(result.sequence, id)
+      end
+    end
+  end
+
+  result.ratingHistory = sanitizeProgressHistory(source.ratingHistory, 0, 5)
+  result.balanceHistory = sanitizeProgressHistory(source.balanceHistory, 0, 1000000000)
+  if #result.ratingHistory == 0 then
+    result.ratingHistory = {{index = result.sequence, value = roundMoney(result.rating), timestamp = os.time()}}
+  end
+  if #result.balanceHistory == 0 then
+    result.balanceHistory = {{index = result.sequence, value = result.balance, timestamp = os.time()}}
+  end
+  return result, true
+end
+
+local function applyUserProgressToState()
+  if not userProgress then return end
+  state.balance = userProgress.balance or 0
+  state.rating = userProgress.rating or 5
+  state.ratingTotal = userProgress.ratingTotal or 0
+  state.ratingCount = userProgress.ratingCount or 0
+  state.completedRides = userProgress.completedRides or 0
+end
+
+local function syncUserProgressFromState()
+  if not userProgress then userProgress = createDefaultUserProgress() end
+  userProgress.schemaVersion = progressSchemaVersion
+  userProgress.modVersion = modVersion
+  userProgress.balance = roundMoney(math.max(0, tonumber(state.balance) or 0))
+  userProgress.rating = clampValue(tonumber(state.rating) or 5, 0, 5)
+  userProgress.ratingTotal = math.max(0, tonumber(state.ratingTotal) or 0)
+  userProgress.ratingCount = math.max(0, math.floor(tonumber(state.ratingCount) or 0))
+  userProgress.completedRides = math.max(0, math.floor(tonumber(state.completedRides) or 0))
+end
+
+local function writeDriverProfile()
+  local ok, errorMessage = pcall(function()
+    ensureSettingsDirectory()
+    jsonWriteFile(profileFilePath, driverProfile, true)
+  end)
+  if not ok then log("E", logTag, "Unable to write driver profile: " .. tostring(errorMessage)) end
+  return ok
+end
+
+local function writeUserProgress()
+  syncUserProgressFromState()
+  local ok, errorMessage = pcall(function()
+    ensureSettingsDirectory()
+    jsonWriteFile(progressFilePath, userProgress, true)
+  end)
+  if not ok then log("E", logTag, "Unable to write driver progress: " .. tostring(errorMessage)) end
+  return ok
+end
+
+local function loadDriverProfile()
+  local source = nil
+  if FS:fileExists(profileFilePath) then
+    local ok, loaded = pcall(jsonReadFile, profileFilePath)
+    if ok then source = loaded end
+  end
+  driverProfile = sanitizeDriverProfile(source, true)
+  writeDriverProfile()
+end
+
+local function loadUserProgress()
+  local fileExists = FS:fileExists(progressFilePath)
+  local source = nil
+  if fileExists then
+    local ok, loaded = pcall(jsonReadFile, progressFilePath)
+    if ok then source = loaded end
+  end
+  userProgress = sanitizeUserProgress(source, true)
+  progressNeedsLegacyImport = not fileExists
+  applyUserProgressToState()
+  writeUserProgress()
+end
+
 local function randomRange(minimum, maximum)
   return minimum + (maximum - minimum) * math.random()
 end
@@ -422,6 +660,25 @@ end
 
 local function isPassengerDrivingPhase(phase)
   return phase == phases.toStop or phase == phases.toDestination
+end
+
+local function isPassengerOnboardPhase(phase)
+  return phase == phases.boarding or phase == phases.toStop or
+    phase == phases.stopWaiting or phase == phases.toDestination or
+    phase == phases.passengerStopDemand or phase == phases.passengerForcedExit or
+    phase == phases.driverAbandoning or phase == phases.alighting
+end
+
+local function getDriverAbandonmentPreview()
+  local currentRating = clampValue(tonumber(state.rating) or 5, 0, 5)
+  local extraLoss = driverAbandonmentExtraLoss[state.difficulty] or
+    driverAbandonmentExtraLoss.standard
+  local finalRating = clampValue(currentRating - 1 - currentRating * extraLoss, 0, 5)
+  return {
+    extraPercent = extraLoss * 100,
+    ratingLoss = currentRating - finalRating,
+    finalRating = finalRating
+  }
 end
 
 local beginPassengerStopDemand
@@ -632,6 +889,8 @@ local function buildHudState()
     hudNextOffer.duration = offerConfig.nextOfferDuration
     hudNextOffer.accepted = nextOfferAccepted
   end
+  local abandonmentPreview = getDriverAbandonmentPreview()
+  local profile = driverProfile or createDefaultDriverProfile()
 
   return {
     active = state.active,
@@ -642,6 +901,11 @@ local function buildHudState()
     rating = state.rating,
     ratingCount = state.ratingCount,
     completedRides = state.completedRides,
+    driverProfile = {fullName = profile.fullName, avatar = profile.avatar},
+    passengerOnboard = trip ~= nil and isPassengerOnboardPhase(state.phase),
+    offlinePenaltyExtraPercent = abandonmentPreview.extraPercent,
+    offlinePenaltyRatingLoss = abandonmentPreview.ratingLoss,
+    offlinePenaltyFinalRating = abandonmentPreview.finalRating,
     difficulty = state.difficulty,
     settings = userSettings,
     settingsNeedsLegacyImport = settingsNeedsLegacyImport,
@@ -659,8 +923,11 @@ local function buildHudState()
       100
     ) or 0,
     forcedExitDuration = forcedExitDuration,
-    forcedExitRemaining = state.phase == phases.passengerForcedExit and math.max(0, phaseTimer) or 0,
+    forcedExitRemaining = (state.phase == phases.passengerForcedExit or
+      state.phase == phases.driverAbandoning) and math.max(0, phaseTimer) or 0,
     earlyExitRatingLossPercent = trip and (trip.earlyExitRatingLoss or 0) * 100 or 0,
+    driverAbandonmentRatingLoss = trip and (trip.driverAbandonmentRatingLoss or 0) or 0,
+    driverAbandonmentExtraPercent = trip and (trip.driverAbandonmentExtraLoss or 0) * 100 or 0,
     estimatedFare = trip and trip.estimatedFare or 0,
     adjustedFare = getAdjustedFare(),
     rideDistance = trip and trip.rideDistance or 0,
@@ -705,6 +972,55 @@ end
 
 local function notifyHud()
   guihooks.trigger("TaxiDriverHUDState", buildHudState())
+end
+
+local function notifyProfile()
+  syncUserProgressFromState()
+  guihooks.trigger("TaxiDriverProfileData", {
+    profile = driverProfile or createDefaultDriverProfile(),
+    progress = userProgress or createDefaultUserProgress(),
+    avatarOptions = driverAvatarOptions
+  })
+end
+
+local function getPassengerReviewEmoji(rideRating)
+  local rating = clampValue(tonumber(rideRating) or 0, 0, 5)
+  if rating >= 4.85 then return "🤩" end
+  if rating >= 4.50 then return "😍" end
+  if rating >= 4.05 then return "😄" end
+  if rating >= 3.60 then return "😊" end
+  if rating >= 3.10 then return "🙂" end
+  if rating >= 2.60 then return "😐" end
+  if rating >= 2.10 then return "😕" end
+  if rating >= 1.55 then return "😠" end
+  return "😡"
+end
+
+local function recordProgressEvent(passengerName, emoji, quality, fare, outcome)
+  if not userProgress then userProgress = createDefaultUserProgress() end
+  userProgress.sequence = math.max(0, math.floor(tonumber(userProgress.sequence) or 0)) + 1
+  local timestamp = os.time()
+  table.insert(userProgress.reviews, {
+    id = userProgress.sequence,
+    passengerName = trimText(passengerName) ~= "" and trimText(passengerName) or "Passenger",
+    emoji = reviewEmojiSet[emoji] and emoji or "😐",
+    quality = clampValue(tonumber(quality) or 0, 0, 100),
+    fare = roundMoney(math.max(0, tonumber(fare) or 0)),
+    rating = clampValue(tonumber(state.rating) or 5, 0, 5),
+    timestamp = timestamp,
+    outcome = tostring(outcome or "completed")
+  })
+  table.insert(userProgress.ratingHistory, {
+    index = userProgress.sequence,
+    value = roundMoney(clampValue(tonumber(state.rating) or 5, 0, 5)),
+    timestamp = timestamp
+  })
+  table.insert(userProgress.balanceHistory, {
+    index = userProgress.sequence,
+    value = roundMoney(math.max(0, tonumber(state.balance) or 0)),
+    timestamp = timestamp
+  })
+  writeUserProgress()
 end
 
 local function showPhoneNotification(key, values, severity)
@@ -1310,7 +1626,7 @@ local function stopModeInternal(message, showNotification, notificationKey)
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
   if trip and trip.passengerDoorTriggerId and
     (state.phase == phases.boarding or state.phase == phases.alighting or
-      state.phase == phases.passengerForcedExit) then
+      state.phase == phases.passengerForcedExit or state.phase == phases.driverAbandoning) then
     togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
   end
   releaseForcedPassengerStop(vehicle)
@@ -1556,12 +1872,12 @@ local function scheduleNextOfferRetry()
   )
 end
 
-local function updateNextOfferOpportunity(dtReal)
+local function updateNextOfferOpportunity(dtSim)
   if not trip or state.phase ~= phases.toDestination then return end
 
   if nextOffer then
     if not nextOfferAccepted then
-      nextOfferTimer = math.max(0, nextOfferTimer - dtReal)
+      nextOfferTimer = math.max(0, nextOfferTimer - dtSim)
       if nextOfferTimer <= 0 then
         clearNextOffer()
         scheduleNextOfferRetry()
@@ -1578,7 +1894,7 @@ local function updateNextOfferOpportunity(dtReal)
     trip.nextOfferRetryTimer = 0
   end
 
-  trip.nextOfferRetryTimer = math.max(0, (trip.nextOfferRetryTimer or 0) - dtReal)
+  trip.nextOfferRetryTimer = math.max(0, (trip.nextOfferRetryTimer or 0) - dtSim)
   if trip.nextOfferRetryTimer > 0 then return end
 
   local generatedOffer, errorMessage = createOffer()
@@ -1621,15 +1937,15 @@ local function beginBoarding()
   notifyHud()
 end
 
-local function updatePickupDeadline(dtReal)
+local function updatePickupDeadline(dtSim)
   if not trip or state.phase ~= phases.toPickup then return end
   local previousRemaining = trip.pickupTimeRemaining or trip.pickupWaitLimit or 0
-  local rawRemaining = previousRemaining - dtReal
+  local rawRemaining = previousRemaining - dtSim
   trip.pickupTimeRemaining = math.max(0, rawRemaining)
   if rawRemaining > 0 then return end
 
-  local lateIncrement = dtReal
-  if previousRemaining > 0 then lateIncrement = math.max(0, dtReal - previousRemaining) end
+  local lateIncrement = dtSim
+  if previousRemaining > 0 then lateIncrement = math.max(0, dtSim - previousRemaining) end
   trip.pickupLateSeconds = (trip.pickupLateSeconds or 0) + lateIncrement
   local targetPenalty = clampValue(
     balanceConfig.pickupLateBasePenalty +
@@ -1757,6 +2073,25 @@ local function applyEarlyExitRatingLoss()
   state.rating = clampValue(currentRating * (1 - loss), 0, 5)
   if state.ratingCount <= 0 then state.ratingCount = 1 end
   state.ratingTotal = state.rating * state.ratingCount
+  if not trip.reviewRecorded then
+    trip.reviewRecorded = true
+    recordProgressEvent(trip.passengerName, "😡", 0, 0, "passengerExit")
+  else
+    writeUserProgress()
+  end
+end
+
+local function applyDriverAbandonmentRatingLoss()
+  if not trip or trip.driverAbandonmentApplied then return end
+  local preview = getDriverAbandonmentPreview()
+  trip.driverAbandonmentApplied = true
+  trip.driverAbandonmentExtraLoss = preview.extraPercent / 100
+  trip.driverAbandonmentRatingLoss = preview.ratingLoss
+  state.rating = preview.finalRating
+  if state.ratingCount <= 0 then state.ratingCount = 1 end
+  state.ratingTotal = state.rating * state.ratingCount
+  trip.reviewRecorded = true
+  recordProgressEvent(trip.passengerName, "🤬", 0, 0, "driverAbandonment")
 end
 
 beginPassengerStopDemand = function()
@@ -1807,6 +2142,28 @@ local function completePassengerForcedExit(vehicle)
   end
 end
 
+local function beginDriverAbandonment()
+  if not trip or not isPassengerOnboardPhase(state.phase) or state.phase == phases.driverAbandoning then return end
+  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  hideNativeMinimap()
+  clearNavigation()
+  restoreNavigationVisualSettings()
+  clearNextOffer()
+  trip.finalFare = 0
+  applyDriverAbandonmentRatingLoss()
+  state.phase = phases.driverAbandoning
+  state.message = "Водитель досрочно завершает поездку"
+  phaseTimer = forcedExitDuration
+  setVehicleForcedStop(vehicle, true)
+  setVehicleFrozen(vehicle, true)
+  trip.passengerDoorTriggerId = togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
+  notifyHud()
+end
+
+local function completeDriverAbandonment()
+  stopModeInternal("Поездка отменена водителем", false)
+end
+
 local function finishRide()
   if not trip then return end
 
@@ -1827,6 +2184,18 @@ local function finishRide()
   state.ratingCount = state.ratingCount + 1
   state.rating = state.ratingTotal / state.ratingCount
   state.completedRides = state.completedRides + 1
+  if not trip.reviewRecorded then
+    trip.reviewRecorded = true
+    recordProgressEvent(
+      trip.passengerName,
+      getPassengerReviewEmoji(rideRating),
+      rideRating / 5 * 100,
+      fare,
+      "completed"
+    )
+  else
+    writeUserProgress()
+  end
   state.phase = phases.complete
   state.message = string.format("Получено $%.2f", fare)
   phaseTimer = completedDuration
@@ -1925,11 +2294,11 @@ local function updateSpeedPenalty(vehicle, dtSim)
   end
 end
 
-local function updateRushTimer(dtReal)
+local function updateRushTimer(dtSim)
   if not trip or not trip.isRush or trip.rushBonusLost then return end
   if not isPassengerDrivingPhase(state.phase) and state.phase ~= phases.stopWaiting then return end
 
-  trip.rushTimeRemaining = math.max(0, (trip.rushTimeRemaining or trip.rushTimeLimit or 0) - dtReal)
+  trip.rushTimeRemaining = math.max(0, (trip.rushTimeRemaining or trip.rushTimeLimit or 0) - dtSim)
   if trip.rushTimeRemaining > 0 then return end
 
   trip.rushBonusLost = true
@@ -1951,12 +2320,16 @@ local function updateTripCooldowns(dtSim)
   trip.damageGraceTimer = math.max(0, (trip.damageGraceTimer or 0) - dtSim)
 end
 
-local function updateActiveMode(dtSim, dtReal)
+local function updateActiveMode(dtSim)
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
   if not vehicle or be:getPlayerVehicleID(0) ~= state.activeVehicleId then
     stopModeInternal("Режим остановлен: активный автомобиль изменился", true, "notify_vehicleChanged")
     return
   end
+
+  -- Taxi deadlines use simulation time. A zero simulation delta means that
+  -- BeamNG is paused, so no offer, fare, boarding or passenger timer may move.
+  if dtSim <= 0 then return end
 
   updateTripCooldowns(dtSim)
 
@@ -1966,7 +2339,7 @@ local function updateActiveMode(dtSim, dtReal)
       if offerTimer <= 0 then addOffer() end
     end
   elseif state.phase == phases.toPickup and trip then
-    updatePickupDeadline(dtReal)
+    updatePickupDeadline(dtSim)
     if vehicle:getPosition():distance(trip.pickup.pos) <= arrivalRadius and getVehicleSpeedKmh(vehicle) <= maxArrivalSpeedKmh then
       beginBoarding()
     end
@@ -1974,7 +2347,7 @@ local function updateActiveMode(dtSim, dtReal)
     phaseTimer = phaseTimer - dtSim
     if phaseTimer <= 0 then beginRide() end
   elseif state.phase == phases.toStop and trip then
-    updateRushTimer(dtReal)
+    updateRushTimer(dtSim)
     updateSpeedPenalty(vehicle, dtSim)
     if state.phase ~= phases.toStop then return end
     local stop = trip.stops and trip.stops[trip.currentStopIndex or 0] or nil
@@ -1983,20 +2356,20 @@ local function updateActiveMode(dtSim, dtReal)
       beginStopWaiting()
     end
   elseif state.phase == phases.stopWaiting and trip then
-    updateRushTimer(dtReal)
+    updateRushTimer(dtSim)
     local stop = trip.stops and trip.stops[trip.currentStopIndex or 0] or nil
     if not stop or vehicle:getPosition():distance(stop.pos) > arrivalRadius or
       getVehicleSpeedKmh(vehicle) > maxArrivalSpeedKmh then
       resumeCurrentStop()
     else
-      phaseTimer = math.max(0, phaseTimer - dtReal)
+      phaseTimer = math.max(0, phaseTimer - dtSim)
       if phaseTimer <= 0 then completeStopWaiting() end
     end
   elseif state.phase == phases.toDestination and trip then
-    updateRushTimer(dtReal)
+    updateRushTimer(dtSim)
     updateSpeedPenalty(vehicle, dtSim)
     if state.phase ~= phases.toDestination then return end
-    updateNextOfferOpportunity(dtReal)
+    updateNextOfferOpportunity(dtSim)
     if vehicle:getPosition():distance(trip.destination.pos) <= arrivalRadius and getVehicleSpeedKmh(vehicle) <= maxArrivalSpeedKmh then
       beginAlighting()
     end
@@ -2005,8 +2378,13 @@ local function updateActiveMode(dtSim, dtReal)
     if getVehicleSpeedKmh(vehicle) <= 2 then beginPassengerForcedExit(vehicle) end
   elseif state.phase == phases.passengerForcedExit and trip then
     setVehicleForcedStop(vehicle, true)
-    phaseTimer = math.max(0, phaseTimer - dtReal)
+    phaseTimer = math.max(0, phaseTimer - dtSim)
     if phaseTimer <= 0 then completePassengerForcedExit(vehicle) end
+  elseif state.phase == phases.driverAbandoning and trip then
+    setVehicleForcedStop(vehicle, true)
+    setVehicleFrozen(vehicle, true)
+    phaseTimer = math.max(0, phaseTimer - dtSim)
+    if phaseTimer <= 0 then completeDriverAbandonment() end
   elseif state.phase == phases.alighting then
     phaseTimer = phaseTimer - dtSim
     if phaseTimer <= 0 then
@@ -2090,10 +2468,30 @@ function M.stopMode()
     notifyHud()
     return
   end
+  if trip and isPassengerOnboardPhase(state.phase) then
+    showPhoneNotification("notify_offlinePassengerBlocked", {}, "warning")
+    return
+  end
   stopModeInternal("Режим такси завершён", true, "notify_modeStopped")
 end
 
+function M.confirmDriverAbandonment()
+  if not state.active or not trip or not isPassengerOnboardPhase(state.phase) then return end
+  beginDriverAbandonment()
+end
+
 function M.requestHudState()
+  notifyHud()
+end
+
+function M.requestProfileData()
+  notifyProfile()
+end
+
+function M.saveDriverProfile(incomingProfile)
+  driverProfile = sanitizeDriverProfile(incomingProfile, false)
+  writeDriverProfile()
+  notifyProfile()
   notifyHud()
 end
 
@@ -2326,7 +2724,7 @@ local function onUpdate(dtReal, dtSim)
   if not state.active then return end
   dtReal = math.max(0, dtReal or 0)
   dtSim = math.max(0, dtSim or 0)
-  updateActiveMode(dtSim, dtReal)
+  updateActiveMode(dtSim)
 
   hudTimer = hudTimer + dtReal
   if hudTimer >= hudUpdateInterval then
@@ -2362,6 +2760,8 @@ end
 
 local function onExtensionLoaded()
   loadUserSettings()
+  loadDriverProfile()
+  loadUserProgress()
   notifyHud()
 end
 
@@ -2374,6 +2774,7 @@ local function onClientEndMission()
   if state.active then
     stopModeInternal(nil, false)
   end
+  writeUserProgress()
   restoreNavigationVisualSettings()
 end
 
@@ -2383,6 +2784,7 @@ local function onExtensionUnloaded()
   if state.active then
     stopModeInternal(nil, false)
   end
+  writeUserProgress()
   restoreNavigationVisualSettings()
 end
 
@@ -2399,12 +2801,20 @@ end
 
 local function onDeserialized(data)
   data = data or {}
-  state.balance = tonumber(data.balance) or 0
-  state.ratingTotal = tonumber(data.ratingTotal) or 0
-  state.ratingCount = tonumber(data.ratingCount) or 0
-  state.completedRides = tonumber(data.completedRides) or state.ratingCount
+  if progressNeedsLegacyImport then
+    state.balance = math.max(0, tonumber(data.balance) or 0)
+    state.ratingTotal = math.max(0, tonumber(data.ratingTotal) or 0)
+    state.ratingCount = math.max(0, math.floor(tonumber(data.ratingCount) or 0))
+    state.completedRides = math.max(0, math.floor(tonumber(data.completedRides) or state.ratingCount))
+    state.rating = state.ratingCount > 0 and
+      clampValue(state.ratingTotal / state.ratingCount, 0, 5) or
+      clampValue(tonumber(data.rating) or 5, 0, 5)
+    progressNeedsLegacyImport = false
+    writeUserProgress()
+  else
+    applyUserProgressToState()
+  end
   applyDifficulty(userSettings.difficulty or "standard")
-  state.rating = state.ratingCount > 0 and state.ratingTotal / state.ratingCount or 5
   state.active = false
   state.phase = phases.inactive
   state.activeVehicleId = nil
