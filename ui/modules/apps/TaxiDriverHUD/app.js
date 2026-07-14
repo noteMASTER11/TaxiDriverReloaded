@@ -1,3 +1,17 @@
+const loadTaxiDriverI18n = () => {
+  try {
+    const request = new XMLHttpRequest();
+    request.open("GET", "/ui/modules/apps/TaxiDriverHUD/locales.json", false);
+    request.send(null);
+    if ((request.status === 0 || (request.status >= 200 && request.status < 300)) &&
+        request.responseText) {
+      return JSON.parse(request.responseText);
+    }
+  } catch (error) {
+    console.error("TaxiDriverHUD: unable to load locales.json", error);
+  }
+  return { en: {} };
+};
 angular.module("beamng.apps").directive("taxiDriverHud", [
   function () {
     return {
@@ -7,205 +21,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
       scope: true,
       controllerAs: "hud",
       controller: function ($scope, $element) {
-        const i18n = {
-          en: {
-            appSubtitle: "Driver app", online: "online", settingsTitle: "Settings", language: "Language", languageHelp: "English is used by default on every new installation.", rememberLanguage: "Remember selected language", fontSize: "Text size", fontSizeHelp: "Increase text without resizing the phone.", difficulty: "Violation difficulty", difficultyHelp: "Controls tolerances and how quickly fare penalties accumulate.", routeGuidance: "Road guidance", routeGuidanceHelp: "Show navigation arrows directly on the road. The route remains visible on the map.", silentMode: "Silent mode", silentModeHelp: "Disable the short notification sound for new violations.", save: "SAVE SETTINGS", settingsSaved: "Settings saved", minimize: "Minimize", expand: "Open phone", nextOfferTitle: "Next ride", nextOfferDesc: "Accept before the current ride ends", offerExpires: "Offer expires in {time}", nextOfferAccepted: "NEXT RIDE ACCEPTED",
-            homeTitle: "Ready for orders?", homeDesc: "The app will find passengers on the road network and build routes automatically.", start: "START DRIVING", balance: "Balance", rides: "Rides", rating: "Rating",
-            chooseOrder: "Choose an order", searchOrders: "Searching for orders", connecting: "Connecting to the dispatch line", emptyOffers: "Connecting and looking for nearby passengers. Offers will appear gradually.", toPassenger: "Passenger pickup", trip: "Trip", distance: "Distance", payment: "Fare", rushDeliver: "Rush: deliver within {time}", bonus: "bonus", accept: "ACCEPT ORDER", offers: "{count} of {target} offers", offline: "GO OFFLINE",
-            boardingDesc: "The passenger is taking a seat. Wait for the door to close.", alightingDesc: "The passenger is leaving the vehicle. Finishing the ride.", complete: "Ride completed", completeDesc: "Rating {rating} / 5.00 · the next offer will appear automatically.",
-            arrival: "Arrival", followRoute: "Follow the highlighted route", rushLost: "Bonus lost", rushBonus: "Rush order · bonus {amount}", payout: "Payout", estimate: "Estimate", reduction: "Reduction", penaltyEvents: "Fare reduction events", noViolations: "No violations recorded", yourRating: "Your rating", finish: "FINISH",
-            notify_orderAccepted: "Order for {name} accepted", notify_passengerAboard: "Passenger aboard. Continue to the destination.", notify_rideComplete: "Ride completed · payout {fare}", notify_rushExpired: "Rush bonus expired. Base fare is preserved.", notify_modeStopped: "Taxi mode stopped", notify_vehicleChanged: "Taxi mode stopped after changing vehicle", notify_vehicleReset: "Taxi mode stopped after resetting vehicle", notify_orderUnavailable: "The order is no longer available", notify_nextUnavailable: "The queued order is no longer available", notify_noVehicle: "Select a vehicle first", notify_noRoadGraph: "This map has no usable road network",
-            phase_inactive: "Taxi mode is off", phase_searching: "Searching for orders", phase_toPickup: "Drive to the passenger", phase_boarding: "Passenger is boarding", phase_toDestination: "Drive to destination", phase_alighting: "Passenger is leaving", phase_complete: "Ride completed", phase_error: "Order unavailable",
-            progress_route: "Route", progress_pickup: "To passenger", progress_ride: "Trip progress", progress_boarding: "Boarding", progress_alighting: "Drop-off",
-            penalty_speeding: "Speeding", penalty_collision: "Collision", penalty_aggression: "Harsh manoeuvre", penalty_bonus: "Rush bonus lost", detail_speeding: "+{speed} km/h · {duration} s", detail_collision: "Vehicle damage +{damage}", detail_aggression: "Peak load {g} g", detail_bonus: "The order time limit expired",
-            unitMin: "min", unitHour: "h", unitMeter: "m", unitKm: "km",
-            difficulty_elementary: "Elementary", difficulty_easy: "Easy", difficulty_standard: "Standard", difficulty_professional: "Professional",
-            desc_elementary: "Large tolerances; only serious or sustained violations matter.", desc_easy: "Forgiving city driving with mild penalties.", desc_standard: "Balanced rules for attentive driving.", desc_professional: "Strict tolerances and fast penalty accumulation."
-          },
-          ru: {
-            appSubtitle: "Приложение водителя", online: "на линии", settingsTitle: "Настройки", language: "Язык", languageHelp: "При первой установке используется английский язык.", rememberLanguage: "Запомнить выбранный язык", fontSize: "Размер текста", fontSizeHelp: "Увеличивает текст без изменения размера телефона.", difficulty: "Сложность нарушений", difficultyHelp: "Определяет допуски и скорость снижения оплаты.", routeGuidance: "Траектория на дороге", routeGuidanceHelp: "Показывает навигационные стрелки поверх дороги. Маршрут на карте останется видимым.", silentMode: "Беззвучный режим", silentModeHelp: "Отключает короткий звук уведомления о новых нарушениях.", save: "СОХРАНИТЬ НАСТРОЙКИ", settingsSaved: "Настройки сохранены", minimize: "Свернуть", expand: "Развернуть", nextOfferTitle: "Следующая поездка", nextOfferDesc: "Можно принять до завершения текущей поездки", offerExpires: "Предложение исчезнет через {time}", nextOfferAccepted: "СЛЕДУЮЩИЙ ЗАКАЗ ПРИНЯТ",
-            homeTitle: "Готовы к заказам?", homeDesc: "Приложение найдёт пассажиров на дорожной сети и автоматически построит маршрут.", start: "НАЧАТЬ ПОЕЗДКУ", balance: "Баланс", rides: "Поездок", rating: "Рейтинг",
-            chooseOrder: "Выберите заказ", searchOrders: "Поиск заказов", connecting: "Подключение к линии заказов", emptyOffers: "Ищем пассажиров поблизости. Предложения будут появляться постепенно.", toPassenger: "До пассажира", trip: "Поездка", distance: "Расстояние", payment: "Оплата", rushDeliver: "Срочный: доставить за {time}", bonus: "бонус", accept: "ПРИНЯТЬ ЗАКАЗ", offers: "{count} из {target} предложений", offline: "УЙТИ С ЛИНИИ",
-            boardingDesc: "Пассажир занимает место. Дождитесь закрытия двери.", alightingDesc: "Пассажир покидает автомобиль. Завершаем поездку.", complete: "Поездка завершена", completeDesc: "Рейтинг {rating} / 5.00 · следующий заказ появится автоматически.",
-            arrival: "Прибытие", followRoute: "Следуйте по отмеченному маршруту", rushLost: "Бонус отменён", rushBonus: "Срочный заказ · бонус {amount}", payout: "К выплате", estimate: "Расчёт", reduction: "Снижение", penaltyEvents: "События снижения оплаты", noViolations: "Нарушений не зафиксировано", yourRating: "Ваш рейтинг", finish: "ЗАВЕРШИТЬ",
-            notify_orderAccepted: "Заказ для {name} принят", notify_passengerAboard: "Пассажир в автомобиле. Следуйте к месту назначения.", notify_rideComplete: "Поездка завершена · выплата {fare}", notify_rushExpired: "Срок бонуса истёк. Базовая оплата сохранена.", notify_modeStopped: "Режим такси завершён", notify_vehicleChanged: "Режим остановлен после смены автомобиля", notify_vehicleReset: "Режим остановлен после сброса автомобиля", notify_orderUnavailable: "Заказ больше недоступен", notify_nextUnavailable: "Заказ в очереди больше недоступен", notify_noVehicle: "Сначала выберите автомобиль", notify_noRoadGraph: "На карте отсутствует подходящая дорожная сеть",
-            phase_inactive: "Режим такси выключен", phase_searching: "Поиск заказов", phase_toPickup: "Следуйте к пассажиру", phase_boarding: "Пассажир садится", phase_toDestination: "Доставьте пассажира", phase_alighting: "Пассажир выходит", phase_complete: "Поездка завершена", phase_error: "Заказ недоступен",
-            progress_route: "Маршрут", progress_pickup: "До пассажира", progress_ride: "Прогресс поездки", progress_boarding: "Посадка", progress_alighting: "Высадка",
-            penalty_speeding: "Превышение скорости", penalty_collision: "Столкновение", penalty_aggression: "Резкий манёвр", penalty_bonus: "Бонус за срочность отменён", detail_speeding: "+{speed} км/ч · {duration} с", detail_collision: "Повреждение автомобиля +{damage}", detail_aggression: "Пиковая нагрузка {g} g", detail_bonus: "Истёк лимит времени заказа",
-            unitMin: "мин", unitHour: "ч", unitMeter: "м", unitKm: "км",
-            difficulty_elementary: "Элементарный", difficulty_easy: "Лёгкий", difficulty_standard: "Стандартный", difficulty_professional: "Профессиональный",
-            desc_elementary: "Большие допуски: учитываются только серьёзные нарушения.", desc_easy: "Мягкие правила для спокойной городской езды.", desc_standard: "Сбалансированные требования к внимательному водителю.", desc_professional: "Строгие допуски и быстрое накопление штрафов."
-          },
-          de: {
-            appSubtitle: "Fahrer-App", online: "online", settingsTitle: "Einstellungen", language: "Sprache", languageHelp: "Englisch wird bei einer neuen Installation standardmäßig verwendet.", rememberLanguage: "Ausgewählte Sprache speichern", fontSize: "Textgröße", fontSizeHelp: "Vergrößert Text, ohne das Telefon zu skalieren.", difficulty: "Verstoß-Schwierigkeit", difficultyHelp: "Bestimmt Toleranzen und die Höhe der Fahrpreisabzüge.", routeGuidance: "Straßennavigation", routeGuidanceHelp: "Zeigt Navigationspfeile direkt auf der Straße. Die Route bleibt auf der Karte sichtbar.", silentMode: "Lautlosmodus", silentModeHelp: "Deaktiviert den kurzen Hinweiston bei neuen Verstößen.", save: "EINSTELLUNGEN SPEICHERN", settingsSaved: "Einstellungen gespeichert", minimize: "Einklappen", expand: "Telefon öffnen", nextOfferTitle: "Nächste Fahrt", nextOfferDesc: "Vor Ende der aktuellen Fahrt annehmen", offerExpires: "Angebot endet in {time}", nextOfferAccepted: "NÄCHSTE FAHRT ANGENOMMEN",
-            homeTitle: "Bereit für Aufträge?", homeDesc: "Die App findet Fahrgäste im Straßennetz und erstellt automatisch Routen.", start: "FAHRT STARTEN", balance: "Guthaben", rides: "Fahrten", rating: "Bewertung",
-            chooseOrder: "Auftrag auswählen", searchOrders: "Auftragssuche", connecting: "Verbindung zur Zentrale", emptyOffers: "Fahrgäste in der Nähe werden gesucht. Angebote erscheinen nach und nach.", toPassenger: "Zum Fahrgast", trip: "Fahrt", distance: "Strecke", payment: "Vergütung", rushDeliver: "Eilauftrag: innerhalb {time}", bonus: "Bonus", accept: "AUFTRAG ANNEHMEN", offers: "{count} von {target} Angeboten", offline: "OFFLINE GEHEN",
-            boardingDesc: "Der Fahrgast steigt ein. Warten Sie, bis die Tür geschlossen ist.", alightingDesc: "Der Fahrgast steigt aus. Die Fahrt wird beendet.", complete: "Fahrt abgeschlossen", completeDesc: "Bewertung {rating} / 5.00 · der nächste Auftrag erscheint automatisch.", arrival: "Ankunft", followRoute: "Folgen Sie der markierten Route", rushLost: "Bonus verloren", rushBonus: "Eilauftrag · Bonus {amount}", payout: "Auszahlung", estimate: "Schätzung", reduction: "Abzug", penaltyEvents: "Ereignisse mit Fahrpreisabzug", noViolations: "Keine Verstöße erfasst", yourRating: "Ihre Bewertung", finish: "BEENDEN",
-            notify_orderAccepted: "Auftrag für {name} angenommen", notify_passengerAboard: "Fahrgast an Bord. Fahren Sie zum Ziel.", notify_rideComplete: "Fahrt beendet · Auszahlung {fare}", notify_rushExpired: "Eilbonus abgelaufen. Grundpreis bleibt erhalten.", notify_modeStopped: "Taximodus beendet", notify_vehicleChanged: "Taximodus nach Fahrzeugwechsel beendet", notify_vehicleReset: "Taximodus nach Fahrzeugrücksetzung beendet", notify_orderUnavailable: "Auftrag nicht mehr verfügbar", notify_nextUnavailable: "Vorgemerkter Auftrag nicht mehr verfügbar", notify_noVehicle: "Wählen Sie zuerst ein Fahrzeug", notify_noRoadGraph: "Diese Karte hat kein nutzbares Straßennetz",
-            phase_inactive: "Taximodus aus", phase_searching: "Auftragssuche", phase_toPickup: "Zum Fahrgast fahren", phase_boarding: "Fahrgast steigt ein", phase_toDestination: "Zum Ziel fahren", phase_alighting: "Fahrgast steigt aus", phase_complete: "Fahrt abgeschlossen", phase_error: "Auftrag nicht verfügbar",
-            progress_route: "Route", progress_pickup: "Zum Fahrgast", progress_ride: "Fahrtfortschritt", progress_boarding: "Einstieg", progress_alighting: "Ausstieg",
-            penalty_speeding: "Geschwindigkeitsüberschreitung", penalty_collision: "Kollision", penalty_aggression: "Abruptes Manöver", penalty_bonus: "Eilbonus verloren", detail_speeding: "+{speed} km/h · {duration} s", detail_collision: "Fahrzeugschaden +{damage}", detail_aggression: "Spitzenbelastung {g} g", detail_bonus: "Zeitlimit des Auftrags abgelaufen", unitMin: "Min.", unitHour: "Std.", unitMeter: "m", unitKm: "km",
-            difficulty_elementary: "Elementar", difficulty_easy: "Einfach", difficulty_standard: "Standard", difficulty_professional: "Professionell", desc_elementary: "Große Toleranzen; nur schwere Verstöße zählen.", desc_easy: "Nachsichtige Regeln und geringe Abzüge.", desc_standard: "Ausgewogene Regeln für aufmerksames Fahren.", desc_professional: "Strenge Toleranzen und schnelle Abzüge."
-          },
-          fr: {
-            appSubtitle: "Application chauffeur", online: "en ligne", settingsTitle: "Paramètres", language: "Langue", languageHelp: "L’anglais est utilisé par défaut après l’installation.", rememberLanguage: "Mémoriser la langue choisie", fontSize: "Taille du texte", fontSizeHelp: "Agrandit le texte sans redimensionner le téléphone.", difficulty: "Difficulté des infractions", difficultyHelp: "Définit les tolérances et la vitesse de réduction du tarif.", routeGuidance: "Guidage sur la route", routeGuidanceHelp: "Affiche les flèches de navigation sur la chaussée. L’itinéraire reste visible sur la carte.", silentMode: "Mode silencieux", silentModeHelp: "Désactive le bref son des nouvelles infractions.", save: "ENREGISTRER", settingsSaved: "Paramètres enregistrés", minimize: "Réduire", expand: "Ouvrir le téléphone", nextOfferTitle: "Prochaine course", nextOfferDesc: "Acceptez avant la fin de la course actuelle", offerExpires: "L’offre expire dans {time}", nextOfferAccepted: "PROCHAINE COURSE ACCEPTÉE",
-            homeTitle: "Prêt à recevoir des courses ?", homeDesc: "L’application trouvera des passagers sur le réseau routier et créera les itinéraires.", start: "COMMENCER", balance: "Solde", rides: "Courses", rating: "Note",
-            chooseOrder: "Choisir une course", searchOrders: "Recherche de courses", connecting: "Connexion à la centrale", emptyOffers: "Recherche de passagers à proximité. Les offres apparaîtront progressivement.", toPassenger: "Vers le passager", trip: "Course", distance: "Distance", payment: "Paiement", rushDeliver: "Urgent : livrer en {time}", bonus: "bonus", accept: "ACCEPTER", offers: "{count} offres sur {target}", offline: "SE DÉCONNECTER",
-            boardingDesc: "Le passager s’installe. Attendez la fermeture de la porte.", alightingDesc: "Le passager quitte le véhicule. Fin de la course.", complete: "Course terminée", completeDesc: "Note {rating} / 5.00 · la prochaine offre apparaîtra automatiquement.", arrival: "Arrivée", followRoute: "Suivez l’itinéraire indiqué", rushLost: "Bonus perdu", rushBonus: "Course urgente · bonus {amount}", payout: "À payer", estimate: "Estimation", reduction: "Réduction", penaltyEvents: "Événements réduisant le tarif", noViolations: "Aucune infraction enregistrée", yourRating: "Votre note", finish: "TERMINER",
-            notify_orderAccepted: "Course pour {name} acceptée", notify_passengerAboard: "Passager à bord. Continuez vers la destination.", notify_rideComplete: "Course terminée · paiement {fare}", notify_rushExpired: "Bonus urgent expiré. Le tarif de base est conservé.", notify_modeStopped: "Mode taxi arrêté", notify_vehicleChanged: "Mode taxi arrêté après changement de véhicule", notify_vehicleReset: "Mode taxi arrêté après réinitialisation du véhicule", notify_orderUnavailable: "Course indisponible", notify_nextUnavailable: "Course en attente indisponible", notify_noVehicle: "Sélectionnez d’abord un véhicule", notify_noRoadGraph: "Cette carte ne possède pas de réseau routier utilisable",
-            phase_inactive: "Mode taxi désactivé", phase_searching: "Recherche de courses", phase_toPickup: "Rejoignez le passager", phase_boarding: "Le passager monte", phase_toDestination: "Conduisez à destination", phase_alighting: "Le passager descend", phase_complete: "Course terminée", phase_error: "Course indisponible",
-            progress_route: "Itinéraire", progress_pickup: "Vers le passager", progress_ride: "Progression", progress_boarding: "Embarquement", progress_alighting: "Dépose",
-            penalty_speeding: "Excès de vitesse", penalty_collision: "Collision", penalty_aggression: "Manœuvre brusque", penalty_bonus: "Bonus urgent perdu", detail_speeding: "+{speed} km/h · {duration} s", detail_collision: "Dégâts au véhicule +{damage}", detail_aggression: "Charge maximale {g} g", detail_bonus: "Délai de la course dépassé", unitMin: "min", unitHour: "h", unitMeter: "m", unitKm: "km",
-            difficulty_elementary: "Élémentaire", difficulty_easy: "Facile", difficulty_standard: "Standard", difficulty_professional: "Professionnel", desc_elementary: "Tolérances élevées, seules les infractions graves comptent.", desc_easy: "Règles souples et faibles pénalités.", desc_standard: "Règles équilibrées pour une conduite attentive.", desc_professional: "Tolérances strictes et pénalités rapides."
-          },
-          es: {
-            appSubtitle: "Aplicación del conductor", online: "en línea", settingsTitle: "Ajustes", language: "Idioma", languageHelp: "El inglés se usa de forma predeterminada tras la instalación.", rememberLanguage: "Recordar el idioma seleccionado", fontSize: "Tamaño del texto", fontSizeHelp: "Aumenta el texto sin cambiar el tamaño del teléfono.", difficulty: "Dificultad de infracciones", difficultyHelp: "Controla las tolerancias y la rapidez de las reducciones.", routeGuidance: "Guía sobre la carretera", routeGuidanceHelp: "Muestra flechas de navegación sobre la carretera. La ruta seguirá visible en el mapa.", silentMode: "Modo silencioso", silentModeHelp: "Desactiva el breve sonido de las nuevas infracciones.", save: "GUARDAR AJUSTES", settingsSaved: "Ajustes guardados", minimize: "Minimizar", expand: "Abrir teléfono", nextOfferTitle: "Siguiente viaje", nextOfferDesc: "Acepta antes de terminar el viaje actual", offerExpires: "La oferta caduca en {time}", nextOfferAccepted: "SIGUIENTE VIAJE ACEPTADO",
-            homeTitle: "¿Listo para recibir viajes?", homeDesc: "La aplicación buscará pasajeros en la red vial y creará las rutas automáticamente.", start: "EMPEZAR A CONDUCIR", balance: "Saldo", rides: "Viajes", rating: "Valoración",
-            chooseOrder: "Elegir un viaje", searchOrders: "Buscando viajes", connecting: "Conectando con la central", emptyOffers: "Buscando pasajeros cercanos. Las ofertas aparecerán poco a poco.", toPassenger: "Hasta el pasajero", trip: "Viaje", distance: "Distancia", payment: "Pago", rushDeliver: "Urgente: completar en {time}", bonus: "bono", accept: "ACEPTAR VIAJE", offers: "{count} de {target} ofertas", offline: "DESCONECTARSE",
-            boardingDesc: "El pasajero está subiendo. Espera a que se cierre la puerta.", alightingDesc: "El pasajero está bajando. Finalizando el viaje.", complete: "Viaje completado", completeDesc: "Valoración {rating} / 5.00 · la siguiente oferta aparecerá automáticamente.", arrival: "Llegada", followRoute: "Sigue la ruta indicada", rushLost: "Bono perdido", rushBonus: "Viaje urgente · bono {amount}", payout: "A cobrar", estimate: "Estimado", reduction: "Reducción", penaltyEvents: "Eventos que reducen el pago", noViolations: "No se registraron infracciones", yourRating: "Tu valoración", finish: "FINALIZAR",
-            notify_orderAccepted: "Viaje para {name} aceptado", notify_passengerAboard: "Pasajero a bordo. Continúa al destino.", notify_rideComplete: "Viaje completado · pago {fare}", notify_rushExpired: "El bono urgente ha caducado. Se conserva la tarifa base.", notify_modeStopped: "Modo taxi detenido", notify_vehicleChanged: "Modo taxi detenido tras cambiar de vehículo", notify_vehicleReset: "Modo taxi detenido tras reiniciar el vehículo", notify_orderUnavailable: "El viaje ya no está disponible", notify_nextUnavailable: "El viaje en cola ya no está disponible", notify_noVehicle: "Selecciona primero un vehículo", notify_noRoadGraph: "Este mapa no tiene una red vial utilizable",
-            phase_inactive: "Modo taxi desactivado", phase_searching: "Buscando viajes", phase_toPickup: "Ve al pasajero", phase_boarding: "El pasajero está subiendo", phase_toDestination: "Conduce al destino", phase_alighting: "El pasajero está bajando", phase_complete: "Viaje completado", phase_error: "Viaje no disponible",
-            progress_route: "Ruta", progress_pickup: "Hasta el pasajero", progress_ride: "Progreso del viaje", progress_boarding: "Recogida", progress_alighting: "Bajada",
-            penalty_speeding: "Exceso de velocidad", penalty_collision: "Colisión", penalty_aggression: "Maniobra brusca", penalty_bonus: "Bono urgente perdido", detail_speeding: "+{speed} km/h · {duration} s", detail_collision: "Daño del vehículo +{damage}", detail_aggression: "Carga máxima {g} g", detail_bonus: "Se agotó el tiempo del viaje", unitMin: "min", unitHour: "h", unitMeter: "m", unitKm: "km",
-            difficulty_elementary: "Elemental", difficulty_easy: "Fácil", difficulty_standard: "Estándar", difficulty_professional: "Profesional", desc_elementary: "Amplias tolerancias; solo cuentan infracciones graves.", desc_easy: "Reglas permisivas y penalizaciones leves.", desc_standard: "Reglas equilibradas para conducción atenta.", desc_professional: "Tolerancias estrictas y penalizaciones rápidas."
-          },
-          pl: {
-            appSubtitle: "Aplikacja kierowcy", online: "online", settingsTitle: "Ustawienia", language: "Język", languageHelp: "Po instalacji domyślnie używany jest język angielski.", rememberLanguage: "Zapamiętaj wybrany język", fontSize: "Rozmiar tekstu", fontSizeHelp: "Powiększa tekst bez zmiany rozmiaru telefonu.", difficulty: "Poziom wykroczeń", difficultyHelp: "Określa tolerancje i tempo obniżania zapłaty.", routeGuidance: "Nawigacja na drodze", routeGuidanceHelp: "Pokazuje strzałki nawigacji na jezdni. Trasa pozostaje widoczna na mapie.", silentMode: "Tryb cichy", silentModeHelp: "Wyłącza krótki dźwięk nowych wykroczeń.", save: "ZAPISZ USTAWIENIA", settingsSaved: "Ustawienia zapisane", minimize: "Zwiń", expand: "Otwórz telefon", nextOfferTitle: "Następny kurs", nextOfferDesc: "Przyjmij przed końcem bieżącego kursu", offerExpires: "Oferta wygaśnie za {time}", nextOfferAccepted: "NASTĘPNY KURS PRZYJĘTY",
-            homeTitle: "Gotowy na zlecenia?", homeDesc: "Aplikacja znajdzie pasażerów na sieci drogowej i automatycznie wyznaczy trasy.", start: "ROZPOCZNIJ JAZDĘ", balance: "Saldo", rides: "Kursy", rating: "Ocena",
-            chooseOrder: "Wybierz zlecenie", searchOrders: "Szukanie zleceń", connecting: "Łączenie z centralą", emptyOffers: "Szukamy pasażerów w pobliżu. Oferty będą pojawiać się stopniowo.", toPassenger: "Do pasażera", trip: "Kurs", distance: "Dystans", payment: "Zapłata", rushDeliver: "Pilne: dostarcz w {time}", bonus: "premia", accept: "PRZYJMIJ ZLECENIE", offers: "{count} z {target} ofert", offline: "ZEJDŹ Z LINII",
-            boardingDesc: "Pasażer zajmuje miejsce. Poczekaj na zamknięcie drzwi.", alightingDesc: "Pasażer opuszcza pojazd. Kończenie kursu.", complete: "Kurs zakończony", completeDesc: "Ocena {rating} / 5.00 · następna oferta pojawi się automatycznie.", arrival: "Przyjazd", followRoute: "Jedź wyznaczoną trasą", rushLost: "Premia utracona", rushBonus: "Pilny kurs · premia {amount}", payout: "Do wypłaty", estimate: "Wycena", reduction: "Obniżka", penaltyEvents: "Zdarzenia obniżające zapłatę", noViolations: "Nie odnotowano wykroczeń", yourRating: "Twoja ocena", finish: "ZAKOŃCZ",
-            notify_orderAccepted: "Przyjęto kurs dla {name}", notify_passengerAboard: "Pasażer w pojeździe. Jedź do celu.", notify_rideComplete: "Kurs zakończony · wypłata {fare}", notify_rushExpired: "Premia za pośpiech wygasła. Zachowano stawkę podstawową.", notify_modeStopped: "Tryb taksówki zakończony", notify_vehicleChanged: "Tryb taksówki zakończony po zmianie pojazdu", notify_vehicleReset: "Tryb taksówki zakończony po zresetowaniu pojazdu", notify_orderUnavailable: "Zlecenie nie jest już dostępne", notify_nextUnavailable: "Zlecenie w kolejce nie jest już dostępne", notify_noVehicle: "Najpierw wybierz pojazd", notify_noRoadGraph: "Ta mapa nie ma użytecznej sieci drogowej",
-            phase_inactive: "Tryb taksówki wyłączony", phase_searching: "Szukanie zleceń", phase_toPickup: "Jedź do pasażera", phase_boarding: "Pasażer wsiada", phase_toDestination: "Jedź do celu", phase_alighting: "Pasażer wysiada", phase_complete: "Kurs zakończony", phase_error: "Zlecenie niedostępne",
-            progress_route: "Trasa", progress_pickup: "Do pasażera", progress_ride: "Postęp kursu", progress_boarding: "Wsiadanie", progress_alighting: "Wysiadanie",
-            penalty_speeding: "Przekroczenie prędkości", penalty_collision: "Kolizja", penalty_aggression: "Gwałtowny manewr", penalty_bonus: "Utrata premii", detail_speeding: "+{speed} km/h · {duration} s", detail_collision: "Uszkodzenie pojazdu +{damage}", detail_aggression: "Maksymalne przeciążenie {g} g", detail_bonus: "Upłynął limit czasu", unitMin: "min", unitHour: "godz.", unitMeter: "m", unitKm: "km",
-            difficulty_elementary: "Elementarny", difficulty_easy: "Łatwy", difficulty_standard: "Standardowy", difficulty_professional: "Profesjonalny", desc_elementary: "Duże tolerancje; liczą się tylko poważne wykroczenia.", desc_easy: "Łagodne zasady i niewielkie potrącenia.", desc_standard: "Zrównoważone zasady uważnej jazdy.", desc_professional: "Ścisłe tolerancje i szybkie potrącenia."
-          },
-          uk: {
-            appSubtitle: "Застосунок водія", online: "на лінії", settingsTitle: "Налаштування", language: "Мова", languageHelp: "Після встановлення типово використовується англійська мова.", rememberLanguage: "Запам’ятати вибрану мову", fontSize: "Розмір тексту", fontSizeHelp: "Збільшує текст без зміни розміру телефона.", difficulty: "Складність порушень", difficultyHelp: "Визначає допуски та швидкість зниження оплати.", routeGuidance: "Траєкторія на дорозі", routeGuidanceHelp: "Показує навігаційні стрілки поверх дороги. Маршрут на карті залишиться видимим.", silentMode: "Беззвучний режим", silentModeHelp: "Вимикає короткий звук нових порушень.", save: "ЗБЕРЕГТИ НАЛАШТУВАННЯ", settingsSaved: "Налаштування збережено", minimize: "Згорнути", expand: "Розгорнути", nextOfferTitle: "Наступна поїздка", nextOfferDesc: "Прийміть до завершення поточної поїздки", offerExpires: "Пропозиція зникне через {time}", nextOfferAccepted: "НАСТУПНЕ ЗАМОВЛЕННЯ ПРИЙНЯТО",
-            homeTitle: "Готові до замовлень?", homeDesc: "Застосунок знайде пасажирів на дорожній мережі та автоматично побудує маршрути.", start: "ПОЧАТИ РОБОТУ", balance: "Баланс", rides: "Поїздок", rating: "Рейтинг",
-            chooseOrder: "Оберіть замовлення", searchOrders: "Пошук замовлень", connecting: "Підключення до лінії", emptyOffers: "Шукаємо пасажирів поблизу. Пропозиції з’являтимуться поступово.", toPassenger: "До пасажира", trip: "Поїздка", distance: "Відстань", payment: "Оплата", rushDeliver: "Термінове: доставити за {time}", bonus: "бонус", accept: "ПРИЙНЯТИ ЗАМОВЛЕННЯ", offers: "{count} із {target} пропозицій", offline: "ПІТИ З ЛІНІЇ",
-            boardingDesc: "Пасажир займає місце. Дочекайтеся закриття дверей.", alightingDesc: "Пасажир залишає автомобіль. Завершуємо поїздку.", complete: "Поїздку завершено", completeDesc: "Рейтинг {rating} / 5.00 · наступне замовлення з’явиться автоматично.", arrival: "Прибуття", followRoute: "Рухайтеся позначеним маршрутом", rushLost: "Бонус скасовано", rushBonus: "Термінове замовлення · бонус {amount}", payout: "До виплати", estimate: "Розрахунок", reduction: "Зниження", penaltyEvents: "Події зниження оплати", noViolations: "Порушень не зафіксовано", yourRating: "Ваш рейтинг", finish: "ЗАВЕРШИТИ",
-            notify_orderAccepted: "Замовлення для {name} прийнято", notify_passengerAboard: "Пасажир в автомобілі. Прямуйте до місця призначення.", notify_rideComplete: "Поїздку завершено · виплата {fare}", notify_rushExpired: "Термін бонусу минув. Базову оплату збережено.", notify_modeStopped: "Режим таксі завершено", notify_vehicleChanged: "Режим зупинено після зміни автомобіля", notify_vehicleReset: "Режим зупинено після скидання автомобіля", notify_orderUnavailable: "Замовлення більше недоступне", notify_nextUnavailable: "Замовлення в черзі більше недоступне", notify_noVehicle: "Спочатку виберіть автомобіль", notify_noRoadGraph: "На цій карті немає придатної дорожньої мережі",
-            phase_inactive: "Режим таксі вимкнено", phase_searching: "Пошук замовлень", phase_toPickup: "Їдьте до пасажира", phase_boarding: "Пасажир сідає", phase_toDestination: "Доставте пасажира", phase_alighting: "Пасажир виходить", phase_complete: "Поїздку завершено", phase_error: "Замовлення недоступне",
-            progress_route: "Маршрут", progress_pickup: "До пасажира", progress_ride: "Прогрес поїздки", progress_boarding: "Посадка", progress_alighting: "Висадка",
-            penalty_speeding: "Перевищення швидкості", penalty_collision: "Зіткнення", penalty_aggression: "Різкий маневр", penalty_bonus: "Бонус за терміновість скасовано", detail_speeding: "+{speed} км/год · {duration} с", detail_collision: "Пошкодження автомобіля +{damage}", detail_aggression: "Пікове навантаження {g} g", detail_bonus: "Сплив ліміт часу замовлення", unitMin: "хв", unitHour: "год", unitMeter: "м", unitKm: "км",
-            difficulty_elementary: "Елементарний", difficulty_easy: "Легкий", difficulty_standard: "Стандартний", difficulty_professional: "Професійний", desc_elementary: "Великі допуски; враховуються лише серйозні порушення.", desc_easy: "М’які правила та невеликі штрафи.", desc_standard: "Збалансовані правила для уважного водія.", desc_professional: "Суворі допуски та швидке накопичення штрафів."
-          }
-        };
-
-        const featureI18n = {
-          en: {
-            silentModeHelp: "Disable all TaxiDriver app sounds.",
-            passengerCalmness: "Passenger calmness", stopDemandTitle: "Passenger wants to get out", stopDemandDesc: "The vehicle is stopping safely. Controls are temporarily locked.", forcedExitTitle: "Passenger is leaving", forcedExitDesc: "The passenger ended the ride early. Wait for the door to close.", ratingLoss: "Driver rating −{percent}%", phase_passengerStopDemand: "Passenger demands a stop", phase_passengerForcedExit: "Passenger is leaving early",
-            penaltyEvents: "Penalties", noViolations: "No penalties",
-            multiStopBadge: "STOPS ×{count}",
-            dashCalm: "Calm", dashPickup: "Pickup", dashStop: "Stop", dashRush: "Rush", dashRating: "Rating", dashLost: "Lost",
-            offersDynamic: "{count} of {target} offers", pickupWindow: "Pickup within {time}", pickupDeadline: "Pickup countdown", pickupLate: "Passenger waiting · late by {time}",
-            ratingBonusLine: "Driver rating bonus +{percent}% · +{amount}", multiStopRide: "Ride with stops", multiStopSummary: "{count} stops · {time} at each stop", stopProgress: "Stop {current} of {total}",
-            stopWaitingDesc: "Remain stopped for 10 seconds. Moving away restarts the timer.", phase_toStop: "Drive to the next stop", phase_stopWaiting: "Waiting at the stop", progress_stop: "To the next stop", progress_stopWaiting: "Stop in progress",
-            penalty_pickupDelay: "Late passenger pickup", detail_pickupDelay: "Pickup deadline exceeded by {time}", notify_pickupLate: "Pickup deadline missed. The fare is now reduced.", notify_multiStopStarted: "Passenger aboard · {count} scheduled stops", notify_stopComplete: "Stop completed. Continue the ride."
-          },
-          ru: {
-            silentModeHelp: "Отключает все звуки приложения TaxiDriver.",
-            passengerCalmness: "Спокойствие пассажира", stopDemandTitle: "Пассажир требует остановиться", stopDemandDesc: "Автомобиль безопасно останавливается. Управление временно заблокировано.", forcedExitTitle: "Пассажир выходит", forcedExitDesc: "Пассажир досрочно завершил поездку. Дождитесь закрытия двери.", ratingLoss: "Рейтинг водителя −{percent}%", phase_passengerStopDemand: "Пассажир требует остановиться", phase_passengerForcedExit: "Пассажир досрочно выходит",
-            penaltyEvents: "Штрафы", noViolations: "Штрафов нет",
-            multiStopBadge: "ОСТАНОВКИ ×{count}",
-            dashCalm: "Покой", dashPickup: "Подача", dashStop: "Стоп", dashRush: "Срочно", dashRating: "Рейтинг", dashLost: "Снят",
-            offersDynamic: "{count} из {target} предложений", pickupWindow: "Подать машину за {time}", pickupDeadline: "Срок подачи", pickupLate: "Пассажир ждёт · опоздание {time}",
-            ratingBonusLine: "Бонус за рейтинг +{percent}% · +{amount}", multiStopRide: "Поездка с остановками", multiStopSummary: "Остановок: {count} · по {time} на каждой", stopProgress: "Остановка {current} из {total}",
-            stopWaitingDesc: "Стойте 10 секунд. Если уехать с точки, отсчёт начнётся заново.", phase_toStop: "Следуйте к следующей остановке", phase_stopWaiting: "Ожидание на остановке", progress_stop: "До остановки", progress_stopWaiting: "Остановка",
-            penalty_pickupDelay: "Опоздание к пассажиру", detail_pickupDelay: "Срок подачи превышен на {time}", notify_pickupLate: "Вы опоздали к пассажиру. Оплата снижена.", notify_multiStopStarted: "Пассажир в машине · остановок: {count}", notify_stopComplete: "Остановка завершена. Продолжайте поездку."
-          },
-          de: {
-            silentModeHelp: "Deaktiviert alle Töne der TaxiDriver-App.",
-            passengerCalmness: "Gelassenheit des Fahrgasts", stopDemandTitle: "Der Fahrgast will aussteigen", stopDemandDesc: "Das Fahrzeug hält sicher an. Die Steuerung ist vorübergehend gesperrt.", forcedExitTitle: "Der Fahrgast steigt aus", forcedExitDesc: "Der Fahrgast hat die Fahrt vorzeitig beendet. Warten Sie, bis die Tür geschlossen ist.", ratingLoss: "Fahrerbewertung −{percent}%", phase_passengerStopDemand: "Fahrgast verlangt einen Stopp", phase_passengerForcedExit: "Fahrgast steigt vorzeitig aus",
-            penaltyEvents: "Strafen", noViolations: "Keine Strafen",
-            multiStopBadge: "STOPPS ×{count}",
-            dashCalm: "Ruhe", dashPickup: "Abholung", dashStop: "Stopp", dashRush: "Eilfahrt", dashRating: "Bonus", dashLost: "Weg",
-            offersDynamic: "{count} von {target} Angeboten", pickupWindow: "Abholung innerhalb {time}", pickupDeadline: "Abholfrist", pickupLate: "Fahrgast wartet · {time} verspätet",
-            ratingBonusLine: "Bewertungsbonus +{percent}% · +{amount}", multiStopRide: "Fahrt mit Stopps", multiStopSummary: "{count} Stopps · je {time}", stopProgress: "Stopp {current} von {total}",
-            stopWaitingDesc: "10 Sekunden stehen bleiben. Beim Wegfahren startet der Timer neu.", phase_toStop: "Zum nächsten Stopp fahren", phase_stopWaiting: "Warten am Stopp", progress_stop: "Zum Stopp", progress_stopWaiting: "Zwischenstopp",
-            penalty_pickupDelay: "Verspätete Abholung", detail_pickupDelay: "Abholfrist um {time} überschritten", notify_pickupLate: "Abholfrist verpasst. Der Fahrpreis wurde reduziert.", notify_multiStopStarted: "Fahrgast an Bord · {count} geplante Stopps", notify_stopComplete: "Stopp abgeschlossen. Fahrt fortsetzen."
-          },
-          fr: {
-            silentModeHelp: "Désactive tous les sons de l’application TaxiDriver.",
-            passengerCalmness: "Calme du passager", stopDemandTitle: "Le passager veut descendre", stopDemandDesc: "Le véhicule s’arrête en sécurité. Les commandes sont temporairement verrouillées.", forcedExitTitle: "Le passager descend", forcedExitDesc: "Le passager a interrompu la course. Attendez la fermeture de la porte.", ratingLoss: "Note du chauffeur −{percent}%", phase_passengerStopDemand: "Le passager exige un arrêt", phase_passengerForcedExit: "Le passager descend avant l’arrivée",
-            penaltyEvents: "Pénalités", noViolations: "Aucune pénalité",
-            multiStopBadge: "ARRÊTS ×{count}",
-            dashCalm: "Calme", dashPickup: "Prise", dashStop: "Arrêt", dashRush: "Urgent", dashRating: "Note", dashLost: "Perdu",
-            offersDynamic: "{count} offres sur {target}", pickupWindow: "Prise en charge sous {time}", pickupDeadline: "Délai de prise en charge", pickupLate: "Passager en attente · retard {time}",
-            ratingBonusLine: "Bonus de note +{percent}% · +{amount}", multiStopRide: "Course avec arrêts", multiStopSummary: "{count} arrêts · {time} par arrêt", stopProgress: "Arrêt {current} sur {total}",
-            stopWaitingDesc: "Restez arrêté 10 secondes. Quitter le point relance le compteur.", phase_toStop: "Rejoignez le prochain arrêt", phase_stopWaiting: "Attente à l’arrêt", progress_stop: "Vers l’arrêt", progress_stopWaiting: "Arrêt en cours",
-            penalty_pickupDelay: "Prise en charge tardive", detail_pickupDelay: "Délai dépassé de {time}", notify_pickupLate: "Délai de prise en charge dépassé. Le tarif est réduit.", notify_multiStopStarted: "Passager à bord · {count} arrêts prévus", notify_stopComplete: "Arrêt terminé. Continuez la course."
-          },
-          es: {
-            silentModeHelp: "Desactiva todos los sonidos de la aplicación TaxiDriver.",
-            passengerCalmness: "Calma del pasajero", stopDemandTitle: "El pasajero quiere bajar", stopDemandDesc: "El vehículo se está deteniendo de forma segura. Los controles están bloqueados temporalmente.", forcedExitTitle: "El pasajero está bajando", forcedExitDesc: "El pasajero terminó el viaje antes de tiempo. Espera a que se cierre la puerta.", ratingLoss: "Valoración del conductor −{percent}%", phase_passengerStopDemand: "El pasajero exige detenerse", phase_passengerForcedExit: "El pasajero baja antes de tiempo",
-            penaltyEvents: "Penalizaciones", noViolations: "Sin penalizaciones",
-            multiStopBadge: "PARADAS ×{count}",
-            dashCalm: "Calma", dashPickup: "Recogida", dashStop: "Parada", dashRush: "Urgente", dashRating: "Nota", dashLost: "Perdido",
-            offersDynamic: "{count} de {target} ofertas", pickupWindow: "Recogida en {time}", pickupDeadline: "Límite de recogida", pickupLate: "Pasajero esperando · retraso {time}",
-            ratingBonusLine: "Bono por valoración +{percent}% · +{amount}", multiStopRide: "Viaje con paradas", multiStopSummary: "{count} paradas · {time} en cada una", stopProgress: "Parada {current} de {total}",
-            stopWaitingDesc: "Permanece detenido 10 segundos. Alejarte reinicia el contador.", phase_toStop: "Ve a la siguiente parada", phase_stopWaiting: "Esperando en la parada", progress_stop: "Hasta la parada", progress_stopWaiting: "Parada en curso",
-            penalty_pickupDelay: "Recogida tardía", detail_pickupDelay: "Límite superado por {time}", notify_pickupLate: "Llegaste tarde a la recogida. El pago se ha reducido.", notify_multiStopStarted: "Pasajero a bordo · {count} paradas previstas", notify_stopComplete: "Parada completada. Continúa el viaje."
-          },
-          pl: {
-            silentModeHelp: "Wyłącza wszystkie dźwięki aplikacji TaxiDriver.",
-            passengerCalmness: "Spokój pasażera", stopDemandTitle: "Pasażer chce wysiąść", stopDemandDesc: "Pojazd bezpiecznie się zatrzymuje. Sterowanie jest tymczasowo zablokowane.", forcedExitTitle: "Pasażer wysiada", forcedExitDesc: "Pasażer zakończył kurs przed czasem. Poczekaj na zamknięcie drzwi.", ratingLoss: "Ocena kierowcy −{percent}%", phase_passengerStopDemand: "Pasażer żąda zatrzymania", phase_passengerForcedExit: "Pasażer wysiada przed czasem",
-            penaltyEvents: "Kary", noViolations: "Brak kar",
-            multiStopBadge: "PRZYSTANKI ×{count}",
-            dashCalm: "Spokój", dashPickup: "Odbiór", dashStop: "Postój", dashRush: "Pilne", dashRating: "Ocena", dashLost: "Utrata",
-            offersDynamic: "{count} z {target} ofert", pickupWindow: "Odbiór w ciągu {time}", pickupDeadline: "Limit odbioru", pickupLate: "Pasażer czeka · spóźnienie {time}",
-            ratingBonusLine: "Premia za ocenę +{percent}% · +{amount}", multiStopRide: "Kurs z przystankami", multiStopSummary: "Przystanki: {count} · po {time}", stopProgress: "Przystanek {current} z {total}",
-            stopWaitingDesc: "Pozostań 10 sekund. Odjazd z punktu zeruje licznik.", phase_toStop: "Jedź do następnego przystanku", phase_stopWaiting: "Postój na przystanku", progress_stop: "Do przystanku", progress_stopWaiting: "Postój",
-            penalty_pickupDelay: "Spóźniony odbiór", detail_pickupDelay: "Limit przekroczony o {time}", notify_pickupLate: "Spóźniono się po pasażera. Zapłata została obniżona.", notify_multiStopStarted: "Pasażer w pojeździe · zaplanowane przystanki: {count}", notify_stopComplete: "Postój zakończony. Kontynuuj kurs."
-          },
-          uk: {
-            silentModeHelp: "Вимикає всі звуки застосунку TaxiDriver.",
-            passengerCalmness: "Спокій пасажира", stopDemandTitle: "Пасажир вимагає зупинитися", stopDemandDesc: "Автомобіль безпечно зупиняється. Керування тимчасово заблоковано.", forcedExitTitle: "Пасажир виходить", forcedExitDesc: "Пасажир достроково завершив поїздку. Дочекайтеся закриття дверей.", ratingLoss: "Рейтинг водія −{percent}%", phase_passengerStopDemand: "Пасажир вимагає зупинитися", phase_passengerForcedExit: "Пасажир достроково виходить",
-            penaltyEvents: "Штрафи", noViolations: "Штрафів немає",
-            multiStopBadge: "ЗУПИНКИ ×{count}",
-            dashCalm: "Спокій", dashPickup: "Подача", dashStop: "Зупинка", dashRush: "Терміново", dashRating: "Рейтинг", dashLost: "Втрачено",
-            offersDynamic: "{count} із {target} пропозицій", pickupWindow: "Подати авто за {time}", pickupDeadline: "Строк подачі", pickupLate: "Пасажир чекає · запізнення {time}",
-            ratingBonusLine: "Бонус за рейтинг +{percent}% · +{amount}", multiStopRide: "Поїздка із зупинками", multiStopSummary: "Зупинок: {count} · по {time} на кожній", stopProgress: "Зупинка {current} із {total}",
-            stopWaitingDesc: "Стійте 10 секунд. Якщо від’їхати, відлік почнеться знову.", phase_toStop: "Прямуйте до наступної зупинки", phase_stopWaiting: "Очікування на зупинці", progress_stop: "До зупинки", progress_stopWaiting: "Зупинка",
-            penalty_pickupDelay: "Запізнення до пасажира", detail_pickupDelay: "Строк подачі перевищено на {time}", notify_pickupLate: "Ви запізнилися до пасажира. Оплату знижено.", notify_multiStopStarted: "Пасажир в авто · зупинок: {count}", notify_stopComplete: "Зупинку завершено. Продовжуйте поїздку."
-          }
-        };
-        Object.keys(featureI18n).forEach((language) => Object.assign(i18n[language], featureI18n[language]));
-
-        const profileI18n = {
-          en: {
-            profileTitle: "Driver profile", tabIdentity: "Profile", tabReviews: "Reviews", tabAnalytics: "Analytics", fullName: "Full name", birthDate: "Date of birth", age: "Age", years: "years", avatar: "Profile avatar", saveProfile: "SAVE PROFILE", profileSaved: "Profile saved", noReviews: "No passenger reviews yet", reviewPage: "Page {current} of {total}", ratingTrend: "Rating history", balanceTrend: "Wallet balance", historyHint: "Complete history · visually sampled when needed", holdOffline: "HOLD TO GO OFFLINE", holdSeconds: "2 seconds", offlineConfirmTitle: "Passenger is still in the car", offlineConfirmDesc: "Ending the shift now cancels the ride with no payout, clears the queued order, and produces an angry review.", offlinePenaltyWarning: "Penalty: −1.00★ and −{percent}% · new rating {rating}", cancel: "CANCEL", confirmOffline: "END RIDE AND GO OFFLINE", driverAbandoningTitle: "Ride cancelled by driver", driverAbandoningDesc: "The passenger is leaving the vehicle. Controls remain locked until the door closes.", driverAbandoningPenalty: "Rating lost: −{loss}★ · difficulty penalty {percent}%", phase_driverAbandoning: "Ending the ride", notify_offlinePassengerBlocked: "Hold the offline button and confirm the passenger penalty first."
-          },
-          ru: {
-            profileTitle: "Профиль водителя", tabIdentity: "Профиль", tabReviews: "Отзывы", tabAnalytics: "Статистика", fullName: "Ф. И. О.", birthDate: "Дата рождения", age: "Возраст", years: "лет", avatar: "Аватар профиля", saveProfile: "СОХРАНИТЬ ПРОФИЛЬ", profileSaved: "Профиль сохранён", noReviews: "Отзывов пассажиров пока нет", reviewPage: "Страница {current} из {total}", ratingTrend: "История рейтинга", balanceTrend: "Баланс кошелька", historyHint: "Вся история · при необходимости график прореживается", holdOffline: "УДЕРЖИВАЙТЕ ДЛЯ УХОДА С ЛИНИИ", holdSeconds: "2 секунды", offlineConfirmTitle: "Пассажир всё ещё в машине", offlineConfirmDesc: "Уход с линии отменит поездку без оплаты, очистит очередь и добавит злой отзыв пассажира.", offlinePenaltyWarning: "Штраф: −1.00★ и −{percent}% · новый рейтинг {rating}", cancel: "ОТМЕНА", confirmOffline: "ОТМЕНИТЬ ПОЕЗДКУ И УЙТИ", driverAbandoningTitle: "Водитель отменил поездку", driverAbandoningDesc: "Пассажир выходит из автомобиля. Управление заблокировано до закрытия двери.", driverAbandoningPenalty: "Потеря рейтинга: −{loss}★ · штраф сложности {percent}%", phase_driverAbandoning: "Завершение поездки", notify_offlinePassengerBlocked: "Сначала удерживайте кнопку ухода с линии и подтвердите штраф пассажира."
-          },
-          de: {
-            profileTitle: "Fahrerprofil", tabIdentity: "Profil", tabReviews: "Bewertungen", tabAnalytics: "Statistik", fullName: "Vollständiger Name", birthDate: "Geburtsdatum", age: "Alter", years: "Jahre", avatar: "Profilbild", saveProfile: "PROFIL SPEICHERN", profileSaved: "Profil gespeichert", noReviews: "Noch keine Fahrgastbewertungen", reviewPage: "Seite {current} von {total}", ratingTrend: "Bewertungsverlauf", balanceTrend: "Guthabenverlauf", historyHint: "Gesamter Verlauf · bei Bedarf visuell reduziert", holdOffline: "ZUM ABMELDEN GEDRÜCKT HALTEN", holdSeconds: "2 Sekunden", offlineConfirmTitle: "Fahrgast ist noch im Auto", offlineConfirmDesc: "Das Schichtende storniert die Fahrt ohne Vergütung, löscht den Folgeauftrag und erzeugt eine verärgerte Bewertung.", offlinePenaltyWarning: "Strafe: −1,00★ und −{percent}% · neue Bewertung {rating}", cancel: "ABBRECHEN", confirmOffline: "FAHRT BEENDEN UND ABMELDEN", driverAbandoningTitle: "Fahrt vom Fahrer storniert", driverAbandoningDesc: "Der Fahrgast steigt aus. Die Steuerung bleibt bis zum Schließen der Tür gesperrt.", driverAbandoningPenalty: "Bewertungsverlust: −{loss}★ · Schwierigkeitsstrafe {percent}%", phase_driverAbandoning: "Fahrt wird beendet", notify_offlinePassengerBlocked: "Offline-Schaltfläche halten und Fahrgaststrafe bestätigen."
-          },
-          fr: {
-            profileTitle: "Profil du chauffeur", tabIdentity: "Profil", tabReviews: "Avis", tabAnalytics: "Statistiques", fullName: "Nom complet", birthDate: "Date de naissance", age: "Âge", years: "ans", avatar: "Avatar du profil", saveProfile: "ENREGISTRER LE PROFIL", profileSaved: "Profil enregistré", noReviews: "Aucun avis de passager", reviewPage: "Page {current} sur {total}", ratingTrend: "Évolution de la note", balanceTrend: "Solde du portefeuille", historyHint: "Historique complet · échantillonné visuellement si nécessaire", holdOffline: "MAINTENIR POUR SE DÉCONNECTER", holdSeconds: "2 secondes", offlineConfirmTitle: "Le passager est encore à bord", offlineConfirmDesc: "Quitter la ligne annule la course sans paiement, vide la file et génère un avis mécontent.", offlinePenaltyWarning: "Pénalité : −1,00★ et −{percent}% · nouvelle note {rating}", cancel: "ANNULER", confirmOffline: "ANNULER LA COURSE ET QUITTER", driverAbandoningTitle: "Course annulée par le chauffeur", driverAbandoningDesc: "Le passager descend. Les commandes restent bloquées jusqu’à la fermeture de la porte.", driverAbandoningPenalty: "Note perdue : −{loss}★ · pénalité de difficulté {percent}%", phase_driverAbandoning: "Annulation de la course", notify_offlinePassengerBlocked: "Maintenez le bouton de déconnexion puis confirmez la pénalité."
-          },
-          es: {
-            profileTitle: "Perfil del conductor", tabIdentity: "Perfil", tabReviews: "Reseñas", tabAnalytics: "Estadísticas", fullName: "Nombre completo", birthDate: "Fecha de nacimiento", age: "Edad", years: "años", avatar: "Avatar del perfil", saveProfile: "GUARDAR PERFIL", profileSaved: "Perfil guardado", noReviews: "Aún no hay reseñas", reviewPage: "Página {current} de {total}", ratingTrend: "Historial de valoración", balanceTrend: "Saldo de la cartera", historyHint: "Historial completo · muestreo visual cuando sea necesario", holdOffline: "MANTÉN PARA DESCONECTARTE", holdSeconds: "2 segundos", offlineConfirmTitle: "El pasajero sigue en el coche", offlineConfirmDesc: "Desconectarte cancela el viaje sin pago, vacía la cola y genera una reseña enfadada.", offlinePenaltyWarning: "Penalización: −1,00★ y −{percent}% · nueva valoración {rating}", cancel: "CANCELAR", confirmOffline: "CANCELAR VIAJE Y DESCONECTAR", driverAbandoningTitle: "Viaje cancelado por el conductor", driverAbandoningDesc: "El pasajero está bajando. Los controles siguen bloqueados hasta cerrar la puerta.", driverAbandoningPenalty: "Valoración perdida: −{loss}★ · penalización de dificultad {percent}%", phase_driverAbandoning: "Cancelando el viaje", notify_offlinePassengerBlocked: "Mantén el botón de desconexión y confirma primero la penalización."
-          },
-          pl: {
-            profileTitle: "Profil kierowcy", tabIdentity: "Profil", tabReviews: "Opinie", tabAnalytics: "Statystyki", fullName: "Imię i nazwisko", birthDate: "Data urodzenia", age: "Wiek", years: "lat", avatar: "Awatar profilu", saveProfile: "ZAPISZ PROFIL", profileSaved: "Profil zapisany", noReviews: "Brak opinii pasażerów", reviewPage: "Strona {current} z {total}", ratingTrend: "Historia oceny", balanceTrend: "Saldo portfela", historyHint: "Pełna historia · w razie potrzeby próbkowana na wykresie", holdOffline: "PRZYTRZYMAJ, ABY ZEJŚĆ Z LINII", holdSeconds: "2 sekundy", offlineConfirmTitle: "Pasażer nadal jest w samochodzie", offlineConfirmDesc: "Zejście z linii anuluje kurs bez zapłaty, czyści kolejkę i dodaje złą opinię.", offlinePenaltyWarning: "Kara: −1,00★ i −{percent}% · nowa ocena {rating}", cancel: "ANULUJ", confirmOffline: "ANULUJ KURS I ZEJDŹ Z LINII", driverAbandoningTitle: "Kurs anulowany przez kierowcę", driverAbandoningDesc: "Pasażer wysiada. Sterowanie pozostaje zablokowane do zamknięcia drzwi.", driverAbandoningPenalty: "Utrata oceny: −{loss}★ · kara trudności {percent}%", phase_driverAbandoning: "Anulowanie kursu", notify_offlinePassengerBlocked: "Przytrzymaj przycisk zejścia z linii i potwierdź karę."
-          },
-          uk: {
-            profileTitle: "Профіль водія", tabIdentity: "Профіль", tabReviews: "Відгуки", tabAnalytics: "Статистика", fullName: "П. І. Б.", birthDate: "Дата народження", age: "Вік", years: "років", avatar: "Аватар профілю", saveProfile: "ЗБЕРЕГТИ ПРОФІЛЬ", profileSaved: "Профіль збережено", noReviews: "Відгуків пасажирів поки немає", reviewPage: "Сторінка {current} із {total}", ratingTrend: "Історія рейтингу", balanceTrend: "Баланс гаманця", historyHint: "Уся історія · за потреби графік проріджується", holdOffline: "УТРИМУЙТЕ, ЩОБ ПІТИ З ЛІНІЇ", holdSeconds: "2 секунди", offlineConfirmTitle: "Пасажир усе ще в авто", offlineConfirmDesc: "Вихід із лінії скасує поїздку без оплати, очистить чергу та додасть сердитий відгук.", offlinePenaltyWarning: "Штраф: −1,00★ і −{percent}% · новий рейтинг {rating}", cancel: "СКАСУВАТИ", confirmOffline: "СКАСУВАТИ ПОЇЗДКУ Й ПІТИ", driverAbandoningTitle: "Водій скасував поїздку", driverAbandoningDesc: "Пасажир виходить з автомобіля. Керування заблоковано до закриття дверей.", driverAbandoningPenalty: "Втрата рейтингу: −{loss}★ · штраф складності {percent}%", phase_driverAbandoning: "Завершення поїздки", notify_offlinePassengerBlocked: "Спочатку утримуйте кнопку виходу з лінії та підтвердьте штраф."
-          }
-        };
-        Object.keys(profileI18n).forEach((language) => Object.assign(i18n[language], profileI18n[language]));
-        const offlineLabels = {
-          en: "Offline", ru: "Оффлайн", de: "Offline", fr: "Hors ligne",
-          es: "Sin conexión", pl: "Offline", uk: "Офлайн",
-        };
-        Object.keys(offlineLabels).forEach((language) => {
-          i18n[language].holdOffline = offlineLabels[language];
-        });
-
+        const i18n = loadTaxiDriverI18n();
         const settingsKey = "taxiDriverHUD.settings.v1";
         const languages = [
           { code: "en", label: "English" }, { code: "de", label: "Deutsch" },
@@ -232,6 +48,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         const initialFontBoost = Math.max(0, Math.min(5, Number(savedFontBoost)));
         const initialSilentMode = persisted.silentMode === true;
         const initialShowRouteGuidance = persisted.showRouteGuidance !== false;
+        const initialRealisticMode = persisted.realisticMode === true;
 
         $scope.languages = languages;
         $scope.difficulties = difficulties;
@@ -248,7 +65,11 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         $scope.phoneMinimized = false;
         $scope.phoneToast = null;
         $scope.passengerChat = null;
+        $scope.passengerMoodFlash = "";
         $scope.nextOfferAcceptedVisible = false;
+        $scope.fuelStationOpen = false;
+        $scope.selectedFuelType = "";
+        $scope.refuel = { amount: 0 };
         $scope.settings = {
           language: initialLanguage,
           rememberLanguage: persisted.rememberLanguage === true,
@@ -256,6 +77,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           fontBoost: initialFontBoost,
           silentMode: initialSilentMode,
           showRouteGuidance: initialShowRouteGuidance,
+          realisticMode: initialRealisticMode,
         };
         $scope.driverProfile = { fullName: "John Doe", birthDate: "", avatar: "🙂" };
         $scope.profileDraft = Object.assign({}, $scope.driverProfile);
@@ -301,6 +123,12 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           completedRides: 0,
           driverProfile: { fullName: "John Doe", avatar: "🙂" },
           passengerOnboard: false,
+          realisticMode: false,
+          fuelStation: {
+            available: false, id: "", name: "", options: [], balance: 0,
+            refueling: { active: false, completing: false, energyType: "", quantity: 0, cost: 0, duration: 0, elapsed: 0, progress: 0, remainingSeconds: 0, completionId: 0 },
+          },
+          fuelDetour: { active: false, hadTrip: false, passengerOnboard: false, stationName: "", routeDistance: 0, penaltyPercent: 0, arrived: false },
           offlinePenaltyExtraPercent: 30,
           offlinePenaltyRatingLoss: 2.5,
           offlinePenaltyFinalRating: 2.5,
@@ -310,6 +138,11 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           activeTripId: 0,
           passengerName: "",
           passengerCalmness: 50,
+          passengerInitialCalmness: 50,
+          passengerMoodMaximum: 90,
+          passengerMoodChangeId: 0,
+          passengerMoodChangeDirection: "",
+          passengerMoodChangeAmount: 0,
           passengerStressPercent: 0,
           forcedExitDuration: 5,
           forcedExitRemaining: 0,
@@ -409,6 +242,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         let lastAnnouncedNextOfferId = null;
         let passengerChatTimer = null;
         let passengerChatHideTimer = null;
+        let passengerMoodFlashTimer = null;
         let passengerChatGeneration = 0;
         let passengerChatTripId = 0;
         let passengerChatPassenger = "";
@@ -419,6 +253,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         let gameUiVolume = 1;
         let offlineHoldStartedAt = 0;
         let offlineHoldTimer = null;
+        let activeFuelStationId = "";
 
         const clampAudioVolume = (value) => Math.max(0, Math.min(1, Number(value) || 0));
         const applyGameUiVolume = () => {
@@ -606,7 +441,98 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             fontBoost: Math.max(0, Math.min(5, Math.round(Number.isFinite(fontBoost) ? fontBoost : 2))),
             silentMode: value.silentMode === true,
             showRouteGuidance: value.showRouteGuidance !== false,
+            realisticMode: value.realisticMode === true,
           };
+        };
+
+        const normalizeFuelStation = (source) => {
+          const value = source && typeof source === "object" ? source : {};
+          const refuelingSource = value.refueling && typeof value.refueling === "object"
+            ? value.refueling : {};
+          const options = Array.isArray(value.options) ? value.options.map((option) => ({
+            energyType: String(option.energyType || ""),
+            unit: String(option.unit || ""),
+            currentQuantity: Math.max(0, Number(option.currentQuantity || 0)),
+            maxQuantity: Math.max(0, Number(option.maxQuantity || 0)),
+            missingQuantity: Math.max(0, Number(option.missingQuantity || 0)),
+            affordableQuantity: Math.max(0, Number(option.affordableQuantity || 0)),
+            currentPercent: Math.max(0, Math.min(100, Number(option.currentPercent || 0))),
+            pricePerUnit: Math.max(0, Number(option.pricePerUnit || 0)),
+            maxCost: Math.max(0, Number(option.maxCost || 0)),
+          })).filter((option) => option.energyType) : [];
+          return {
+            available: value.available === true,
+            id: String(value.id || ""),
+            name: String(value.name || ""),
+            balance: Math.max(0, Number(value.balance || 0)),
+            options,
+            refueling: {
+              active: refuelingSource.active === true,
+              completing: refuelingSource.completing === true,
+              energyType: String(refuelingSource.energyType || ""),
+              quantity: Math.max(0, Number(refuelingSource.quantity || 0)),
+              cost: Math.max(0, Number(refuelingSource.cost || 0)),
+              duration: Math.max(0, Number(refuelingSource.duration || 0)),
+              elapsed: Math.max(0, Number(refuelingSource.elapsed || 0)),
+              progress: Math.max(0, Math.min(1, Number(refuelingSource.progress || 0))),
+              remainingSeconds: Math.max(0, Number(refuelingSource.remainingSeconds || 0)),
+              completionId: Math.max(0, Number(refuelingSource.completionId || 0)),
+            },
+          };
+        };
+
+        const normalizeFuelDetour = (source) => {
+          const value = source && typeof source === "object" ? source : {};
+          return {
+            active: value.active === true,
+            hadTrip: value.hadTrip === true,
+            passengerOnboard: value.passengerOnboard === true,
+            stationName: String(value.stationName || ""),
+            routeDistance: Math.max(0, Number(value.routeDistance || 0)),
+            penaltyPercent: Math.max(0, Number(value.penaltyPercent || 0)),
+            arrived: value.arrived === true,
+          };
+        };
+
+        const getFuelOption = (energyType, station) => {
+          const source = station || $scope.state.fuelStation || {};
+          const options = Array.isArray(source.options) ? source.options : [];
+          return options.find((option) => option.energyType === energyType) || null;
+        };
+
+        const clampRefuelAmount = () => {
+          const option = getFuelOption($scope.selectedFuelType);
+          const maximum = option ? Math.max(0, Number(option.affordableQuantity || 0)) : 0;
+          const amount = Math.max(0, Number($scope.refuel.amount || 0));
+          $scope.refuel.amount = Math.min(maximum, amount);
+        };
+
+        const syncFuelStation = (station) => {
+          if (!station.available) {
+            activeFuelStationId = "";
+            $scope.fuelStationOpen = false;
+            $scope.selectedFuelType = "";
+            $scope.refuel.amount = 0;
+            return;
+          }
+
+          const isNewStation = station.id !== activeFuelStationId;
+          activeFuelStationId = station.id;
+          if (isNewStation) {
+            $scope.refuel.amount = 0;
+            if (!$scope.settingsOpen && !$scope.profileOpen && !$scope.offlineConfirmOpen) {
+              $scope.fuelStationOpen = true;
+              $scope.phoneMinimized = false;
+              dismissPassengerChat();
+              hideMinimap();
+            }
+          }
+
+          if (!getFuelOption($scope.selectedFuelType, station)) {
+            $scope.selectedFuelType = station.options.length ? station.options[0].energyType : "";
+            $scope.refuel.amount = 0;
+          }
+          clampRefuelAmount();
         };
 
         const saveSettingsToLua = (source) => {
@@ -717,9 +643,10 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         let lastMinimapRect = "";
         let minimapVisible = false;
         let uiVisible = true;
-        const minimapPhases = new Set(["toPickup", "toStop", "toDestination"]);
+        const minimapPhases = new Set(["toPickup", "toStop", "toDestination", "toFuelStation"]);
         const canRenderMinimap = (hudState) => uiVisible && !$scope.phoneMinimized &&
           !$scope.settingsOpen && !$scope.profileOpen && !$scope.offlineConfirmOpen &&
+          !$scope.fuelStationOpen &&
           hudState && hudState.active === true &&
           minimapPhases.has(hudState.phase);
         const hideMinimap = (force) => {
@@ -832,6 +759,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         this.toggleSettings = () => {
           $scope.settingsOpen = !$scope.settingsOpen;
           $scope.profileOpen = false;
+          $scope.fuelStationOpen = false;
           $scope.offlineConfirmOpen = false;
           $scope.settingsSaved = false;
           if ($scope.settingsOpen) {
@@ -843,6 +771,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         this.toggleProfile = () => {
           $scope.profileOpen = !$scope.profileOpen;
           $scope.settingsOpen = false;
+          $scope.fuelStationOpen = false;
           $scope.offlineConfirmOpen = false;
           $scope.profileSaved = false;
           stopOfflineHold();
@@ -889,6 +818,66 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           $scope.settingsSaved = true;
           $scope.settingsOpen = false;
           scheduleMinimapUpdate();
+        };
+        this.toggleRealisticMode = () => {
+          $scope.settings.realisticMode = $scope.settings.realisticMode === true;
+          saveSettingsToLua($scope.settings);
+        };
+        this.openFuelStation = () => {
+          if (!$scope.state.fuelStation || !$scope.state.fuelStation.available) return;
+          $scope.fuelStationOpen = true;
+          $scope.settingsOpen = false;
+          $scope.profileOpen = false;
+          $scope.offlineConfirmOpen = false;
+          dismissPassengerChat();
+          hideMinimap();
+          bngApi.engineLua(
+            'if taxiDriver_taxiDriver then taxiDriver_taxiDriver.requestRealisticFuelData() end'
+          );
+        };
+        this.handleFuelAction = () => {
+          if (!$scope.state.active || !$scope.state.realisticMode) return;
+          if ($scope.state.fuelDetour.active && $scope.state.fuelStation.available) {
+            this.openFuelStation();
+            return;
+          }
+          bngApi.engineLua(
+            'if taxiDriver_taxiDriver then taxiDriver_taxiDriver.requestFuelStop() end'
+          );
+        };
+        this.closeFuelStation = () => {
+          if ($scope.state.fuelStation.refueling.active) return;
+          $scope.fuelStationOpen = false;
+          bngApi.engineLua(
+            'if taxiDriver_taxiDriver then taxiDriver_taxiDriver.completeFuelStop() end'
+          );
+          scheduleMinimapUpdate();
+        };
+        this.cancelFuelRoute = () => {
+          if ($scope.state.fuelStation.refueling.active) return;
+          $scope.fuelStationOpen = false;
+          bngApi.engineLua(
+            'if taxiDriver_taxiDriver then taxiDriver_taxiDriver.cancelFuelStop() end'
+          );
+          scheduleMinimapUpdate();
+        };
+        this.selectFuelType = (energyType) => {
+          if ($scope.state.fuelStation.refueling.active) return;
+          if (!getFuelOption(energyType)) return;
+          $scope.selectedFuelType = energyType;
+          $scope.refuel.amount = 0;
+        };
+        this.updateRefuelAmount = () => clampRefuelAmount();
+        this.purchaseFuel = () => {
+          if ($scope.state.fuelStation.refueling.active) return;
+          const option = getFuelOption($scope.selectedFuelType);
+          clampRefuelAmount();
+          const quantity = Number($scope.refuel.amount || 0);
+          if (!option || quantity <= 0) return;
+          const energyType = bngApi.serializeToLua(option.energyType);
+          bngApi.engineLua(
+            `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.purchaseRealisticFuel(${energyType}, ${quantity.toFixed(3)}) end`
+          );
         };
         this.acceptOrder = (offerId) => {
           const id = Math.floor(Number(offerId || 0));
@@ -963,9 +952,42 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         $scope.getFontPercent = () => 100 + Number($scope.settings.fontBoost || 0) * 10;
         $scope.formatRating = (value) => Number(value || 0).toFixed(2);
         $scope.formatBonusPercent = (value) => Number(value || 0).toFixed(1).replace(/\.0$/, "");
+        $scope.getSelectedFuelOption = () => getFuelOption($scope.selectedFuelType);
+        $scope.getRefuelMaximum = () => {
+          const option = getFuelOption($scope.selectedFuelType);
+          return option ? Math.max(0, Number(option.affordableQuantity || 0)) : 0;
+        };
+        $scope.getRefuelCost = () => {
+          const option = getFuelOption($scope.selectedFuelType);
+          return option ? Number($scope.refuel.amount || 0) * Number(option.pricePerUnit || 0) : 0;
+        };
+        $scope.getRefuelSelectionPercent = () => {
+          const maximum = $scope.getRefuelMaximum();
+          return maximum > 0
+            ? Math.max(0, Math.min(100, Number($scope.refuel.amount || 0) / maximum * 100))
+            : 0;
+        };
+        $scope.getProjectedFuelPercent = () => {
+          const option = getFuelOption($scope.selectedFuelType);
+          if (!option) return 0;
+          const maximum = Number(option.maxQuantity || 0);
+          const added = maximum > 0 ? Number($scope.refuel.amount || 0) / maximum * 100 : 0;
+          return Math.max(0, Math.min(100, Number(option.currentPercent || 0) + added));
+        };
+        $scope.getDisplayedFuelPercent = () => {
+          const option = getFuelOption($scope.selectedFuelType);
+          if (!option) return 0;
+          const session = $scope.state.fuelStation.refueling;
+          const addedPercent = session.active && session.energyType === option.energyType &&
+            Number(option.maxQuantity || 0) > 0
+            ? Number(session.quantity || 0) / Number(option.maxQuantity) * 100 *
+              Number(session.progress || 0)
+            : 0;
+          return Math.max(0, Math.min(100, Number(option.currentPercent || 0) + addedPercent));
+        };
         $scope.shouldShowNextOffer = () => {
           const offer = $scope.state.nextOffer;
-          if ($scope.settingsOpen || $scope.profileOpen || $scope.offlineConfirmOpen) return false;
+          if ($scope.settingsOpen || $scope.profileOpen || $scope.offlineConfirmOpen || $scope.fuelStationOpen) return false;
           if (!offer || $scope.state.phase !== "toDestination") return false;
           return offer.accepted ? $scope.nextOfferAcceptedVisible : $scope.nextOfferUiRemaining > 0;
         };
@@ -981,7 +1003,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           const map = {
             toPickup: "progress_pickup", boarding: "progress_boarding",
             toStop: "progress_stop", stopWaiting: "progress_stopWaiting",
-            toDestination: "progress_ride", alighting: "progress_alighting",
+            toDestination: "progress_ride", toFuelStation: "progress_fuel",
+            alighting: "progress_alighting",
           };
           return $scope.t(map[$scope.state.phase] || "progress_route");
         };
@@ -1015,6 +1038,9 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           if (event.kind === "pickupDelay") return $scope.t("detail_pickupDelay", {
             time: $scope.formatCountdown(event.lateSeconds || 0),
           });
+          if (event.kind === "fuelStop") return $scope.t("detail_fuelStop", {
+            station: event.stationName || $scope.t("refuelTitle"),
+          });
           return event.detail || "";
         };
         $scope.getQuality = () =>
@@ -1022,6 +1048,16 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
 
         $scope.$on("TaxiDriverHUDState", (_, data) => {
           if (!data) return;
+          data.fuelStation = normalizeFuelStation(data.fuelStation);
+          data.fuelDetour = normalizeFuelDetour(data.fuelDetour);
+          const refuelingJustCompleted = hudStateReceived &&
+            data.fuelStation.refueling.completionId >
+              Number($scope.state.fuelStation.refueling.completionId || 0);
+          const passengerMoodChanged = hudStateReceived &&
+            Number(data.activeTripId || 0) > 0 &&
+            Number(data.activeTripId || 0) === Number($scope.state.activeTripId || 0) &&
+            Number(data.passengerMoodChangeId || 0) >
+              Number($scope.state.passengerMoodChangeId || 0);
           if (!data.active || data.phase === "driverAbandoning") {
             stopOfflineHold();
             $scope.offlineConfirmOpen = false;
@@ -1110,6 +1146,24 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           }
           data.penalties = Object.assign(emptyPenalties(), data.penalties || {});
           $scope.state = Object.assign({}, $scope.state, data);
+          syncFuelStation($scope.state.fuelStation);
+          if (passengerMoodChanged) {
+            const moodDirection = data.passengerMoodChangeDirection === "up" ? "up" : "down";
+            const moodVariant = Number(data.passengerMoodChangeId || 0) % 2 ? "a" : "b";
+            $scope.passengerMoodFlash = `${moodDirection}-${moodVariant}`;
+            if (passengerMoodFlashTimer) clearTimeout(passengerMoodFlashTimer);
+            passengerMoodFlashTimer = setTimeout(() => $scope.$evalAsync(() => {
+              $scope.passengerMoodFlash = "";
+              passengerMoodFlashTimer = null;
+            }), 950);
+          }
+          if (refuelingJustCompleted) {
+            $scope.fuelStationOpen = false;
+            $scope.refuel.amount = 0;
+            bngApi.engineLua(
+              'if taxiDriver_taxiDriver then taxiDriver_taxiDriver.completeFuelStop() end'
+            );
+          }
           syncPassengerChat();
           hudStateReceived = true;
           lastMinimapRect = "";
@@ -1159,6 +1213,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           clearInterval(minimapTimer);
           if (phoneToastTimer) clearTimeout(phoneToastTimer);
           if (acceptedOfferTimer) clearTimeout(acceptedOfferTimer);
+          if (passengerMoodFlashTimer) clearTimeout(passengerMoodFlashTimer);
           stopOfflineHold();
           stopPassengerChat();
           appRoot.removeEventListener("click", handleAppClick, true);

@@ -57,8 +57,10 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Passenger names are generated from English first-name and surname pools.
 - The selected passenger may send **one to three emoji-only messages** while you drive to pickup.
 - Each short conversation keeps a coherent randomly chosen mood and needs no language-specific message text.
-- Every passenger receives a random **Calmness** value, shown as an expressive emoji with a percentage.
-- Calm passengers may ignore some penalty events; sensitive passengers react more strongly to poor driving.
+- Every passenger starts with a random **mood**, shown as an expressive emoji with a percentage.
+- Smooth progress gradually improves the passenger's mood, while late pickup, speeding, collisions, harsh maneuvers, and unnecessary fuel stops can lower it.
+- Each mood change briefly flashes a green or red border around the emoji. Positive recovery is capped at 40 percentage points above the passenger's initial mood.
+- Relaxed passengers may ignore some penalty events; sensitive passengers react more strongly to poor driving.
 - A passenger who becomes critically dissatisfied can demand an immediate stop and end the ride early.
 
 ### Persistent driver profile
@@ -98,6 +100,20 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Gameplay pause freezes pickup, rush, stop, transfer, and floating-offer countdowns without penalizing the driver.
 - Going offline requires a two-second hold; cancelling with a passenger aboard requires confirmation and applies the displayed difficulty-based rating penalty.
 - Vehicle reset clears both the active trip and the queued request to prevent stale state.
+
+### Optional realistic economy
+
+- Enable **Realistic mode** on the start screen before going online.
+- Combustion vehicles begin the shift with 5% fuel; electric vehicles begin with 30% charge.
+- Stop at a compatible fuel station to open the in-phone refueling screen.
+- Use the persistent **Refuel** action to route to the nearest compatible station while browsing orders or during an active ride.
+- Fuel routing temporarily takes priority without discarding the passenger, queued ride, or dispatcher state.
+- A fuel stop with a passenger aboard applies a small wait penalty balanced by difficulty, passenger Calmness, and driver rating.
+- Choose fuel or energy with a slider limited by tank capacity and the current TaxiDriver wallet balance.
+- Refueling is timed and animated: liquid fuel flows at 2 L/s, while EV charging adds 4 percentage points per second. The process follows simulation time and pauses with the game.
+- The realism economy uses a Midwest-oriented gasoline price of $0.93/L and a public fast-charging price of $0.50/kWh.
+- Fuel prices and energy units follow BeamNG.drive's station economy data.
+- Going offline restores the normal free-roam station interface without changing the vehicle's remaining fuel or charge.
 
 ## Settings
 
@@ -148,11 +164,13 @@ All application sounds—including clicks, online/offline cues, passenger messag
 ## Repository structure
 
 ```text
-lua/ge/extensions/taxiDriver/       Main taxi-mode logic
+lua/ge/extensions/taxiDriver/       Runtime controller and focused Lua modules
 lua/vehicle/extensions/auto/        Vehicle telemetry bridge
-ui/modules/apps/TaxiDriverHUD/      Phone UI App, assets, and sounds
+ui/modules/apps/TaxiDriverHUD/      Phone UI, styles, localizations, assets, and sounds
 mod_info/TaxiDriver/                BeamNG mod metadata
 ```
+
+Order discovery is processed incrementally across simulation updates. Complex road graphs may therefore take longer to fill the dispatcher, but route scanning no longer performs a large synchronous workload in a single frame.
 
 Packaged builds are distributed through [GitHub Releases](https://github.com/noteMASTER11/TaxiDriverReloaded/releases) and are intentionally excluded from the source tree.
 
