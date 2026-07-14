@@ -1,5 +1,6 @@
 # Packaged release artifacts
 /dist/
+/docs/
 *.zip
 
 # Local editor and operating-system files
