@@ -1,0 +1,8 @@
+{
+  "name": "TaxiDriver — Universal Taxi Mode",
+  "author": "TaxiDriver modernization project",
+  "version": "2.10.6",
+  "description": "Universal free-roam taxi mode with a mobile-driver UI, dynamic orders, native minimap, fares, ratings and persistent settings.",
+  "type": "Lua",
+  "tags": ["lua", "taxi", "freeroam", "ui", "gameplay"]
+}

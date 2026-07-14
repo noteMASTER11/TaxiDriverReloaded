@@ -1,0 +1,12 @@
+# Packaged release artifacts
+/dist/
+*.zip
+
+# Local editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
+*.tmp

@@ -1,0 +1,8 @@
+TaxiDriver — Universal Taxi Mode
+
+Original TaxiDriver concept by Incognito:
+https://www.beamng.com/resources/taxidriver.28763/
+
+The original idea of taxi-driver gameplay in BeamNG.drive belongs to Incognito.
+This package is an independent modernization and reimplementation for current
+free-roam gameplay. It is not an official update of the original resource.

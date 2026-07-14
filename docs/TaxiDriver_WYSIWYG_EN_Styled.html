@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TaxiDriver — Rich Text Description</title>
+</head>
+<body>
+
+<center>
+  <h1><font color="#E6B800">TaxiDriver</font></h1>
+  <h2>Your City. Your Shift. Your Reputation.</h2>
+  <p><strong>A complete taxi-driving mode for BeamNG.drive free roam.</strong></p>
+  <p><em>Dynamic requests · Real passenger behavior · Mobile navigation · Fares and ratings</em></p>
+  <p><strong>Version 2.10.6 · Designed for BeamNG.drive 0.38.6</strong></p>
+</center>
+
+<hr>
+
+<blockquote>
+  <p><big><strong>Turn free roam into a living taxi experience.</strong></big></p>
+  <p>Go online, compare available fares, pick up passengers, follow the route, maintain a strong driver rating, and earn more for safe and comfortable driving.</p>
+</blockquote>
+
+<hr>
+
+<h2><font color="#E6B800">📱 Not a Scenario — A Complete Free Roam Mode</font></h2>
+
+<p>TaxiDriver runs as a standalone <strong>UI App</strong> inside BeamNG.drive free roam. Add <strong>TaxiDriverHUD</strong> to your interface, place the phone wherever it is comfortable, and start or stop your shift whenever you want.</p>
+
+<p>The entire experience lives inside the driver's mobile phone:</p>
+
+<ul>
+  <li>going online and offline;</li>
+  <li>searching for requests;</li>
+  <li>comparing passengers and fares;</li>
+  <li>navigation and ETA;</li>
+  <li>pickup, boarding, scheduled stops, and drop-off;</li>
+  <li>fare calculation and penalties;</li>
+  <li>driver rating and earnings bonuses;</li>
+  <li>language, difficulty, text size, guidance, and sound settings.</li>
+</ul>
+
+<p><strong>No separate scenario. No fixed map-specific trip list. Just add the phone and go online.</strong></p>
+
+<hr>
+
+<h2><font color="#E6B800">🚕 Choose the Ride That Fits You</font></h2>
+
+<p>After you go online, the phone simulates connecting to dispatch and gradually builds a mixed pool of <strong>10–12 available requests</strong>.</p>
+
+<p>Every request card shows:</p>
+
+<ul>
+  <li>the passenger's randomly generated English name;</li>
+  <li>Passenger Calmness;</li>
+  <li>pickup deadline;</li>
+  <li>ride distance;</li>
+  <li>estimated duration;</li>
+  <li>estimated payout;</li>
+  <li>driver-rating bonus;</li>
+  <li>rush bonus or scheduled-stop count when applicable.</li>
+</ul>
+
+<h3>Standard Rides</h3>
+<p>Balanced city work with a clear pickup, destination, time estimate, and fare.</p>
+
+<h3><font color="#D18400">Rush Requests</font></h3>
+<p>Accept a tighter time limit for extra money. If the timer expires, you keep the base fare and lose only the rush bonus.</p>
+
+<h3><font color="#7857B8">Rides with Stops</font></h3>
+<p>Take a longer route through two intermediate roadside points. Remain stationary for <strong>10 seconds</strong> at each stop while the phone displays a dedicated waiting loader.</p>
+
+<blockquote>
+  <p><strong>Sparse map protection:</strong> multi-stop requests appear only when the current map provides enough suitable locations. Otherwise, TaxiDriver safely generates regular work instead of stalling the dispatcher.</p>
+</blockquote>
+
+<hr>
+
+<h2><font color="#E6B800">💬 Passengers Feel Like Passengers</font></h2>
+
+<h3>Names and Emoji Messages</h3>
+
+<p>Every passenger receives a randomly combined English first and last name.</p>
+
+<p>After accepting a request, the selected passenger may send <strong>one to three emoji-only messages</strong> while you drive to the pickup point. Each conversation keeps one coherent mood:</p>
+
+<ul>
+  <li>cheerful;</li>
+  <li>sad;</li>
+  <li>excited;</li>
+  <li>sleepy;</li>
+  <li>dreamy;</li>
+  <li>grumpy.</li>
+</ul>
+
+<blockquote>
+  <p><strong>Amelia Howard · 08:04 PM</strong></p>
+  <p><big>☀️ 😊 ✨ &nbsp; 🚕 🤩 🎉</big></p>
+</blockquote>
+
+<p>Messages belong only to the selected passenger and active pickup session. They never appear while browsing the dispatcher and do not require translated sentences.</p>
+
+<h3>Passenger Calmness: 0% to 100%</h3>
+
+<p>Calmness changes how the same driving event affects the fare:</p>
+
+<ul>
+  <li><strong>At 100% Calmness:</strong> an eligible penalty can have up to a 70% chance of being ignored.</li>
+  <li><strong>At or above 50%:</strong> the passenger does not increase the normal penalty value.</li>
+  <li><strong>Below 50%:</strong> applied penalties become progressively stronger.</li>
+  <li><strong>At 0% Calmness:</strong> penalties are never ignored and can reach twice their normal value.</li>
+</ul>
+
+<h3><font color="#C23A4B">A Passenger Can End the Ride</font></h3>
+
+<p>Dangerous driving increases passenger dissatisfaction. If it becomes critical, the passenger may demand an immediate stop:</p>
+
+<ol>
+  <li>The phone switches to a dedicated emergency screen.</li>
+  <li>The vehicle brakes automatically.</li>
+  <li>Driving controls are temporarily locked after the car nearly stops.</li>
+  <li>The passenger door opens and the passenger exits.</li>
+  <li>The door closes, controls are restored, and the taxi returns to work.</li>
+</ol>
+
+<p>An early passenger exit pays no fare and reduces the overall driver rating according to difficulty—from <strong>10% on Elementary</strong> to <strong>45% on Professional</strong>.</p>
+
+<hr>
+
+<h2><font color="#E6B800">🗺️ Realistic Dynamic Locations</font></h2>
+
+<p>TaxiDriver does not store a hard-coded list of coordinates for individual maps. It prioritizes locations that make sense for a taxi:</p>
+
+<ul>
+  <li>bus stops;</li>
+  <li>street-side and regular parking spaces;</li>
+  <li>points of interest;</li>
+  <li>other compatible semantic map objects;</li>
+  <li>safe road-edge fallback positions.</li>
+</ul>
+
+<p>The selected point is projected toward the <strong>outer edge of the road</strong>, taking road width and legal direction into account. This reduces pickups in the middle lane of a multi-lane road.</p>
+
+<p>Semantic locations receive controlled variation along the same road segment. Recently generated positions are avoided when alternatives exist, so pickup and destination points feel less repetitive.</p>
+
+<p>On maps with few suitable places, recent positions remain available as a fallback. This keeps order generation reliable instead of sacrificing the entire request pool for variety.</p>
+
+<p>Normal ride distance is limited to approximately <strong>1–25 kilometers</strong>.</p>
+
+<hr>
+
+<h2><font color="#E6B800">🚪 Pickup, Boarding, Stops, and Drop-Off</font></h2>
+
+<p>When you stop at the target, the phone displays a dedicated boarding or drop-off screen with a loading indicator.</p>
+
+<p>TaxiDriver then attempts to:</p>
+
+<ol>
+  <li>identify a suitable passenger door;</li>
+  <li>open it;</li>
+  <li>wait briefly;</li>
+  <li>close it and continue the ride.</li>
+</ol>
+
+<p>Door triggers differ between vehicles, so this animation works on a best-effort basis. If no compatible trigger exists, the ride continues normally.</p>
+
+<h3>Pickup Deadline</h3>
+
+<p>Every accepted request starts a calculated pickup countdown. Arriving too late creates a visible fare penalty. The reduction begins at 5% and grows gradually up to a maximum of 12%.</p>
+
+<h3>Scheduled Stops</h3>
+
+<p>At every intermediate stop, remain stationary for 10 seconds. Moving away or leaving the point resets the waiting timer.</p>
+
+<hr>
+
+<h2><font color="#E6B800">📍 A Real Mobile Navigation Experience</font></h2>
+
+<p>During an active route, the phone displays an adapted <strong>rectangular BeamNG.drive minimap</strong>. It appears only on navigation screens and remains behind TaxiDriver's localized notifications.</p>
+
+<p>The navigation screen includes:</p>
+
+<ul>
+  <li>the real route line;</li>
+  <li>estimated arrival time;</li>
+  <li>remaining distance;</li>
+  <li>current speed limit when available;</li>
+  <li>progress toward pickup or destination;</li>
+  <li>intermediate-stop markers positioned across the complete ride progress bar.</li>
+</ul>
+
+<h3>Dynamic Zoom</h3>
+
+<p>The minimap moves closer at low speed and progressively zooms out as the vehicle accelerates. The transition is smoothed to avoid distracting jumps during city driving.</p>
+
+<h3>Optional Road Guidance</h3>
+
+<p>Navigation arrows drawn directly over the road can be disabled in settings. The route remains visible on the phone map.</p>
+
+<p>ETA is planned around an average urban speed of <strong>40 km/h</strong>. It is an estimate, not a required driving speed.</p>
+
+<hr>
+
+<h2><font color="#E6B800">💵 Your Driving Changes Your Pay</font></h2>
+
+<p>The fare combines a base charge, route distance, and expected travel time. While you drive, TaxiDriver evaluates confirmed events rather than punishing every small fluctuation.</p>
+
+<h3>What Can Reduce the Fare?</h3>
+
+<ul>
+  <li><strong>Speeding:</strong> uses a tolerance margin and grace period before applying a penalty.</li>
+  <li><strong>Collisions:</strong> detects increases in vehicle damage and avoids repeated charges for one impact.</li>
+  <li><strong>Harsh maneuvers:</strong> evaluates acceleration, braking, and lateral cornering forces.</li>
+  <li><strong>Late pickup:</strong> applies a moderate reduction that grows while the passenger waits.</li>
+  <li><strong>Expired rush timer:</strong> removes only the bonus portion of the fare.</li>
+</ul>
+
+<p>Every applied event appears in the phone's dedicated <strong>Penalties</strong> list. The combined fare reduction is capped at <strong>50%</strong>.</p>
+
+<blockquote>
+  <p><strong>A strong reputation pays.</strong></p>
+  <p>Ratings above 3.99 receive a proportional earnings bonus, reaching <strong>+15%</strong> at a perfect 5.00 driver rating.</p>
+</blockquote>
+
+<p>The ride screen displays a five-star progress bar filled according to the precise rating value from <strong>0.00 to 5.00</strong>.</p>
+
+<hr>
+
+<h2><font color="#E6B800">🔄 Stay Online Between Rides</font></h2>
+
+<p>After more than 90% of the current route is complete, the phone may display another request. You have five seconds to accept it.</p>
+
+<ul>
+  <li>An ignored offer expires completely.</li>
+  <li>Another offer may appear after 5–10 seconds.</li>
+  <li>An accepted offer enters a queue and never replaces the current passenger.</li>
+  <li>After drop-off, TaxiDriver automatically directs you to the queued passenger.</li>
+  <li>The green accepted-request confirmation disappears when that passenger begins boarding.</li>
+</ul>
+
+<hr>
+
+<h2><font color="#E6B800">⚙️ Configure the Phone</font></h2>
+
+<p>Open settings from the gear button, save your preferences, and return directly to the previous phone screen.</p>
+
+<ul>
+  <li><strong>Language:</strong> English, Russian, German, French, Spanish, Polish, and Ukrainian.</li>
+  <li><strong>Remember Language:</strong> save a language other than the default English.</li>
+  <li><strong>Text Size:</strong> increase interface text without resizing the entire phone.</li>
+  <li><strong>Difficulty:</strong> Elementary, Easy, Standard, or Professional.</li>
+  <li><strong>Road Guidance:</strong> show or hide arrows and markers drawn over the road.</li>
+  <li><strong>Silent Mode:</strong> mute every TaxiDriver application sound.</li>
+  <li><strong>Minimize Phone:</strong> smoothly slide the phone down when you need a clear road view.</li>
+</ul>
+
+<h3>Six Dedicated Sound Groups</h3>
+
+<p>Interface clicks, going online, going offline, floating offers, penalties, and passenger messages all follow BeamNG.drive's <strong>Interface Volume</strong> slider in real time.</p>
+
+<h3>Reliable Settings Storage</h3>
+
+<p>Preferences are stored in:</p>
+
+<p><code>BeamNG.drive/current/settings/TaxiDriver/settings.json</code></p>
+
+<p>Invalid or unsupported settings automatically fall back to safe defaults and are recreated.</p>
+
+<hr>
+
+<h2><font color="#E6B800">🎮 Getting Started</font></h2>
+
+<ol>
+  <li>Place <strong>taxidriver.zip</strong> in <code>BeamNG.drive/current/mods</code>.</li>
+  <li>Enable the mod in Mod Manager.</li>
+  <li>Open the UI Apps editor.</li>
+  <li>Add <strong>TaxiDriverHUD</strong>.</li>
+  <li>Press <strong>Start Driving</strong>.</li>
+  <li>Wait for requests and choose your first passenger.</li>
+</ol>
+
+<blockquote>
+  <p><strong>Important:</strong> do not keep packed and unpacked copies of the same mod version at the same time. Duplicate Lua and UI files may cause loading conflicts.</p>
+</blockquote>
+
+<hr>
+
+<h2><font color="#E6B800">Compatibility and Limitations</font></h2>
+
+<ul>
+  <li>Target version: <strong>BeamNG.drive 0.38.6</strong>.</li>
+  <li>The current map must provide a usable road graph.</li>
+  <li>Semantic location quality depends on map-provided bus stops, parking spaces, and points of interest.</li>
+  <li>Maps with very few suitable places may reuse recent roadside points.</li>
+  <li>Door animation support depends on the selected vehicle's trigger structure.</li>
+  <li>The mod is designed primarily for free roam and is not a standalone scenario.</li>
+</ul>
+
+<hr>
+
+<h2><font color="#E6B800">Credit to the Original Idea</font></h2>
+
+<p>Special thanks to <strong>Incognito</strong>, creator of the original <a href="https://www.beamng.com/resources/taxidriver.28763/">TaxiDriver mod</a>.</p>
+
+<blockquote>
+  <p>The original idea of a dedicated BeamNG.drive taxi experience—including passenger rides, an economy, and a driver-rating system—belongs to Incognito.</p>
+</blockquote>
+
+<p>This version is an independent reimagining for modern free roam. It is not an official update to the original resource and does not replace the original author's work.</p>
+
+<hr>
+
+<center>
+  <h2><font color="#E6B800">Go Online. The City Is Waiting.</font></h2>
+  <p><strong>Choose the fare, meet the passenger, and try to keep all five stars.</strong></p>
+</center>
+
+</body>
+</html>

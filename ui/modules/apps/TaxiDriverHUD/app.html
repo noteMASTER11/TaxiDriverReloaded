@@ -1,0 +1,1643 @@
+<style>
+  taxi-driver-hud {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .taxi-shell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .taxi-shell__toggle {
+    position: absolute;
+    z-index: 70;
+    top: 0;
+    left: 50%;
+    display: flex;
+    height: 34px;
+    align-items: center;
+    gap: 8px;
+    padding: 0 17px;
+    color: #fff7cc;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: .2px;
+    white-space: nowrap;
+    background: linear-gradient(180deg, rgba(46,49,54,.96), rgba(19,21,24,.97));
+    border: 1px solid rgba(255,209,26,.48);
+    border-radius: 13px 13px 7px 7px;
+    box-shadow: 0 7px 20px rgba(0,0,0,.36), inset 0 0 0 1px rgba(255,255,255,.04);
+    transform: translateX(-50%);
+    cursor: pointer;
+    transition: top .58s cubic-bezier(.22,.78,.18,1), color .2s, background .2s;
+  }
+  .taxi-shell__toggle:hover { color: #17140a; background: var(--yellow, #ffd11a); }
+  .taxi-shell__toggle-icon { color: #ffd11a; font-size: 16px; line-height: 1; transition: transform .58s cubic-bezier(.22,.78,.18,1); }
+  .taxi-shell__toggle:hover .taxi-shell__toggle-icon { color: currentColor; }
+  .taxi-shell__notification {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 11px;
+    height: 11px;
+    background: #ff9d1e;
+    border: 2px solid #15171a;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #ff9d1e;
+    animation: taxi-notification-pulse .7s ease-in-out infinite alternate;
+  }
+  .taxi-shell--minimized .taxi-shell__toggle { top: calc(100% - 42px); border-radius: 13px; }
+  .taxi-shell--minimized .taxi-shell__toggle-icon { transform: rotate(180deg); }
+  .taxi-shell--minimized .taxi-phone { transform: translateY(calc(100% + 50px)) scale(.96); opacity: 0; pointer-events: none; }
+
+  @keyframes taxi-notification-pulse { to { transform: scale(1.32); opacity: .72; } }
+
+  @keyframes taxi-next-offer-in {
+    from { transform: translateY(45px) scale(.96); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+  }
+
+  @keyframes taxi-passenger-chat-notification {
+    0% { transform: translate3d(0, -18px, 0) scale(.98); opacity: 0; }
+    14% { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
+    72% { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
+    100% { transform: translate3d(118%, 0, 0) scale(.98); opacity: 0; }
+  }
+
+  .taxi-phone {
+    --yellow: #ffd11a;
+    --yellow-dark: #d9a900;
+    --ink: #14161a;
+    --panel: #20242a;
+    --muted: #98a0ab;
+    --green: #5de18d;
+    --red: #ff6868;
+    position: absolute;
+    top: 36px;
+    left: 0;
+    width: 100%;
+    height: calc(100% - 36px);
+    min-width: 330px;
+    min-height: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    color: #f7f8fa;
+    font-family: "Noto Sans", "Open Sans", sans-serif;
+    background: transparent;
+    border: 8px solid #070809;
+    border-radius: 36px;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    transition: transform .58s cubic-bezier(.22,.78,.18,1), opacity .36s ease;
+  }
+
+  .taxi-phone * { box-sizing: border-box; }
+
+  .taxi-phone::before {
+    content: "";
+    position: absolute;
+    z-index: 20;
+    top: 5px;
+    left: 50%;
+    width: 78px;
+    height: 17px;
+    transform: translateX(-50%);
+    background: #070809;
+    border-radius: 0 0 12px 12px;
+  }
+
+  .taxi-phone__screen {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+    border-radius: 23px;
+  }
+
+  .phone-status {
+    z-index: 21;
+    display: flex;
+    flex: 0 0 30px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 13px 0;
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .2px;
+    background: #111317;
+  }
+
+  .phone-status__icons {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+  }
+
+  .phone-status__battery {
+    width: 17px;
+    height: 8px;
+    padding: 1px;
+    border: 1px solid rgba(255,255,255,.8);
+    border-radius: 2px;
+  }
+
+  .phone-status__battery::after {
+    content: "";
+    display: block;
+    width: 80%;
+    height: 100%;
+    background: var(--green);
+    border-radius: 1px;
+  }
+
+  .taxi-appbar {
+    z-index: 3;
+    display: flex;
+    flex: 0 0 56px;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 15px 9px;
+    background: rgba(17, 19, 23, .94);
+    border-bottom: 1px solid rgba(255, 255, 255, .07);
+  }
+
+  .taxi-appbar__logo {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    color: #15130a;
+    font-size: 20px;
+    font-weight: 1000;
+    background: linear-gradient(145deg, #ffe56b, var(--yellow));
+    border-radius: 9px;
+    box-shadow: 0 5px 14px rgba(255, 209, 26, .18);
+  }
+
+  .taxi-appbar__title { min-width: 0; flex: 1; }
+  .taxi-appbar__title strong { display: block; font-size: 16px; line-height: 1.1; }
+  .taxi-appbar__title span {
+    display: block;
+    margin-top: 3px;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .taxi-appbar__live {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--green);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+
+  .taxi-appbar__live::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    background: currentColor;
+    border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+  }
+
+  .taxi-appbar__settings {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    place-items: center;
+    color: #eef1f4;
+    font-size: 19px;
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 9px;
+    cursor: pointer;
+  }
+  .taxi-appbar__settings:hover { color: var(--yellow); background: rgba(255,209,26,.1); }
+
+  .taxi-map {
+    position: relative;
+    flex: 0 0 255px;
+    overflow: hidden;
+    background: rgba(17, 19, 23, .18);
+  }
+
+  .taxi-minimap-surface {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .taxi-map__route-info {
+    position: absolute;
+    z-index: 2;
+    top: 10px;
+    left: 10px;
+    min-width: 145px;
+    padding: 10px 12px;
+    color: #f8f9fa;
+    background: rgba(20, 22, 26, .93);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 11px;
+    box-shadow: 0 7px 18px rgba(0,0,0,.23);
+  }
+
+  .taxi-map__route-info span {
+    display: block;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .45px;
+    text-transform: uppercase;
+  }
+  .taxi-map__route-info strong { display: block; margin-top: 1px; font-size: 25px; line-height: 1.1; }
+  .taxi-map__route-info small { display: block; margin-top: 3px; color: #e5e8eb; font-size: 11px; }
+
+  .taxi-map__speed {
+    position: absolute;
+    z-index: 2;
+    right: 10px;
+    bottom: 10px;
+    display: grid;
+    width: 49px;
+    height: 49px;
+    place-items: center;
+    color: #16181b;
+    font-size: 17px;
+    font-weight: 1000;
+    background: white;
+    border: 4px solid #e64040;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  }
+
+  .taxi-sheet {
+    z-index: 2;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: -10px;
+    padding: 16px 15px 13px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: linear-gradient(180deg, #24282e, #171a1f);
+    border-top: 1px solid rgba(255,255,255,.11);
+    border-radius: 15px 15px 0 0;
+    box-shadow: 0 -8px 22px rgba(0,0,0,.22);
+  }
+  .taxi-sheet::-webkit-scrollbar { width: 3px; }
+  .taxi-sheet::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 4px; }
+
+  .taxi-sheet__heading { display: flex; align-items: flex-start; gap: 10px; }
+  .taxi-sheet__avatar {
+    display: grid;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    color: #19170d;
+    font-size: 12px;
+    font-weight: 1000;
+    background: linear-gradient(145deg, #ffe66b, var(--yellow));
+    border-radius: 50%;
+  }
+  .taxi-sheet__heading-text { min-width: 0; flex: 1; }
+  .taxi-sheet__heading strong { display: block; font-size: 16px; line-height: 1.2; }
+  .taxi-sheet__heading span {
+    display: block;
+    margin-top: 2px;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .taxi-sheet__distance { color: var(--yellow); font-size: 14px; font-weight: 900; white-space: nowrap; }
+
+  .taxi-progress { margin-top: 9px; }
+  .taxi-progress__labels { display: flex; justify-content: space-between; color: #c8cdd4; font-size: 10px; font-weight: 800; }
+  .taxi-progress__track {
+    position: relative;
+    height: 8px;
+    margin-top: 5px;
+    overflow: visible;
+    background: rgba(255,255,255,.1);
+    border-radius: 99px;
+  }
+  .taxi-progress__fill {
+    height: 100%;
+    min-width: 2px;
+    background: linear-gradient(90deg, var(--yellow-dark), var(--yellow));
+    border-radius: 99px;
+    box-shadow: 0 0 10px rgba(255,209,26,.35);
+    transition: width .35s ease;
+  }
+  .taxi-progress__marker {
+    position: absolute;
+    z-index: 2;
+    top: -3px;
+    width: 3px;
+    height: 14px;
+    background: #8ee8ff;
+    border: 1px solid rgba(10,28,35,.9);
+    border-radius: 2px;
+    box-shadow: 0 0 6px rgba(85,199,232,.7);
+    transform: translateX(-50%);
+  }
+  .taxi-progress__markers {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .taxi-progress__marker--active {
+    width: 4px;
+    background: #fff;
+    box-shadow: 0 0 8px rgba(142,232,255,.95);
+  }
+  .taxi-progress__marker--completed {
+    background: var(--green);
+    box-shadow: 0 0 6px rgba(93,225,141,.65);
+  }
+
+  .taxi-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 7px;
+    margin-top: 12px;
+  }
+  .taxi-metric {
+    min-width: 0;
+    padding: 9px 9px;
+    background: rgba(255,255,255,.055);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 9px;
+  }
+  .taxi-metric span { display: block; color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; }
+  .taxi-metric strong { display: block; margin-top: 3px; overflow: hidden; font-size: 15px; text-overflow: ellipsis; }
+  .taxi-metric--fare strong { color: var(--green); }
+  .taxi-metric--penalty strong { color: var(--red); }
+
+  .taxi-penalty-log {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    flex-direction: column;
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px solid rgba(255,255,255,.07);
+  }
+  .taxi-penalty-log__header { display: flex; align-items: center; justify-content: space-between; }
+  .taxi-penalty-log__header strong { font-size: 11px; }
+  .taxi-penalty-log__header span { color: var(--red); font-size: 10px; font-weight: 900; }
+  .taxi-penalty-log__empty { margin-top: 7px; color: var(--green); font-size: 10px; }
+  .taxi-penalty-log__events {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: 6px;
+    padding-right: 4px;
+    overflow-y: auto;
+  }
+  .taxi-penalty-log__events::-webkit-scrollbar { width: 3px; }
+  .taxi-penalty-log__events::-webkit-scrollbar-thumb { background: rgba(255,104,104,.52); border-radius: 4px; }
+  .taxi-penalty-event {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    border-top: 1px solid rgba(255,255,255,.045);
+  }
+  .taxi-penalty-event__icon {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    place-items: center;
+    color: #241515;
+    font-size: 10px;
+    font-weight: 1000;
+    background: #ff8b8b;
+    border-radius: 6px;
+  }
+  .taxi-penalty-event__text { min-width: 0; flex: 1; }
+  .taxi-penalty-event__text strong { display: block; font-size: 10px; }
+  .taxi-penalty-event__text span { display: block; margin-top: 1px; overflow: hidden; color: var(--muted); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+  .taxi-penalty-event__value { color: var(--red); font-size: 10px; font-weight: 900; }
+
+  .taxi-driver-rating {
+    flex: 0 0 auto;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,.08);
+  }
+  .taxi-driver-rating__header { display: flex; align-items: center; justify-content: space-between; }
+  .taxi-driver-rating__header strong { font-size: 12px; }
+  .taxi-driver-rating__header span { color: var(--yellow); font-size: 13px; font-weight: 1000; }
+  .taxi-driver-rating__progress { position: relative; height: 25px; margin-top: 6px; }
+  .taxi-driver-rating__track {
+    position: absolute;
+    top: 9px;
+    right: 0;
+    left: 0;
+    height: 7px;
+    overflow: hidden;
+    background: rgba(255,255,255,.1);
+    border-radius: 99px;
+  }
+  .taxi-driver-rating__fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--yellow-dark), var(--yellow));
+    border-radius: 99px;
+    transition: width .35s ease;
+  }
+  .taxi-driver-rating__stars {
+    position: absolute;
+    inset: 0 2px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .taxi-driver-rating__stars .taxi-star {
+    padding: 2px;
+    font-size: 20px;
+    background: #1a1d21;
+    border-radius: 50%;
+  }
+
+  .taxi-footer {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 8px;
+  }
+  .taxi-rating { min-width: 0; flex: 1; }
+  .taxi-rating__line { display: flex; align-items: center; gap: 5px; }
+  .taxi-rating__stars { display: flex; gap: 1px; }
+  .taxi-star { position: relative; display: inline-block; color: rgba(255,255,255,.14); font-size: 18px; line-height: 1; }
+  .taxi-star__fill { position: absolute; top: 0; left: 0; overflow: hidden; color: var(--yellow); white-space: nowrap; }
+  .taxi-rating__value { color: #fff; font-size: 12px; font-weight: 900; }
+  .taxi-rating__meta { margin-top: 3px; color: var(--muted); font-size: 9px; }
+  .taxi-stop {
+    padding: 8px 9px;
+    color: #dfe3e7;
+    font-size: 10px;
+    font-weight: 900;
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .taxi-stop:hover { color: #fff; background: rgba(255,104,104,.18); border-color: rgba(255,104,104,.42); }
+
+  .taxi-orders {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    background: linear-gradient(165deg, #24282e, #111317 72%);
+  }
+
+  .taxi-orders__sheet {
+    z-index: 2;
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    margin-top: 0;
+    padding: 15px 14px 12px;
+    background: linear-gradient(180deg, #262a30, #15181c);
+    border-top: 1px solid rgba(255,255,255,.11);
+    border-radius: 0;
+  }
+
+  .taxi-orders__search {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .taxi-orders__spinner {
+    width: 22px;
+    height: 22px;
+    border: 3px solid rgba(255,255,255,.12);
+    border-top-color: var(--yellow);
+    border-radius: 50%;
+    animation: taxi-spin .9s linear infinite;
+  }
+
+  @keyframes taxi-spin { to { transform: rotate(360deg); } }
+
+  .taxi-orders__search strong { display: block; font-size: 15px; }
+  .taxi-orders__search span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+
+  .taxi-orders__list {
+    flex: 1;
+    min-height: 0;
+    margin-top: 11px;
+    padding-right: 3px;
+    overflow-y: auto;
+  }
+
+  .taxi-orders__list::-webkit-scrollbar { width: 3px; }
+  .taxi-orders__list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 4px; }
+
+  .taxi-order-card {
+    margin-bottom: 9px;
+    padding: 11px;
+    background: rgba(255,255,255,.065);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 12px;
+  }
+
+  .taxi-order-card--rush {
+    background: linear-gradient(135deg, rgba(255,157,30,.15), rgba(255,255,255,.055));
+    border-color: rgba(255,184,39,.36);
+  }
+  .taxi-order-card--multi {
+    background: linear-gradient(135deg, rgba(68,180,214,.15), rgba(255,255,255,.055));
+    border-color: rgba(92,204,235,.34);
+  }
+
+  .taxi-order-card__top { display: flex; align-items: center; gap: 9px; }
+  .taxi-order-card__avatar {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    color: #18160c;
+    font-size: 11px;
+    font-weight: 1000;
+    background: var(--yellow);
+    border-radius: 50%;
+  }
+  .taxi-order-card__name { min-width: 0; flex: 1; }
+  .taxi-order-card__name strong { display: block; overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+  .taxi-order-card__name span { display: block; margin-top: 2px; color: var(--muted); font-size: 9px; }
+  .taxi-order-card__badge {
+    padding: 5px 7px;
+    color: #1b1505;
+    font-size: 8px;
+    font-weight: 1000;
+    white-space: nowrap;
+    background: linear-gradient(135deg, #ffe66b, #ff9d1e);
+    border-radius: 6px;
+  }
+  .taxi-order-card__badge--multi { color: #092029; background: linear-gradient(135deg, #8ee8ff, #55c7e8); }
+
+  .taxi-order-card__metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    margin-top: 9px;
+  }
+  .taxi-order-card__metric { padding: 6px 7px; background: rgba(0,0,0,.16); border-radius: 7px; }
+  .taxi-order-card__metric span { display: block; color: var(--muted); font-size: 8px; }
+  .taxi-order-card__metric b { display: block; margin-top: 2px; font-size: 12px; }
+  .taxi-order-card__metric--fare b { color: var(--green); }
+
+  .taxi-order-card__rush {
+    margin-top: 8px;
+    color: #ffd86a;
+    font-size: 9px;
+    font-weight: 800;
+  }
+  .taxi-order-card__multi, .taxi-order-card__rating-bonus {
+    margin-top: 7px;
+    font-size: 9px;
+    font-weight: 800;
+  }
+  .taxi-order-card__multi { color: #8ee8ff; }
+  .taxi-order-card__rating-bonus { color: var(--green); }
+  .taxi-calmness-emoji {
+    position: relative;
+    display: grid;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    place-items: center;
+    font-family: "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+    font-size: 27px;
+    line-height: 1;
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.11);
+    border-radius: 11px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .taxi-calmness-emoji__percent {
+    position: absolute;
+    right: -6px;
+    bottom: -5px;
+    min-width: 18px;
+    padding: 1px 2px;
+    color: #18160c;
+    font-family: Arial, sans-serif;
+    font-size: 7px;
+    font-weight: 1000;
+    line-height: 1;
+    text-align: center;
+    background: var(--yellow);
+    border: 1px solid #252a30;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.28);
+  }
+  .taxi-calmness-emoji--transfer { margin-top: 12px; }
+
+  .taxi-order-card__accept {
+    width: 100%;
+    margin-top: 9px;
+    padding: 9px;
+    color: #17140a;
+    font-size: 10px;
+    font-weight: 1000;
+    background: var(--yellow);
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .taxi-order-card__accept:hover { filter: brightness(1.08); }
+
+  .taxi-orders__empty {
+    padding: 25px 12px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.5;
+    text-align: center;
+    border: 1px dashed rgba(255,255,255,.12);
+    border-radius: 11px;
+  }
+
+  .taxi-orders__footer {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 9px;
+    color: var(--muted);
+    font-size: 9px;
+  }
+
+  .taxi-trip-dashboard {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .taxi-trip-dashboard__metric {
+    position: relative;
+    min-width: 0;
+    min-height: 34px;
+    padding: 5px 7px 5px 10px;
+    overflow: hidden;
+    background: rgba(255,255,255,.055);
+    border: 1px solid rgba(255,255,255,.085);
+    border-radius: 8px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+  }
+  .taxi-trip-dashboard__metric::before {
+    position: absolute;
+    top: 7px;
+    bottom: 7px;
+    left: 4px;
+    width: 2px;
+    content: "";
+    background: rgba(255,209,26,.72);
+    border-radius: 99px;
+  }
+  .taxi-trip-dashboard__label {
+    display: block;
+    overflow: hidden;
+    color: #9da4ae;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: .45px;
+    line-height: 1;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .taxi-trip-dashboard__value {
+    display: flex;
+    min-width: 0;
+    align-items: baseline;
+    gap: 4px;
+    margin-top: 4px;
+    white-space: nowrap;
+  }
+  .taxi-trip-dashboard__value strong {
+    overflow: hidden;
+    color: #f3f5f7;
+    font-size: 12px;
+    font-weight: 1000;
+    line-height: 1;
+    text-overflow: ellipsis;
+  }
+  .taxi-trip-dashboard__value small {
+    overflow: hidden;
+    color: var(--yellow);
+    font-size: 8px;
+    font-weight: 900;
+    line-height: 1;
+    text-overflow: ellipsis;
+  }
+  .taxi-trip-dashboard__metric--danger::before { background: var(--red); }
+  .taxi-trip-dashboard__metric--danger .taxi-trip-dashboard__value strong,
+  .taxi-trip-dashboard__metric--danger .taxi-trip-dashboard__value small { color: #ff8585; }
+  .taxi-trip-dashboard__metric--calmness {
+    display: flex;
+    min-height: 50px;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 6px;
+    overflow: hidden;
+  }
+  .taxi-trip-dashboard__metric--calmness::before { display: none; }
+  .taxi-trip-dashboard__metric--calmness .taxi-calmness-emoji {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+    font-size: 24px;
+  }
+  .taxi-trip-dashboard__calmness-value {
+    min-width: 0;
+    color: #f3f5f7;
+    font-size: 14px;
+    font-weight: 1000;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .taxi-queued-order {
+    margin-top: 9px;
+    padding: 7px 9px;
+    overflow: hidden;
+    color: #102018;
+    font-size: 10px;
+    font-weight: 1000;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: var(--green);
+    border-radius: 8px;
+  }
+
+  .taxi-transfer {
+    position: relative;
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 24px;
+    overflow: hidden;
+    text-align: center;
+    background:
+      radial-gradient(circle at 50% 34%, rgba(255,209,26,.17), transparent 31%),
+      linear-gradient(165deg, #24282e, #111317 75%);
+  }
+  .taxi-transfer--critical {
+    background:
+      radial-gradient(circle at 50% 34%, rgba(255,79,90,.23), transparent 34%),
+      linear-gradient(165deg, #292226, #111317 75%);
+  }
+  .taxi-transfer__alert {
+    display: grid;
+    width: 92px;
+    height: 92px;
+    place-items: center;
+    color: #2b0d11;
+    font-size: 48px;
+    font-weight: 1000;
+    background: linear-gradient(145deg, #ff9b91, #ff4f5a);
+    border: 7px solid rgba(255,255,255,.15);
+    border-radius: 50%;
+    box-shadow: 0 0 34px rgba(255,79,90,.25);
+  }
+  .taxi-transfer__rating-loss {
+    margin-top: 14px;
+    padding: 7px 11px;
+    color: #ff9b9b;
+    font-size: 11px;
+    font-weight: 1000;
+    background: rgba(255,79,90,.11);
+    border: 1px solid rgba(255,104,104,.28);
+    border-radius: 8px;
+  }
+
+  .taxi-transfer__loader {
+    position: relative;
+    width: 92px;
+    height: 92px;
+    border: 5px solid rgba(255,255,255,.08);
+    border-top-color: var(--yellow);
+    border-right-color: rgba(255,209,26,.45);
+    border-radius: 50%;
+    animation: taxi-spin 1.15s linear infinite;
+    box-shadow: 0 0 30px rgba(255,209,26,.12);
+  }
+
+  .taxi-transfer__door {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 32px;
+    height: 47px;
+    transform: translate(-50%, -50%);
+    background: #20242a;
+    border: 3px solid var(--yellow);
+    border-radius: 4px 8px 8px 4px;
+  }
+
+  .taxi-transfer__door::after {
+    content: "";
+    position: absolute;
+    top: 21px;
+    right: 5px;
+    width: 4px;
+    height: 4px;
+    background: var(--yellow);
+    border-radius: 50%;
+  }
+  .taxi-transfer__check {
+    display: grid;
+    width: 92px;
+    height: 92px;
+    place-items: center;
+    color: #102018;
+    font-size: 48px;
+    font-weight: 1000;
+    background: var(--green);
+    border: 7px solid rgba(255,255,255,.15);
+    border-radius: 50%;
+    box-shadow: 0 0 30px rgba(93,225,141,.18);
+  }
+  .taxi-transfer__stop {
+    display: grid;
+    width: 92px;
+    height: 92px;
+    place-items: center;
+    color: #092029;
+    font-size: 38px;
+    font-weight: 1000;
+    background: linear-gradient(145deg, #8ee8ff, #55c7e8);
+    border: 7px solid rgba(255,255,255,.15);
+    border-radius: 50%;
+    box-shadow: 0 0 30px rgba(85,199,232,.2);
+  }
+  .taxi-transfer__countdown { margin-top: 13px; color: var(--yellow); font-size: 25px; font-weight: 1000; }
+  .taxi-transfer__progress--determinate::after { display: none; }
+  .taxi-transfer__progress-fill { height: 100%; background: linear-gradient(90deg, #55c7e8, var(--yellow)); border-radius: 99px; transition: width .12s linear; }
+
+  .taxi-transfer h2 { margin: 25px 0 0; font-size: 25px; }
+  .taxi-transfer__passenger { margin-top: 8px; color: var(--yellow); font-size: 15px; font-weight: 900; }
+  .taxi-transfer p { max-width: 270px; margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+  .taxi-transfer__progress {
+    width: 190px;
+    height: 6px;
+    margin-top: 24px;
+    overflow: hidden;
+    background: rgba(255,255,255,.09);
+    border-radius: 99px;
+  }
+
+  .taxi-transfer__progress::after {
+    content: "";
+    display: block;
+    width: 45%;
+    height: 100%;
+    background: var(--yellow);
+    border-radius: 99px;
+    animation: taxi-transfer-progress 1.2s ease-in-out infinite alternate;
+  }
+
+  .taxi-settings {
+    flex: 1;
+    min-height: 0;
+    padding: 18px 16px;
+    overflow-y: auto;
+    background: linear-gradient(165deg, #24282e, #111317 72%);
+  }
+  .taxi-settings h2 { margin: 0; font-size: 22px; }
+  .taxi-settings__section { margin-top: 18px; }
+  .taxi-settings__label { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 900; }
+  .taxi-settings__help { margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+  .taxi-settings__languages { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
+  .taxi-settings__language {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 7px;
+    padding: 10px 11px;
+    overflow: hidden;
+    color: #eef1f4;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: left;
+    background: #20242a;
+    border: 1px solid rgba(255,255,255,.13);
+    border-radius: 9px;
+    cursor: pointer;
+  }
+  .taxi-settings__language span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .taxi-settings__language i { color: #17140a; font-style: normal; }
+  .taxi-settings__language--active { color: #17140a; background: var(--yellow); border-color: var(--yellow); }
+  .taxi-settings__check { display: flex; align-items: center; gap: 9px; margin-top: 10px; color: #d7dbe0; font-size: 11px; }
+  .taxi-settings__check input { width: 17px; height: 17px; accent-color: var(--yellow); }
+  .taxi-settings__range { width: 100%; margin-top: 12px; accent-color: var(--yellow); }
+  .taxi-settings__difficulty { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .taxi-settings__preset {
+    padding: 10px;
+    color: #eef1f4;
+    text-align: left;
+    background: rgba(255,255,255,.055);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .taxi-settings__preset strong { display: block; font-size: 12px; }
+  .taxi-settings__preset span { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; line-height: 1.3; }
+  .taxi-settings__preset--active { color: #17140a; background: var(--yellow); border-color: var(--yellow); }
+  .taxi-settings__preset--active span { color: rgba(23,20,10,.7); }
+  .taxi-settings__save { width: 100%; margin-top: 18px; padding: 13px; color: #17140a; font-size: 12px; font-weight: 1000; background: var(--yellow); border: 0; border-radius: 10px; cursor: pointer; }
+  .taxi-settings__saved { margin-top: 9px; color: var(--green); font-size: 11px; text-align: center; }
+  .taxi-settings__switch-row { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .taxi-settings__switch-copy { min-width: 0; flex: 1; }
+  .taxi-settings__switch-copy strong { display: block; font-size: 13px; }
+  .taxi-settings__switch-copy span { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+  .taxi-settings__switch-row input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .taxi-settings__switch {
+    position: relative;
+    flex: 0 0 46px;
+    width: 46px;
+    height: 25px;
+    background: rgba(255,255,255,.12);
+    border: 1px solid rgba(255,255,255,.13);
+    border-radius: 99px;
+    transition: background .2s, border-color .2s;
+  }
+  .taxi-settings__switch::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 17px;
+    height: 17px;
+    background: #f2f4f6;
+    border-radius: 50%;
+    box-shadow: 0 2px 7px rgba(0,0,0,.3);
+    transition: transform .22s ease, background .22s;
+  }
+  .taxi-settings__switch-row input:checked + .taxi-settings__switch { background: var(--yellow); border-color: var(--yellow); }
+  .taxi-settings__switch-row input:checked + .taxi-settings__switch::after { background: #17140a; transform: translateX(21px); }
+
+  .taxi-next-offer {
+    position: absolute;
+    z-index: 60;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    padding: 16px;
+    background: linear-gradient(180deg, rgba(8,10,12,.34), rgba(8,10,12,.92));
+    backdrop-filter: blur(3px);
+  }
+  .taxi-next-offer__card {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(155deg, #30353c, #1b1e23);
+    border: 1px solid rgba(255,209,26,.55);
+    border-radius: 16px;
+    box-shadow: 0 15px 38px rgba(0,0,0,.52), 0 0 22px rgba(255,209,26,.1);
+    animation: taxi-next-offer-in .34s cubic-bezier(.2,.8,.2,1) both;
+  }
+  .taxi-next-offer__eyebrow { color: var(--yellow); font-size: 10px; font-weight: 1000; letter-spacing: .7px; text-transform: uppercase; }
+  .taxi-next-offer__head { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .taxi-next-offer__avatar { display: grid; width: 40px; height: 40px; place-items: center; color: #17140a; font-size: 12px; font-weight: 1000; background: var(--yellow); border-radius: 50%; }
+  .taxi-next-offer__passenger { min-width: 0; flex: 1; }
+  .taxi-next-offer__passenger strong { display: block; overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+  .taxi-next-offer__passenger span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+  .taxi-next-offer__time { color: #fff; font-size: 20px; font-weight: 1000; }
+  .taxi-next-offer__metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin-top: 12px; }
+  .taxi-next-offer__metric { min-width: 0; padding: 8px; background: rgba(0,0,0,.18); border-radius: 8px; }
+  .taxi-next-offer__metric span { display: block; color: var(--muted); font-size: 8px; }
+  .taxi-next-offer__metric strong { display: block; margin-top: 3px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+  .taxi-next-offer__metric--fare strong { color: var(--green); }
+  .taxi-next-offer__countdown { height: 4px; margin-top: 12px; overflow: hidden; background: rgba(255,255,255,.1); border-radius: 99px; }
+  .taxi-next-offer__countdown span { display: block; height: 100%; background: linear-gradient(90deg, #ff9d1e, var(--yellow)); border-radius: 99px; transition: width .18s linear; }
+  .taxi-next-offer__meta { margin-top: 8px; font-size: 9px; font-weight: 800; }
+  .taxi-next-offer__meta--multi { color: #8ee8ff; }
+  .taxi-next-offer__meta--rating { color: var(--green); }
+  .taxi-next-offer__accept, .taxi-next-offer__accepted { width: 100%; margin-top: 12px; padding: 12px; font-size: 11px; font-weight: 1000; text-align: center; border-radius: 9px; }
+  .taxi-next-offer__accept { color: #17140a; background: var(--yellow); border: 0; cursor: pointer; }
+  .taxi-next-offer__accepted { color: #102018; background: var(--green); }
+
+  .taxi-phone-toast {
+    position: absolute;
+    z-index: 75;
+    top: 94px;
+    right: 12px;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 12px;
+    color: #f6f8fa;
+    background: rgba(28,31,36,.97);
+    border: 1px solid rgba(255,255,255,.14);
+    border-left: 4px solid var(--yellow);
+    border-radius: 10px;
+    box-shadow: 0 10px 27px rgba(0,0,0,.42);
+    animation: taxi-next-offer-in .28s cubic-bezier(.2,.8,.2,1) both;
+  }
+  .taxi-phone-toast--success { border-left-color: var(--green); }
+  .taxi-phone-toast--warning { border-left-color: #ff9d1e; }
+  .taxi-phone-toast__icon { display: grid; flex: 0 0 27px; width: 27px; height: 27px; place-items: center; color: #17140a; font-size: 13px; font-weight: 1000; background: var(--yellow); border-radius: 8px; }
+  .taxi-phone-toast--success .taxi-phone-toast__icon { background: var(--green); }
+  .taxi-phone-toast--warning .taxi-phone-toast__icon { background: #ff9d1e; }
+  .taxi-phone-toast__text { min-width: 0; font-size: 11px; font-weight: 800; line-height: 1.35; }
+
+  .taxi-passenger-chat {
+    position: absolute;
+    z-index: 82;
+    top: 36px;
+    right: 10px;
+    left: 10px;
+    display: flex;
+    min-height: 66px;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 11px;
+    color: #f8f8fa;
+    pointer-events: none;
+    background: linear-gradient(160deg, rgba(58,59,64,.97), rgba(29,30,34,.98));
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 16px;
+    box-shadow: 0 12px 30px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.08);
+    animation: taxi-passenger-chat-notification 1.8s cubic-bezier(.22,.72,.22,1) both;
+  }
+  .taxi-passenger-chat__avatar {
+    display: grid;
+    width: 39px;
+    height: 39px;
+    flex: 0 0 39px;
+    place-items: center;
+    color: #17140a;
+    font-size: var(--taxi-f11, 11px);
+    font-weight: 1000;
+    background: linear-gradient(145deg, #ffe56b, var(--yellow));
+    border-radius: 11px;
+    box-shadow: 0 4px 12px rgba(255,209,26,.18);
+  }
+  .taxi-passenger-chat__body { min-width: 0; flex: 1; }
+  .taxi-passenger-chat__header { display: flex; align-items: center; gap: 8px; }
+  .taxi-passenger-chat__header strong { overflow: hidden; flex: 1; font-size: var(--taxi-f11, 11px); text-overflow: ellipsis; white-space: nowrap; }
+  .taxi-passenger-chat__header time { color: #b7bac1; font-size: var(--taxi-f8, 8px); font-weight: 700; white-space: nowrap; }
+  .taxi-passenger-chat__message { margin-top: 4px; overflow: hidden; font-size: var(--taxi-f17, 17px); letter-spacing: 3px; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* App-local text scaling keeps the phone dimensions while every text tier
+     follows the selected percentage. */
+  .taxi-font-scale-0 { --taxi-f8:8px; --taxi-f9:9px; --taxi-f10:10px; --taxi-f11:11px; --taxi-f12:12px; --taxi-f13:13px; --taxi-f14:14px; --taxi-f15:15px; --taxi-f16:16px; --taxi-f17:17px; --taxi-f22:22px; --taxi-f25:25px; --taxi-f26:26px; }
+  .taxi-font-scale-1 { --taxi-f8:8.8px; --taxi-f9:9.9px; --taxi-f10:11px; --taxi-f11:12.1px; --taxi-f12:13.2px; --taxi-f13:14.3px; --taxi-f14:15.4px; --taxi-f15:16.5px; --taxi-f16:17.6px; --taxi-f17:18.7px; --taxi-f22:24.2px; --taxi-f25:27.5px; --taxi-f26:28.6px; }
+  .taxi-font-scale-2 { --taxi-f8:9.6px; --taxi-f9:10.8px; --taxi-f10:12px; --taxi-f11:13.2px; --taxi-f12:14.4px; --taxi-f13:15.6px; --taxi-f14:16.8px; --taxi-f15:18px; --taxi-f16:19.2px; --taxi-f17:20.4px; --taxi-f22:26.4px; --taxi-f25:30px; --taxi-f26:31.2px; }
+  .taxi-font-scale-3 { --taxi-f8:10.4px; --taxi-f9:11.7px; --taxi-f10:13px; --taxi-f11:14.3px; --taxi-f12:15.6px; --taxi-f13:16.9px; --taxi-f14:18.2px; --taxi-f15:19.5px; --taxi-f16:20.8px; --taxi-f17:22.1px; --taxi-f22:28.6px; --taxi-f25:32.5px; --taxi-f26:33.8px; }
+  .taxi-font-scale-4 { --taxi-f8:11.2px; --taxi-f9:12.6px; --taxi-f10:14px; --taxi-f11:15.4px; --taxi-f12:16.8px; --taxi-f13:18.2px; --taxi-f14:19.6px; --taxi-f15:21px; --taxi-f16:22.4px; --taxi-f17:23.8px; --taxi-f22:30.8px; --taxi-f25:35px; --taxi-f26:36.4px; }
+  .taxi-font-scale-5 { --taxi-f8:12px; --taxi-f9:13.5px; --taxi-f10:15px; --taxi-f11:16.5px; --taxi-f12:18px; --taxi-f13:19.5px; --taxi-f14:21px; --taxi-f15:22.5px; --taxi-f16:24px; --taxi-f17:25.5px; --taxi-f22:33px; --taxi-f25:37.5px; --taxi-f26:39px; }
+
+  .taxi-phone .taxi-penalty-event__text span,
+  .taxi-phone .taxi-order-card__badge,
+  .taxi-phone .taxi-order-card__metric span,
+  .taxi-phone .taxi-next-offer__metric span,
+  .taxi-phone .taxi-trip-dashboard__label,
+  .taxi-phone .taxi-trip-dashboard__value small { font-size: var(--taxi-f8, 8px); }
+
+  .taxi-phone .taxi-metric span,
+  .taxi-phone .taxi-rating__meta,
+  .taxi-phone .taxi-order-card__name span,
+  .taxi-phone .taxi-order-card__rush,
+  .taxi-phone .taxi-order-card__multi,
+  .taxi-phone .taxi-order-card__rating-bonus,
+  .taxi-phone .taxi-next-offer__meta,
+  .taxi-phone .taxi-orders__footer,
+  .taxi-phone .taxi-settings__preset span { font-size: var(--taxi-f9, 9px); }
+
+  .taxi-phone .phone-status__icons,
+  .taxi-phone .taxi-appbar__live,
+  .taxi-phone .taxi-map__route-info span,
+  .taxi-phone .taxi-progress__labels,
+  .taxi-phone .taxi-penalty-log__header span,
+  .taxi-phone .taxi-penalty-log__empty,
+  .taxi-phone .taxi-penalty-event__icon,
+  .taxi-phone .taxi-penalty-event__text strong,
+  .taxi-phone .taxi-penalty-event__value,
+  .taxi-phone .taxi-stop,
+  .taxi-phone .taxi-orders__search span,
+  .taxi-phone .taxi-order-card__accept,
+  .taxi-phone .taxi-queued-order,
+  .taxi-phone .taxi-settings__help,
+  .taxi-phone .taxi-settings__switch-copy span,
+  .taxi-phone .taxi-next-offer__eyebrow,
+  .taxi-phone .taxi-next-offer__passenger span { font-size: var(--taxi-f10, 10px); }
+
+  .taxi-phone .phone-status,
+  .taxi-phone .taxi-appbar__title span,
+  .taxi-phone .taxi-map__route-info small,
+  .taxi-phone .taxi-sheet__heading span,
+  .taxi-phone .taxi-penalty-log__header strong,
+  .taxi-phone .taxi-order-card__avatar,
+  .taxi-phone .taxi-orders__empty,
+  .taxi-phone .taxi-settings__check,
+  .taxi-phone .taxi-settings__saved,
+  .taxi-phone .taxi-next-offer__accept,
+  .taxi-phone .taxi-next-offer__accepted,
+  .taxi-phone .taxi-phone-toast__text { font-size: var(--taxi-f11, 11px); }
+
+  .taxi-phone .taxi-sheet__avatar,
+  .taxi-phone .taxi-driver-rating__header strong,
+  .taxi-phone .taxi-rating__value,
+  .taxi-phone .taxi-order-card__metric b,
+  .taxi-phone .taxi-transfer p,
+  .taxi-phone .taxi-settings__language,
+  .taxi-phone .taxi-settings__preset strong,
+  .taxi-phone .taxi-settings__save,
+  .taxi-phone .taxi-next-offer__avatar,
+  .taxi-phone .taxi-next-offer__metric strong,
+  .taxi-phone .taxi-home p,
+  .taxi-phone .taxi-home__stats,
+  .taxi-phone .taxi-trip-dashboard__value strong { font-size: var(--taxi-f12, 12px); }
+
+  .taxi-phone .taxi-driver-rating__header span,
+  .taxi-phone .taxi-settings__label,
+  .taxi-phone .taxi-settings__switch-copy strong,
+  .taxi-phone .taxi-phone-toast__icon { font-size: var(--taxi-f13, 13px); }
+
+  .taxi-phone .taxi-sheet__distance,
+  .taxi-phone .taxi-order-card__name strong,
+  .taxi-phone .taxi-start { font-size: var(--taxi-f14, 14px); }
+
+  .taxi-phone .taxi-metric strong,
+  .taxi-phone .taxi-orders__search strong,
+  .taxi-phone .taxi-transfer__passenger { font-size: var(--taxi-f15, 15px); }
+
+  .taxi-phone .taxi-appbar__title strong,
+  .taxi-phone .taxi-sheet__heading strong,
+  .taxi-phone .taxi-next-offer__passenger strong,
+  .taxi-phone .taxi-next-offer__time,
+  .taxi-phone .taxi-home__stats b { font-size: var(--taxi-f16, 16px); }
+  .taxi-phone .taxi-map__speed { font-size: var(--taxi-f17, 17px); }
+  .taxi-phone .taxi-settings h2 { font-size: var(--taxi-f22, 22px); }
+  .taxi-phone .taxi-map__route-info strong,
+  .taxi-phone .taxi-transfer__countdown,
+  .taxi-phone .taxi-transfer h2 { font-size: var(--taxi-f25, 25px); }
+  .taxi-phone .taxi-home h2 { font-size: var(--taxi-f26, 26px); }
+
+  .taxi-phone .taxi-appbar { flex-basis: auto; min-height: 56px; }
+  .taxi-phone .phone-status { min-height: 30px; flex-basis: auto; }
+
+  @keyframes taxi-transfer-progress {
+    from { transform: translateX(-70%); }
+    to { transform: translateX(190%); }
+  }
+
+  .taxi-home {
+    position: relative;
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 23%, rgba(255,209,26,.13), transparent 30%),
+      linear-gradient(165deg, #24282e, #111317 72%);
+  }
+  .taxi-home__shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(17,19,23,.18), #111317 72%); }
+  .taxi-home__content {
+    z-index: 2;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 24px 18px 27px;
+    text-align: center;
+  }
+  .taxi-home__pin {
+    display: grid;
+    width: 58px;
+    height: 58px;
+    margin-bottom: 15px;
+    place-items: center;
+    color: #16140a;
+    font-size: 27px;
+    font-weight: 1000;
+    background: var(--yellow);
+    border: 6px solid rgba(255,255,255,.22);
+    border-radius: 50% 50% 50% 8px;
+    transform: rotate(-45deg);
+    box-shadow: 0 11px 28px rgba(255,209,26,.28);
+  }
+  .taxi-home__pin span { transform: rotate(45deg); }
+  .taxi-home h2 { margin: 0; font-size: 26px; line-height: 1.1; }
+  .taxi-home p { max-width: 280px; margin: 10px 0 20px; color: #b7bec7; font-size: 12px; line-height: 1.45; }
+  .taxi-start {
+    width: 100%;
+    padding: 16px 15px;
+    color: #17140a;
+    font-size: 14px;
+    font-weight: 1000;
+    letter-spacing: .25px;
+    background: linear-gradient(135deg, #ffe668, var(--yellow));
+    border: 0;
+    border-radius: 11px;
+    box-shadow: 0 9px 24px rgba(255,209,26,.23);
+    cursor: pointer;
+  }
+  .taxi-start:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .taxi-home__stats {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 17px;
+    padding: 11px 8px 2px;
+    color: #d5d9df;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.1;
+    background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.018));
+    border-top: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px 10px 0 0;
+  }
+  .taxi-home__stats span { min-width: 0; flex: 1; text-align: center; }
+  .taxi-home__stats span + span { border-left: 1px solid rgba(255,255,255,.09); }
+  .taxi-home__stats b {
+    display: block;
+    margin-top: 5px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 1000;
+    line-height: 1;
+    text-shadow: 0 1px 8px rgba(255,255,255,.12);
+  }
+  .taxi-home__stats span:last-child b { color: var(--yellow); text-shadow: 0 0 10px rgba(255,209,26,.22); }
+
+  @media (max-height: 620px) {
+    .taxi-map { flex-basis: 195px; }
+  }
+</style>
+
+<div class="taxi-shell" ng-class="{'taxi-shell--minimized': phoneMinimized}">
+  <button type="button" class="taxi-shell__toggle" ng-click="hud.toggleMinimized()">
+    <span class="taxi-shell__toggle-icon">⌄</span>
+    <span>{{ phoneMinimized ? t('expand') : t('minimize') }}</span>
+    <i class="taxi-shell__notification" ng-if="phoneMinimized && state.nextOffer"></i>
+  </button>
+
+  <div class="taxi-phone" ng-class="'taxi-font-scale-' + settings.fontBoost">
+  <div class="taxi-phone__screen">
+    <div class="phone-status">
+      <span>{{ currentClock }}</span>
+      <span class="phone-status__icons"><span>●●●</span><span>⌁</span><i class="phone-status__battery"></i></span>
+    </div>
+
+    <div class="taxi-appbar">
+      <div class="taxi-appbar__logo">T</div>
+      <div class="taxi-appbar__title">
+        <strong>TaxiDriver</strong>
+        <span>{{ settingsOpen ? t('settingsTitle') : (state.active ? getPhaseLabel() : t('appSubtitle')) }}</span>
+      </div>
+      <div class="taxi-appbar__live" ng-if="state.active && !settingsOpen">{{ t('online') }}</div>
+      <button class="taxi-appbar__settings" ng-click="hud.toggleSettings()" aria-label="Settings">
+        <span ng-if="!settingsOpen">&#9881;</span><span ng-if="settingsOpen">&#215;</span>
+      </button>
+    </div>
+
+    <div class="taxi-passenger-chat" ng-if="passengerChat && !settingsOpen && state.phase === 'toPickup'" ng-class="'taxi-passenger-chat--' + passengerChat.mood">
+      <div class="taxi-passenger-chat__avatar">{{ getInitials(passengerChat.passengerName) }}</div>
+      <div class="taxi-passenger-chat__body">
+        <div class="taxi-passenger-chat__header">
+          <strong>{{ passengerChat.passengerName }}</strong>
+          <time>{{ passengerChat.sentAt }}</time>
+        </div>
+        <div class="taxi-passenger-chat__message">{{ passengerChat.content }}</div>
+      </div>
+    </div>
+
+    <div class="taxi-phone-toast" ng-if="phoneToast" ng-class="'taxi-phone-toast--' + phoneToast.severity">
+      <span class="taxi-phone-toast__icon">{{ phoneToast.severity === 'success' ? '✓' : '!' }}</span>
+      <span class="taxi-phone-toast__text">{{ getPhoneNotificationText() }}</span>
+    </div>
+
+    <div class="taxi-settings" ng-if="settingsOpen">
+      <h2>{{ t('settingsTitle') }}</h2>
+      <div class="taxi-settings__section">
+        <div class="taxi-settings__label">{{ t('language') }}</div>
+        <div class="taxi-settings__help">{{ t('languageHelp') }}</div>
+        <div class="taxi-settings__languages">
+          <button type="button" class="taxi-settings__language" ng-repeat="lang in languages" ng-class="{'taxi-settings__language--active': settings.language === lang.code}" ng-click="hud.selectLanguage(lang.code)">
+            <span>{{ lang.label }}</span><i ng-if="settings.language === lang.code">&#10003;</i>
+          </button>
+        </div>
+        <label class="taxi-settings__check"><input type="checkbox" ng-model="settings.rememberLanguage">{{ t('rememberLanguage') }}</label>
+      </div>
+      <div class="taxi-settings__section">
+        <div class="taxi-settings__label"><span>{{ t('fontSize') }}</span><span>{{ getFontPercent() }}%</span></div>
+        <div class="taxi-settings__help">{{ t('fontSizeHelp') }}</div>
+        <input class="taxi-settings__range" type="range" min="0" max="5" step="1" ng-model="settings.fontBoost" ng-change="settingsSaved = false">
+      </div>
+      <div class="taxi-settings__section">
+        <div class="taxi-settings__label">{{ t('difficulty') }}</div>
+        <div class="taxi-settings__help">{{ t('difficultyHelp') }}</div>
+        <div class="taxi-settings__difficulty">
+          <button class="taxi-settings__preset" ng-repeat="preset in difficulties" ng-class="{'taxi-settings__preset--active': settings.difficulty === preset}" ng-click="hud.selectDifficulty(preset)">
+            <strong>{{ t('difficulty_' + preset) }}</strong><span>{{ t('desc_' + preset) }}</span>
+          </button>
+        </div>
+      </div>
+      <div class="taxi-settings__section">
+        <label class="taxi-settings__switch-row">
+          <span class="taxi-settings__switch-copy"><strong>{{ t('routeGuidance') }}</strong><span>{{ t('routeGuidanceHelp') }}</span></span>
+          <input type="checkbox" ng-model="settings.showRouteGuidance" ng-change="settingsSaved = false">
+          <span class="taxi-settings__switch"></span>
+        </label>
+      </div>
+      <div class="taxi-settings__section">
+        <label class="taxi-settings__switch-row">
+          <span class="taxi-settings__switch-copy"><strong>{{ t('silentMode') }}</strong><span>{{ t('silentModeHelp') }}</span></span>
+          <input type="checkbox" ng-model="settings.silentMode" ng-change="settingsSaved = false">
+          <span class="taxi-settings__switch"></span>
+        </label>
+      </div>
+      <button class="taxi-settings__save" ng-click="hud.saveSettings()">{{ t('save') }}</button>
+      <div class="taxi-settings__saved" ng-if="settingsSaved">{{ t('settingsSaved') }}</div>
+    </div>
+
+    <div class="taxi-home" ng-if="!settingsOpen && !state.active">
+      <div class="taxi-home__shade"></div>
+      <div class="taxi-home__content">
+        <div class="taxi-home__pin"><span>T</span></div>
+        <h2>{{ t('homeTitle') }}</h2>
+        <p>{{ t('homeDesc') }}</p>
+        <button class="taxi-start" ng-click="hud.startMode()">{{ t('start') }}</button>
+        <div class="taxi-home__stats">
+          <span>{{ t('balance') }}<br><b>{{ formatMoney(state.balance) }}</b></span>
+          <span>{{ t('rides') }}<br><b>{{ state.completedRides }}</b></span>
+          <span>{{ t('rating') }}<br><b>{{ state.rating | number:2 }} ★</b></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="taxi-orders" ng-if="!settingsOpen && state.active && state.phase === 'searching'">
+      <div class="taxi-orders__sheet">
+        <div class="taxi-orders__search">
+          <div class="taxi-orders__spinner" ng-if="state.offers.length < state.offerTargetCount"></div>
+          <div><strong>{{ state.offers.length ? t('chooseOrder') : t('searchOrders') }}</strong><span>{{ getStatusText() }}</span></div>
+        </div>
+
+        <div class="taxi-orders__list">
+          <div class="taxi-orders__empty" ng-if="!state.offers.length">
+            {{ t('emptyOffers') }}
+          </div>
+
+          <div class="taxi-order-card" ng-class="{'taxi-order-card--rush': offer.isRush, 'taxi-order-card--multi': offer.isMultiStop}" ng-repeat="offer in state.offers track by offer.id">
+            <div class="taxi-order-card__top">
+              <div class="taxi-order-card__avatar">{{ getInitials(offer.passengerName) }}</div>
+              <div class="taxi-order-card__name">
+                <strong>{{ offer.passengerName }}</strong>
+                <span>{{ t('toPassenger') }} {{ formatEta(offer.pickupEtaMinutes) }} · {{ t('pickupWindow', {time: formatCountdown(offer.pickupWaitSeconds)}) }}</span>
+              </div>
+              <div class="taxi-calmness-emoji" role="img" title="{{ t('passengerCalmness') }} · {{ offer.passengerCalmness | number:0 }}%" aria-label="{{ t('passengerCalmness') }} · {{ offer.passengerCalmness | number:0 }}%">
+                {{ getCalmnessEmoji(offer.passengerCalmness) }}
+                <small class="taxi-calmness-emoji__percent">{{ offer.passengerCalmness | number:0 }}%</small>
+              </div>
+              <div class="taxi-order-card__badge" ng-if="offer.isRush">+{{ offer.bonusPercent }}%</div>
+              <div class="taxi-order-card__badge taxi-order-card__badge--multi" ng-if="offer.isMultiStop">{{ t('multiStopBadge', {count: offer.stopCount}) }}</div>
+            </div>
+            <div class="taxi-order-card__metrics">
+              <div class="taxi-order-card__metric"><span>{{ t('trip') }}</span><b>{{ formatEta(offer.etaMinutes) }}</b></div>
+              <div class="taxi-order-card__metric"><span>{{ t('distance') }}</span><b>{{ formatDistance(offer.rideDistance) }}</b></div>
+              <div class="taxi-order-card__metric taxi-order-card__metric--fare"><span>{{ t('payment') }}</span><b>{{ formatMoney(offer.estimatedFare) }}</b></div>
+            </div>
+            <div class="taxi-order-card__rush" ng-if="offer.isRush">
+              {{ t('rushDeliver', {time: formatCountdown(offer.timeLimitMinutes * 60)}) }} · {{ t('bonus') }} {{ formatMoney(offer.bonusAmount) }}
+            </div>
+            <div class="taxi-order-card__multi" ng-if="offer.isMultiStop">{{ t('multiStopRide') }} · {{ t('multiStopSummary', {count: offer.stopCount, time: formatCountdown(offer.stopWaitSeconds)}) }}</div>
+            <div class="taxi-order-card__rating-bonus" ng-if="offer.ratingBonusPercent > 0">{{ t('ratingBonusLine', {percent: formatBonusPercent(offer.ratingBonusPercent), amount: formatMoney(offer.ratingBonusAmount)}) }}</div>
+            <button class="taxi-order-card__accept" ng-click="hud.acceptOrder(offer.id)">{{ t('accept') }}</button>
+          </div>
+        </div>
+
+        <div class="taxi-orders__footer">
+          <span>{{ t('offersDynamic', {count: state.offers.length, target: state.offerTargetCount}) }}</span>
+          <button class="taxi-stop" ng-click="hud.stopMode()">{{ t('offline') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="taxi-transfer" ng-if="!settingsOpen && state.active && (state.phase === 'boarding' || state.phase === 'alighting')">
+      <div class="taxi-transfer__loader"><div class="taxi-transfer__door"></div></div>
+      <h2>{{ getPhaseLabel() }}</h2>
+      <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
+      <div class="taxi-calmness-emoji taxi-calmness-emoji--transfer" ng-if="state.phase === 'boarding'" role="img" title="{{ t('passengerCalmness') }} · {{ state.passengerCalmness | number:0 }}%" aria-label="{{ t('passengerCalmness') }} · {{ state.passengerCalmness | number:0 }}%">
+        {{ getCalmnessEmoji(state.passengerCalmness) }}
+        <small class="taxi-calmness-emoji__percent">{{ state.passengerCalmness | number:0 }}%</small>
+      </div>
+      <p>{{ state.phase === 'boarding' ? t('boardingDesc') : t('alightingDesc') }}</p>
+      <div class="taxi-transfer__progress"></div>
+    </div>
+
+    <div class="taxi-transfer taxi-transfer--critical" ng-if="!settingsOpen && state.active && state.phase === 'passengerStopDemand'">
+      <div class="taxi-transfer__alert">!</div>
+      <h2>{{ t('stopDemandTitle') }}</h2>
+      <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
+      <p>{{ t('stopDemandDesc') }}</p>
+      <div class="taxi-transfer__progress"></div>
+    </div>
+
+    <div class="taxi-transfer taxi-transfer--critical" ng-if="!settingsOpen && state.active && state.phase === 'passengerForcedExit'">
+      <div class="taxi-transfer__loader"><div class="taxi-transfer__door"></div></div>
+      <h2>{{ t('forcedExitTitle') }}</h2>
+      <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
+      <p>{{ t('forcedExitDesc') }}</p>
+      <div class="taxi-transfer__rating-loss">{{ t('ratingLoss', {percent: formatBonusPercent(state.earlyExitRatingLossPercent)}) }}</div>
+      <div class="taxi-transfer__progress taxi-transfer__progress--determinate"><div class="taxi-transfer__progress-fill" ng-style="{'width': ((state.forcedExitDuration - state.forcedExitRemaining) / state.forcedExitDuration * 100) + '%'}"></div></div>
+    </div>
+
+    <div class="taxi-transfer" ng-if="!settingsOpen && state.active && state.phase === 'stopWaiting'">
+      <div class="taxi-transfer__stop">{{ state.currentStopIndex }}</div>
+      <h2>{{ getPhaseLabel() }}</h2>
+      <div class="taxi-transfer__passenger">{{ t('stopProgress', {current: state.currentStopIndex, total: state.stopCount}) }}</div>
+      <p>{{ t('stopWaitingDesc') }}</p>
+      <div class="taxi-transfer__countdown">{{ formatCountdown(state.stopWaitRemaining) }}</div>
+      <div class="taxi-transfer__progress taxi-transfer__progress--determinate"><div class="taxi-transfer__progress-fill" ng-style="{'width': ((state.stopWaitDuration - state.stopWaitRemaining) / state.stopWaitDuration * 100) + '%'}"></div></div>
+    </div>
+
+    <div class="taxi-transfer" ng-if="!settingsOpen && state.active && state.phase === 'complete'">
+      <div class="taxi-transfer__check">✓</div>
+      <h2>{{ t('complete') }}</h2>
+      <div class="taxi-transfer__passenger">{{ t('payout') }} {{ formatMoney(state.adjustedFare) }}</div>
+      <p>{{ t('completeDesc', {rating: formatRating(state.rating)}) }}</p>
+      <div class="taxi-transfer__progress"></div>
+    </div>
+
+    <div ng-if="!settingsOpen && state.active && (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination')" style="display:flex; flex:1; min-height:0; flex-direction:column;">
+      <div class="taxi-map">
+        <div class="taxi-minimap-surface"></div>
+        <div class="taxi-map__route-info">
+          <span>{{ t('arrival') }}</span>
+          <strong>{{ getArrivalTime(state.etaMinutes) }}</strong>
+          <small>{{ formatEta(state.etaMinutes) }} · {{ formatDistance(state.distanceToTarget) }}</small>
+        </div>
+        <div class="taxi-map__speed" ng-if="state.speedLimit > 0">{{ state.speedLimit | number:0 }}</div>
+      </div>
+
+      <div class="taxi-sheet">
+        <div class="taxi-sheet__heading">
+          <div class="taxi-sheet__avatar">{{ getInitials(state.passengerName) }}</div>
+          <div class="taxi-sheet__heading-text">
+            <strong>{{ state.passengerName || getPhaseLabel() }}</strong>
+            <span>{{ getPhaseLabel() }} · {{ getStatusText() }}</span>
+          </div>
+          <div class="taxi-sheet__distance">{{ formatDistance(state.distanceToTarget) }}</div>
+        </div>
+
+        <div class="taxi-queued-order" ng-if="shouldShowQueuedOrder()">{{ t('nextOfferAccepted') }} · {{ state.nextOffer.passengerName }}</div>
+
+        <div class="taxi-trip-dashboard">
+          <div class="taxi-trip-dashboard__metric taxi-trip-dashboard__metric--calmness" title="{{ t('passengerCalmness') }} · {{ state.passengerCalmness | number:0 }}%">
+            <div class="taxi-calmness-emoji" role="img" aria-label="{{ t('passengerCalmness') }} · {{ state.passengerCalmness | number:0 }}%">
+              {{ getCalmnessEmoji(state.passengerCalmness) }}
+            </div>
+            <strong class="taxi-trip-dashboard__calmness-value">{{ state.passengerCalmness | number:0 }}%</strong>
+          </div>
+
+          <div class="taxi-trip-dashboard__metric" ng-if="state.phase === 'toPickup'" ng-class="{'taxi-trip-dashboard__metric--danger': state.pickupLate}" title="{{ state.pickupLate ? t('pickupLate', {time: formatCountdown(state.pickupLateSeconds)}) : t('pickupDeadline') }}">
+            <span class="taxi-trip-dashboard__label">{{ t('dashPickup') }}</span>
+            <div class="taxi-trip-dashboard__value">
+              <strong ng-if="!state.pickupLate">{{ formatCountdown(state.pickupTimeRemaining) }}</strong>
+              <strong ng-if="state.pickupLate">−{{ state.penalties.pickupPercent | number:1 }}%</strong>
+              <small ng-if="state.pickupLate">+{{ formatCountdown(state.pickupLateSeconds) }}</small>
+            </div>
+          </div>
+
+          <div class="taxi-trip-dashboard__metric" ng-if="state.phase === 'toStop'" title="{{ t('stopProgress', {current: state.currentStopIndex, total: state.stopCount}) }}">
+            <span class="taxi-trip-dashboard__label">{{ t('dashStop') }}</span>
+            <div class="taxi-trip-dashboard__value"><strong>{{ state.currentStopIndex }}/{{ state.stopCount }}</strong></div>
+          </div>
+
+          <div class="taxi-trip-dashboard__metric" ng-if="state.rushOrder" ng-class="{'taxi-trip-dashboard__metric--danger': state.rushBonusLost}" title="{{ state.rushBonusLost ? t('rushLost') : t('rushBonus', {amount: formatMoney(state.rushBonusAmount)}) }}">
+            <span class="taxi-trip-dashboard__label">{{ t('dashRush') }}</span>
+            <div class="taxi-trip-dashboard__value">
+              <strong ng-if="!state.rushBonusLost">{{ formatCountdown(state.rushTimeRemaining) }}</strong>
+              <strong ng-if="state.rushBonusLost">{{ t('dashLost') }}</strong>
+              <small ng-if="!state.rushBonusLost">+{{ formatMoney(state.rushBonusAmount) }}</small>
+            </div>
+          </div>
+
+          <div class="taxi-trip-dashboard__metric" ng-if="state.ratingBonusPercent > 0" title="{{ t('ratingBonusLine', {percent: formatBonusPercent(state.ratingBonusPercent), amount: formatMoney(state.ratingBonusAmount)}) }}">
+            <span class="taxi-trip-dashboard__label">{{ t('dashRating') }}</span>
+            <div class="taxi-trip-dashboard__value">
+              <strong>+{{ formatBonusPercent(state.ratingBonusPercent) }}%</strong>
+              <small>+{{ formatMoney(state.ratingBonusAmount) }}</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="taxi-progress">
+          <div class="taxi-progress__labels"><span>{{ getProgressLabel() }}</span><span>{{ getProgressPercent() | number:0 }}%</span></div>
+          <div class="taxi-progress__track">
+            <div class="taxi-progress__fill" ng-style="{'width': getProgressPercent() + '%'}"></div>
+            <div class="taxi-progress__markers" ng-if="state.isMultiStop && (state.phase === 'toStop' || state.phase === 'toDestination')">
+              <span
+                class="taxi-progress__marker"
+                ng-repeat="marker in state.stopProgressMarkers track by marker.index"
+                ng-class="{'taxi-progress__marker--active': marker.active, 'taxi-progress__marker--completed': marker.completed}"
+                ng-style="{'left': marker.progressPercent + '%'}"
+                title="{{ t('stopProgress', {current: marker.index, total: state.stopCount}) }}">
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="taxi-metrics">
+          <div class="taxi-metric taxi-metric--fare"><span>{{ t('payout') }}</span><strong>{{ formatMoney(state.adjustedFare) }}</strong></div>
+          <div class="taxi-metric"><span>{{ t('estimate') }}</span><strong>{{ formatMoney(state.estimatedFare) }}</strong></div>
+          <div class="taxi-metric taxi-metric--penalty"><span>{{ t('reduction') }}</span><strong>−{{ state.penaltyPercent | number:1 }}%</strong></div>
+        </div>
+
+        <div class="taxi-penalty-log">
+          <div class="taxi-penalty-log__header">
+            <strong>{{ t('penaltyEvents') }}</strong>
+            <span>−{{ state.penaltyPercent | number:1 }}%</span>
+          </div>
+          <div class="taxi-penalty-log__empty" ng-if="!state.penaltyEvents.length">{{ t('noViolations') }}</div>
+          <div class="taxi-penalty-log__events" ng-if="state.penaltyEvents.length">
+            <div class="taxi-penalty-event" ng-repeat="event in state.penaltyEvents track by event.id">
+              <div class="taxi-penalty-event__icon">!</div>
+              <div class="taxi-penalty-event__text"><strong>{{ getPenaltyLabel(event) }}</strong><span>{{ getPenaltyDetail(event) }}</span></div>
+              <div class="taxi-penalty-event__value" ng-if="event.fareAmount > 0">−{{ formatMoney(event.fareAmount) }}</div>
+              <div class="taxi-penalty-event__value" ng-if="!event.fareAmount">−{{ event.penaltyPercent | number:2 }}%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="taxi-driver-rating">
+          <div class="taxi-driver-rating__header"><strong>{{ t('yourRating') }}</strong><span>{{ state.rating | number:2 }} / 5.00</span></div>
+          <div class="taxi-driver-rating__progress">
+            <div class="taxi-driver-rating__track"><div class="taxi-driver-rating__fill" ng-style="{'width': getRatingPercent() + '%'}"></div></div>
+            <div class="taxi-driver-rating__stars">
+              <span class="taxi-star" ng-repeat="star in stars">★<span class="taxi-star__fill" ng-style="{'width': getStarFill(star) + '%'}">★</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="taxi-footer">
+          <div class="taxi-rating"><div class="taxi-rating__meta">{{ t('balance') }} {{ formatMoney(state.balance) }} · {{ state.completedRides }} {{ t('rides') }}</div></div>
+          <button class="taxi-stop" ng-click="hud.stopMode()">{{ t('finish') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="taxi-next-offer" ng-if="shouldShowNextOffer()">
+      <div class="taxi-next-offer__card">
+        <div class="taxi-next-offer__eyebrow">{{ t('nextOfferTitle') }}</div>
+        <div class="taxi-next-offer__head">
+          <div class="taxi-next-offer__avatar">{{ getInitials(state.nextOffer.passengerName) }}</div>
+          <div class="taxi-next-offer__passenger">
+            <strong>{{ state.nextOffer.passengerName }}</strong>
+            <span>{{ t('nextOfferDesc') }}</span>
+          </div>
+          <div class="taxi-calmness-emoji" role="img" title="{{ t('passengerCalmness') }} · {{ state.nextOffer.passengerCalmness | number:0 }}%" aria-label="{{ t('passengerCalmness') }} · {{ state.nextOffer.passengerCalmness | number:0 }}%">
+            {{ getCalmnessEmoji(state.nextOffer.passengerCalmness) }}
+            <small class="taxi-calmness-emoji__percent">{{ state.nextOffer.passengerCalmness | number:0 }}%</small>
+          </div>
+          <div class="taxi-next-offer__time" ng-if="!state.nextOffer.accepted">{{ nextOfferUiRemaining | number:1 }}</div>
+        </div>
+        <div class="taxi-next-offer__metrics">
+          <div class="taxi-next-offer__metric"><span>{{ t('pickupDeadline') }}</span><strong>{{ formatCountdown(state.nextOffer.pickupWaitSeconds) }}</strong></div>
+          <div class="taxi-next-offer__metric"><span>{{ t('distance') }}</span><strong>{{ formatDistance(state.nextOffer.rideDistance) }}</strong></div>
+          <div class="taxi-next-offer__metric taxi-next-offer__metric--fare"><span>{{ t('payment') }}</span><strong>{{ formatMoney(state.nextOffer.estimatedFare) }}</strong></div>
+        </div>
+        <div class="taxi-next-offer__meta taxi-next-offer__meta--multi" ng-if="state.nextOffer.isMultiStop">{{ t('multiStopSummary', {count: state.nextOffer.stopCount, time: formatCountdown(state.nextOffer.stopWaitSeconds)}) }}</div>
+        <div class="taxi-next-offer__meta taxi-next-offer__meta--rating" ng-if="state.nextOffer.ratingBonusPercent > 0">{{ t('ratingBonusLine', {percent: formatBonusPercent(state.nextOffer.ratingBonusPercent), amount: formatMoney(state.nextOffer.ratingBonusAmount)}) }}</div>
+        <div class="taxi-next-offer__countdown" ng-if="!state.nextOffer.accepted"><span ng-style="{'width': (nextOfferUiRemaining / state.nextOffer.duration * 100) + '%'}"></span></div>
+        <button type="button" class="taxi-next-offer__accept" ng-if="!state.nextOffer.accepted" ng-click="hud.acceptNextOffer(state.nextOffer.id)">{{ t('accept') }}</button>
+        <div class="taxi-next-offer__accepted" ng-if="state.nextOffer.accepted">{{ t('nextOfferAccepted') }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>

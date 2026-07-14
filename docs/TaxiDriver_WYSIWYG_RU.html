@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TaxiDriver — Mod Description</title>
+</head>
+<body>
+<h1>TaxiDriver — A Universal Taxi Mode with an In-Game Mobile App</h1>
+
+<p><strong>Turn free roam into a complete taxi-driving experience:</strong> go online, choose fares, pick up passengers, follow the route, maintain a high driver rating, and earn money for safe and comfortable driving.</p>
+
+<p>TaxiDriver runs as a standalone UI App in BeamNG.drive free roam. The entire experience is presented through the driver's mobile phone: from going online and selecting a request to navigation, fare calculation, ride-quality scoring, and offers for your next passenger.</p>
+
+<hr>
+
+<h2>Credit to the Author of the Original Idea</h2>
+
+<p>Special thanks to <strong>Incognito</strong>, creator of the original <a href="https://www.beamng.com/resources/taxidriver.28763/">TaxiDriver</a> mod.</p>
+
+<blockquote>
+  <p>The original idea of a dedicated taxi experience in BeamNG.drive—including passenger rides, an economy, and a driver-rating system—belongs to Incognito.</p>
+</blockquote>
+
+<p>This version is an independent reimagining and technical redevelopment of that idea for modern free roam. It is not an official update to the original resource and does not replace the original author's work.</p>
+
+<hr>
+
+<h2>How This Version Differs from the Original TaxiDriver</h2>
+
+<p>The original TaxiDriver was built as a scenario for East Coast USA and West Coast USA, using a predefined set of trip locations. It included a basic economy and rating system as well as repair and refueling mechanics.</p>
+
+<p>This version—currently released as <strong>2.10.6</strong>—changes the architecture of the experience itself:</p>
+
+<ul>
+  <li><strong>A UI App instead of a scenario.</strong> Taxi mode starts directly from the driver's phone and runs in free roam.</li>
+  <li><strong>Dynamic locations instead of a fixed coordinate list.</strong> The mod uses the current map's road graph, bus stops, parking spaces, and points of interest. If there are not enough semantic objects, it safely falls back to a suitable roadside position.</li>
+  <li><strong>A modern order-dispatch system.</strong> A mixed pool of 10–12 requests arrives gradually. Normal rides, rush rides, and longer rides with scheduled stops differ in distance, duration, pickup deadline, and payout.</li>
+  <li><strong>A complete mobile-app interface.</strong> The phone contains the request list, a rectangular minimap, route guidance, ETA, ride progress, fare details, penalty events, driver rating, and settings.</li>
+  <li><strong>A compact live trip dashboard.</strong> Calmness, pickup time, rush time, scheduled stops, and rating bonuses are presented as consistent space-efficient metrics instead of large independent status rows.</li>
+  <li><strong>Passenger communication.</strong> The selected passenger may send one to three short emoji-only messages before pickup, using a coherent randomly selected mood.</li>
+  <li><strong>Individual passenger behavior.</strong> Every passenger has a randomly generated Calmness value that affects whether violations are ignored, charged normally, or penalized more heavily.</li>
+  <li><strong>A different ride-quality model.</strong> Confirmed speeding, collisions, and harsh maneuvers affect both the fare and passenger dissatisfaction. The system includes tolerances, difficulty presets, passenger-specific modifiers, and a maximum fare-reduction cap.</li>
+  <li><strong>Critical passenger reactions.</strong> A passenger who considers the driving dangerously uncomfortable may demand an immediate stop and leave before reaching the destination.</li>
+  <li><strong>Speed-aware navigation.</strong> The in-phone minimap smoothly zooms in for low-speed maneuvering and zooms out as vehicle speed increases.</li>
+  <li><strong>Integrated application audio.</strong> Interface clicks, online and offline events, new requests, penalties, and passenger messages use dedicated sounds that follow BeamNG.drive's Interface Volume setting.</li>
+  <li><strong>A focus on universal taxi gameplay.</strong> The original scenario's refueling, charging, and repair mechanics are not included in this version.</li>
+  <li><strong>Designed for BeamNG.drive 0.38.6.</strong> The mod uses the current road, UI, and Lua systems available in this game version.</li>
+</ul>
+
+<hr>
+
+<h2>Getting Started</h2>
+
+<ol>
+  <li>Open the UI Apps editor in BeamNG.drive.</li>
+  <li>Add <strong>TaxiDriverHUD</strong> to the game interface.</li>
+  <li>Place the phone in a convenient part of the screen and resize it if needed.</li>
+  <li>Press <strong>Start Driving</strong>.</li>
+  <li>Wait for the app to connect to the dispatch network.</li>
+  <li>Compare the incoming requests and accept the one that suits you.</li>
+</ol>
+
+<p>After you accept a request, the phone switches to navigation mode and displays the route to the passenger.</p>
+
+<hr>
+
+<h2>Request System</h2>
+
+<p>Requests do not appear all at once. After you go online, the app simulates connecting to dispatch and then gradually builds a randomly sized pool of <strong>10–12 available rides</strong>. Normal rides, rush rides, and rides with stops are mixed in the same list. A completed pool normally reserves 2–3 positions for rides with stops and 2–4 positions for rush rides, then shuffles all request types.</p>
+
+<p>Multi-stop requests are generated only when the current map provides enough suitable semantic stop candidates. Route construction uses a limited number of attempts and safely falls back to normal requests when necessary. Failed generation attempts use a short retry delay instead of repeatedly blocking the game, so sparse maps can continue filling the dispatcher without persistent frame-time spikes.</p>
+
+<p>Each request card displays:</p>
+
+<ul>
+  <li>a randomly generated English passenger name;</li>
+  <li>the passenger's randomly generated Calmness percentage;</li>
+  <li>ride distance;</li>
+  <li>estimated duration;</li>
+  <li>estimated payout;</li>
+  <li>the time available to reach the passenger;</li>
+  <li>the driver-rating bonus, when applicable;</li>
+  <li>the request type and its rush bonus or scheduled-stop count, when applicable.</li>
+</ul>
+
+<p>Rush requests pay more but impose a tighter and less comfortable time limit. If the bonus timer expires, you keep the base fare and lose only the bonus portion.</p>
+
+<h3>Pickup Deadline</h3>
+
+<p>Every request includes a calculated pickup window based on the route to the passenger at the app's 40 km/h planning speed, with additional boarding-time allowance. The countdown begins when you accept the request. Arriving after the deadline creates a visible fare-reduction event: the initial reduction is 5%, then increases gradually with the delay up to a maximum of 12%.</p>
+
+<h3>Rides with Stops</h3>
+
+<p>Rides with stops use a longer route split across <strong>two intermediate roadside points</strong> before the final destination. At each stop, remain stationary for <strong>10 seconds</strong>. The phone switches to a dedicated loading screen and shows the remaining wait time. Leaving the point or moving too quickly resets that stop's timer.</p>
+
+<h3>Your Next Request During the Current Ride</h3>
+
+<p>After more than 90% of the current route has been completed, the phone may display another request. You have five seconds to accept it. If you ignore it, the card expires completely and another request may appear after a random delay of 5–10 seconds. Every new floating request plays its notification sound, not only the first one.</p>
+
+<p>An accepted request is added to the queue and <strong>does not replace the current ride</strong>. Once the current passenger has been dropped off, the app automatically directs you to the queued passenger. The green accepted-request indicator follows the queued ride ID and is removed when that passenger begins boarding; it does not remain visible during the passenger's journey.</p>
+
+<hr>
+
+<h2>Realistic Pickup and Drop-Off Locations</h2>
+
+<p>The mod does not store a hard-coded list of coordinates for individual maps. It prioritizes objects suitable for a taxi stop:</p>
+
+<ul>
+  <li>bus stops;</li>
+  <li>street-side and regular parking spaces;</li>
+  <li>level points of interest;</li>
+  <li>other compatible semantic map objects.</li>
+</ul>
+
+<p>The selected position is projected toward the edge of the road with its width and permitted direction of travel taken into account. This reduces the chance of a passenger appearing in the middle lane of a multi-lane road.</p>
+
+<p>Semantic anchors no longer resolve to one permanently fixed coordinate. Each valid location receives a controlled longitudinal offset of up to approximately <strong>35 metres</strong> along the same road segment, plus a very small lateral adjustment that keeps the point at the outer road edge.</p>
+
+<p>The dispatcher also remembers the last <strong>24 generated stop positions</strong> and prefers new points at least <strong>90 metres</strong> away from them. Recently used positions remain available as fallbacks on maps with very few suitable locations, preventing the variety system from stalling request generation.</p>
+
+<p>If the map does not contain suitable objects, the mod uses its road graph and selects a fallback point near the edge of an accessible road segment. Ride length is limited to approximately <strong>1–25 kilometers</strong>.</p>
+
+<hr>
+
+<h2>Passenger Boarding and Drop-Off</h2>
+
+<p>When you stop at the target, the phone displays a dedicated boarding or drop-off screen with a loading indicator.</p>
+
+<p>At the same time, the mod attempts to:</p>
+
+<ol>
+  <li>identify a suitable passenger door;</li>
+  <li>open it;</li>
+  <li>wait briefly;</li>
+  <li>close the door and continue the ride.</li>
+</ol>
+
+<p>Door triggers are implemented differently across vehicles, so this animation works on a best-effort basis. If a particular vehicle does not provide a compatible trigger, the ride will still continue normally.</p>
+
+<p>When boarding begins, any accepted-request confirmation associated with that passenger is cleared from both the phone banner and the underlying notification state.</p>
+
+<hr>
+
+<h2>Passenger Messages Before Pickup</h2>
+
+<p>After a request has been accepted, the selected passenger may send between <strong>one and three messages</strong> while you are driving to the pickup point. Messages are bound to the active ride ID and passenger name, so they cannot appear in the dispatcher, leak from an expired request, or be attributed to the wrong passenger.</p>
+
+<p>The messages use an emoji-only language and therefore require no translated sentence text. A conversation chooses one coherent mood—such as cheerful, sad, excited, sleepy, dreamy, or grumpy—and draws all of its messages from that mood.</p>
+
+<p>Each message appears as an iOS-inspired notification containing the passenger's initials, name, sending time, and emoji content. It remains visible briefly, then swipes to the right while fading out. Messages are postponed while the phone is minimized, settings are open, or another in-phone notification is using the same space.</p>
+
+<p>Passenger-message mood is purely atmospheric. It does not change Calmness, dissatisfaction, fare penalties, or ride difficulty.</p>
+
+<hr>
+
+<h2>Passenger Calmness and Early Ride Termination</h2>
+
+<p>Every generated passenger has a <strong>Calmness value from 0% to 100%</strong>. It is visible before accepting a request and remains available on the active ride screen.</p>
+
+<p>Calmness changes how fare penalties are applied:</p>
+
+<ul>
+  <li><strong>Highly calm passengers</strong> are more likely to ignore an individual penalty event. At 100% Calmness, each eligible event has up to a 70% chance of being ignored.</li>
+  <li><strong>Passengers at or above 50% Calmness</strong> do not increase the value of an applied penalty.</li>
+  <li><strong>Passengers below 50% Calmness</strong> progressively increase applied penalties.</li>
+  <li><strong>At 0% Calmness</strong>, penalties are never ignored and their value can reach twice the normal amount.</li>
+</ul>
+
+<p>The decision is made once per violation episode. For example, a continuous speeding episode is either ignored or evaluated with one fixed passenger modifier; the result is not rerolled every frame.</p>
+
+<p>Passenger dissatisfaction is tracked separately from the fare. Sustained speeding, repeated harsh maneuvers, collisions, and generally dangerous driving increase dissatisfaction. Calm passengers accumulate it more slowly and tolerate a higher final threshold, so a single moderate incident should not normally end a ride.</p>
+
+<p>If dissatisfaction becomes critical, the passenger may demand an immediate stop:</p>
+
+<ol>
+  <li>the phone switches to a dedicated emergency stop screen;</li>
+  <li>the vehicle automatically applies its brakes;</li>
+  <li>after the vehicle has nearly stopped, driving controls are temporarily locked;</li>
+  <li>the passenger door opens and a five-second exit sequence begins;</li>
+  <li>the door closes, controls are restored, and the taxi returns to the dispatcher or starts the already queued request.</li>
+</ol>
+
+<p>A ride terminated by the passenger pays no fare. The current overall driver rating is also reduced according to the selected difficulty: <strong>10% on Elementary, 20% on Easy, 30% on Standard, and 45% on Professional</strong>.</p>
+
+<p>If another request was accepted before the passenger demanded a stop, it remains in the queue and is not overwritten.</p>
+
+<hr>
+
+<h2>Navigation and Mobile Minimap</h2>
+
+<p>During an active route, an adapted rectangular BeamNG.drive minimap appears inside the phone. It is rendered exclusively on the passenger-navigation screens and is immediately removed during boarding, stop waiting, completion, reset, settings, dispatcher, and home screens.</p>
+
+<p>The minimap uses speed-dependent scaling. It provides a closer view while stopped or moving slowly, then progressively zooms out as speed increases, reaching its widest planned view at approximately <strong>120 km/h</strong>. The transition is smoothed to avoid distracting jumps during acceleration and braking.</p>
+
+<p>This scaling is active only while TaxiDriver owns the visible minimap. The stock minimap function and mode are restored when the phone is minimized, its settings are opened, the taxi session ends, the mission closes, or the extension unloads.</p>
+
+<p>Phone notifications are rendered above the minimap. Their current screen rectangle is excluded from the native map renderer so route graphics cannot cover localized notification text.</p>
+
+<p>The route screen displays:</p>
+
+<ul>
+  <li>the route line;</li>
+  <li>estimated time of arrival;</li>
+  <li>remaining distance;</li>
+  <li>progress toward the passenger or destination;</li>
+  <li>intermediate-stop markers positioned by their actual distance along the full trip progress bar;</li>
+  <li>the current speed limit when one is defined by the road graph.</li>
+</ul>
+
+<p>ETA is calculated using an average urban speed of <strong>40 km/h</strong>. It is a planning estimate, not a required driving speed.</p>
+
+<p>The navigation arrows drawn directly over the road can be disabled in the TaxiDriver settings. The route remains visible on the minimap.</p>
+
+<hr>
+
+<h2>Fare and Ride Quality</h2>
+
+<p>The estimated fare is calculated from a base charge, ride distance, and expected travel time. While you drive, the app evaluates the quality of the ride.</p>
+
+<p>The active ride screen uses a compact dashboard for passenger Calmness, pickup countdown, scheduled-stop progress, rush timing, and rating bonuses. Regular text sizes display these metrics in one row; larger accessibility text sizes automatically switch to a two-column layout. Full descriptions remain available as tooltips.</p>
+
+<p>Before a fare penalty is recorded, it is processed through the current passenger's Calmness. An ignored event does not reduce the fare and is not added to the Penalties list. An applied event may use the normal value or an increased value for a particularly sensitive passenger.</p>
+
+<h3>What Can Reduce Your Fare</h3>
+
+<ul>
+  <li><strong>Speeding.</strong> A penalty is applied only after a tolerance margin and a short grace period, so briefly crossing the limit should not punish you immediately.</li>
+  <li><strong>Collisions.</strong> The system detects increases in vehicle damage and includes protection against charging repeatedly for the same event.</li>
+  <li><strong>Harsh maneuvers.</strong> Longitudinal and lateral forces from acceleration, braking, and cornering are evaluated.</li>
+  <li><strong>Late pickup.</strong> Missing the displayed pickup deadline applies a moderate reduction that grows gradually while the passenger waits.</li>
+  <li><strong>Losing a rush bonus.</strong> If the time limit expires, only the bonus portion is removed.</li>
+</ul>
+
+<p>Every applied penalty appears in the dedicated <strong>Penalties</strong> list on the phone. Even when a sensitive passenger increases individual penalties, the combined reduction remains capped: the final fare cannot be reduced by more than 50%.</p>
+
+<p>The phone uses six dedicated sound groups:</p>
+
+<ul>
+  <li>interface controls;</li>
+  <li>going online;</li>
+  <li>going offline;</li>
+  <li>new floating ride offers;</li>
+  <li>newly recorded penalties;</li>
+  <li>passenger messages.</li>
+</ul>
+
+<p>Every TaxiDriver sound follows BeamNG.drive's <strong>Interface Volume</strong> slider in real time. Silent Mode remains an additional app-level mute and disables all six sound groups.</p>
+
+<hr>
+
+<h2>Driver Rating</h2>
+
+<p>Your driver rating is displayed at the bottom of the ride screen on a scale from <strong>0.00 to 5.00</strong>. Five stars fill proportionally to the precise rating value.</p>
+
+<p>The home-screen footer presents Balance, completed Rides, and Rating as larger high-contrast statistics. The rating value uses the application's yellow accent for faster recognition.</p>
+
+<p>Safe and comfortable rides help maintain a high rating. Repeated violations, collisions, and aggressive driving reduce the score for the completed ride and affect your overall rating.</p>
+
+<p>If a passenger ends the ride early because of critically unsafe driving, the penalty is applied directly to the current overall rating. The reduction ranges from 10% on Elementary difficulty to 45% on Professional difficulty.</p>
+
+<p>Your rating also affects earnings. Ratings up to <strong>3.99</strong> receive no extra payment. From 3.99 to 5.00, the bonus rises proportionally, reaching <strong>+15%</strong> at a perfect 5.00 rating. The exact bonus is included in every request card and its fare estimate.</p>
+
+<hr>
+
+<h2>App Settings</h2>
+
+<p>Open the settings page with the gear button. Saving the settings closes the page and returns you to the previous screen.</p>
+
+<h3>Available Options</h3>
+
+<ul>
+  <li><strong>Language:</strong> English, Russian, German, French, Spanish, Polish, and Ukrainian.</li>
+  <li><strong>Remember language:</strong> English is used by default, but another language can be saved as your preference.</li>
+  <li><strong>Text size:</strong> a slider increases the font size throughout the phone interface.</li>
+  <li><strong>Violation difficulty:</strong> Elementary, Easy, Standard, or Professional.</li>
+  <li><strong>On-road guidance:</strong> enables or disables arrows and markers drawn over the road surface.</li>
+  <li><strong>Silent Mode:</strong> disables all sounds produced by the TaxiDriver phone app. When it is disabled, sound volume follows BeamNG.drive's Interface Volume slider.</li>
+</ul>
+
+<h3>Settings Storage</h3>
+
+<p>Settings are stored outside the mod archive:</p>
+
+<p><code>BeamNG.drive/current/settings/TaxiDriver/settings.json</code></p>
+
+<p>The file includes a schema version. If it is corrupted, uses an unsupported schema, or contains invalid values, the mod applies safe defaults and recreates the file. On first launch, it can also perform a one-time import from the previous UI storage.</p>
+
+<hr>
+
+<h2>Minimizing the Phone</h2>
+
+<p>Use the separate button above the phone to minimize the interface. The phone smoothly slides down and clears your view. A new important request may automatically restore it.</p>
+
+<hr>
+
+<h2>Recommended Setup</h2>
+
+<ul>
+  <li>For your first ride, use <strong>Easy</strong> or <strong>Standard</strong> difficulty.</li>
+  <li>Check Passenger Calmness before accepting a request: less calm passengers react more strongly to the same driving events.</li>
+  <li>Keep the UI App vertical and give it enough height—the interface is designed around smartphone proportions.</li>
+  <li>If the on-road arrows obstruct your view, disable <strong>On-road guidance</strong> and navigate using the minimap.</li>
+  <li>Set BeamNG.drive's <strong>Interface Volume</strong> to a comfortable level before adjusting TaxiDriver's Silent Mode.</li>
+  <li>For a more atmospheric experience, enable regular BeamNG.drive traffic through the radial menu.</li>
+  <li>Maps with a complete road graph, parking spaces, and points of interest provide the best results.</li>
+  <li>Use a vehicle with functional door triggers if the boarding animation is important to you.</li>
+</ul>
+
+<hr>
+
+<h2>Installation</h2>
+
+<ol>
+  <li>Place the mod's ZIP archive in <code>BeamNG.drive/current/mods</code>.</li>
+  <li>Do not extract the archive or place it inside an additional folder.</li>
+  <li>Make sure the mod is enabled in the Mod Manager.</li>
+  <li>Add <strong>TaxiDriverHUD</strong> through the UI Apps menu.</li>
+</ol>
+
+<p><strong>Do not keep packed and unpacked copies of the same mod version at the same time:</strong> duplicate Lua and UI files may cause loading conflicts.</p>
+
+<hr>
+
+<h2>Compatibility and Limitations</h2>
+
+<ul>
+  <li>Target version: <strong>BeamNG.drive 0.38.6</strong>.</li>
+  <li>The map must provide a usable road graph for route generation.</li>
+  <li>Pickup quality depends on the bus stops, parking spaces, and points of interest available on each map.</li>
+  <li>Maps with very few semantic locations may reuse a recent roadside point after exhausting better alternatives.</li>
+  <li>Automatic door operation depends on the trigger structure and naming used by the selected vehicle.</li>
+  <li>The emergency passenger-exit sequence uses BeamNG's native controller freeze mechanism after automatic braking. Controls are explicitly restored when the sequence, taxi mode, mission, or vehicle session ends.</li>
+  <li>The mod is designed primarily for free roam and is not a standalone scenario.</li>
+</ul>
+
+<p><strong>Go online, choose the requests that match your driving style, and try to keep all five stars.</strong></p>
+</body>
+</html>

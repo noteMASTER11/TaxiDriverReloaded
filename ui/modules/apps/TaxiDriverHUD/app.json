@@ -1,0 +1,20 @@
+{
+  "domElement": "<taxi-driver-hud></taxi-driver-hud>",
+  "name": "TaxiDriverHUD",
+  "types": [
+    "ui.apps.categories.utility"
+  ],
+  "css": {
+    "right": "24px",
+    "bottom": "70px",
+    "width": "380px",
+    "height": "736px",
+    "min-width": "330px",
+    "min-height": "616px"
+  },
+  "description": "Taxi driver phone with native BeamNG minimap, fares and ride quality",
+  "author": "IncoCode",
+  "version": "2.10.6",
+  "directive": "taxiDriverHud",
+  "preserveAspectRatio": false
+}
