@@ -19,7 +19,7 @@ local delivery = require("taxiDriver/delivery")
 local lanBridge = require("taxiDriver/lanBridge")
 
 local logTag = "taxiDriver"
-local modVersion = "2.23.0"
+local modVersion = "2.24.0"
 local settingsSchemaVersion = 1
 local profileSchemaVersion = 1
 local progressSchemaVersion = 1
@@ -145,7 +145,7 @@ local function createDefaultUserSettings()
     rememberLanguage = false,
     difficulty = "standard",
     customDifficulty = taxiConfig.sanitizeCustomDifficulty(nil),
-    fontBoost = 2,
+    uiScalePercent = 100,
     appVolume = 0.65,
     unitSystem = "metric",
     timeFormat = "12h",
@@ -266,9 +266,17 @@ local function sanitizeUserSettings(source, requireSchema)
   end
   result.customDifficulty = taxiConfig.sanitizeCustomDifficulty(source.customDifficulty)
 
-  local fontBoost = tonumber(source.fontBoost)
-  if fontBoost then
-    result.fontBoost = math.floor(clampValue(fontBoost, 0, 5) + 0.5)
+  local uiScalePercent = tonumber(source.uiScalePercent)
+  if not uiScalePercent then
+    local legacyFontBoost = tonumber(source.fontBoost)
+    if legacyFontBoost then
+      uiScalePercent = 100 + (clampValue(legacyFontBoost, 0, 5) - 2) * 10
+    end
+  end
+  if uiScalePercent then
+    result.uiScalePercent = math.floor(
+      clampValue(uiScalePercent, 80, 180) / 10 + 0.5
+    ) * 10
   end
   local appVolume = tonumber(source.appVolume)
   if appVolume then result.appVolume = clampValue(appVolume, 0, 1) end

@@ -4,6 +4,7 @@
 </style>
 
 <div class="taxi-shell" ng-class="{'taxi-shell--minimized': phoneMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
+  <div class="taxi-shell__scale-stage" ng-class="getUiScaleClass()" ng-style="getUiScaleStyle()">
   <button type="button" class="taxi-shell__remote-toggle" ng-if="!externalPhoneMode && state.lan.connected > 0" ng-click="hud.toggleLocalPhone()" aria-label="{{ localPhoneOpen ? t('externalHideLocal') : t('externalShowLocal') }}">
     <span>&#128241;</span><i ng-if="state.nextOffer"></i>
   </button>
@@ -56,7 +57,7 @@
     </div>
   </div>
 
-  <div class="taxi-phone" ng-if="!phoneMinimized && (externalPhoneMode || state.lan.connected < 1 || localPhoneOpen)" ng-class="'taxi-font-scale-' + settings.fontBoost">
+  <div class="taxi-phone" ng-if="!phoneMinimized && (externalPhoneMode || state.lan.connected < 1 || localPhoneOpen)">
   <div class="taxi-phone__screen">
     <div class="phone-status">
       <span>{{ currentClock }}</span>
@@ -117,9 +118,9 @@
             <label class="taxi-settings__check"><input type="checkbox" ng-model="settings.rememberLanguage" ng-change="hud.settingsChanged()">{{ t('rememberLanguage') }}</label>
           </div>
           <div class="taxi-settings__section">
-            <div class="taxi-settings__label"><span>{{ t('fontSize') }}</span><span>{{ getFontPercent() }}%</span></div>
+            <div class="taxi-settings__label"><span>{{ t('fontSize') }}</span><span>{{ getUiScalePercent() }}%</span></div>
             <div class="taxi-settings__help">{{ t('fontSizeHelp') }}</div>
-            <input class="taxi-settings__range" type="range" min="0" max="5" step="1" ng-model="settings.fontBoost" ng-change="hud.settingsChanged()">
+            <input class="taxi-settings__range" type="range" min="80" max="180" step="10" ng-model="settings.uiScalePercent" ng-change="hud.settingsChanged()">
           </div>
           <div class="taxi-settings__section">
             <div class="taxi-settings__label">{{ t('units') }}</div>
@@ -788,5 +789,6 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 </div>

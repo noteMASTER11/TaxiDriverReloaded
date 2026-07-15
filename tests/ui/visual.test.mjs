@@ -65,7 +65,8 @@ const harnessUrl = (scenario, viewport, options = {}) => {
     query.set("token", "0123456789abcdef0123");
   }
   if (options.locale) query.set("locale", options.locale);
-  if (options.fontBoost !== undefined) query.set("fontBoost", String(options.fontBoost));
+  if (options.uiScale !== undefined) query.set("uiScale", String(options.uiScale));
+  if (options.mockWebAudio) query.set("mockWebAudio", "1");
   if (options.extreme) query.set("extreme", "1");
   return `http://127.0.0.1:${port}/?${query}`;
 };
@@ -176,10 +177,41 @@ try {
   assert.equal(secondCount, 2, "Overspeed alert must play again after returning below the threshold");
   await functionalPage.close();
 
+  const iphoneAudioPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await iphoneAudioPage.goto(harnessUrl("trip", { width: 390, height: 844 }, {
+    external: true, mockWebAudio: true,
+  }));
+  await waitForHarness(iphoneAudioPage);
+  await iphoneAudioPage.waitForFunction(() => window.__taxiMockWebAudio?.decoded === 7);
+  await iphoneAudioPage.evaluate(() => window.__taxiSetState({ active: false }));
+  await iphoneAudioPage.waitForFunction(() => window.__taxiMockWebAudio.resumeCalls > 0);
+  assert.equal(await iphoneAudioPage.evaluate(() => window.__taxiMockWebAudio.starts.length), 0,
+    "External event audio must remain queued until iOS grants a user gesture");
+  await iphoneAudioPage.locator(".taxi-appbar__settings").click();
+  await iphoneAudioPage.waitForFunction(() => window.__taxiMockWebAudio.starts.length >= 2);
+  const unlockedStarts = await iphoneAudioPage.evaluate(() => window.__taxiMockWebAudio.starts.length);
+  await iphoneAudioPage.evaluate(() => window.__taxiSetState({ active: true }));
+  await iphoneAudioPage.waitForFunction((count) => window.__taxiMockWebAudio.starts.length > count, unlockedStarts);
+  const burstStart = await iphoneAudioPage.evaluate(() => window.__taxiMockWebAudio.starts.length);
+  await iphoneAudioPage.evaluate(() => {
+    window.__taxiSetState({ currentSpeed: 72 });
+    window.__taxiSetState({ nextOffer: {
+      id: 999, passengerName: "Audio Test", accepted: false, duration: 5, timeRemaining: 5,
+    } });
+    window.__taxiSetState({ penaltyEvents: [
+      ...window.__taxiScenarios.trip.penaltyEvents,
+      { id: 999, type: "collision", penaltyPercent: 1, detail: "Audio test" },
+    ] });
+  });
+  await iphoneAudioPage.waitForFunction((count) =>
+    window.__taxiMockWebAudio.starts.length >= count + 3, burstStart
+  );
+  await iphoneAudioPage.close();
+
   for (const locale of locales) {
     const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
     await page.goto(harnessUrl("orders", { width: 360, height: 640 }, {
-      external: true, locale, fontBoost: 5, extreme: true,
+      external: true, locale, uiScale: 180, extreme: true,
     }));
     await waitForHarness(page);
     await assertVisualAudit(page, `locale ${locale}`);
@@ -188,15 +220,63 @@ try {
     await page.close();
   }
 
-  for (const fontBoost of [0, 2, 5]) {
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    await page.goto(harnessUrl("trip", { width: 390, height: 844 }, { external: true, fontBoost }));
-    await waitForHarness(page);
-    await assertVisualAudit(page, `fontBoost ${fontBoost}`);
-    await screenshot(page, `font-${fontBoost}-web-trip-390x844.png`);
-    visualCount += 1;
-    await page.close();
+  for (const external of [false, true]) {
+    const measuredWidths = new Map();
+    for (const uiScale of [80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180]) {
+      const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+      await page.goto(harnessUrl("trip", { width: 390, height: 844 }, { external, uiScale }));
+      await waitForHarness(page);
+      await assertVisualAudit(page, `uiScale ${uiScale} ${external ? "web" : "game"}`);
+      const geometry = await page.evaluate(() => {
+        const rect = (selector) => {
+          const value = document.querySelector(selector).getBoundingClientRect();
+          return { left: value.left, top: value.top, right: value.right, bottom: value.bottom,
+            width: value.width, height: value.height };
+        };
+        return {
+          shell: rect(".taxi-shell"),
+          stage: rect(".taxi-shell__scale-stage"),
+          logo: rect(".taxi-appbar__logo"),
+          settings: rect(".taxi-appbar__settings"),
+          map: rect(".taxi-map"),
+        };
+      });
+      assert.ok(Math.abs(geometry.stage.width - geometry.shell.width) < 1 &&
+        Math.abs(geometry.stage.height - geometry.shell.height) < 1,
+      `Scaled stage must fill its viewport at ${uiScale}% (${JSON.stringify(geometry)})`);
+      assert.ok(geometry.map.left >= geometry.shell.left - 1 &&
+        geometry.map.right <= geometry.shell.right + 1,
+      `Scaled map must stay inside its viewport at ${uiScale}% (${JSON.stringify(geometry)})`);
+      measuredWidths.set(uiScale, { logo: geometry.logo.width, settings: geometry.settings.width });
+      if ([80, 100, 180].includes(uiScale)) {
+        await screenshot(page, `scale-${uiScale}-${external ? "web" : "game"}-trip-390x844.png`);
+      }
+      visualCount += 1;
+      await page.close();
+    }
+    const base = measuredWidths.get(100);
+    for (const uiScale of [80, 180]) {
+      const measured = measuredWidths.get(uiScale);
+      const ratio = uiScale / 100;
+      assert.ok(Math.abs(measured.logo / base.logo - ratio) < 0.03,
+        `Logo geometry must scale to ${uiScale}% (${JSON.stringify(measuredWidths)})`);
+      assert.ok(Math.abs(measured.settings / base.settings - ratio) < 0.03,
+        `Control geometry must scale to ${uiScale}% (${JSON.stringify(measuredWidths)})`);
+    }
   }
+
+  const legacyScalePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await legacyScalePage.goto(harnessUrl("trip", { width: 390, height: 844 }));
+  await waitForHarness(legacyScalePage);
+  await legacyScalePage.evaluate(() => window.__taxiSetState({ settings: { fontBoost: 2 } }));
+  await legacyScalePage.waitForFunction(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    return scope && scope.getUiScalePercent() === 100;
+  });
+  assert.equal(await legacyScalePage.locator(".taxi-shell__scale-stage").evaluate((element) =>
+    Number.parseFloat(getComputedStyle(element).zoom)
+  ), 1, "Legacy fontBoost 2 must migrate to the new 100% full-interface scale");
+  await legacyScalePage.close();
 
   for (const hidpi of [
     { scenario: "trip", viewport: { width: 390, height: 844 } },
@@ -259,6 +339,27 @@ try {
   assert.ok(mapAudit.roadPixels > 1000, `External map must render a visible road network (${JSON.stringify(mapAudit)})`);
   assert.ok(mapAudit.width >= mapAudit.cssWidth * 2 - 1 && mapAudit.height >= mapAudit.cssHeight * 2 - 1,
     `External map must use a sharp DPR 2 backing store (${JSON.stringify(mapAudit)})`);
+  const readExternalTargetRadius = async (speed) => {
+    await mapPage.evaluate((value) => window.__taxiSetState({ currentSpeed: value }), speed);
+    await mapPage.waitForFunction((value) => {
+      const canvas = document.querySelector("canvas.taxi-external-minimap");
+      return canvas && Number(canvas.dataset.mapSpeed) === value;
+    }, speed);
+    return mapPage.locator("canvas.taxi-external-minimap").evaluate((canvas) =>
+      Number(canvas.dataset.mapTargetRadius)
+    );
+  };
+  const externalRadius0 = await readExternalTargetRadius(0);
+  const externalRadius60 = await readExternalTargetRadius(60);
+  const externalRadius120 = await readExternalTargetRadius(120);
+  assert.ok(externalRadius0 <= 230,
+    `External map must start with a close camera (${externalRadius0})`);
+  assert.ok(externalRadius60 <= 430,
+    `External map must remain close at city speed (${externalRadius60})`);
+  assert.ok(externalRadius120 <= 750,
+    `External map must limit high-speed zoom-out (${externalRadius120})`);
+  assert.ok(externalRadius0 < externalRadius60 && externalRadius60 < externalRadius120,
+    `External map radius must grow smoothly with speed (${externalRadius0}, ${externalRadius60}, ${externalRadius120})`);
   await mapPage.close();
 
   console.log(`TaxiDriverHUD: ${visualCount} responsive visual states passed, including locales and HiDPI.`);

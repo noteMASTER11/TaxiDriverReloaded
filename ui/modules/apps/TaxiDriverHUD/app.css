@@ -41,6 +41,16 @@
     overflow: hidden;
   }
 
+  .taxi-shell__scale-stage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    transform-origin: 0 0;
+  }
+
   .taxi-shell__remote-toggle {
     position: absolute;
     z-index: 90;
@@ -1575,15 +1585,6 @@
   .taxi-passenger-chat__header time { color: #b7bac1; font-size: var(--taxi-f8, 8px); font-weight: 700; white-space: nowrap; }
   .taxi-passenger-chat__message { margin-top: 4px; overflow: hidden; font-size: var(--taxi-f17, 17px); letter-spacing: 3px; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
 
-  /* App-local text scaling keeps the phone dimensions while every text tier
-     follows the selected percentage. */
-  .taxi-font-scale-0 { --taxi-f8:8px; --taxi-f9:9px; --taxi-f10:10px; --taxi-f11:11px; --taxi-f12:12px; --taxi-f13:13px; --taxi-f14:14px; --taxi-f15:15px; --taxi-f16:16px; --taxi-f17:17px; --taxi-f22:22px; --taxi-f25:25px; --taxi-f26:26px; }
-  .taxi-font-scale-1 { --taxi-f8:8.8px; --taxi-f9:9.9px; --taxi-f10:11px; --taxi-f11:12.1px; --taxi-f12:13.2px; --taxi-f13:14.3px; --taxi-f14:15.4px; --taxi-f15:16.5px; --taxi-f16:17.6px; --taxi-f17:18.7px; --taxi-f22:24.2px; --taxi-f25:27.5px; --taxi-f26:28.6px; }
-  .taxi-font-scale-2 { --taxi-f8:9.6px; --taxi-f9:10.8px; --taxi-f10:12px; --taxi-f11:13.2px; --taxi-f12:14.4px; --taxi-f13:15.6px; --taxi-f14:16.8px; --taxi-f15:18px; --taxi-f16:19.2px; --taxi-f17:20.4px; --taxi-f22:26.4px; --taxi-f25:30px; --taxi-f26:31.2px; }
-  .taxi-font-scale-3 { --taxi-f8:10.4px; --taxi-f9:11.7px; --taxi-f10:13px; --taxi-f11:14.3px; --taxi-f12:15.6px; --taxi-f13:16.9px; --taxi-f14:18.2px; --taxi-f15:19.5px; --taxi-f16:20.8px; --taxi-f17:22.1px; --taxi-f22:28.6px; --taxi-f25:32.5px; --taxi-f26:33.8px; }
-  .taxi-font-scale-4 { --taxi-f8:11.2px; --taxi-f9:12.6px; --taxi-f10:14px; --taxi-f11:15.4px; --taxi-f12:16.8px; --taxi-f13:18.2px; --taxi-f14:19.6px; --taxi-f15:21px; --taxi-f16:22.4px; --taxi-f17:23.8px; --taxi-f22:30.8px; --taxi-f25:35px; --taxi-f26:36.4px; }
-  .taxi-font-scale-5 { --taxi-f8:12px; --taxi-f9:13.5px; --taxi-f10:15px; --taxi-f11:16.5px; --taxi-f12:18px; --taxi-f13:19.5px; --taxi-f14:21px; --taxi-f15:22.5px; --taxi-f16:24px; --taxi-f17:25.5px; --taxi-f22:33px; --taxi-f25:37.5px; --taxi-f26:39px; }
-
   .taxi-phone .taxi-penalty-event__text span,
   .taxi-phone .taxi-order-card__badge,
   .taxi-phone .taxi-order-card__metric span,
@@ -1907,25 +1908,13 @@
     --taxi-radius-control: 8px;
     --taxi-radius-card: 12px;
     --taxi-radius-panel: 20px;
-    min-width: 0;
-    color: var(--taxi-text);
-    font-family: "Taxi Noto Sans", "Noto Sans", Arial, sans-serif;
-  }
-  .taxi-phone button,
-  .taxi-phone input,
-  .taxi-phone select,
-  .taxi-phone textarea { font: inherit; }
-  .taxi-phone strong,
-  .taxi-phone b,
-  .taxi-phone button { font-weight: 700; }
-
-  .taxi-font-scale-0 { --taxi-caption:11px; --taxi-body-small:12px; --taxi-body:13px; --taxi-label:13px; --taxi-heading:17px; --taxi-title:22px; --taxi-display:26px; }
-  .taxi-font-scale-1 { --taxi-caption:11px; --taxi-body-small:12px; --taxi-body:14px; --taxi-label:14px; --taxi-heading:18px; --taxi-title:23px; --taxi-display:27px; }
-  .taxi-font-scale-2 { --taxi-caption:12px; --taxi-body-small:13px; --taxi-body:14px; --taxi-label:14px; --taxi-heading:18px; --taxi-title:24px; --taxi-display:28px; }
-  .taxi-font-scale-3 { --taxi-caption:12px; --taxi-body-small:13px; --taxi-body:15px; --taxi-label:15px; --taxi-heading:19px; --taxi-title:25px; --taxi-display:29px; }
-  .taxi-font-scale-4 { --taxi-caption:13px; --taxi-body-small:14px; --taxi-body:15px; --taxi-label:15px; --taxi-heading:20px; --taxi-title:26px; --taxi-display:30px; }
-  .taxi-font-scale-5 { --taxi-caption:13px; --taxi-body-small:14px; --taxi-body:16px; --taxi-label:16px; --taxi-heading:21px; --taxi-title:28px; --taxi-display:32px; }
-  .taxi-phone[class*="taxi-font-scale-"] {
+    --taxi-caption: 12px;
+    --taxi-body-small: 13px;
+    --taxi-body: 14px;
+    --taxi-label: 14px;
+    --taxi-heading: 18px;
+    --taxi-title: 24px;
+    --taxi-display: 28px;
     --taxi-f8: var(--taxi-caption);
     --taxi-f9: var(--taxi-caption);
     --taxi-f10: var(--taxi-body-small);
@@ -1939,7 +1928,17 @@
     --taxi-f22: var(--taxi-title);
     --taxi-f25: var(--taxi-display);
     --taxi-f26: var(--taxi-display);
+    min-width: 0;
+    color: var(--taxi-text);
+    font-family: "Taxi Noto Sans", "Noto Sans", Arial, sans-serif;
   }
+  .taxi-phone button,
+  .taxi-phone input,
+  .taxi-phone select,
+  .taxi-phone textarea { font: inherit; }
+  .taxi-phone strong,
+  .taxi-phone b,
+  .taxi-phone button { font-weight: 700; }
 
   .taxi-phone .phone-status,
   .taxi-phone .taxi-appbar__title span,
@@ -1976,11 +1975,74 @@
   .taxi-appbar__settings,
   .taxi-appbar__profile { flex: 0 0 40px; width: 40px; height: 40px; }
 
+  .taxi-shell__scale-stage--xl .taxi-appbar__title { display: none; }
+  .taxi-shell__scale-stage--xl .taxi-appbar__fuel {
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    flex: 0 0 40px;
+    padding: 0;
+    font-size: 0;
+  }
+  .taxi-shell__scale-stage--xl .taxi-appbar__fuel::before {
+    content: "\26FD";
+    font-size: 18px;
+    line-height: 1;
+  }
+
   .taxi-trip-layout {
     display: flex;
     flex: 1;
     min-height: 0;
     flex-direction: column;
+  }
+  .taxi-shell__scale-stage--xl .taxi-trip-layout {
+    display: block;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .taxi-shell__scale-stage--xl .taxi-trip-layout > .taxi-map {
+    width: 100%;
+    height: 255px;
+    min-height: 255px;
+  }
+  .taxi-shell__scale-stage--xl .taxi-trip-layout > .taxi-sheet {
+    min-height: max-content;
+    padding-bottom: 250px;
+    overflow: visible;
+  }
+  .taxi-shell__scale-stage--xl .taxi-ride-footer {
+    position: absolute;
+    right: 12px;
+    bottom: 8px;
+    left: 12px;
+    width: auto;
+    margin: 0;
+  }
+  .taxi-shell__scale-stage--xl .taxi-ride-footer__energy {
+    flex-wrap: wrap;
+  }
+  .taxi-shell__scale-stage--xl .taxi-ride-footer__energy-type {
+    flex: 1 1 calc(100% - 24px);
+    overflow: visible;
+    line-height: 1.25;
+    text-overflow: clip;
+    white-space: normal;
+  }
+  .taxi-shell__scale-stage--xl .taxi-ride-footer__energy strong {
+    margin-left: 20px;
+  }
+  .taxi-shell__scale-stage--xl .taxi-ride-footer__bottom {
+    flex-direction: column;
+  }
+  .taxi-shell__scale-stage--xl .taxi-ride-footer__stat span,
+  .taxi-shell__scale-stage--xl .taxi-ride-footer__stat strong {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+  .taxi-shell__scale-stage--xl .taxi-offline-hold {
+    width: 100%;
   }
   .taxi-sheet { padding-bottom: 0; scrollbar-gutter: stable; }
   .taxi-ride-footer {

@@ -10,9 +10,12 @@
   const state = window.__taxiScenarios[scenarioName] || window.__taxiScenarios.home;
   const externalMode = params.get("external") === "1";
   const requestedLocale = params.get("locale");
-  const requestedFontBoost = Number(params.get("fontBoost"));
+  const uiScaleParam = params.get("uiScale");
+  const requestedUiScale = uiScaleParam === null ? NaN : Number(uiScaleParam);
   if (requestedLocale) state.settings.language = requestedLocale;
-  if (Number.isFinite(requestedFontBoost)) state.settings.fontBoost = Math.max(0, Math.min(5, requestedFontBoost));
+  if (Number.isFinite(requestedUiScale)) {
+    state.settings.uiScalePercent = Math.max(80, Math.min(180, Math.round(requestedUiScale / 10) * 10));
+  }
   if (params.get("extreme") === "1") {
     state.passengerName = "Alexandria-Cassandra Montgomery-Wellington";
     state.balance = 9876543.21;
@@ -102,6 +105,9 @@
     const settingsPanel = document.querySelector(".taxi-settings");
     const qr = document.querySelector(".taxi-lan__qr");
     const stageRect = stage.getBoundingClientRect();
+    const scaleStage = document.querySelector(".taxi-shell__scale-stage");
+    const uiScale = scaleStage ? Math.max(0.8, Math.min(1.8,
+      Number.parseFloat(getComputedStyle(scaleStage).zoom) || 1)) : 1;
     const failures = [];
     const within = (outer, inner, tolerance = 1) => inner.left >= outer.left - tolerance &&
       inner.right <= outer.right + tolerance && inner.top >= outer.top - tolerance &&
@@ -109,7 +115,8 @@
     if (phone && !within(stageRect, phone.getBoundingClientRect(), 2)) failures.push("phone-outside-stage");
     if (document.documentElement.scrollWidth > window.innerWidth + 1) failures.push("document-horizontal-overflow");
     const title = document.querySelector(".taxi-appbar__title");
-    if (title && title.getBoundingClientRect().width < 48) failures.push("appbar-title-collapsed");
+    if (title && title.getBoundingClientRect().width > 0 &&
+        title.getBoundingClientRect().width < 48 * uiScale) failures.push("appbar-title-collapsed");
     const appbar = document.querySelector(".taxi-appbar");
     if (appbar) {
       const children = Array.from(appbar.children).filter((element) => {
@@ -134,7 +141,7 @@
       const controls = Array.from(document.querySelectorAll(".taxi-appbar button, .taxi-order-card__accept, .taxi-fuel__buy"));
       if (controls.some((element) => {
         const rect = element.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0 && rect.height < 40;
+        return rect.width > 0 && rect.height > 0 && rect.height < 40 * uiScale;
       })) failures.push("web-touch-target-too-small");
     }
     const canvas = document.querySelector("canvas.taxi-external-minimap");

@@ -111,8 +111,13 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         } catch (_) { persisted = {}; }
         const initialLanguage = persisted.rememberLanguage && i18n[persisted.language] ? persisted.language : "en";
         const initialDifficulty = difficulties.includes(persisted.difficulty) ? persisted.difficulty : "standard";
-        const savedFontBoost = persisted.fontBoost === undefined ? 2 : persisted.fontBoost;
-        const initialFontBoost = Math.max(0, Math.min(5, Number(savedFontBoost)));
+        const savedUiScalePercent = Number(persisted.uiScalePercent);
+        const legacyFontBoost = Number(persisted.fontBoost);
+        const initialUiScalePercent = Math.max(80, Math.min(180, Math.round(
+          (Number.isFinite(savedUiScalePercent)
+            ? savedUiScalePercent
+            : (Number.isFinite(legacyFontBoost) ? 100 + (legacyFontBoost - 2) * 10 : 100)) / 10
+        ) * 10));
         const savedAppVolume = persisted.appVolume === undefined ? 0.65 : Number(persisted.appVolume);
         const initialAppVolume = Math.max(0, Math.min(1, Number.isFinite(savedAppVolume) ? savedAppVolume : 0.65));
         const initialSilentMode = persisted.silentMode === true;
@@ -202,7 +207,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           rememberLanguage: persisted.rememberLanguage === true,
           difficulty: initialDifficulty,
           customDifficulty: normalizeCustomDifficulty(persisted.customDifficulty),
-          fontBoost: initialFontBoost,
+          uiScalePercent: initialUiScalePercent,
           appVolume: initialAppVolume,
           unitSystem: initialUnitSystem,
           timeFormat: initialTimeFormat,
@@ -331,19 +336,24 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
         $scope.stars = [1, 2, 3, 4, 5];
 
+        const ExternalAudioContext = window.AudioContext || window.webkitAudioContext;
+        const externalWebAudioEnabled = externalPhoneMode &&
+          typeof ExternalAudioContext === "function" && window.TaxiDriverSoundData;
         const createAppAudioPool = (fileName, volume, size) => {
           const players = [];
           const embeddedSource = externalPhoneMode && window.TaxiDriverSoundData
             ? window.TaxiDriverSoundData[fileName]
             : null;
           const source = embeddedSource || `/ui/modules/apps/TaxiDriverHUD/sounds/${fileName}`;
-          for (let index = 0; index < size; index += 1) {
-            const audio = new Audio(source);
-            audio.preload = "auto";
-            audio.volume = volume;
-            players.push(audio);
+          if (!externalWebAudioEnabled) {
+            for (let index = 0; index < size; index += 1) {
+              const audio = new Audio(source);
+              audio.preload = "auto";
+              audio.volume = volume;
+              players.push(audio);
+            }
           }
-          return { players, cursor: 0, baseVolume: volume };
+          return { players, cursor: 0, baseVolume: volume, fileName, source, size };
         };
         const appAudio = {
           click: createAppAudioPool("taxidriver_ui_click.mp3", 0.52, 3),
@@ -354,6 +364,12 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           message: createAppAudioPool("taxidriver_passenger_message.mp3", 0.72, 3),
           overspeed: createAppAudioPool("taxidriver_overspeed.mp3", 0.72, 2),
         };
+        let externalAudioContext = null;
+        let externalAudioPreparePromise = null;
+        let externalAudioUnlocked = false;
+        let externalAudioQueue = [];
+        const externalAudioBuffers = new Map();
+        const externalAudioDecodeFailures = new Set();
         const passengerEmojiMoods = [
           {
             id: "cheerful",
@@ -430,13 +446,18 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           bngApi.engineLua('settings.getValue("AudioUiVol")', setGameUiVolume);
         };
 
-        const playAppSound = (soundId) => {
-          if ($scope.settings.silentMode) return;
-          if ($scope.settings.soundToggles && $scope.settings.soundToggles[soundId] === false) return;
-          if (!externalPhoneMode && $scope.state && $scope.state.lan &&
-              Number($scope.state.lan.connected || 0) > 0) return;
-          const pool = appAudio[soundId];
-          if (!pool || !pool.players.length) return;
+        const ensureHtmlAudioPlayers = (pool) => {
+          if (!pool || pool.players.length) return;
+          for (let index = 0; index < pool.size; index += 1) {
+            const audio = new Audio(pool.source);
+            audio.preload = "auto";
+            pool.players.push(audio);
+          }
+        };
+        const playHtmlAudio = (pool) => {
+          if (!pool) return;
+          ensureHtmlAudioPlayers(pool);
+          if (!pool.players.length) return;
           const audio = pool.players[pool.cursor];
           pool.cursor = (pool.cursor + 1) % pool.players.length;
           try {
@@ -447,6 +468,135 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             const playback = audio.play();
             if (playback && playback.catch) playback.catch(() => {});
           } catch (_) {}
+        };
+        const ensureExternalAudioContext = () => {
+          if (!externalWebAudioEnabled) return null;
+          if (externalAudioContext) return externalAudioContext;
+          try {
+            externalAudioContext = new ExternalAudioContext({ latencyHint: "interactive" });
+          } catch (_) {
+            try { externalAudioContext = new ExternalAudioContext(); } catch (_) { return null; }
+          }
+          externalAudioUnlocked = externalAudioContext.state === "running";
+          return externalAudioContext;
+        };
+        const dataUriToArrayBuffer = (source) => {
+          const comma = source.indexOf(",");
+          if (comma < 0) throw new Error("Invalid embedded audio source");
+          const metadata = source.slice(0, comma);
+          const payload = source.slice(comma + 1);
+          const binary = /;base64/i.test(metadata) ? atob(payload) : decodeURIComponent(payload);
+          const bytes = new Uint8Array(binary.length);
+          for (let index = 0; index < binary.length; index += 1) {
+            bytes[index] = binary.charCodeAt(index) & 0xff;
+          }
+          return bytes.buffer;
+        };
+        const decodeExternalAudioBuffer = (context, arrayBuffer) => new Promise((resolve, reject) => {
+          let settled = false;
+          const complete = (buffer) => {
+            if (settled) return;
+            settled = true;
+            resolve(buffer);
+          };
+          const fail = (error) => {
+            if (settled) return;
+            settled = true;
+            reject(error || new Error("Audio decoding failed"));
+          };
+          try {
+            const result = context.decodeAudioData(arrayBuffer.slice(0), complete, fail);
+            if (result && typeof result.then === "function") result.then(complete, fail);
+          } catch (error) { fail(error); }
+        });
+        const prepareExternalWebAudio = () => {
+          if (!externalWebAudioEnabled) return Promise.resolve(false);
+          if (externalAudioPreparePromise) return externalAudioPreparePromise;
+          const context = ensureExternalAudioContext();
+          if (!context) return Promise.resolve(false);
+          externalAudioPreparePromise = Promise.all(Object.keys(appAudio).map((soundId) => {
+            const pool = appAudio[soundId];
+            return decodeExternalAudioBuffer(context, dataUriToArrayBuffer(pool.source))
+              .then((buffer) => {
+                externalAudioBuffers.set(soundId, buffer);
+                return true;
+              })
+              .catch(() => {
+                externalAudioDecodeFailures.add(soundId);
+                return false;
+              });
+          })).then(() => true);
+          return externalAudioPreparePromise;
+        };
+        const startExternalWebAudio = (soundId) => {
+          const context = externalAudioContext;
+          const pool = appAudio[soundId];
+          const buffer = externalAudioBuffers.get(soundId);
+          if (!externalAudioUnlocked || !context || context.state !== "running" || !pool || !buffer) return false;
+          try {
+            const source = context.createBufferSource();
+            const gain = context.createGain();
+            source.buffer = buffer;
+            gain.gain.value = clampAudioVolume(
+              pool.baseVolume * gameUiVolume * clampAudioVolume($scope.settings.appVolume)
+            );
+            source.connect(gain);
+            gain.connect(context.destination);
+            source.start(0);
+            return true;
+          } catch (_) { return false; }
+        };
+        const flushExternalAudioQueue = () => {
+          if (!externalAudioUnlocked || !externalAudioContext || externalAudioContext.state !== "running") return;
+          const now = Date.now();
+          const pending = externalAudioQueue;
+          externalAudioQueue = [];
+          pending.forEach((request) => {
+            if (now - request.createdAt > 5000) return;
+            if (externalAudioDecodeFailures.has(request.soundId)) {
+              playHtmlAudio(appAudio[request.soundId]);
+            } else if (!startExternalWebAudio(request.soundId)) {
+              externalAudioQueue.push(request);
+            }
+          });
+        };
+        const resumeExternalWebAudio = () => {
+          const context = ensureExternalAudioContext();
+          if (!context) return Promise.resolve(false);
+          let resumed;
+          try {
+            resumed = context.state === "running" ? Promise.resolve() : context.resume();
+          } catch (_) { return Promise.resolve(false); }
+          return Promise.resolve(resumed).then(() => {
+            externalAudioUnlocked = context.state === "running";
+            if (!externalAudioUnlocked) return false;
+            return prepareExternalWebAudio().then(() => {
+              flushExternalAudioQueue();
+              return true;
+            });
+          }).catch(() => false);
+        };
+        prepareExternalWebAudio().then(() => flushExternalAudioQueue());
+
+        const playAppSound = (soundId) => {
+          if ($scope.settings.silentMode) return;
+          if ($scope.settings.soundToggles && $scope.settings.soundToggles[soundId] === false) return;
+          if (!externalPhoneMode && $scope.state && $scope.state.lan &&
+              Number($scope.state.lan.connected || 0) > 0) return;
+          const pool = appAudio[soundId];
+          if (!pool) return;
+          if (externalWebAudioEnabled && !externalAudioDecodeFailures.has(soundId)) {
+            if (!startExternalWebAudio(soundId)) {
+              const createdAt = Date.now();
+              externalAudioQueue = externalAudioQueue
+                .filter((request) => createdAt - request.createdAt <= 5000)
+                .slice(-11);
+              externalAudioQueue.push({ soundId, createdAt });
+              resumeExternalWebAudio();
+            }
+            return;
+          }
+          playHtmlAudio(pool);
         };
         const playViolationSound = () => playAppSound("violation");
 
@@ -543,6 +693,16 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
 
         const appRoot = $element[0];
+        const handleExternalAudioUnlock = () => { resumeExternalWebAudio(); };
+        const handleExternalAudioVisibility = () => {
+          if (document.visibilityState === "visible") resumeExternalWebAudio();
+        };
+        if (externalWebAudioEnabled) {
+          appRoot.addEventListener("pointerdown", handleExternalAudioUnlock, true);
+          appRoot.addEventListener("touchend", handleExternalAudioUnlock, true);
+          appRoot.addEventListener("keydown", handleExternalAudioUnlock, true);
+          document.addEventListener("visibilitychange", handleExternalAudioVisibility);
+        }
         let lastLanQrUrl = "";
         const renderLanQr = () => {
           if (!$scope.settingsOpen || !$scope.settings.lanEnabled) return;
@@ -628,7 +788,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
 
         const normalizeSettings = (source) => {
           const value = source && typeof source === "object" ? source : {};
-          const fontBoost = value.fontBoost === undefined ? 2 : Number(value.fontBoost);
+          const uiScalePercent = Number(value.uiScalePercent);
+          const legacyFontBoost = Number(value.fontBoost);
           const appVolume = value.appVolume === undefined ? 0.65 : Number(value.appVolume);
           const dynamicZoomIntensity = value.dynamicZoomIntensity === undefined
             ? 100 : Number(value.dynamicZoomIntensity);
@@ -643,7 +804,11 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             rememberLanguage: value.rememberLanguage === true,
             difficulty: difficulties.includes(value.difficulty) ? value.difficulty : "standard",
             customDifficulty: normalizeCustomDifficulty(value.customDifficulty),
-            fontBoost: Math.max(0, Math.min(5, Math.round(Number.isFinite(fontBoost) ? fontBoost : 2))),
+            uiScalePercent: Math.max(80, Math.min(180, Math.round(
+              (Number.isFinite(uiScalePercent)
+                ? uiScalePercent
+                : (Number.isFinite(legacyFontBoost) ? 100 + (legacyFontBoost - 2) * 10 : 100)) / 10
+            ) * 10)),
             appVolume: Math.max(0, Math.min(1, Number.isFinite(appVolume) ? appVolume : 0.65)),
             unitSystem: value.unitSystem === "imperial" ? "imperial" : "metric",
             timeFormat: value.timeFormat === "24h" ? "24h" : "12h",
@@ -886,6 +1051,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         let externalMapFrame = 0;
         let externalCameraCenter = null;
         let externalCameraHeading = null;
+        let externalCameraRadius = null;
+        let externalCameraZoomUpdatedAt = 0;
         let externalRoadRevision = 0;
         let externalRoads = [];
         let externalTerrainTiles = [];
@@ -1036,6 +1203,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
               !externalVehicleState.position || !minimapPhases.has($scope.state.phase)) {
             externalCameraCenter = null;
             externalCameraHeading = null;
+            externalCameraRadius = null;
+            externalCameraZoomUpdatedAt = 0;
             return;
           }
           const surfaces = $element[0].querySelectorAll("canvas.taxi-external-minimap");
@@ -1060,9 +1229,29 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           const intensity = Math.max(0, Math.min(2, Number(
             $scope.settings.dynamicZoomIntensity || 100
           ) / 100));
-          // Keep enough local road detail visible on the much smaller external
-          // canvas while retaining the same speed-dependent zoom behaviour.
-          const radius = Math.max(280, Math.min(2800, 320 + speed * (8 + 7 * intensity)));
+          // Connected Phone has much less map area than the in-game minimap.
+          // Keep its initial view close, ease the speed response, and cap the
+          // high-speed range so road detail remains useful on a phone screen.
+          const speedRatio = Math.max(0, Math.min(1, speed / 160));
+          const easedSpeed = speedRatio * speedRatio * (3 - 2 * speedRatio);
+          const baseRadius = 220;
+          const dynamicRadius = baseRadius + (720 - baseRadius) * easedSpeed;
+          const targetRadius = Math.max(180, Math.min(
+            1200,
+            baseRadius + (dynamicRadius - baseRadius) * intensity
+          ));
+          const zoomUpdatedAt = performance.now();
+          if (externalCameraRadius === null) {
+            externalCameraRadius = targetRadius;
+          } else {
+            const elapsed = externalCameraZoomUpdatedAt > 0
+              ? Math.max(0, Math.min(0.1, (zoomUpdatedAt - externalCameraZoomUpdatedAt) / 1000))
+              : 0;
+            const blend = 1 - Math.exp(-elapsed * 1.8);
+            externalCameraRadius += (targetRadius - externalCameraRadius) * blend;
+          }
+          externalCameraZoomUpdatedAt = zoomUpdatedAt;
+          const radius = externalCameraRadius;
           const visibleRoads = getExternalRoadsNear(center, radius);
           surfaces.forEach((canvas) => {
             const rect = canvas.getBoundingClientRect();
@@ -1078,6 +1267,9 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
             const w = rect.width;
             const h = rect.height;
+            canvas.dataset.mapSpeed = speed.toFixed(2);
+            canvas.dataset.mapRadius = radius.toFixed(2);
+            canvas.dataset.mapTargetRadius = targetRadius.toFixed(2);
             ctx.fillStyle = "#0b1017";
             ctx.fillRect(0, 0, w, h);
             const scale = Math.min(w, h) / (radius * 2);
@@ -1146,14 +1338,16 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
               ctx.fillStyle = "#ffd21c";
               ctx.beginPath(); ctx.arc(target[0], target[1], 7, 0, Math.PI * 2); ctx.fill();
             }
-            ctx.save(); ctx.translate(w / 2, vehicleScreenY);
+            const pointerScale = Math.max(0.72, Math.min(1, Math.min(w, h) / 300));
+            ctx.save(); ctx.translate(w / 2, vehicleScreenY); ctx.scale(pointerScale, pointerScale);
             ctx.fillStyle = "#ff791a"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(10, 12);
             ctx.lineTo(0, 8); ctx.lineTo(-10, 12); ctx.closePath(); ctx.fill(); ctx.stroke();
             ctx.restore();
           });
           const centerDistance = Math.hypot(centerDeltaX, centerDeltaY);
-          if ((centerDistance > 0.15 || Math.abs(headingDelta) > 0.002) && !externalMapFrame) {
+          const radiusDelta = Math.abs(targetRadius - radius);
+          if ((centerDistance > 0.15 || Math.abs(headingDelta) > 0.002 || radiusDelta > 0.25) && !externalMapFrame) {
             externalMapFrame = requestAnimationFrame(() => {
               externalMapFrame = 0;
               drawExternalMap();
@@ -1286,6 +1480,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         this.settingsChanged = () => {
           applyGameUiVolume();
           updateClock();
+          scheduleMinimapUpdate();
           queueSettingsSave();
         };
         this.selectUnitSystem = (unitSystem) => {
@@ -1504,7 +1699,21 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
         $scope.getRatingPercent = () =>
           Math.max(0, Math.min(100, Number($scope.state.rating || 0) / 5 * 100));
-        $scope.getFontPercent = () => 100 + Number($scope.settings.fontBoost || 0) * 10;
+        $scope.getUiScalePercent = () => Math.max(80, Math.min(
+          180,
+          Math.round((Number($scope.settings.uiScalePercent) || 100) / 10) * 10
+        ));
+        $scope.getUiScaleStyle = () => {
+          const percent = $scope.getUiScalePercent();
+          return {
+            zoom: (percent / 100).toFixed(2),
+          };
+        };
+        $scope.getUiScaleClass = () => {
+          const percent = $scope.getUiScalePercent();
+          if (percent >= 130) return "taxi-shell__scale-stage--xl";
+          return "";
+        };
         $scope.getAppVolumePercent = () => Math.round(
           Math.max(0, Math.min(1, Number($scope.settings.appVolume) || 0)) * 100
         );
@@ -1918,6 +2127,16 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           stopOfflineHold();
           stopPassengerChat();
           appRoot.removeEventListener("click", handleAppClick, true);
+          if (externalWebAudioEnabled) {
+            appRoot.removeEventListener("pointerdown", handleExternalAudioUnlock, true);
+            appRoot.removeEventListener("touchend", handleExternalAudioUnlock, true);
+            appRoot.removeEventListener("keydown", handleExternalAudioUnlock, true);
+            document.removeEventListener("visibilitychange", handleExternalAudioVisibility);
+            externalAudioQueue = [];
+            if (externalAudioContext && typeof externalAudioContext.close === "function") {
+              try { externalAudioContext.close(); } catch (_) {}
+            }
+          }
           window.removeEventListener("resize", resizeMap);
           if (!externalPhoneMode) {
             hideMinimap();

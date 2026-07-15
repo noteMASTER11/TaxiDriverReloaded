@@ -9,6 +9,47 @@
     play() { window.__taxiPlayedSounds.push(this.src); return Promise.resolve(); }
     pause() {}
   };
+  if (mockParams.get("mockWebAudio") === "1") {
+    const soundFiles = [
+      "taxidriver_ui_click.mp3", "taxidriver_new_ride.mp3", "taxidriver_offline.mp3",
+      "taxidriver_online.mp3", "taxidriver_violation_ping.mp3",
+      "taxidriver_passenger_message.mp3", "taxidriver_overspeed.mp3",
+    ];
+    window.TaxiDriverSoundData = Object.fromEntries(soundFiles.map((fileName) =>
+      [fileName, "data:audio/mpeg;base64,AA=="]
+    ));
+    window.__taxiMockWebAudio = { decoded: 0, resumeCalls: 0, starts: [] };
+    let audioGestureReceived = false;
+    document.addEventListener("pointerdown", () => { audioGestureReceived = true; }, true);
+    class MockAudioContext {
+      constructor() {
+        this.state = "suspended";
+        this.destination = {};
+      }
+      decodeAudioData() {
+        const buffer = { id: ++window.__taxiMockWebAudio.decoded };
+        return Promise.resolve(buffer);
+      }
+      createBufferSource() {
+        const source = {
+          buffer: null,
+          connect() {},
+          start() { window.__taxiMockWebAudio.starts.push(source.buffer && source.buffer.id); },
+        };
+        return source;
+      }
+      createGain() { return { gain: { value: 1 }, connect() {} }; }
+      resume() {
+        window.__taxiMockWebAudio.resumeCalls += 1;
+        if (!audioGestureReceived) return Promise.reject(new Error("NotAllowedError"));
+        this.state = "running";
+        return Promise.resolve();
+      }
+      close() { this.state = "closed"; return Promise.resolve(); }
+    }
+    window.AudioContext = MockAudioContext;
+    window.webkitAudioContext = MockAudioContext;
+  }
 
   const settings = {
     language: "en", rememberLanguage: true, difficulty: "standard",
@@ -19,7 +60,7 @@
       aggressionPenaltyStrengthPercent: 100, pickupPenaltyStrengthPercent: 100,
       maxFareReductionPercent: 50, earlyExitRatingLossPercent: 30,
     },
-    fontBoost: 2, appVolume: 0.65, unitSystem: "metric", timeFormat: "12h",
+    uiScalePercent: 100, appVolume: 0.65, unitSystem: "metric", timeFormat: "12h",
     penaltyToggles: { speeding: true, collision: true, aggression: true, pickupDelay: true, fuelStop: true, rushBonus: true, cargoDamage: true },
     soundToggles: { click: true, newRide: true, offline: true, online: true, violation: true, message: true, overspeed: true },
     dynamicZoomIntensity: 120, overspeedWarningKmh: 10, economyMultiplier: 1, deliveryOrderSharePercent: 45,

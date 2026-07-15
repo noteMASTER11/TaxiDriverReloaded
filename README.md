@@ -107,7 +107,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 ### Navigation built for the phone
 
 - A rectangular native minimap appears only during active driving phases.
-- The map zooms in at low speeds and pulls back more aggressively at higher speeds.
+- The native minimap adapts to speed, while Connected Phone uses a closer, smoother, phone-specific zoom curve that preserves local road detail.
 - ETA is calculated using a city-driving reference speed of **40 km/h**.
 - Arrival time, remaining distance, route progress, speed limit, stop markers, and trip metrics remain visible around the map.
 - The ride footer shows current fuel or charge to two decimal places and an approximate remaining driving range.
@@ -145,11 +145,11 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 
 Open the gear icon in the TaxiDriver phone to configure:
 
-- language, text size, metric/imperial units, and 12/24-hour time;
+- language, full-interface scale from 80% to 180%, metric/imperial units, and 12/24-hour time;
 - Elementary, Easy, Standard, Professional, or fully adjustable Custom difficulty;
 - independent penalty switches for speeding, collisions, harsh maneuvers, late pickup, fuel stops, rush bonuses, and cargo damage;
 - passenger/delivery order ratio and dynamic minimap zoom intensity;
-- TaxiDriver sound volume with a random sound test button and separate toggles for all seven sound groups;
+- TaxiDriver sound volume with a random sound test button and separate toggles for all seven sound groups, including an iOS-compatible Connected Phone audio engine;
 - silent mode;
 - road-surface route guidance.
 
