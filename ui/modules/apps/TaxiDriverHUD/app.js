@@ -82,6 +82,18 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             cargoDamage: value.cargoDamage !== false,
           };
         };
+        const normalizeSoundToggles = (source) => {
+          const value = source && typeof source === "object" ? source : {};
+          return {
+            click: value.click !== false,
+            newRide: value.newRide !== false,
+            offline: value.offline !== false,
+            online: value.online !== false,
+            violation: value.violation !== false,
+            message: value.message !== false,
+            overspeed: value.overspeed !== false,
+          };
+        };
         let persisted = {};
         let legacySettingsFound = false;
         try {
@@ -158,6 +170,15 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           { key: "rushBonus", label: "penalty_bonus", help: "penaltyToggleRushHelp" },
           { key: "cargoDamage", label: "penalty_cargoDamage", help: "penaltyToggleCargoHelp" },
         ];
+        $scope.soundToggleOptions = [
+          { key: "click", label: "sound_click" },
+          { key: "newRide", label: "sound_newRide" },
+          { key: "online", label: "sound_online" },
+          { key: "offline", label: "sound_offline" },
+          { key: "violation", label: "sound_violation" },
+          { key: "message", label: "sound_message" },
+          { key: "overspeed", label: "sound_overspeed" },
+        ];
         $scope.cheatRating = 5;
         $scope.cheatResetArmed = false;
         $scope.profileOpen = false;
@@ -186,6 +207,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           unitSystem: initialUnitSystem,
           timeFormat: initialTimeFormat,
           penaltyToggles: normalizePenaltyToggles(persisted.penaltyToggles),
+          soundToggles: normalizeSoundToggles(persisted.soundToggles),
           dynamicZoomIntensity: initialDynamicZoomIntensity,
           overspeedWarningKmh: initialOverspeedWarningKmh,
           economyMultiplier: initialEconomyMultiplier,
@@ -410,6 +432,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
 
         const playAppSound = (soundId) => {
           if ($scope.settings.silentMode) return;
+          if ($scope.settings.soundToggles && $scope.settings.soundToggles[soundId] === false) return;
           if (!externalPhoneMode && $scope.state && $scope.state.lan &&
               Number($scope.state.lan.connected || 0) > 0) return;
           const pool = appAudio[soundId];
@@ -625,6 +648,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             unitSystem: value.unitSystem === "imperial" ? "imperial" : "metric",
             timeFormat: value.timeFormat === "24h" ? "24h" : "12h",
             penaltyToggles: normalizePenaltyToggles(value.penaltyToggles),
+            soundToggles: normalizeSoundToggles(value.soundToggles),
             dynamicZoomIntensity: Math.max(0, Math.min(200,
               Number.isFinite(dynamicZoomIntensity) ? dynamicZoomIntensity : 100)),
             overspeedWarningKmh: Math.max(0, Math.min(30,
@@ -1277,7 +1301,12 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         this.testAppVolume = () => {
           this.previewAppVolume();
           const soundIds = ["click", "newRide", "offline", "online", "violation", "message", "overspeed"];
-          playAppSound(soundIds[Math.floor(Math.random() * soundIds.length)]);
+          const enabledSounds = soundIds.filter((soundId) =>
+            !$scope.settings.soundToggles || $scope.settings.soundToggles[soundId] !== false
+          );
+          if (enabledSounds.length) {
+            playAppSound(enabledSounds[Math.floor(Math.random() * enabledSounds.length)]);
+          }
         };
         this.toggleRealisticMode = () => {
           $scope.settings.realisticMode = $scope.settings.realisticMode === true;
@@ -1290,9 +1319,12 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           // and publishes the same canonical value back in the next snapshot.
           $scope.state.rating = rating;
           $scope.profileProgress.rating = rating;
-          bngApi.engineLua(
-            `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.cheatSetRating(${rating.toFixed(2)}); taxiDriver_taxiDriver.requestHudState() end`
-          );
+          const serializedRating = bngApi.serializeToLua(rating.toFixed(2));
+          // This is deliberately a plain statement without `if`/`return` or a
+          // callback. BeamNG wraps callback commands as Lua expressions, which
+          // makes a conditional statement invalid and raises a Fatal Lua Error.
+          // cheatSetRating publishes the authoritative HUD/profile snapshots.
+          bngApi.engineLua(`taxiDriver_taxiDriver.cheatSetRating(${serializedRating})`);
         };
         this.cheatAddMoney = (amount) => {
           const allowed = [1, 5, 10, 50];

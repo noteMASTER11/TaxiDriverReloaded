@@ -41,8 +41,10 @@ try {
         const command = await page.evaluate(() =>
           (window.__taxiEngineLuaCommands || []).find((value) => value.includes("cheatSetRating")) || ""
         );
-        assert.match(command, /cheatSetRating\(2\.75\).*requestHudState/,
-          "Cheat rating must update Lua and request an authoritative HUD refresh");
+        assert.match(command, /^taxiDriver_taxiDriver\.cheatSetRating\(["']2\.75["']\)$/,
+          "Cheat rating must be sent as a plain Lua statement with a serialized value");
+        assert.doesNotMatch(command, /\b(?:if|return)\b/,
+          "Cheat rating command must not use callback-incompatible Lua control flow");
       }
       if (scenario === "overspeed") {
         const sign = page.locator(".taxi-map__speed");
@@ -60,6 +62,22 @@ try {
         assert.equal(repeatedCount, 1, "Overspeed alert must not repeat while the warning remains active");
         await page.evaluate(() => window.__taxiSetState({ currentSpeed: 59 }));
         await page.waitForFunction(() => !document.querySelector(".taxi-map__speed--warning"));
+        await page.evaluate(() => {
+          const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+          scope.$apply(() => { scope.settings.soundToggles.overspeed = false; });
+          window.__taxiSetState({ currentSpeed: 72 });
+        });
+        await page.waitForFunction(() => document.querySelector(".taxi-map__speed--warning"));
+        const mutedCount = await page.evaluate(() =>
+          window.__taxiPlayedSounds.filter((source) => source.includes("taxidriver_overspeed.mp3")).length
+        );
+        assert.equal(mutedCount, 1, "Disabled overspeed sound must keep the red warning but suppress audio");
+        await page.evaluate(() => window.__taxiSetState({ currentSpeed: 59 }));
+        await page.waitForFunction(() => !document.querySelector(".taxi-map__speed--warning"));
+        await page.evaluate(() => {
+          const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+          scope.$apply(() => { scope.settings.soundToggles.overspeed = true; });
+        });
         await page.evaluate(() => window.__taxiSetState({ currentSpeed: 72 }));
         await page.waitForFunction(() => document.querySelector(".taxi-map__speed--warning"));
         const secondCount = await page.evaluate(() =>

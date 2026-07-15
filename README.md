@@ -149,7 +149,7 @@ Open the gear icon in the TaxiDriver phone to configure:
 - Elementary, Easy, Standard, Professional, or fully adjustable Custom difficulty;
 - independent penalty switches for speeding, collisions, harsh maneuvers, late pickup, fuel stops, rush bonuses, and cargo damage;
 - passenger/delivery order ratio and dynamic minimap zoom intensity;
-- TaxiDriver sound volume with a random sound test button;
+- TaxiDriver sound volume with a random sound test button and separate toggles for all seven sound groups;
 - silent mode;
 - road-surface route guidance.
 

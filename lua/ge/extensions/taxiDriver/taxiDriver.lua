@@ -19,7 +19,7 @@ local delivery = require("taxiDriver/delivery")
 local lanBridge = require("taxiDriver/lanBridge")
 
 local logTag = "taxiDriver"
-local modVersion = "2.22.0"
+local modVersion = "2.22.2"
 local settingsSchemaVersion = 1
 local profileSchemaVersion = 1
 local progressSchemaVersion = 1
@@ -156,6 +156,15 @@ local function createDefaultUserSettings()
       rushBonus = true,
       cargoDamage = true
     },
+    soundToggles = {
+      click = true,
+      newRide = true,
+      offline = true,
+      online = true,
+      violation = true,
+      message = true,
+      overspeed = true
+    },
     dynamicZoomIntensity = 100,
     overspeedWarningKmh = 10,
     economyMultiplier = 1,
@@ -272,6 +281,15 @@ local function sanitizeUserSettings(source, requireSchema)
   result.penaltyToggles.fuelStop = penaltySource.fuelStop ~= false
   result.penaltyToggles.rushBonus = penaltySource.rushBonus ~= false
   result.penaltyToggles.cargoDamage = penaltySource.cargoDamage ~= false
+  local soundSource = type(source.soundToggles) == "table" and
+    source.soundToggles or {}
+  result.soundToggles.click = soundSource.click ~= false
+  result.soundToggles.newRide = soundSource.newRide ~= false
+  result.soundToggles.offline = soundSource.offline ~= false
+  result.soundToggles.online = soundSource.online ~= false
+  result.soundToggles.violation = soundSource.violation ~= false
+  result.soundToggles.message = soundSource.message ~= false
+  result.soundToggles.overspeed = soundSource.overspeed ~= false
   result.dynamicZoomIntensity = clampValue(
     tonumber(source.dynamicZoomIntensity) or result.dynamicZoomIntensity,
     0,
@@ -3957,7 +3975,12 @@ function M.requestExternalMapData()
 end
 
 function M.cheatSetRating(value)
-  local rating = clampValue(tonumber(value) or state.rating or 5, 0, 5)
+  local requestedRating = tonumber(value)
+  if not requestedRating then
+    log("W", logTag, "Cheat rating ignored: invalid value " .. tostring(value))
+    return state.rating
+  end
+  local rating = clampValue(requestedRating, 0, 5)
   if not userProgress then userProgress = createDefaultUserProgress() end
   state.ratingCount = math.max(1, math.floor(tonumber(state.ratingCount) or 0))
   state.rating = rating
@@ -3974,6 +3997,8 @@ function M.cheatSetRating(value)
   writeUserProgress()
   notifyProfile()
   notifyHud()
+  log("I", logTag, string.format("Cheat rating applied: %.2f", rating))
+  return rating
 end
 
 function M.cheatAddMoney(value)

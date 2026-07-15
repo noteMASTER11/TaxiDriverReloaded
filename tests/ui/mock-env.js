@@ -21,6 +21,7 @@
     },
     fontBoost: 2, appVolume: 0.65, unitSystem: "metric", timeFormat: "12h",
     penaltyToggles: { speeding: true, collision: true, aggression: true, pickupDelay: true, fuelStop: true, rushBonus: true, cargoDamage: true },
+    soundToggles: { click: true, newRide: true, offline: true, online: true, violation: true, message: true, overspeed: true },
     dynamicZoomIntensity: 120, overspeedWarningKmh: 10, economyMultiplier: 1, deliveryOrderSharePercent: 45,
     lanEnabled: true, silentMode: false, showRouteGuidance: true, realisticMode: true,
   };
@@ -107,14 +108,15 @@
     engineLua(command, callback) {
       window.__taxiEngineLuaCommands = window.__taxiEngineLuaCommands || [];
       window.__taxiEngineLuaCommands.push(command);
-      const cheatRating = command.match(/cheatSetRating\(([0-9.]+)\)/);
+      const cheatRating = command.match(/cheatSetRating\(["']?([0-9.]+)["']?\)/);
       if (cheatRating) {
         window.dispatchEvent(new CustomEvent("taxi-test-cheat-rating", {
           detail: Number(cheatRating[1]),
         }));
       }
       if (typeof callback === "function") {
-        if (command.includes("AudioUiVol")) callback(1);
+        if (cheatRating) callback(Number(cheatRating[1]));
+        else if (command.includes("AudioUiVol")) callback(1);
         else callback(null);
       }
       if (command.includes("requestHudState")) setTimeout(() => window.__emitTaxiState?.(), 0);

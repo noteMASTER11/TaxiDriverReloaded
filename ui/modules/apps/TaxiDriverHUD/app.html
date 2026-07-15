@@ -228,6 +228,17 @@
             </div>
           </div>
           <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('soundGroups') }}</div>
+            <div class="taxi-settings__help">{{ t('soundGroupsHelp') }}</div>
+            <div class="taxi-settings__penalty-toggles taxi-settings__sound-toggles">
+              <label class="taxi-settings__switch-row taxi-settings__switch-row--compact" ng-repeat="option in soundToggleOptions">
+                <span class="taxi-settings__switch-copy"><strong>{{ t(option.label) }}</strong></span>
+                <input type="checkbox" ng-model="settings.soundToggles[option.key]" ng-change="hud.settingsChanged()">
+                <span class="taxi-settings__switch"></span>
+              </label>
+            </div>
+          </div>
+          <div class="taxi-settings__section">
             <label class="taxi-settings__switch-row">
               <span class="taxi-settings__switch-copy"><strong>{{ t('silentMode') }}</strong><span>{{ t('silentModeHelp') }}</span></span>
               <input type="checkbox" ng-model="settings.silentMode" ng-change="hud.settingsChanged()">
