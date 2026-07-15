@@ -40,7 +40,7 @@
     rating: 4.37, ratingCount: 18, completedRides: 18,
     driverProfile: { fullName: "Alex Morgan", avatar: "🙂" },
     passengerOnboard: false, deliveryOnboard: false, realisticMode: true,
-    vehicleEnergy: { available: true, energyType: "gasoline", quantity: 13.42, unit: "L", estimatedRangeKm: 128 },
+    vehicleEnergy: { available: true, energyType: "gasoline", quantity: 13.42, maxQuantity: 55, percent: 24.4, unit: "L", estimatedRangeKm: 128 },
     fuelStation: { available: false, id: "", name: "Gas Station", options: [], balance: 75.15,
       refueling: { active: false, completing: false, energyType: "", quantity: 0, cost: 0, duration: 0, elapsed: 0, progress: 0, remainingSeconds: 0, completionId: 0 } },
     fuelDetour: { active: false, hadTrip: false, passengerOnboard: false, stationName: "", routeDistance: 0, penaltyPercent: 0, arrived: false },
@@ -94,6 +94,10 @@
     profile: base(),
     compact: tripState(false),
     nextOffer: Object.assign(tripState(false), { routeProgress: 0.88, nextOffer: Object.assign(offer(9, false), { duration: 5, timeRemaining: 3.8, accepted: false }) }),
+    fuelRoute: Object.assign(tripState(false), {
+      phase: "toFuelStation", distanceToTarget: 5200, etaMinutes: 8, routeProgress: 0.35,
+      fuelDetour: { active: true, hadTrip: true, passengerOnboard: true, stationName: "West Coast Fuel", routeDistance: 5200, penaltyPercent: 2.5, arrived: false },
+    }),
     fuel: Object.assign(tripState(false), { fuelStation: {
       available: true, id: "mock-fuel", name: "Gas Station", balance: 75.15,
       options: [{ energyType: "gasoline", unit: "L", currentPercent: 24, currentQuantity: 13.42,

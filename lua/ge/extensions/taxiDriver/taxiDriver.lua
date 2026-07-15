@@ -19,7 +19,7 @@ local delivery = require("taxiDriver/delivery")
 local lanBridge = require("taxiDriver/lanBridge")
 
 local logTag = "taxiDriver"
-local modVersion = "2.22.2"
+local modVersion = "2.23.0"
 local settingsSchemaVersion = 1
 local profileSchemaVersion = 1
 local progressSchemaVersion = 1
@@ -82,6 +82,8 @@ local realisticFuel = {
     available = false,
     energyType = "",
     quantity = 0,
+    maxQuantity = 0,
+    percent = 0,
     unit = "",
     estimatedRangeKm = 0
   },
@@ -1284,6 +1286,8 @@ function realisticFuel.resetDashboardEnergy()
     available = false,
     energyType = "",
     quantity = 0,
+    maxQuantity = 0,
+    percent = 0,
     unit = "",
     estimatedRangeKm = 0
   }
@@ -1309,20 +1313,27 @@ function realisticFuel.refreshDashboardEnergy()
       local energyType = tostring(tank.energyType or "")
       local consumption = realisticFuel.config.estimatedConsumptionPer100Km[energyType]
       if consumption and consumption > 0 then
-        aggregated[energyType] = (aggregated[energyType] or 0) +
+        local totals = aggregated[energyType] or {quantity = 0, maxQuantity = 0}
+        totals.quantity = totals.quantity +
           realisticFuel.energyToReadableUnit(tank.currentEnergy, energyType)
+        totals.maxQuantity = totals.maxQuantity +
+          realisticFuel.energyToReadableUnit(tank.maxEnergy, energyType)
+        aggregated[energyType] = totals
       end
     end
 
     local selected = nil
-    for energyType, quantity in pairs(aggregated) do
+    for energyType, totals in pairs(aggregated) do
       local consumption = realisticFuel.config.estimatedConsumptionPer100Km[energyType]
-      local estimatedRangeKm = quantity / consumption * 100
+      local estimatedRangeKm = totals.quantity / consumption * 100
       if not selected or estimatedRangeKm > selected.estimatedRangeKm then
         selected = {
           available = true,
           energyType = energyType,
-          quantity = quantity,
+          quantity = totals.quantity,
+          maxQuantity = totals.maxQuantity,
+          percent = totals.maxQuantity > 0 and
+            clampValue(totals.quantity / totals.maxQuantity * 100, 0, 100) or 0,
           unit = realisticFuel.readableUnit[energyType] or "unit",
           estimatedRangeKm = estimatedRangeKm
         }
@@ -1333,6 +1344,8 @@ function realisticFuel.refreshDashboardEnergy()
       available = false,
       energyType = "",
       quantity = 0,
+      maxQuantity = 0,
+      percent = 0,
       unit = "",
       estimatedRangeKm = 0
     }

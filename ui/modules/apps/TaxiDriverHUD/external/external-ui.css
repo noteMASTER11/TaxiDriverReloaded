@@ -1,0 +1,163 @@
+/* Web UI layout. Every rule is scoped so the BeamNG UI App keeps its density. */
+.taxi-shell--external {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #111317;
+}
+
+.taxi-shell--external .taxi-phone {
+  position: relative;
+  top: 0;
+  right: auto;
+  left: auto;
+  width: 100%;
+  max-width: 1200px;
+  height: 100dvh;
+  min-width: 0;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.taxi-shell--external .taxi-phone::before,
+.taxi-shell--external .phone-status { display: none; }
+
+.taxi-shell--external .taxi-phone__screen { border-radius: 0; }
+.taxi-shell--external .taxi-appbar {
+  flex: 0 0 auto;
+  min-height: calc(64px + env(safe-area-inset-top));
+  padding: calc(10px + env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left));
+}
+.taxi-shell--external .taxi-appbar__title { min-width: 72px; }
+.taxi-shell--external .taxi-appbar__settings,
+.taxi-shell--external .taxi-appbar__profile,
+.taxi-shell--external .taxi-appbar__fuel { min-height: 44px; }
+.taxi-shell--external .taxi-appbar__settings,
+.taxi-shell--external .taxi-appbar__profile { width: 44px; height: 44px; flex-basis: 44px; }
+.taxi-shell--external .taxi-settings,
+.taxi-shell--external .taxi-fuel { top: calc(64px + env(safe-area-inset-top)); }
+.taxi-shell--external .taxi-settings { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+.taxi-shell--external .taxi-sheet,
+.taxi-shell--external .taxi-orders__list,
+.taxi-shell--external .taxi-settings,
+.taxi-shell--external .taxi-profile__content,
+.taxi-shell--external .taxi-fuel { overscroll-behavior: contain; }
+
+@media (max-width: 480px) {
+  .taxi-shell--external .taxi-appbar { gap: 6px; padding-right: 8px; padding-left: 8px; }
+  .taxi-shell--external .taxi-appbar__logo { width: 36px; height: 36px; flex-basis: 36px; }
+  .taxi-shell--external .taxi-appbar__fuel { max-width: 74px; padding: 0 8px; }
+  .taxi-shell--external .taxi-appbar__title strong { font-size: 16px; }
+  .taxi-shell--external .taxi-appbar__title span { font-size: 12px; }
+  .taxi-shell--external .taxi-map { flex-basis: clamp(150px, 34dvh, 230px); }
+  .taxi-shell--external .taxi-sheet { padding-right: 12px; padding-left: 12px; }
+  .taxi-shell--external .taxi-ride-footer { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+}
+
+@media (max-width: 359px) {
+  .taxi-shell--external .taxi-appbar__title span { display: none; }
+  .taxi-shell--external .taxi-appbar__fuel { max-width: 64px; font-size: 11px; }
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .taxi-shell--external .taxi-appbar {
+    min-height: calc(56px + env(safe-area-inset-top));
+    padding-top: calc(6px + env(safe-area-inset-top));
+    padding-bottom: 6px;
+  }
+  .taxi-shell--external .taxi-settings,
+  .taxi-shell--external .taxi-fuel { top: calc(56px + env(safe-area-inset-top)); }
+  .taxi-shell--external .taxi-trip-layout,
+  .taxi-shell--external .taxi-fuel-route {
+    display: grid;
+    grid-template-columns: minmax(260px, 44%) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .taxi-shell--external .taxi-trip-layout > .taxi-map,
+  .taxi-shell--external .taxi-fuel-route > .taxi-map {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+  .taxi-shell--external .taxi-sheet,
+  .taxi-shell--external .taxi-fuel-route__sheet {
+    height: 100%;
+    margin-top: 0;
+    border-left: 1px solid var(--taxi-border);
+    border-radius: 0;
+  }
+  .taxi-shell--external .taxi-transfer { overflow-y: auto; padding: 14px 24px; }
+  .taxi-shell--external .taxi-transfer__loader,
+  .taxi-shell--external .taxi-transfer__alert,
+  .taxi-shell--external .taxi-transfer__check,
+  .taxi-shell--external .taxi-transfer__stop { width: 62px; height: 62px; }
+  .taxi-shell--external .taxi-transfer h2 { margin-top: 12px; }
+  .taxi-shell--external .taxi-transfer p { margin-top: 6px; }
+  .taxi-shell--external .taxi-transfer__progress { margin-top: 12px; }
+  .taxi-shell--external .taxi-fuel-route__gauge { width: 126px; height: 126px; flex-basis: 126px; }
+}
+
+@media (min-width: 768px) {
+  .taxi-shell--external .taxi-appbar { padding-right: 22px; padding-left: 22px; }
+  .taxi-shell--external .taxi-orders__sheet,
+  .taxi-shell--external .taxi-profile__content { padding: 18px 22px; }
+  .taxi-shell--external .taxi-profile__panel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 18px;
+  }
+  .taxi-shell--external .taxi-profile__pager,
+  .taxi-shell--external .taxi-profile__empty,
+  .taxi-shell--external .taxi-chart-card:last-child { grid-column: 1 / -1; }
+}
+
+@media (min-width: 900px) and (min-height: 621px) {
+  .taxi-shell--external .taxi-orders__list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    gap: 14px;
+  }
+  .taxi-shell--external .taxi-order-card { height: max-content; margin-bottom: 0; }
+  .taxi-shell--external .taxi-settings {
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    align-content: start;
+    gap: 10px 18px;
+    padding: 22px;
+  }
+  .taxi-shell--external .taxi-settings__intro { grid-column: 1 / -1; }
+  .taxi-shell--external .taxi-settings__group {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    align-items: start;
+    margin-top: 0;
+    overflow: visible;
+    background: transparent;
+    border: 0;
+  }
+  .taxi-shell--external .taxi-settings__group-head {
+    grid-column: 1;
+    min-height: 52px;
+    border: 1px solid var(--taxi-border);
+    border-radius: var(--taxi-radius-card);
+  }
+  .taxi-shell--external .taxi-settings__group-body {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 4px 18px 18px;
+    background: var(--taxi-surface-1);
+    border: 1px solid var(--taxi-border);
+    border-radius: var(--taxi-radius-card);
+  }
+  .taxi-shell--external .taxi-settings__group--danger { margin-top: 8px; }
+}
+
+@media (min-width: 1201px) {
+  .taxi-shell--external { padding: 0 max(0px, calc((100vw - 1200px) / 2)); }
+  .taxi-shell--external .taxi-phone { border-right: 1px solid var(--taxi-border); border-left: 1px solid var(--taxi-border); }
+}

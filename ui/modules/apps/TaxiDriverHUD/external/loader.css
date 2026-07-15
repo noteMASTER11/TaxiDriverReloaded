@@ -6,7 +6,7 @@
 
 * { box-sizing: border-box; }
 html, body { width: 100%; min-height: 100%; margin: 0; background: #090b0f; }
-body { overflow: hidden; }
+body { overflow: auto; }
 #taxi-external-root { width: 100vw; height: 100vh; }
 
 .taxi-loader {
@@ -21,6 +21,7 @@ body { overflow: hidden; }
     radial-gradient(circle at 50% 20%, rgba(255, 209, 26, .13), transparent 34%),
     linear-gradient(160deg, #171c24, #090b0f 70%);
   transition: opacity .28s ease, visibility .28s ease;
+  overflow-y: auto;
 }
 .taxi-loader.is-ready { visibility: hidden; opacity: 0; pointer-events: none; }
 .taxi-loader__card { width: min(100%, 430px); padding: 25px; background: rgba(18, 22, 29, .94); border: 1px solid rgba(255,255,255,.1); border-radius: 24px; box-shadow: 0 24px 70px rgba(0,0,0,.55); }
@@ -56,4 +57,27 @@ body { overflow: hidden; }
   .taxi-loader h1 { font-size: 19px; }
   .taxi-loader p { min-height: 30px; margin-bottom: 12px; font-size: 12px; }
   .taxi-loader__steps { margin-top: 12px; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .taxi-loader { display: flex; align-items: flex-start; justify-content: center; padding: 12px max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left)); }
+  .taxi-loader__card {
+    display: grid;
+    width: min(100%, 760px);
+    grid-template-columns: 180px minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    gap: 8px 18px;
+    padding: 14px 18px;
+    border-radius: 18px;
+  }
+  .taxi-loader__brand { grid-column: 1; grid-row: 1; }
+  .taxi-loader__spinner { grid-column: 1; grid-row: 2; margin: 8px auto; }
+  .taxi-loader h1 { grid-column: 2; grid-row: 1; align-self: end; font-size: 19px; text-align: left; }
+  .taxi-loader p { grid-column: 2; grid-row: 2; min-height: 0; margin: 0; font-size: 12px; text-align: left; }
+  .taxi-loader__progress { grid-column: 2; grid-row: 3; align-self: center; }
+  .taxi-loader__steps { grid-column: 2; grid-row: 4; margin: 0; }
+  .taxi-loader__steps li { min-height: 28px; padding: 4px 8px; }
+  .taxi-loader__error,
+  .taxi-loader__retry { grid-column: 1; }
+  .taxi-loader small { grid-column: 1; grid-row: 3 / span 2; align-self: end; margin-top: 0; }
 }

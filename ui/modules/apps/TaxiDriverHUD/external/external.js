@@ -100,6 +100,11 @@
       window.bngApi = window.bridge.api;
       window.StreamsManager = window.bridge.streams;
       window.vueEventBus = window.bridge.events;
+      // External WebSocket clients do not receive GUI hooks until they send an
+      // event subscription. The regular BeamNG Angular bootstrap does this in
+      // angularModules.js, but this lightweight entry point intentionally skips
+      // that bootstrap, so subscribe before requesting TaxiDriverHUDState.
+      window.bridge.api.subscribeToEvents("{}");
       setStep("runtime", "done", "Ready");
 
       setStep("assets", "active", "Caching");

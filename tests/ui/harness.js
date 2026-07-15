@@ -2,13 +2,30 @@
   "use strict";
   const params = new URLSearchParams(window.location.search);
   const scenarioName = params.get("scenario") || "home";
-  const width = Math.max(330, Number(params.get("width")) || 520);
-  const height = Math.max(616, Number(params.get("height")) || 900);
+  const width = Math.max(240, Number(params.get("width")) || 520);
+  const height = Math.max(320, Number(params.get("height")) || 900);
   document.documentElement.style.setProperty("--test-width", `${width}px`);
   document.documentElement.style.setProperty("--test-height", `${height}px`);
 
   const state = window.__taxiScenarios[scenarioName] || window.__taxiScenarios.home;
   const externalMode = params.get("external") === "1";
+  const requestedLocale = params.get("locale");
+  const requestedFontBoost = Number(params.get("fontBoost"));
+  if (requestedLocale) state.settings.language = requestedLocale;
+  if (Number.isFinite(requestedFontBoost)) state.settings.fontBoost = Math.max(0, Math.min(5, requestedFontBoost));
+  if (params.get("extreme") === "1") {
+    state.passengerName = "Alexandria-Cassandra Montgomery-Wellington";
+    state.balance = 9876543.21;
+    state.adjustedFare = 123456.78;
+    state.estimatedFare = 130000.45;
+    state.speedLimit = 130;
+    state.distanceToTarget = 98765;
+    state.driverProfile = { fullName: "Alexandria-Cassandra Montgomery-Wellington", avatar: "🙂" };
+    (state.offers || []).forEach((item, index) => {
+      if (!item.isDelivery) item.passengerName = `Alexandria-Cassandra Montgomery-Wellington ${index + 1}`;
+      item.estimatedFare = 123456.78 + index;
+    });
+  }
   angular.bootstrap(document, ["beamng.apps"]);
   const rootScope = angular.element(document).injector().get("$rootScope");
   const emit = () => rootScope.$broadcast("TaxiDriverHUDState", angular.copy(state));
@@ -91,6 +108,43 @@
       inner.bottom <= outer.bottom + tolerance;
     if (phone && !within(stageRect, phone.getBoundingClientRect(), 2)) failures.push("phone-outside-stage");
     if (document.documentElement.scrollWidth > window.innerWidth + 1) failures.push("document-horizontal-overflow");
+    const title = document.querySelector(".taxi-appbar__title");
+    if (title && title.getBoundingClientRect().width < 48) failures.push("appbar-title-collapsed");
+    const appbar = document.querySelector(".taxi-appbar");
+    if (appbar) {
+      const children = Array.from(appbar.children).filter((element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
+      for (let index = 1; index < children.length; index += 1) {
+        const previous = children[index - 1].getBoundingClientRect();
+        const current = children[index].getBoundingClientRect();
+        if (current.left < previous.right - 1) failures.push("appbar-items-overlap");
+      }
+    }
+    const compactMetrics = Array.from(document.querySelectorAll(".taxi-compact__metric"));
+    if (compactMetrics.some((element) => element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1)) {
+      failures.push("compact-metric-clipped");
+    }
+    const rideFooter = document.querySelector(".taxi-ride-footer");
+    if (rideFooter && screen && !within(screen.getBoundingClientRect(), rideFooter.getBoundingClientRect(), 2)) {
+      failures.push("sticky-footer-outside-screen");
+    }
+    if (externalMode) {
+      const controls = Array.from(document.querySelectorAll(".taxi-appbar button, .taxi-order-card__accept, .taxi-fuel__buy"));
+      if (controls.some((element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && rect.height < 40;
+      })) failures.push("web-touch-target-too-small");
+    }
+    const canvas = document.querySelector("canvas.taxi-external-minimap");
+    if (canvas && window.devicePixelRatio > 1) {
+      const rect = canvas.getBoundingClientRect();
+      const expectedRatio = Math.min(2, window.devicePixelRatio);
+      if (canvas.width + 1 < rect.width * expectedRatio || canvas.height + 1 < rect.height * expectedRatio) {
+        failures.push("hidpi-canvas-underresolved");
+      }
+    }
     if (settingsPanel && screen) {
       const settingsRect = settingsPanel.getBoundingClientRect();
       const screenRect = screen.getBoundingClientRect();

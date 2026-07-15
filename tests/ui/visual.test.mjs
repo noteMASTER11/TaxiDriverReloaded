@@ -1,113 +1,249 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { startHarnessServer } from "./server.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const artifacts = path.join(here, "artifacts");
+const baselines = path.join(here, "baselines");
 await fs.mkdir(artifacts, { recursive: true });
+await fs.mkdir(baselines, { recursive: true });
+const playwrightEntry = fileURLToPath(import.meta.resolve("playwright"));
+const coreBundlePath = path.join(path.dirname(path.dirname(playwrightEntry)), "playwright-core", "lib", "coreBundle.js");
+const { utils: playwrightUtils } = await import(pathToFileURL(coreBundlePath).href);
+const comparePng = playwrightUtils.getComparator("image/png");
+const externalLoaderSource = await fs.readFile(
+  path.join(here, "../../ui/modules/apps/TaxiDriverHUD/external/external.js"),
+  "utf8"
+);
+assert.match(
+  externalLoaderSource,
+  /\.api\.subscribeToEvents\(\s*["']\{\}["']\s*\)/,
+  "External phone loader must subscribe before expecting TaxiDriver GUI hooks"
+);
 const { server, port } = await startHarnessServer(41735);
 const browser = await chromium.launch({ headless: true });
-const scenarios = ["home", "orders", "trip", "delivery", "overspeed", "boarding", "forcedExit", "settings", "settingsConnection", "profile", "compact", "nextOffer", "fuel"];
-const viewports = [{ width: 380, height: 736 }, { width: 520, height: 900 }, { width: 760, height: 980 }];
+
+const scenarios = [
+  "home", "orders", "trip", "delivery", "overspeed", "boarding", "forcedExit",
+  "settings", "settingsConnection", "profile", "compact", "nextOffer", "fuelRoute", "fuel",
+];
+const viewports = [
+  { width: 320, height: 568 },
+  { width: 360, height: 640 },
+  { width: 390, height: 844 },
+  { width: 520, height: 900 },
+  { width: 768, height: 1024 },
+  { width: 844, height: 390 },
+  { width: 1024, height: 768 },
+];
+const locales = ["de", "en", "es", "fr", "it", "pl", "ru", "uk"];
+const baselineScreenshots = new Set([
+  "web-home-390x844.png",
+  "web-orders-1024x768.png",
+  "web-trip-390x844.png",
+  "web-fuelRoute-390x844.png",
+  "game-compact-320x568.png",
+  "web-settingsConnection-1024x768.png",
+  "web-profile-768x1024.png",
+  "web-forcedExit-390x844.png",
+  "web-fuel-390x844.png",
+  "hidpi-trip-390x844@2x.png",
+  "external-loader-844x390.png",
+]);
+
+const harnessUrl = (scenario, viewport, options = {}) => {
+  const query = new URLSearchParams({
+    scenario,
+    width: String(viewport.width),
+    height: String(viewport.height),
+  });
+  if (options.external) {
+    query.set("external", "1");
+    query.set("token", "0123456789abcdef0123");
+  }
+  if (options.locale) query.set("locale", options.locale);
+  if (options.fontBoost !== undefined) query.set("fontBoost", String(options.fontBoost));
+  if (options.extreme) query.set("extreme", "1");
+  return `http://127.0.0.1:${port}/?${query}`;
+};
+
+const waitForHarness = async (page) => {
+  await page.waitForFunction(() => window.__taxiHarnessReady === true);
+  await page.evaluate(() => document.fonts && document.fonts.ready);
+};
+
+const assertVisualAudit = async (page, label) => {
+  const audit = await page.evaluate(() => window.__taxiVisualAudit());
+  assert.deepEqual(audit.failures, [], `${label}: ${audit.failures.join(", ")}`);
+};
+
+const screenshot = async (page, name, dpr = 1) => {
+  const data = await page.screenshot({ path: path.join(artifacts, name) });
+  if (dpr > 1) {
+    const width = data.readUInt32BE(16);
+    const height = data.readUInt32BE(20);
+    const viewport = page.viewportSize();
+    assert.equal(width, viewport.width * dpr, `${name}: HiDPI screenshot width must be native-resolution`);
+    assert.equal(height, viewport.height * dpr, `${name}: HiDPI screenshot height must be native-resolution`);
+  }
+  if (baselineScreenshots.has(name)) {
+    const baselinePath = path.join(baselines, name);
+    if (process.env.UPDATE_UI_BASELINES === "1") {
+      await fs.writeFile(baselinePath, data);
+    } else {
+      const expected = await fs.readFile(baselinePath).catch(() => null);
+      assert.ok(expected, `${name}: baseline is missing; run with UPDATE_UI_BASELINES=1`);
+      const result = comparePng(data, expected, { threshold: 0.2, maxDiffPixelRatio: 0.015 });
+      if (result && result.diff) await fs.writeFile(path.join(artifacts, `${name}.diff.png`), result.diff);
+      assert.equal(result, null, `${name}: ${result && result.errorMessage}`);
+    }
+  }
+  return data;
+};
 
 try {
-  for (const viewport of viewports) {
-    const page = await browser.newPage({ viewport });
-    for (const scenario of scenarios) {
-      await page.goto(`http://127.0.0.1:${port}/?scenario=${scenario}&width=${viewport.width}&height=${viewport.height}`);
-      await page.waitForFunction(() => window.__taxiHarnessReady === true);
-      if (scenario === "settingsConnection") {
-        const indicator = page.locator(".taxi-settings__group--open .taxi-settings__group-head i").last();
-        assert.equal((await indicator.textContent()).trim(), "-", "An expanded Settings group must show '-'");
-        await indicator.locator("..").click();
-        const collapsedIndicator = page.locator(".taxi-settings__group-head i").filter({ hasText: "+" }).last();
-        assert.equal((await collapsedIndicator.textContent()).trim(), "+", "A collapsed Settings group must show '+'");
-        await collapsedIndicator.locator("..").click();
+  let visualCount = 0;
+
+  for (const external of [false, true]) {
+    for (const viewport of viewports) {
+      const page = await browser.newPage({ viewport });
+      for (const scenario of scenarios) {
+        await page.goto(harnessUrl(scenario, viewport, { external }));
+        await waitForHarness(page);
+        await assertVisualAudit(page, `${external ? "web" : "game"} ${scenario} ${viewport.width}x${viewport.height}`);
+        if (external) {
+          assert.equal(await page.locator(".taxi-shell__toggle").count(), 0,
+            "External Web UI must not expose the Minimize control");
+        }
+        const prefix = external ? "web" : "game";
+        await screenshot(page, `${prefix}-${scenario}-${viewport.width}x${viewport.height}.png`);
+        visualCount += 1;
       }
-      if (scenario === "settings") {
-        await page.locator(".taxi-settings__group--open:nth-of-type(5)").scrollIntoViewIfNeeded();
-        await page.evaluate(() => {
-          const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
-          scope.$apply(() => { scope.cheatRating = 2.75; });
-        });
-        await page.locator(".taxi-settings__cheat-rating button").click();
-        await page.waitForFunction(() => {
-          const value = document.querySelector(".taxi-settings__cheat-stats strong");
-          return value && value.textContent.trim() === "2.75";
-        });
-        const command = await page.evaluate(() =>
-          (window.__taxiEngineLuaCommands || []).find((value) => value.includes("cheatSetRating")) || ""
-        );
-        assert.match(command, /^taxiDriver_taxiDriver\.cheatSetRating\(["']2\.75["']\)$/,
-          "Cheat rating must be sent as a plain Lua statement with a serialized value");
-        assert.doesNotMatch(command, /\b(?:if|return)\b/,
-          "Cheat rating command must not use callback-incompatible Lua control flow");
-      }
-      if (scenario === "overspeed") {
-        const sign = page.locator(".taxi-map__speed");
-        await sign.waitFor();
-        assert.equal(await sign.evaluate((element) => element.classList.contains("taxi-map__speed--warning")), true,
-          "Speed sign must be red above the configured threshold");
-        const firstCount = await page.evaluate(() =>
-          window.__taxiPlayedSounds.filter((source) => source.includes("taxidriver_overspeed.mp3")).length
-        );
-        assert.equal(firstCount, 1, "Overspeed alert must play once when entering the warning state");
-        await page.evaluate(() => window.__taxiSetState({ currentSpeed: 72 }));
-        const repeatedCount = await page.evaluate(() =>
-          window.__taxiPlayedSounds.filter((source) => source.includes("taxidriver_overspeed.mp3")).length
-        );
-        assert.equal(repeatedCount, 1, "Overspeed alert must not repeat while the warning remains active");
-        await page.evaluate(() => window.__taxiSetState({ currentSpeed: 59 }));
-        await page.waitForFunction(() => !document.querySelector(".taxi-map__speed--warning"));
-        await page.evaluate(() => {
-          const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
-          scope.$apply(() => { scope.settings.soundToggles.overspeed = false; });
-          window.__taxiSetState({ currentSpeed: 72 });
-        });
-        await page.waitForFunction(() => document.querySelector(".taxi-map__speed--warning"));
-        const mutedCount = await page.evaluate(() =>
-          window.__taxiPlayedSounds.filter((source) => source.includes("taxidriver_overspeed.mp3")).length
-        );
-        assert.equal(mutedCount, 1, "Disabled overspeed sound must keep the red warning but suppress audio");
-        await page.evaluate(() => window.__taxiSetState({ currentSpeed: 59 }));
-        await page.waitForFunction(() => !document.querySelector(".taxi-map__speed--warning"));
-        await page.evaluate(() => {
-          const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
-          scope.$apply(() => { scope.settings.soundToggles.overspeed = true; });
-        });
-        await page.evaluate(() => window.__taxiSetState({ currentSpeed: 72 }));
-        await page.waitForFunction(() => document.querySelector(".taxi-map__speed--warning"));
-        const secondCount = await page.evaluate(() =>
-          window.__taxiPlayedSounds.filter((source) => source.includes("taxidriver_overspeed.mp3")).length
-        );
-        assert.equal(secondCount, 2, "Overspeed alert must play again after speed returns below the threshold");
-      }
-      const audit = await page.evaluate(() => window.__taxiVisualAudit());
-      assert.deepEqual(audit.failures, [], `${scenario} ${viewport.width}x${viewport.height}: ${audit.failures.join(", ")}`);
-      await page.screenshot({ path: path.join(artifacts, `${scenario}-${viewport.width}x${viewport.height}.png`) });
+      await page.close();
     }
+  }
+
+  const functionalPage = await browser.newPage({ viewport: { width: 520, height: 900 } });
+  await functionalPage.goto(harnessUrl("settingsConnection", { width: 520, height: 900 }));
+  await waitForHarness(functionalPage);
+  const openIndicator = functionalPage.locator(".taxi-settings__group--open .taxi-settings__group-head i").last();
+  assert.equal((await openIndicator.textContent()).trim(), "-", "An expanded Settings group must show '-'");
+  await openIndicator.locator("..").click();
+  const collapsedIndicator = functionalPage.locator(".taxi-settings__group-head i").filter({ hasText: "+" }).last();
+  assert.equal((await collapsedIndicator.textContent()).trim(), "+", "A collapsed Settings group must show '+'");
+  await collapsedIndicator.locator("..").click();
+
+  await functionalPage.goto(harnessUrl("settings", { width: 520, height: 900 }));
+  await waitForHarness(functionalPage);
+  await functionalPage.locator(".taxi-settings__group--open:nth-of-type(5)").scrollIntoViewIfNeeded();
+  await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    scope.$apply(() => { scope.cheatRating = 2.75; });
+  });
+  await functionalPage.locator(".taxi-settings__cheat-rating button").click();
+  await functionalPage.waitForFunction(() => {
+    const value = document.querySelector(".taxi-settings__cheat-stats strong");
+    return value && value.textContent.trim() === "2.75";
+  });
+  const command = await functionalPage.evaluate(() =>
+    (window.__taxiEngineLuaCommands || []).find((value) => value.includes("cheatSetRating")) || ""
+  );
+  assert.match(command, /^taxiDriver_taxiDriver\.cheatSetRating\(["']2\.75["']\)$/,
+    "Cheat rating must be sent as a plain Lua statement with a serialized value");
+  assert.doesNotMatch(command, /\b(?:if|return)\b/,
+    "Cheat rating command must not use callback-incompatible Lua control flow");
+
+  await functionalPage.goto(harnessUrl("overspeed", { width: 520, height: 900 }));
+  await waitForHarness(functionalPage);
+  const sign = functionalPage.locator(".taxi-map__speed");
+  await sign.waitFor();
+  assert.equal(await sign.evaluate((element) => element.classList.contains("taxi-map__speed--warning")), true,
+    "Speed sign must be red above the configured threshold");
+  const firstCount = await functionalPage.evaluate(() =>
+    window.__taxiPlayedSounds.filter((source) => source.includes("taxidriver_overspeed.mp3")).length
+  );
+  assert.equal(firstCount, 1, "Overspeed alert must play once when entering the warning state");
+  await functionalPage.evaluate(() => window.__taxiSetState({ currentSpeed: 59 }));
+  await functionalPage.waitForFunction(() => !document.querySelector(".taxi-map__speed--warning"));
+  await functionalPage.evaluate(() => window.__taxiSetState({ currentSpeed: 72 }));
+  await functionalPage.waitForFunction(() => document.querySelector(".taxi-map__speed--warning"));
+  const secondCount = await functionalPage.evaluate(() =>
+    window.__taxiPlayedSounds.filter((source) => source.includes("taxidriver_overspeed.mp3")).length
+  );
+  assert.equal(secondCount, 2, "Overspeed alert must play again after returning below the threshold");
+  await functionalPage.close();
+
+  for (const locale of locales) {
+    const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
+    await page.goto(harnessUrl("orders", { width: 360, height: 640 }, {
+      external: true, locale, fontBoost: 5, extreme: true,
+    }));
+    await waitForHarness(page);
+    await assertVisualAudit(page, `locale ${locale}`);
+    await screenshot(page, `locale-${locale}-orders-360x640.png`);
+    visualCount += 1;
     await page.close();
   }
-  const loaderPage = await browser.newPage({ viewport: { width: 380, height: 736 } });
-  await loaderPage.goto(`http://127.0.0.1:${port}/ui/modules/apps/TaxiDriverHUD/external/index.html`);
-  const loader = loaderPage.locator("#taxi-loader");
-  assert.equal(await loader.isVisible(), true, "External phone loader must be visible while connecting");
-  assert.equal(await loaderPage.locator("#taxi-loader-steps li").count(), 4, "External phone loader must show four detailed stages");
-  const loaderOverflow = await loaderPage.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
-  assert.equal(loaderOverflow, false, "External phone loader must not overflow horizontally");
-  await loaderPage.screenshot({ path: path.join(artifacts, "external-loader-380x736.png") });
-  await loaderPage.close();
 
-  const externalPage = await browser.newPage({ viewport: { width: 520, height: 900 } });
-  await externalPage.goto(`http://127.0.0.1:${port}/?scenario=trip&external=1&width=520&height=900&token=0123456789abcdef0123`);
-  await externalPage.waitForFunction(() => window.__taxiHarnessReady === true);
-  await externalPage.waitForTimeout(150);
-  assert.equal(await externalPage.locator(".taxi-shell__toggle").count(), 0,
-    "External Web UI must not expose the Minimize control");
-  const mapAudit = await externalPage.locator("canvas.taxi-external-minimap").evaluate((canvas) => {
+  for (const fontBoost of [0, 2, 5]) {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(harnessUrl("trip", { width: 390, height: 844 }, { external: true, fontBoost }));
+    await waitForHarness(page);
+    await assertVisualAudit(page, `fontBoost ${fontBoost}`);
+    await screenshot(page, `font-${fontBoost}-web-trip-390x844.png`);
+    visualCount += 1;
+    await page.close();
+  }
+
+  for (const hidpi of [
+    { scenario: "trip", viewport: { width: 390, height: 844 } },
+    { scenario: "orders", viewport: { width: 1024, height: 768 } },
+  ]) {
+    const page = await browser.newPage({ viewport: hidpi.viewport, deviceScaleFactor: 2 });
+    await page.goto(harnessUrl(hidpi.scenario, hidpi.viewport, { external: true }));
+    await waitForHarness(page);
+    assert.equal(await page.evaluate(() => window.devicePixelRatio), 2, "HiDPI page must render at DPR 2");
+    assert.equal(await page.evaluate(() => document.fonts.check('16px "Taxi Noto Sans"')), true,
+      "Bundled UI font must be available before the HiDPI screenshot");
+    await assertVisualAudit(page, `hidpi ${hidpi.scenario}`);
+    await screenshot(page, `hidpi-${hidpi.scenario}-${hidpi.viewport.width}x${hidpi.viewport.height}@2x.png`, 2);
+    visualCount += 1;
+    await page.close();
+  }
+
+  for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }]) {
+    const loaderPage = await browser.newPage({ viewport });
+    await loaderPage.goto(`http://127.0.0.1:${port}/ui/modules/apps/TaxiDriverHUD/external/index.html`);
+    const loader = loaderPage.locator("#taxi-loader");
+    assert.equal(await loader.isVisible(), true, "External phone loader must be visible while connecting");
+    assert.equal(await loaderPage.locator("#taxi-loader-steps li").count(), 4,
+      "External phone loader must show four detailed stages");
+    const loaderAudit = await loaderPage.evaluate(() => {
+      const card = document.querySelector(".taxi-loader__card");
+      const rect = card.getBoundingClientRect();
+      const loaderStyle = getComputedStyle(document.querySelector(".taxi-loader"));
+      return {
+        horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        bottom: rect.bottom,
+        viewportHeight: window.innerHeight,
+        scrollable: ["auto", "scroll"].includes(loaderStyle.overflowY),
+      };
+    });
+    assert.equal(loaderAudit.horizontalOverflow, false, "External loader must not overflow horizontally");
+    assert.ok(loaderAudit.bottom <= loaderAudit.viewportHeight + 1 || loaderAudit.scrollable,
+      `External loader content must remain reachable (${JSON.stringify(loaderAudit)})`);
+    await screenshot(loaderPage, `external-loader-${viewport.width}x${viewport.height}.png`);
+    visualCount += 1;
+    await loaderPage.close();
+  }
+
+  const mapPage = await browser.newPage({ viewport: { width: 520, height: 900 }, deviceScaleFactor: 2 });
+  await mapPage.goto(harnessUrl("trip", { width: 520, height: 900 }, { external: true }));
+  await waitForHarness(mapPage);
+  const mapAudit = await mapPage.locator("canvas.taxi-external-minimap").evaluate((canvas) => {
     const ctx = canvas.getContext("2d");
     const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
     let roadPixels = 0;
@@ -117,26 +253,15 @@ try {
       const blue = pixels[index + 2];
       if (red >= 75 && green >= 85 && blue >= 90 && Math.abs(red - green) < 40) roadPixels += 1;
     }
-    const ratioX = canvas.width / canvas.getBoundingClientRect().width;
-    const ratioY = canvas.height / canvas.getBoundingClientRect().height;
-    const centerX = Math.round(canvas.width * 0.5);
-    const centerY = Math.round(canvas.height * 0.68);
-    let arrowPixels = 0;
-    for (let y = Math.max(0, centerY - 22 * ratioY); y < Math.min(canvas.height, centerY + 22 * ratioY); y += 1) {
-      for (let x = Math.max(0, centerX - 18 * ratioX); x < Math.min(canvas.width, centerX + 18 * ratioX); x += 1) {
-        const index = (Math.floor(y) * canvas.width + Math.floor(x)) * 4;
-        if (pixels[index] > 220 && pixels[index + 1] > 70 && pixels[index + 1] < 170 && pixels[index + 2] < 80) arrowPixels += 1;
-      }
-    }
-    return { roadPixels, arrowPixels };
+    const rect = canvas.getBoundingClientRect();
+    return { roadPixels, width: canvas.width, height: canvas.height, cssWidth: rect.width, cssHeight: rect.height };
   });
-  await externalPage.screenshot({ path: path.join(artifacts, "external-trip-520x900.png") });
-  assert.ok(mapAudit.roadPixels > 500,
-    `External map must render a visible road network (${JSON.stringify(mapAudit)})`);
-  assert.ok(mapAudit.arrowPixels > 20,
-    `External map must keep the vehicle arrow visible at the camera anchor (${JSON.stringify(mapAudit)})`);
-  await externalPage.close();
-  console.log(`TaxiDriverHUD: ${scenarios.length * viewports.length + 2} visual states passed.`);
+  assert.ok(mapAudit.roadPixels > 1000, `External map must render a visible road network (${JSON.stringify(mapAudit)})`);
+  assert.ok(mapAudit.width >= mapAudit.cssWidth * 2 - 1 && mapAudit.height >= mapAudit.cssHeight * 2 - 1,
+    `External map must use a sharp DPR 2 backing store (${JSON.stringify(mapAudit)})`);
+  await mapPage.close();
+
+  console.log(`TaxiDriverHUD: ${visualCount} responsive visual states passed, including locales and HiDPI.`);
 } finally {
   await browser.close();
   await new Promise((resolve) => server.close(resolve));

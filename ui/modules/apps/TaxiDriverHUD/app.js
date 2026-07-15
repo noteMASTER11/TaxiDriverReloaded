@@ -263,7 +263,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           passengerOnboard: false,
           deliveryOnboard: false,
           realisticMode: false,
-          vehicleEnergy: { available: false, energyType: "", quantity: 0, unit: "", estimatedRangeKm: 0 },
+          vehicleEnergy: { available: false, energyType: "", quantity: 0, maxQuantity: 0, percent: 0, unit: "", estimatedRangeKm: 0 },
           fuelStation: {
             available: false, id: "", name: "", options: [], balance: 0,
             refueling: { active: false, completing: false, energyType: "", quantity: 0, cost: 0, duration: 0, elapsed: 0, progress: 0, remainingSeconds: 0, completionId: 0 },
@@ -1274,7 +1274,13 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
         this.toggleSettingsSection = (section) => {
           if (!Object.prototype.hasOwnProperty.call($scope.settingsSections, section)) return;
-          $scope.settingsSections[section] = !$scope.settingsSections[section];
+          const open = !$scope.settingsSections[section];
+          if ($scope.externalPhoneMode) {
+            Object.keys($scope.settingsSections).forEach((key) => {
+              $scope.settingsSections[key] = false;
+            });
+          }
+          $scope.settingsSections[section] = open;
           if (section !== "cheats") $scope.cheatResetArmed = false;
         };
         this.settingsChanged = () => {
@@ -1534,6 +1540,20 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           const energy = $scope.state.vehicleEnergy || {};
           return `${$scope.getFuelDisplayQuantity(energy.quantity, energy).toFixed(2)} ${$scope.getFuelDisplayUnit(energy)}`;
         };
+        $scope.getRouteFuelPercent = () => {
+          const energy = $scope.state.vehicleEnergy || {};
+          const suppliedPercent = Number(energy.percent);
+          if (Number.isFinite(suppliedPercent) && suppliedPercent > 0) {
+            return Math.max(0, Math.min(100, suppliedPercent));
+          }
+          const quantity = Math.max(0, Number(energy.quantity || 0));
+          const maximum = Math.max(0, Number(energy.maxQuantity || 0));
+          return maximum > 0 ? Math.max(0, Math.min(100, quantity / maximum * 100)) : 0;
+        };
+        $scope.getRouteFuelGaugeBackground = () => {
+          const percent = $scope.getRouteFuelPercent().toFixed(2);
+          return `conic-gradient(var(--taxi-accent) ${percent}%, rgba(255,255,255,.1) ${percent}% 100%)`;
+        };
         $scope.getRefuelMaximum = () => {
           const option = getFuelOption($scope.selectedFuelType);
           return option ? Math.max(0, Number(option.affordableQuantity || 0)) : 0;
@@ -1658,7 +1678,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         $scope.$on("TaxiDriverHUDState", (_, data) => {
           if (!data) return;
           data.vehicleEnergy = Object.assign(
-            { available: false, energyType: "", quantity: 0, unit: "", estimatedRangeKm: 0 },
+            { available: false, energyType: "", quantity: 0, maxQuantity: 0, percent: 0, unit: "", estimatedRangeKm: 0 },
             data.vehicleEnergy || {}
           );
           data.fuelStation = normalizeFuelStation(data.fuelStation);

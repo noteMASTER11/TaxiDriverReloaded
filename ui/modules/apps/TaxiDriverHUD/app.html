@@ -1,4 +1,7 @@
-<style>@import url("/ui/modules/apps/TaxiDriverHUD/app.css");</style>
+<style>
+  @import url("/ui/modules/apps/TaxiDriverHUD/app.css");
+  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css");
+</style>
 
 <div class="taxi-shell" ng-class="{'taxi-shell--minimized': phoneMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
   <button type="button" class="taxi-shell__remote-toggle" ng-if="!externalPhoneMode && state.lan.connected > 0" ng-click="hud.toggleLocalPhone()" aria-label="{{ localPhoneOpen ? t('externalHideLocal') : t('externalShowLocal') }}">
@@ -538,6 +541,13 @@
           <div class="taxi-fuel-route__copy"><strong>{{ state.fuelDetour.stationName || t('fuelRouteTitle') }}</strong><span>{{ t('fuelRouteDesc', {station: state.fuelDetour.stationName}) }}</span></div>
           <div class="taxi-fuel-route__distance">{{ formatDistance(state.distanceToTarget) }}</div>
         </div>
+        <div class="taxi-fuel-route__gauge" ng-if="state.vehicleEnergy.available" ng-style="{'background': getRouteFuelGaugeBackground()}" title="{{ t('estimatedRange') }}">
+          <div class="taxi-fuel-route__gauge-core">
+            <span>{{ t('fuelRemainingAmount') }}</span>
+            <strong>{{ formatDashboardEnergy() }}</strong>
+            <small>{{ t('estimatedRange') }} · {{ formatEnergyRange(state.vehicleEnergy.estimatedRangeKm) }}</small>
+          </div>
+        </div>
         <div class="taxi-fuel-route__context" ng-if="!state.fuelDetour.hadTrip">{{ t('fuelRouteSearch') }}</div>
         <div class="taxi-fuel-route__context" ng-if="state.fuelDetour.hadTrip && !state.fuelDetour.passengerOnboard"><span>{{ state.isDelivery ? t('toCargo') : t('toPassenger') }}</span><strong>{{ state.isDelivery ? t('deliveryOrder') : state.passengerName }}</strong></div>
         <div class="taxi-fuel-route__context taxi-fuel-route__context--penalty" ng-if="state.fuelDetour.passengerOnboard"><span>{{ t('fuelRoutePassenger') }}</span><strong>−{{ state.fuelDetour.penaltyPercent | number:2 }}%</strong></div>
@@ -553,7 +563,7 @@
       </div>
     </div>
 
-    <div ng-if="!settingsOpen && !profileOpen && state.active && (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination')" style="display:flex; flex:1; min-height:0; flex-direction:column;">
+    <div class="taxi-trip-layout" ng-if="!settingsOpen && !profileOpen && state.active && (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination')">
       <div class="taxi-map">
         <div class="taxi-minimap-surface"></div>
         <canvas class="taxi-external-minimap" ng-if="externalPhoneMode"></canvas>

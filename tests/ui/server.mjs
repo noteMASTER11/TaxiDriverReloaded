@@ -15,6 +15,9 @@ const contentTypes = {
   ".json": "application/json; charset=utf-8",
   ".mp3": "audio/mpeg",
   ".png": "image/png",
+  ".ttf": "font/ttf",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
 };
 
 const resolveRequest = (urlPath) => {
@@ -26,6 +29,9 @@ const resolveRequest = (urlPath) => {
   }
   if (urlPath.startsWith("/ui/modules/apps/TaxiDriverHUD/")) {
     return path.join(repositoryRoot, urlPath.slice(1));
+  }
+  if (urlPath.startsWith("/ui/common/")) {
+    return path.join(beamUiRoot, urlPath.slice("/ui/".length));
   }
   if (urlPath.startsWith("/beamng/")) {
     return path.join(beamUiRoot, "lib/ext", urlPath.slice("/beamng/".length));
