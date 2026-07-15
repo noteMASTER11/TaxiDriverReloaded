@@ -1,21 +1,26 @@
 <style>@import url("/ui/modules/apps/TaxiDriverHUD/app.css");</style>
 
-<div class="taxi-shell" ng-class="{'taxi-shell--minimized': phoneMinimized}">
-  <button type="button" class="taxi-shell__toggle" ng-click="hud.toggleMinimized()">
+<div class="taxi-shell" ng-class="{'taxi-shell--minimized': phoneMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
+  <button type="button" class="taxi-shell__remote-toggle" ng-if="!externalPhoneMode && state.lan.connected > 0" ng-click="hud.toggleLocalPhone()" aria-label="{{ localPhoneOpen ? t('externalHideLocal') : t('externalShowLocal') }}">
+    <span>&#128241;</span><i ng-if="state.nextOffer"></i>
+  </button>
+
+  <button type="button" class="taxi-shell__toggle" ng-if="!externalPhoneMode && (state.lan.connected < 1 || localPhoneOpen)" ng-click="hud.toggleMinimized()">
     <span class="taxi-shell__toggle-icon">⌄</span>
     <span>{{ phoneMinimized ? t('expand') : t('minimize') }}</span>
     <i class="taxi-shell__notification" ng-if="phoneMinimized && state.nextOffer"></i>
   </button>
 
-  <div class="taxi-compact" ng-if="phoneMinimized">
+  <div class="taxi-compact" ng-if="!externalPhoneMode && phoneMinimized && (state.lan.connected < 1 || localPhoneOpen)">
     <div class="taxi-compact__map">
       <div class="taxi-minimap-surface"></div>
+      <canvas class="taxi-external-minimap" ng-if="externalPhoneMode"></canvas>
       <div class="taxi-compact__route-info" ng-if="isNavigationPhase()">
         <span>{{ t('arrival') }}</span>
         <strong>{{ getArrivalTime(state.etaMinutes) }}</strong>
         <small>{{ formatEta(state.etaMinutes) }} · {{ formatDistance(state.distanceToTarget) }}</small>
       </div>
-      <div class="taxi-compact__speed" ng-if="isNavigationPhase() && state.speedLimit > 0">{{ state.speedLimit | number:0 }}</div>
+      <div class="taxi-compact__speed" ng-class="{'taxi-compact__speed--warning': overspeedWarningActive}" ng-if="isNavigationPhase() && state.speedLimit > 0">{{ formatSpeedValue(state.speedLimit) }}</div>
       <div class="taxi-compact__map-status" ng-if="!isNavigationPhase()">
         <strong>{{ getCompactTitle() }}</strong>
         <span>{{ getPhaseLabel() }}</span>
@@ -40,7 +45,7 @@
         <div class="taxi-compact__metric"><span>{{ t('yourRating') }}</span><strong>{{ state.rating | number:2 }}</strong></div>
         <div class="taxi-compact__metric" ng-if="state.isDelivery">
           <span>{{ t('cargoWeight') }}</span>
-          <strong>{{ state.cargoWeightKg | number:0 }} kg</strong>
+          <strong>{{ formatCargoWeight(state.cargoWeightKg) }}</strong>
           <small ng-if="state.cargoWeightBonusPercent > 0">+{{ state.cargoWeightBonusPercent | number:0 }}%</small>
         </div>
         <div class="taxi-compact__metric" ng-if="!state.isDelivery"><span>{{ t('rides') }}</span><strong>{{ state.completedRides }}</strong></div>
@@ -48,7 +53,7 @@
     </div>
   </div>
 
-  <div class="taxi-phone" ng-if="!phoneMinimized" ng-class="'taxi-font-scale-' + settings.fontBoost">
+  <div class="taxi-phone" ng-if="!phoneMinimized && (externalPhoneMode || state.lan.connected < 1 || localPhoneOpen)" ng-class="'taxi-font-scale-' + settings.fontBoost">
   <div class="taxi-phone__screen">
     <div class="phone-status">
       <span>{{ currentClock }}</span>
@@ -88,55 +93,218 @@
     </div>
 
     <div class="taxi-settings" ng-if="settingsOpen">
-      <h2>{{ t('settingsTitle') }}</h2>
-      <div class="taxi-settings__section">
-        <div class="taxi-settings__label">{{ t('language') }}</div>
-        <div class="taxi-settings__help">{{ t('languageHelp') }}</div>
-        <div class="taxi-settings__languages">
-          <button type="button" class="taxi-settings__language" ng-repeat="lang in languages" ng-class="{'taxi-settings__language--active': settings.language === lang.code}" ng-click="hud.selectLanguage(lang.code)">
-            <span>{{ lang.label }}</span><i ng-if="settings.language === lang.code">&#10003;</i>
-          </button>
+      <div class="taxi-settings__intro">
+        <div><h2>{{ t('settingsTitle') }}</h2><span>{{ t('settingsAutoApply') }}</span></div>
+        <strong ng-class="{'taxi-settings__status--pending': !settingsSaved}">{{ settingsSaved ? t('settingsApplied') : t('settingsSaving') }}</strong>
+      </div>
+
+      <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.general}">
+        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('general')">
+          <span class="taxi-settings__group-icon">Aa</span><strong>{{ t('settingsGeneral') }}</strong><i>{{ settingsSections.general ? '-' : '+' }}</i>
+        </button>
+        <div class="taxi-settings__group-body" ng-if="settingsSections.general">
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('language') }}</div>
+            <div class="taxi-settings__help">{{ t('languageHelp') }}</div>
+            <div class="taxi-settings__languages">
+              <button type="button" class="taxi-settings__language" ng-repeat="lang in languages" ng-class="{'taxi-settings__language--active': settings.language === lang.code}" ng-click="hud.selectLanguage(lang.code)">
+                <span>{{ lang.label }}</span><i ng-if="settings.language === lang.code">&#10003;</i>
+              </button>
+            </div>
+            <label class="taxi-settings__check"><input type="checkbox" ng-model="settings.rememberLanguage" ng-change="hud.settingsChanged()">{{ t('rememberLanguage') }}</label>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('fontSize') }}</span><span>{{ getFontPercent() }}%</span></div>
+            <div class="taxi-settings__help">{{ t('fontSizeHelp') }}</div>
+            <input class="taxi-settings__range" type="range" min="0" max="5" step="1" ng-model="settings.fontBoost" ng-change="hud.settingsChanged()">
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('units') }}</div>
+            <div class="taxi-settings__help">{{ t('unitsHelp') }}</div>
+            <div class="taxi-settings__segmented">
+              <button type="button" ng-class="{'taxi-settings__segmented-active': settings.unitSystem === 'metric'}" ng-click="hud.selectUnitSystem('metric')">{{ t('unitsMetric') }}</button>
+              <button type="button" ng-class="{'taxi-settings__segmented-active': settings.unitSystem === 'imperial'}" ng-click="hud.selectUnitSystem('imperial')">{{ t('unitsImperial') }}</button>
+            </div>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('timeFormat') }}</div>
+            <div class="taxi-settings__help">{{ t('timeFormatHelp') }}</div>
+            <div class="taxi-settings__segmented">
+              <button type="button" ng-class="{'taxi-settings__segmented-active': settings.timeFormat === '24h'}" ng-click="hud.selectTimeFormat('24h')">{{ t('time24') }}</button>
+              <button type="button" ng-class="{'taxi-settings__segmented-active': settings.timeFormat === '12h'}" ng-click="hud.selectTimeFormat('12h')">{{ t('time12') }}</button>
+            </div>
+          </div>
         </div>
-        <label class="taxi-settings__check"><input type="checkbox" ng-model="settings.rememberLanguage">{{ t('rememberLanguage') }}</label>
-      </div>
-      <div class="taxi-settings__section">
-        <div class="taxi-settings__label"><span>{{ t('fontSize') }}</span><span>{{ getFontPercent() }}%</span></div>
-        <div class="taxi-settings__help">{{ t('fontSizeHelp') }}</div>
-        <input class="taxi-settings__range" type="range" min="0" max="5" step="1" ng-model="settings.fontBoost" ng-change="settingsSaved = false">
-      </div>
-      <div class="taxi-settings__section">
-        <div class="taxi-settings__label">{{ t('difficulty') }}</div>
-        <div class="taxi-settings__help">{{ t('difficultyHelp') }}</div>
-        <div class="taxi-settings__difficulty">
-          <button class="taxi-settings__preset" ng-repeat="preset in difficulties" ng-class="{'taxi-settings__preset--active': settings.difficulty === preset}" ng-click="hud.selectDifficulty(preset)">
-            <strong>{{ t('difficulty_' + preset) }}</strong><span>{{ t('desc_' + preset) }}</span>
-          </button>
+      </section>
+
+      <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.gameplay}">
+        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('gameplay')">
+          <span class="taxi-settings__group-icon">!</span><strong>{{ t('settingsGameplay') }}</strong><i>{{ settingsSections.gameplay ? '-' : '+' }}</i>
+        </button>
+        <div class="taxi-settings__group-body" ng-if="settingsSections.gameplay">
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('difficulty') }}</div>
+            <div class="taxi-settings__help">{{ t('difficultyHelp') }}</div>
+            <div class="taxi-settings__difficulty">
+              <button type="button" class="taxi-settings__preset" ng-repeat="preset in difficulties" ng-class="{'taxi-settings__preset--active': settings.difficulty === preset, 'taxi-settings__preset--custom': preset === 'custom'}" ng-click="hud.selectDifficulty(preset)">
+                <strong>{{ t('difficulty_' + preset) }}</strong><span>{{ t('desc_' + preset) }}</span>
+              </button>
+            </div>
+          </div>
+          <div class="taxi-settings__custom" ng-if="settings.difficulty === 'custom'">
+            <p>{{ t('customDifficultyHelp') }}</p>
+            <div class="taxi-settings__custom-group" ng-repeat="group in customDifficultyGroups">
+              <h3>{{ t(group.title) }}</h3>
+              <label class="taxi-settings__custom-control" ng-repeat="control in group.controls">
+                <span><strong>{{ t(control.label) }}</strong><b>{{ formatCustomDifficultyValue(control) }}</b></span>
+                <input class="taxi-settings__range" type="range" min="{{ control.min }}" max="{{ control.max }}" step="{{ control.step }}" ng-model="settings.customDifficulty[control.key]" ng-change="hud.settingsChanged()">
+              </label>
+            </div>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('orderMix') }}</span><span>{{ settings.deliveryOrderSharePercent | number:0 }}% {{ t('deliveriesShort') }}</span></div>
+            <div class="taxi-settings__help">{{ t('orderMixHelp') }}</div>
+            <input class="taxi-settings__range" type="range" min="0" max="100" step="5" ng-model="settings.deliveryOrderSharePercent" ng-change="hud.settingsChanged()">
+            <div class="taxi-settings__mix-labels">
+              <span>{{ t('passengerOrders') }} {{ getPassengerOrderShare() | number:0 }}%</span>
+              <span>{{ t('deliveryOrders') }} {{ settings.deliveryOrderSharePercent | number:0 }}%</span>
+            </div>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('penaltyToggles') }}</div>
+            <div class="taxi-settings__help">{{ t('penaltyTogglesHelp') }}</div>
+            <div class="taxi-settings__penalty-toggles">
+              <label class="taxi-settings__switch-row taxi-settings__switch-row--compact" ng-repeat="option in penaltyToggleOptions">
+                <span class="taxi-settings__switch-copy"><strong>{{ t(option.label) }}</strong><span>{{ t(option.help) }}</span></span>
+                <input type="checkbox" ng-model="settings.penaltyToggles[option.key]" ng-change="hud.settingsChanged()">
+                <span class="taxi-settings__switch"></span>
+              </label>
+            </div>
+          </div>
+          <div class="taxi-settings__portable">
+            <span>{{ t('difficultyFileHelp') }}</span>
+            <code>settings/TaxiDriver/difficulty.json</code>
+          </div>
         </div>
-      </div>
-      <div class="taxi-settings__section">
-        <div class="taxi-settings__label"><span>{{ t('appVolume') }}</span><span>{{ getAppVolumePercent() }}%</span></div>
-        <div class="taxi-settings__help">{{ t('appVolumeHelp') }}</div>
-        <div class="taxi-settings__volume-control">
-          <input class="taxi-settings__range" type="range" min="0" max="1" step="0.05" ng-model="settings.appVolume" ng-change="hud.previewAppVolume()">
-          <button type="button" class="taxi-settings__volume-test" data-taxi-no-click-sound="true" ng-click="hud.testAppVolume()">{{ t('testSound') }}</button>
+      </section>
+
+      <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.navigation}">
+        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('navigation')">
+          <span class="taxi-settings__group-icon">&#8594;</span><strong>{{ t('settingsNavigation') }}</strong><i>{{ settingsSections.navigation ? '-' : '+' }}</i>
+        </button>
+        <div class="taxi-settings__group-body" ng-if="settingsSections.navigation">
+          <div class="taxi-settings__section">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('routeGuidance') }}</strong><span>{{ t('routeGuidanceHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.showRouteGuidance" ng-change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('dynamicZoom') }}</span><span>{{ settings.dynamicZoomIntensity | number:0 }}%</span></div>
+            <div class="taxi-settings__help">{{ t('dynamicZoomHelp') }}</div>
+            <input class="taxi-settings__range" type="range" min="0" max="200" step="10" ng-model="settings.dynamicZoomIntensity" ng-change="hud.settingsChanged()">
+            <div class="taxi-settings__range-ends"><span>{{ t('zoomFixed') }}</span><span>{{ t('zoomAggressive') }}</span></div>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('overspeedWarning') }}</span><span>{{ formatSpeedValue(settings.overspeedWarningKmh) }} {{ getSpeedUnit() }}</span></div>
+            <div class="taxi-settings__help">{{ t('overspeedWarningHelp') }}</div>
+            <input class="taxi-settings__range" type="range" min="0" max="30" step="1" ng-model="settings.overspeedWarningKmh" ng-change="hud.settingsChanged()">
+          </div>
         </div>
-      </div>
-      <div class="taxi-settings__section">
-        <label class="taxi-settings__switch-row">
-          <span class="taxi-settings__switch-copy"><strong>{{ t('routeGuidance') }}</strong><span>{{ t('routeGuidanceHelp') }}</span></span>
-          <input type="checkbox" ng-model="settings.showRouteGuidance" ng-change="settingsSaved = false">
-          <span class="taxi-settings__switch"></span>
-        </label>
-      </div>
-      <div class="taxi-settings__section">
-        <label class="taxi-settings__switch-row">
-          <span class="taxi-settings__switch-copy"><strong>{{ t('silentMode') }}</strong><span>{{ t('silentModeHelp') }}</span></span>
-          <input type="checkbox" ng-model="settings.silentMode" ng-change="settingsSaved = false">
-          <span class="taxi-settings__switch"></span>
-        </label>
-      </div>
-      <button class="taxi-settings__save" ng-click="hud.saveSettings()">{{ t('save') }}</button>
-      <div class="taxi-settings__saved" ng-if="settingsSaved">{{ t('settingsSaved') }}</div>
+      </section>
+
+      <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.audio}">
+        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('audio')">
+          <span class="taxi-settings__group-icon">&#9835;</span><strong>{{ t('settingsAudio') }}</strong><i>{{ settingsSections.audio ? '-' : '+' }}</i>
+        </button>
+        <div class="taxi-settings__group-body" ng-if="settingsSections.audio">
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('appVolume') }}</span><span>{{ getAppVolumePercent() }}%</span></div>
+            <div class="taxi-settings__help">{{ t('appVolumeHelp') }}</div>
+            <div class="taxi-settings__volume-control">
+              <input class="taxi-settings__range" type="range" min="0" max="1" step="0.05" ng-model="settings.appVolume" ng-change="hud.previewAppVolume()">
+              <button type="button" class="taxi-settings__volume-test" data-taxi-no-click-sound="true" ng-click="hud.testAppVolume()">{{ t('testSound') }}</button>
+            </div>
+          </div>
+          <div class="taxi-settings__section">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('silentMode') }}</strong><span>{{ t('silentModeHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.silentMode" ng-change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.connectivity}">
+        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('connectivity')">
+          <span class="taxi-settings__group-icon">&#128241;</span><strong>{{ t('settingsConnectivity') }}</strong><i>{{ settingsSections.connectivity ? '-' : '+' }}</i>
+        </button>
+        <div class="taxi-settings__group-body" ng-if="settingsSections.connectivity">
+          <div class="taxi-settings__section">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('externalPhone') }}</strong><span>{{ t('externalPhoneHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.lanEnabled" ng-change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <div class="taxi-lan" ng-if="settings.lanEnabled">
+            <div class="taxi-lan__status" ng-class="{'taxi-lan__status--connected': state.lan.connected > 0}">
+              <i></i><strong>{{ state.lan.connected > 0 ? t('externalConnected') : (state.lan.enabled ? t('externalWaiting') : t('externalStarting')) }}</strong>
+              <span ng-if="state.lan.connected > 0">{{ state.lan.connected }}</span>
+            </div>
+            <div class="taxi-lan__connect">
+              <div class="taxi-lan__qr"><div class="taxi-lan__qr-code" aria-label="QR code"></div></div>
+              <div class="taxi-lan__link">
+                <div class="taxi-settings__help">{{ t('externalOpenHelp') }}</div>
+                <input class="taxi-lan__url" type="text" readonly value="{{ state.lan.url }}" onclick="this.select()" onfocus="this.select()">
+              </div>
+            </div>
+            <div class="taxi-settings__help taxi-lan__warning">{{ t('externalSecurityHelp') }}</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="taxi-settings__group taxi-settings__group--danger" ng-class="{'taxi-settings__group--open': settingsSections.cheats}">
+        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('cheats')">
+          <span class="taxi-settings__group-icon">!</span><strong>{{ t('settingsCheats') }}</strong><i>{{ settingsSections.cheats ? '-' : '+' }}</i>
+        </button>
+        <div class="taxi-settings__group-body" ng-if="settingsSections.cheats">
+          <p class="taxi-settings__danger-help">{{ t('cheatZoneHelp') }}</p>
+          <div class="taxi-settings__cheat-stats">
+            <span>{{ t('cheatCurrentRating') }} <strong>{{ state.rating | number:2 }}</strong></span>
+            <span>{{ t('cheatCurrentBalance') }} <strong>{{ formatMoney(state.balance) }}</strong></span>
+          </div>
+          <div class="taxi-settings__cheat-card">
+            <div class="taxi-settings__label"><span>{{ t('cheatSetRating') }}</span><span>{{ cheatRating | number:2 }}</span></div>
+            <div class="taxi-settings__cheat-rating">
+              <input class="taxi-settings__range" type="range" min="0" max="5" step="0.01" ng-model="cheatRating">
+              <button type="button" ng-click="hud.cheatSetRating()">{{ t('set') }}</button>
+            </div>
+          </div>
+          <button type="button" class="taxi-settings__cheat-action" ng-click="hud.cheatAddRandomReview()">{{ t('cheatRandomReview') }}</button>
+          <div class="taxi-settings__cheat-card">
+            <div class="taxi-settings__label">{{ t('cheatAddMoney') }}</div>
+            <div class="taxi-settings__money-grid">
+              <button type="button" ng-click="hud.cheatAddMoney(1)">+$1</button>
+              <button type="button" ng-click="hud.cheatAddMoney(5)">+$5</button>
+              <button type="button" ng-click="hud.cheatAddMoney(10)">+$10</button>
+              <button type="button" ng-click="hud.cheatAddMoney(50)">+$50</button>
+            </div>
+          </div>
+          <div class="taxi-settings__cheat-card">
+            <div class="taxi-settings__label"><span>{{ t('cheatEconomyMultiplier') }}</span><span>{{ formatEconomyMultiplier() }}</span></div>
+            <div class="taxi-settings__help">{{ t('cheatEconomyMultiplierHelp') }}</div>
+            <input class="taxi-settings__range" type="range" min="0.25" max="5" step="0.05" ng-model="settings.economyMultiplier" ng-change="hud.settingsChanged()">
+          </div>
+          <button type="button" class="taxi-settings__reset" ng-if="!cheatResetArmed" ng-click="hud.armCheatReset()">{{ t('cheatResetStats') }}</button>
+          <div class="taxi-settings__reset-confirm" ng-if="cheatResetArmed">
+            <strong>{{ t('cheatResetWarning') }}</strong>
+            <div><button type="button" ng-click="hud.cancelCheatReset()">{{ t('cheatCancel') }}</button><button type="button" ng-click="hud.confirmCheatReset()">{{ t('cheatConfirmReset') }}</button></div>
+          </div>
+        </div>
+      </section>
     </div>
 
     <div class="taxi-profile" ng-if="profileOpen">
@@ -254,7 +422,7 @@
                 {{ getCalmnessEmoji(offer.passengerCalmness) }}
                 <small class="taxi-calmness-emoji__percent">{{ offer.passengerCalmness | number:0 }}%</small>
               </div>
-              <div class="taxi-delivery-weight" ng-if="offer.isDelivery"><span>📦</span><strong>{{ offer.cargoWeightKg | number:0 }} kg</strong></div>
+              <div class="taxi-delivery-weight" ng-if="offer.isDelivery"><span>📦</span><strong>{{ formatCargoWeight(offer.cargoWeightKg) }}</strong></div>
               <div class="taxi-order-card__badge" ng-if="offer.isRush">+{{ offer.bonusPercent }}%</div>
               <div class="taxi-order-card__badge taxi-order-card__badge--multi" ng-if="offer.isMultiStop">{{ t('multiStopBadge', {count: offer.stopCount}) }}</div>
             </div>
@@ -268,7 +436,7 @@
             </div>
             <div class="taxi-order-card__multi" ng-if="offer.isMultiStop">{{ t('multiStopRide') }} · {{ t('multiStopSummary', {count: offer.stopCount, time: formatCountdown(offer.stopWaitSeconds)}) }}</div>
             <div class="taxi-order-card__delivery" ng-if="offer.isDelivery">
-              {{ t('deliverySummary', {weight: (offer.cargoWeightKg | number:0)}) }}
+              {{ t('deliverySummary', {weight: formatCargoWeight(offer.cargoWeightKg)}) }}
               <span ng-if="offer.cargoWeightBonusPercent > 0"> · {{ t('bonus') }} +{{ offer.cargoWeightBonusPercent | number:0 }}%</span>
             </div>
             <div class="taxi-order-card__rating-bonus" ng-if="offer.ratingBonusPercent > 0">{{ t('ratingBonusLine', {percent: formatBonusPercent(offer.ratingBonusPercent), amount: formatMoney(offer.ratingBonusAmount)}) }}</div>
@@ -345,12 +513,13 @@
     <div class="taxi-fuel-route" ng-if="!settingsOpen && !profileOpen && state.active && state.phase === 'toFuelStation'">
       <div class="taxi-map">
         <div class="taxi-minimap-surface"></div>
+        <canvas class="taxi-external-minimap" ng-if="externalPhoneMode"></canvas>
         <div class="taxi-map__route-info">
           <span>{{ t('arrival') }}</span>
           <strong>{{ getArrivalTime(state.etaMinutes) }}</strong>
           <small>{{ formatEta(state.etaMinutes) }} · {{ formatDistance(state.distanceToTarget) }}</small>
         </div>
-        <div class="taxi-map__speed" ng-if="state.speedLimit > 0">{{ state.speedLimit | number:0 }}</div>
+        <div class="taxi-map__speed" ng-class="{'taxi-map__speed--warning': overspeedWarningActive}" ng-if="state.speedLimit > 0">{{ formatSpeedValue(state.speedLimit) }}</div>
       </div>
       <div class="taxi-fuel-route__sheet">
         <div class="taxi-fuel-route__head">
@@ -376,12 +545,13 @@
     <div ng-if="!settingsOpen && !profileOpen && state.active && (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination')" style="display:flex; flex:1; min-height:0; flex-direction:column;">
       <div class="taxi-map">
         <div class="taxi-minimap-surface"></div>
+        <canvas class="taxi-external-minimap" ng-if="externalPhoneMode"></canvas>
         <div class="taxi-map__route-info">
           <span>{{ t('arrival') }}</span>
           <strong>{{ getArrivalTime(state.etaMinutes) }}</strong>
           <small>{{ formatEta(state.etaMinutes) }} · {{ formatDistance(state.distanceToTarget) }}</small>
         </div>
-        <div class="taxi-map__speed" ng-if="state.speedLimit > 0">{{ state.speedLimit | number:0 }}</div>
+        <div class="taxi-map__speed" ng-class="{'taxi-map__speed--warning': overspeedWarningActive}" ng-if="state.speedLimit > 0">{{ formatSpeedValue(state.speedLimit) }}</div>
       </div>
 
       <div class="taxi-sheet">
@@ -407,7 +577,7 @@
           <div class="taxi-trip-dashboard__metric taxi-trip-dashboard__metric--cargo" ng-if="state.isDelivery" title="{{ t('cargoWeight') }}">
             <span class="taxi-trip-dashboard__label">{{ t('cargoWeight') }}</span>
             <div class="taxi-trip-dashboard__value">
-              <strong>{{ state.cargoWeightKg | number:0 }} kg</strong>
+              <strong>{{ formatCargoWeight(state.cargoWeightKg) }}</strong>
               <small ng-if="state.cargoWeightBonusPercent > 0">+{{ state.cargoWeightBonusPercent | number:0 }}%</small>
             </div>
           </div>
@@ -496,8 +666,8 @@
           <div class="taxi-ride-footer__energy" ng-if="state.vehicleEnergy.available" title="{{ t('estimatedRange') }}">
             <span class="taxi-ride-footer__energy-icon">⛽</span>
             <span class="taxi-ride-footer__energy-type">{{ t('fuel_' + state.vehicleEnergy.energyType) }}</span>
-            <strong>{{ state.vehicleEnergy.quantity | number:2 }} {{ state.vehicleEnergy.unit }}</strong>
-            <span class="taxi-ride-footer__energy-range">≈ {{ state.vehicleEnergy.estimatedRangeKm | number:0 }} {{ t('unitKm') }}</span>
+            <strong>{{ formatDashboardEnergy() }}</strong>
+            <span class="taxi-ride-footer__energy-range">≈ {{ formatEnergyRange(state.vehicleEnergy.estimatedRangeKm) }}</span>
           </div>
           <div class="taxi-ride-footer__bottom">
             <div class="taxi-ride-footer__stats">
@@ -522,7 +692,7 @@
       <div class="taxi-fuel__dashboard" ng-if="getSelectedFuelOption()">
         <div class="taxi-fuel__metric"><span>{{ t('refuelBalance') }}</span><strong>{{ formatMoney(state.balance) }}</strong></div>
         <div class="taxi-fuel__metric"><span>{{ t('fuel_' + selectedFuelType) }}</span><strong>{{ getDisplayedFuelPercent() | number:0 }}%</strong></div>
-        <div class="taxi-fuel__metric"><span>{{ t('refuelPrice') }}</span><strong>{{ formatMoney(getSelectedFuelOption().pricePerUnit) }}/{{ getSelectedFuelOption().unit }}</strong></div>
+        <div class="taxi-fuel__metric"><span>{{ t('refuelPrice') }}</span><strong>{{ formatMoney(getFuelDisplayPrice(getSelectedFuelOption())) }}/{{ getFuelDisplayUnit(getSelectedFuelOption()) }}</strong></div>
       </div>
       <div class="taxi-fuel__types" ng-if="state.fuelStation.options.length > 1">
         <button type="button" class="taxi-fuel__type" ng-repeat="option in state.fuelStation.options track by option.energyType" ng-class="{'taxi-fuel__type--active': selectedFuelType === option.energyType}" ng-click="hud.selectFuelType(option.energyType)" ng-disabled="state.fuelStation.refueling.active">{{ t('fuel_' + option.energyType) }}</button>
@@ -530,7 +700,7 @@
       <div class="taxi-fuel__card" ng-if="getSelectedFuelOption()">
         <div class="taxi-fuel__smart-head">
           <span>{{ state.fuelStation.refueling.active ? t('refuelProgress') : t('refuelAmount') }}</span>
-          <strong>{{ (state.fuelStation.refueling.active ? state.fuelStation.refueling.quantity : refuel.amount) | number:1 }} {{ getSelectedFuelOption().unit }}</strong>
+          <strong>{{ getFuelDisplayQuantity((state.fuelStation.refueling.active ? state.fuelStation.refueling.quantity : refuel.amount), getSelectedFuelOption()) | number:1 }} {{ getFuelDisplayUnit(getSelectedFuelOption()) }}</strong>
         </div>
         <div class="taxi-fuel__tank-change" ng-show="!state.fuelStation.refueling.active">{{ getSelectedFuelOption().currentPercent | number:0 }}% → {{ getProjectedFuelPercent() | number:0 }}%</div>
         <div ng-show="!state.fuelStation.refueling.active">
@@ -539,7 +709,7 @@
             <span class="taxi-fuel__selector-thumb" ng-style="{'left': getRefuelSelectionPercent() + '%'}"></span>
             <input class="taxi-fuel__range" type="range" min="0" ng-attr-max="{{ getRefuelMaximum() }}" step="0.1" ng-model="refuel.amount" ng-change="hud.updateRefuelAmount()">
           </div>
-          <div class="taxi-fuel__selection-meta"><span>{{ t('refuelAvailable') }} · {{ getRefuelMaximum() | number:1 }} {{ getSelectedFuelOption().unit }}</span><strong>{{ formatMoney(getRefuelCost()) }}</strong></div>
+          <div class="taxi-fuel__selection-meta"><span>{{ t('refuelAvailable') }} · {{ getFuelDisplayQuantity(getRefuelMaximum(), getSelectedFuelOption()) | number:1 }} {{ getFuelDisplayUnit(getSelectedFuelOption()) }}</span><strong>{{ formatMoney(getRefuelCost()) }}</strong></div>
         </div>
         <div class="taxi-fuel__progress" ng-show="state.fuelStation.refueling.active">
           <div class="taxi-fuel__progress-track"><span ng-style="{'width': (state.fuelStation.refueling.progress * 100) + '%'}"></span></div>
@@ -581,7 +751,7 @@
             {{ getCalmnessEmoji(state.nextOffer.passengerCalmness) }}
             <small class="taxi-calmness-emoji__percent">{{ state.nextOffer.passengerCalmness | number:0 }}%</small>
           </div>
-          <div class="taxi-delivery-weight" ng-if="state.nextOffer.isDelivery"><span>📦</span><strong>{{ state.nextOffer.cargoWeightKg | number:0 }} kg</strong></div>
+          <div class="taxi-delivery-weight" ng-if="state.nextOffer.isDelivery"><span>📦</span><strong>{{ formatCargoWeight(state.nextOffer.cargoWeightKg) }}</strong></div>
           <div class="taxi-next-offer__time" ng-if="!state.nextOffer.accepted">{{ nextOfferUiRemaining | number:1 }}</div>
         </div>
         <div class="taxi-next-offer__metrics">

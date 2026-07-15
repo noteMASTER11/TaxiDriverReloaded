@@ -11,3 +11,7 @@ Thumbs.db
 Desktop.ini
 *.log
 *.tmp
+/tests/ui/artifacts/
+/node_modules/
+/tools/TaxiDriver.LanProbe/bin/
+/tools/TaxiDriver.LanProbe/obj/

@@ -1,0 +1,59 @@
+:root {
+  color-scheme: dark;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #090b0f;
+}
+
+* { box-sizing: border-box; }
+html, body { width: 100%; min-height: 100%; margin: 0; background: #090b0f; }
+body { overflow: hidden; }
+#taxi-external-root { width: 100vw; height: 100vh; }
+
+.taxi-loader {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+  color: #f7f8fa;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(255, 209, 26, .13), transparent 34%),
+    linear-gradient(160deg, #171c24, #090b0f 70%);
+  transition: opacity .28s ease, visibility .28s ease;
+}
+.taxi-loader.is-ready { visibility: hidden; opacity: 0; pointer-events: none; }
+.taxi-loader__card { width: min(100%, 430px); padding: 25px; background: rgba(18, 22, 29, .94); border: 1px solid rgba(255,255,255,.1); border-radius: 24px; box-shadow: 0 24px 70px rgba(0,0,0,.55); }
+.taxi-loader__brand { display: flex; align-items: center; gap: 12px; font-size: 22px; }
+.taxi-loader__brand span { display: grid; width: 44px; height: 44px; place-items: center; color: #18140a; font-size: 26px; font-weight: 1000; background: linear-gradient(145deg, #fff45a, #ffc400); border-radius: 13px; box-shadow: 0 0 22px rgba(255,209,26,.24); }
+.taxi-loader__spinner { display: grid; width: 74px; height: 74px; margin: 30px auto 20px; place-items: center; border: 2px solid rgba(255,209,26,.13); border-radius: 50%; }
+.taxi-loader__spinner i { width: 54px; height: 54px; border: 5px solid rgba(255,255,255,.09); border-top-color: #ffd11a; border-radius: 50%; animation: taxi-spin .8s linear infinite; }
+.taxi-loader.is-error .taxi-loader__spinner i { border-top-color: #ff5964; animation-duration: 1.6s; }
+.taxi-loader h1 { margin: 0; font-size: 23px; text-align: center; }
+.taxi-loader p { min-height: 38px; margin: 8px 0 18px; color: #aeb6c2; font-size: 14px; line-height: 1.4; text-align: center; }
+.taxi-loader__progress { height: 7px; overflow: hidden; background: #2a3039; border-radius: 99px; }
+.taxi-loader__progress i { display: block; width: 8%; height: 100%; background: linear-gradient(90deg, #ff9f1a, #ffd11a); border-radius: inherit; transition: width .35s ease; }
+.taxi-loader__steps { display: grid; gap: 7px; margin: 19px 0 0; padding: 0; list-style: none; }
+.taxi-loader__steps li { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 9px; min-height: 34px; padding: 7px 9px; color: #78818d; font-size: 13px; background: rgba(255,255,255,.025); border-radius: 9px; }
+.taxi-loader__steps li > i { width: 9px; height: 9px; background: #414955; border-radius: 50%; }
+.taxi-loader__steps li > b { font-size: 10px; text-transform: uppercase; }
+.taxi-loader__steps li.is-active { color: #f2f4f7; background: rgba(255,209,26,.065); }
+.taxi-loader__steps li.is-active > i { background: #ffd11a; box-shadow: 0 0 10px rgba(255,209,26,.7); }
+.taxi-loader__steps li.is-done { color: #aeb6c2; }
+.taxi-loader__steps li.is-done > i { background: #35dd89; box-shadow: 0 0 9px rgba(53,221,137,.5); }
+.taxi-loader__steps li.is-done > b { color: #35dd89; }
+.taxi-loader__steps li.is-failed { color: #ff8d95; }
+.taxi-loader__steps li.is-failed > i { background: #ff5964; }
+.taxi-loader__error { margin-top: 14px; padding: 11px; color: #ffadb3; font-size: 12px; line-height: 1.45; background: rgba(255,65,78,.09); border: 1px solid rgba(255,89,100,.26); border-radius: 10px; }
+.taxi-loader__retry { width: 100%; margin-top: 12px; padding: 13px; color: #17140a; font-size: 14px; font-weight: 900; background: #ffd11a; border: 0; border-radius: 11px; cursor: pointer; }
+.taxi-loader small { display: block; margin-top: 15px; color: #68717e; font-size: 11px; line-height: 1.4; text-align: center; }
+@keyframes taxi-spin { to { transform: rotate(360deg); } }
+
+@media (max-height: 660px) {
+  .taxi-loader__card { padding: 18px; }
+  .taxi-loader__spinner { width: 54px; height: 54px; margin: 16px auto 12px; }
+  .taxi-loader__spinner i { width: 38px; height: 38px; border-width: 4px; }
+  .taxi-loader h1 { font-size: 19px; }
+  .taxi-loader p { min-height: 30px; margin-bottom: 12px; font-size: 12px; }
+  .taxi-loader__steps { margin-top: 12px; }
+}

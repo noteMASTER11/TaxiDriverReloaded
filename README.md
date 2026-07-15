@@ -35,6 +35,16 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Keep dispatch messages, penalties, passenger chat, and order confirmations inside the phone instead of the global game notification tray.
 - Scale interface text to suit the size of your UI layout.
 
+### Optional LAN companion phone
+
+- **Experimental:** share TaxiDriver over a trusted local network and run the actual `TaxiDriverHUD` UI App on a physical phone or tablet through BeamNG's External UI transport and TaxiDriver's in-mod LAN bridge.
+- Keep one Lua-owned gameplay state across the in-game and external instances. Refreshing the browser reconstructs the interface without resetting the active order, shift, economy, profile, or settings.
+- Use an external-only Canvas surface for the route, complete exported road graph, terrain tiles when available, and live vehicle heading; every other screen, control, localization, and sound is provided by the same UI App used in the game.
+- While an external phone is connected, the in-game app automatically becomes a single phone button and can be reopened temporarily at any time.
+- Use this feature only on a trusted local network: BeamNG External UI provides direct access to the running game.
+
+> Connected phone requires free TCP port **8085** and inbound private-network permission for `BeamNG.drive.x64.exe`. If the port is occupied or the game is denied network access by the firewall/security suite, the Web UI will not open on another device. Sharing is session-only and starts disabled every time.
+
 ### A living dispatcher
 
 - Browse a gradually populated pool of **10–12 mixed requests**.
@@ -53,7 +63,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Passenger-specific penalties do not apply: only collisions can damage the package.
 - Each impact can add **1–35% package damage**, proportionally reducing the delivery payout; cumulative damage is capped at 100%.
 - Package damage from 5% upward lowers the delivery review, reaching **1 star at 100% damage**.
-- Dedicated loading, unloading, cargo-weight, damage, progress, notification, and review states are available in all seven interface languages.
+- Dedicated loading, unloading, cargo-weight, damage, progress, notification, and review states are available in all eight interface languages.
 
 ### Universal and more believable destinations
 
@@ -102,11 +112,13 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Arrival time, remaining distance, route progress, speed limit, stop markers, and trip metrics remain visible around the map.
 - The ride footer shows current fuel or charge to two decimal places and an approximate remaining driving range.
 - Road-surface route arrows can be disabled in settings.
+- A configurable 0–30 km/h overspeed-warning margin (10 km/h by default) turns the speed-limit sign red and plays a one-shot alert while the trigger is exceeded.
 
 ### Pickup, stops, and continuous work
 
 - Reaching a pickup or destination opens a dedicated boarding or alighting screen.
 - The mod attempts to open and close a passenger-side door for extra immersion; unsupported vehicles continue safely without it.
+- Cargo loading and unloading similarly attempts to operate a trunk, tailgate, or cargo-door trigger on a best-effort basis.
 - Pickup deadlines can produce a gradually increasing late-arrival penalty.
 - When a trip is more than 80% complete, another offer may appear for a limited time.
 - Accepted offers enter a queue and never overwrite the current passenger.
@@ -133,22 +145,29 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 
 Open the gear icon in the TaxiDriver phone to configure:
 
-- language;
-- difficulty preset;
-- text size;
+- language, text size, metric/imperial units, and 12/24-hour time;
+- Elementary, Easy, Standard, Professional, or fully adjustable Custom difficulty;
+- independent penalty switches for speeding, collisions, harsh maneuvers, late pickup, fuel stops, rush bonuses, and cargo damage;
+- passenger/delivery order ratio and dynamic minimap zoom intensity;
 - TaxiDriver sound volume with a random sound test button;
 - silent mode;
 - road-surface route guidance.
 
-The interface includes English, German, French, Spanish, Polish, Russian, and Ukrainian. English is used by default unless another language is explicitly saved.
+Settings are grouped into expandable categories and apply automatically. The red Cheat Zone can set a rating, add test reviews or wallet funds, adjust new-order payouts, and reset driver statistics with confirmation.
+
+The interface includes English, German, French, Italian, Spanish, Polish, Russian, and Ukrainian. English is used by default unless another language is explicitly remembered.
 
 Settings, profile details, and driver progress are stored separately outside the mod at:
 
 ```text
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\settings.json
+%LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\difficulty.json
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\profile.json
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\progress.json
+%LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\lan.json
 ```
+
+`difficulty.json` contains the Custom difficulty sliders and individual penalty switches. It can be copied between installations and shared as a player-made difficulty preset. Invalid or unsupported files are replaced with safe defaults.
 
 If any file is missing, invalid, or uses an unsupported schema, safe defaults for that file are restored and saved automatically.
 
@@ -182,6 +201,8 @@ All application sounds—including clicks, online/offline cues, passenger messag
 lua/ge/extensions/taxiDriver/       Runtime controller and focused Lua modules
 lua/vehicle/extensions/auto/        Vehicle telemetry bridge and physical cargo mass
 ui/modules/apps/TaxiDriverHUD/      Phone UI, styles, localizations, assets, and sounds
+tools/TaxiDriver.LanProbe/          Automated real-subnet HTTP/WebSocket bridge test
+tests/ui/                            Mock-state visual and interaction test harness
 mod_info/TaxiDriver/                BeamNG mod metadata
 ```
 

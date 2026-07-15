@@ -16,9 +16,10 @@ local identity = require("taxiDriver/identity")
 local passengerMood = require("taxiDriver/passengerMood")
 local routeDiversity = require("taxiDriver/routeDiversity")
 local delivery = require("taxiDriver/delivery")
+local lanBridge = require("taxiDriver/lanBridge")
 
 local logTag = "taxiDriver"
-local modVersion = "2.18.0"
+local modVersion = "2.22.0"
 local settingsSchemaVersion = 1
 local profileSchemaVersion = 1
 local progressSchemaVersion = 1
@@ -141,8 +142,25 @@ local function createDefaultUserSettings()
     language = "en",
     rememberLanguage = false,
     difficulty = "standard",
+    customDifficulty = taxiConfig.sanitizeCustomDifficulty(nil),
     fontBoost = 2,
     appVolume = 0.65,
+    unitSystem = "metric",
+    timeFormat = "12h",
+    penaltyToggles = {
+      speeding = true,
+      collision = true,
+      aggression = true,
+      pickupDelay = true,
+      fuelStop = true,
+      rushBonus = true,
+      cargoDamage = true
+    },
+    dynamicZoomIntensity = 100,
+    overspeedWarningKmh = 10,
+    economyMultiplier = 1,
+    deliveryOrderSharePercent = 50,
+    lanEnabled = false,
     silentMode = false,
     showRouteGuidance = true,
     realisticMode = false
@@ -200,10 +218,21 @@ local function clampValue(value, minimum, maximum)
 end
 
 local function applyDifficulty(presetId)
-  local preset = difficultyPresets[presetId]
+  local preset = presetId == "custom" and
+    taxiConfig.buildCustomDifficulty(userSettings.customDifficulty) or
+    difficultyPresets[presetId]
   if not preset then return false end
   for key, value in pairs(preset) do
     balanceConfig[key] = value
+  end
+  if presetId == "custom" then
+    local ratingLoss = clampValue(
+      tonumber(userSettings.customDifficulty.earlyExitRatingLossPercent) or 30,
+      0,
+      60
+    ) / 100
+    earlyExitRatingLoss.custom = ratingLoss
+    driverAbandonmentExtraLoss.custom = ratingLoss
   end
   state.difficulty = presetId
   return true
@@ -220,9 +249,11 @@ local function sanitizeUserSettings(source, requireSchema)
     result.language = tostring(source.language)
   end
   result.rememberLanguage = source.rememberLanguage == true
-  if difficultyPresets[tostring(source.difficulty or "")] then
+  if difficultyPresets[tostring(source.difficulty or "")] or
+    tostring(source.difficulty or "") == "custom" then
     result.difficulty = tostring(source.difficulty)
   end
+  result.customDifficulty = taxiConfig.sanitizeCustomDifficulty(source.customDifficulty)
 
   local fontBoost = tonumber(source.fontBoost)
   if fontBoost then
@@ -230,10 +261,70 @@ local function sanitizeUserSettings(source, requireSchema)
   end
   local appVolume = tonumber(source.appVolume)
   if appVolume then result.appVolume = clampValue(appVolume, 0, 1) end
+  if source.unitSystem == "imperial" then result.unitSystem = "imperial" end
+  if source.timeFormat == "24h" then result.timeFormat = "24h" end
+  local penaltySource = type(source.penaltyToggles) == "table" and
+    source.penaltyToggles or {}
+  result.penaltyToggles.speeding = penaltySource.speeding ~= false
+  result.penaltyToggles.collision = penaltySource.collision ~= false
+  result.penaltyToggles.aggression = penaltySource.aggression ~= false
+  result.penaltyToggles.pickupDelay = penaltySource.pickupDelay ~= false
+  result.penaltyToggles.fuelStop = penaltySource.fuelStop ~= false
+  result.penaltyToggles.rushBonus = penaltySource.rushBonus ~= false
+  result.penaltyToggles.cargoDamage = penaltySource.cargoDamage ~= false
+  result.dynamicZoomIntensity = clampValue(
+    tonumber(source.dynamicZoomIntensity) or result.dynamicZoomIntensity,
+    0,
+    200
+  )
+  result.overspeedWarningKmh = clampValue(
+    tonumber(source.overspeedWarningKmh) or result.overspeedWarningKmh,
+    0,
+    30
+  )
+  result.economyMultiplier = clampValue(
+    tonumber(source.economyMultiplier) or result.economyMultiplier,
+    0.25,
+    5
+  )
+  result.deliveryOrderSharePercent = clampValue(
+    tonumber(source.deliveryOrderSharePercent) or result.deliveryOrderSharePercent,
+    0,
+    100
+  )
+  -- External phone sharing is deliberately session-only. Never restore it
+  -- from settings.json when the mod or UI App starts.
+  result.lanEnabled = false
   result.silentMode = source.silentMode == true
   result.showRouteGuidance = source.showRouteGuidance ~= false
   result.realisticMode = source.realisticMode == true
   return result, true
+end
+
+function M.writeDifficultySettings()
+  local ok, errorMessage = pcall(function()
+    if not FS:directoryExists(settingsDirectoryPath) then
+      FS:directoryCreate(settingsDirectoryPath)
+    end
+    jsonWriteFile(settingsDirectoryPath .. "/difficulty.json", {
+      schemaVersion = 1,
+      modVersion = modVersion,
+      customDifficulty = taxiConfig.sanitizeCustomDifficulty(userSettings.customDifficulty),
+      penaltyToggles = {
+        speeding = userSettings.penaltyToggles.speeding ~= false,
+        collision = userSettings.penaltyToggles.collision ~= false,
+        aggression = userSettings.penaltyToggles.aggression ~= false,
+        pickupDelay = userSettings.penaltyToggles.pickupDelay ~= false,
+        fuelStop = userSettings.penaltyToggles.fuelStop ~= false,
+        rushBonus = userSettings.penaltyToggles.rushBonus ~= false,
+        cargoDamage = userSettings.penaltyToggles.cargoDamage ~= false
+      }
+    }, true)
+  end)
+  if not ok then
+    log("E", logTag, "Unable to write difficulty settings: " .. tostring(errorMessage))
+  end
+  return ok
 end
 
 local function writeUserSettings()
@@ -241,12 +332,19 @@ local function writeUserSettings()
     if not FS:directoryExists(settingsDirectoryPath) then
       FS:directoryCreate(settingsDirectoryPath)
     end
-    jsonWriteFile(settingsFilePath, userSettings, true)
+    local settingsData = {}
+    for key, value in pairs(userSettings) do
+      if key ~= "customDifficulty" and key ~= "penaltyToggles" and
+        key ~= "lanEnabled" then
+        settingsData[key] = value
+      end
+    end
+    jsonWriteFile(settingsFilePath, settingsData, true)
   end)
   if not ok then
     log("E", logTag, "Unable to write settings: " .. tostring(errorMessage))
   end
-  return ok
+  return M.writeDifficultySettings() and ok
 end
 
 local function loadUserSettings()
@@ -258,6 +356,30 @@ local function loadUserSettings()
   end
 
   userSettings = sanitizeUserSettings(source, true)
+  local difficultyPath = settingsDirectoryPath .. "/difficulty.json"
+  local difficultyExists = FS:fileExists(difficultyPath)
+  if difficultyExists then
+    local difficultyOk, difficultySource = pcall(jsonReadFile, difficultyPath)
+    if difficultyOk and type(difficultySource) == "table" and
+      tonumber(difficultySource.schemaVersion) == 1 then
+      userSettings.customDifficulty = taxiConfig.sanitizeCustomDifficulty(
+        difficultySource.customDifficulty
+      )
+      local penaltySource = type(difficultySource.penaltyToggles) == "table" and
+        difficultySource.penaltyToggles or {}
+      userSettings.penaltyToggles.speeding = penaltySource.speeding ~= false
+      userSettings.penaltyToggles.collision = penaltySource.collision ~= false
+      userSettings.penaltyToggles.aggression = penaltySource.aggression ~= false
+      userSettings.penaltyToggles.pickupDelay = penaltySource.pickupDelay ~= false
+      userSettings.penaltyToggles.fuelStop = penaltySource.fuelStop ~= false
+      userSettings.penaltyToggles.rushBonus = penaltySource.rushBonus ~= false
+      userSettings.penaltyToggles.cargoDamage = penaltySource.cargoDamage ~= false
+    else
+      local defaults = createDefaultUserSettings()
+      userSettings.customDifficulty = defaults.customDifficulty
+      userSettings.penaltyToggles = defaults.penaltyToggles
+    end
+  end
   settingsNeedsLegacyImport = not fileExists
   applyDifficulty(userSettings.difficulty)
 
@@ -496,10 +618,13 @@ end
 
 local function buildOfferTypePlan(targetCount, allowMultiStop)
   local plan = {}
-  local deliveryCount = math.min(
-    math.max(0, targetCount - 1),
-    math.random(taxiConfig.delivery.visibleMin, taxiConfig.delivery.visibleMax)
-  )
+  local requestedDeliveryCount = targetCount *
+    clampValue(tonumber(userSettings.deliveryOrderSharePercent) or 50, 0, 100) / 100
+  local deliveryCount = math.floor(requestedDeliveryCount)
+  if math.random() < requestedDeliveryCount - deliveryCount then
+    deliveryCount = deliveryCount + 1
+  end
+  deliveryCount = math.min(targetCount, math.max(0, deliveryCount))
   local multiStopCount = 0
   if allowMultiStop then
     multiStopCount = math.min(
@@ -560,9 +685,10 @@ local function calculateFare(distanceMeters, waitingSeconds)
   local distanceKm = math.max(0, distanceMeters or 0) / 1000
   local etaMinutes = calculateEtaMinutes(distanceMeters) + math.max(0, waitingSeconds or 0) / 60
   return roundMoney(
-    balanceConfig.baseFare +
+    (balanceConfig.baseFare +
     distanceKm * balanceConfig.farePerKm +
-    etaMinutes * balanceConfig.farePerMinute
+    etaMinutes * balanceConfig.farePerMinute) *
+    clampValue(tonumber(userSettings.economyMultiplier) or 1, 0.25, 5)
   )
 end
 
@@ -963,6 +1089,7 @@ local function buildHudState()
       penaltyPercent = realisticFuel.detour.penaltyPercent or 0,
       arrived = realisticFuel.detour.arrived == true
     },
+    lan = lanBridge.getStatus(),
     settings = userSettings,
     settingsNeedsLegacyImport = settingsNeedsLegacyImport,
     offers = buildHudOffers(),
@@ -1044,7 +1171,9 @@ local function buildHudState()
 end
 
 local function notifyHud()
-  guihooks.trigger("TaxiDriverHUDState", buildHudState())
+  local hudState = buildHudState()
+  lanBridge.setState(hudState)
+  guihooks.trigger("TaxiDriverHUDState", hudState)
 end
 
 local function notifyProfile()
@@ -1069,7 +1198,7 @@ local function getPassengerReviewEmoji(rideRating)
   return "😡"
 end
 
-local function recordProgressEvent(passengerName, emoji, quality, fare, outcome)
+local function recordProgressEvent(passengerName, emoji, quality, fare, outcome, reviewRating)
   if not userProgress then userProgress = createDefaultUserProgress() end
   userProgress.sequence = math.max(0, math.floor(tonumber(userProgress.sequence) or 0)) + 1
   local timestamp = os.time()
@@ -1079,7 +1208,7 @@ local function recordProgressEvent(passengerName, emoji, quality, fare, outcome)
     emoji = reviewEmojiSet[emoji] and emoji or "😐",
     quality = clampValue(tonumber(quality) or 0, 0, 100),
     fare = roundMoney(math.max(0, tonumber(fare) or 0)),
-    rating = clampValue(tonumber(state.rating) or 5, 0, 5),
+    rating = clampValue(tonumber(reviewRating) or tonumber(state.rating) or 5, 0, 5),
     timestamp = timestamp,
     outcome = tostring(outcome or "completed")
   })
@@ -1730,7 +1859,7 @@ local function releaseForcedPassengerStop(vehicle)
   setVehicleForcedStop(vehicle, false)
 end
 
-local function togglePassengerDoor(vehicle, preferredTriggerId)
+local function toggleVehicleAccess(vehicle, preferredTriggerId, accessType)
   if not vehicle or not extensions.core_vehicle_manager or not core_vehicleTriggers then return nil end
 
   local vehicleId = vehicle:getID()
@@ -1751,10 +1880,23 @@ local function togglePassengerDoor(vehicle, preferredTriggerId)
       break
     end
 
-    if links and links.action0 and string.find(name, "door", 1, true) and
+    local score = -1
+    if links and links.action0 and accessType == "cargo" then
+      if string.find(name, "trunk", 1, true) then score = 130
+      elseif string.find(name, "tailgate", 1, true) then score = 125
+      elseif string.find(name, "liftgate", 1, true) then score = 120
+      elseif string.find(name, "hatch", 1, true) then score = 115
+      elseif string.find(name, "boot", 1, true) then score = 110
+      elseif string.find(name, "frunk", 1, true) then score = 105
+      elseif string.find(name, "cargo door", 1, true) then score = 100
+      elseif string.find(name, "rear gate", 1, true) then score = 95
+      elseif string.find(name, "rear door", 1, true) then score = 70
+      end
+    elseif links and links.action0 and string.find(name, "door", 1, true) and
       not string.find(name, "int", 1, true) and
-      not string.find(name, "interior", 1, true) then
-      local score = 10
+      not string.find(name, "interior", 1, true) and
+      not string.find(name, "cargo", 1, true) then
+      score = 10
       if string.find(name, "rr", 1, true) or string.find(name, "rear right", 1, true) then
         score = 100
       elseif string.find(name, "rl", 1, true) or string.find(name, "rear left", 1, true) then
@@ -1764,6 +1906,8 @@ local function togglePassengerDoor(vehicle, preferredTriggerId)
       elseif string.find(name, "passenger", 1, true) then
         score = 60
       end
+    end
+    if score >= 0 then
       if score > selectedScore then
         selectedScore = score
         selectedId = triggerId
@@ -1777,6 +1921,14 @@ local function togglePassengerDoor(vehicle, preferredTriggerId)
     core_vehicleTriggers.triggerEvent("action0", 0, selectedId, vehicleId, vdata)
   end)
   return success and selectedId or nil
+end
+
+local function togglePassengerDoor(vehicle, preferredTriggerId)
+  return toggleVehicleAccess(vehicle, preferredTriggerId, "passenger")
+end
+
+local function toggleCargoAccess(vehicle, preferredTriggerId)
+  return toggleVehicleAccess(vehicle, preferredTriggerId, "cargo")
 end
 
 local function clearNavigation()
@@ -1843,7 +1995,17 @@ local function installMinimapDynamicZoom()
     local speedKmh = vehicle and getVehicleSpeedKmh(vehicle) or 0
     local speedRatio = clampValue(speedKmh / 120, 0, 1)
     local easedSpeed = speedRatio * speedRatio * (3 - 2 * speedRatio)
-    local targetMultiplier = 0.66 + (1.62 - 0.66) * easedSpeed
+    local rawTargetMultiplier = 0.66 + (1.62 - 0.66) * easedSpeed
+    local zoomIntensity = clampValue(
+      tonumber(userSettings.dynamicZoomIntensity) or 100,
+      0,
+      200
+    ) / 100
+    local targetMultiplier = clampValue(
+      1 + (rawTargetMultiplier - 1) * zoomIntensity,
+      0.35,
+      2.30
+    )
 
     if not minimapZoomMultiplier then
       minimapZoomMultiplier = targetMultiplier
@@ -2342,10 +2504,11 @@ end
 
 local function stopModeInternal(message, showNotification, notificationKey)
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
-  if trip and trip.passengerDoorTriggerId and
+  if trip and (trip.passengerDoorTriggerId or trip.cargoDoorTriggerId) and
     (state.phase == phases.boarding or state.phase == phases.alighting or
       state.phase == phases.passengerForcedExit or state.phase == phases.driverAbandoning) then
-    togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
+    if trip.isDelivery then toggleCargoAccess(vehicle, trip.cargoDoorTriggerId)
+    else togglePassengerDoor(vehicle, trip.passengerDoorTriggerId) end
   end
   releaseForcedPassengerStop(vehicle)
   setTelemetryEnabled(vehicle, false)
@@ -2393,7 +2556,8 @@ local function createOffer(requestedType, generationFailureCount)
   if not pickup then return nil, pickupError end
 
   local isDelivery = requestedType == "delivery" or
-    (requestedType == nil and math.random() < taxiConfig.delivery.chance)
+    (requestedType == nil and math.random() <
+      clampValue(tonumber(userSettings.deliveryOrderSharePercent) or 50, 0, 100) / 100)
   local wantsMultiStop = not isDelivery and (
     requestedType == "multiStop" or
     (requestedType == nil and math.random() < offerConfig.multiStopChance)
@@ -2778,7 +2942,9 @@ local function beginBoarding()
   end
   phaseTimer = boardingDuration
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
-  if not trip.isDelivery then
+  if trip.isDelivery then
+    trip.cargoDoorTriggerId = toggleCargoAccess(vehicle, trip.cargoDoorTriggerId)
+  else
     trip.passengerDoorTriggerId = togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
   end
   notifyHud()
@@ -2789,6 +2955,7 @@ local function updatePickupDeadline(dtSim)
   local previousRemaining = trip.pickupTimeRemaining or trip.pickupWaitLimit or 0
   local rawRemaining = previousRemaining - dtSim
   trip.pickupTimeRemaining = math.max(0, rawRemaining)
+  if userSettings.penaltyToggles.pickupDelay == false then return end
   if rawRemaining > 0 then return end
 
   local lateIncrement = dtSim
@@ -2850,6 +3017,7 @@ local function beginRide()
   if not trip then return end
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
   if trip.isDelivery then
+    toggleCargoAccess(vehicle, trip.cargoDoorTriggerId)
     delivery.applyVehicleMass(vehicle, trip.cargoWeightKg or 0)
   else
     togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
@@ -2932,7 +3100,9 @@ local function beginAlighting()
     "Открываем пассажирскую дверь"
   phaseTimer = alightingDuration
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
-  if not trip.isDelivery then
+  if trip.isDelivery then
+    trip.cargoDoorTriggerId = toggleCargoAccess(vehicle, trip.cargoDoorTriggerId)
+  else
     trip.passengerDoorTriggerId = togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
   end
   notifyHud()
@@ -3121,6 +3291,15 @@ local function updateSpeedPenalty(vehicle, dtSim)
   trip.currentSpeed = speed
   trip.speedLimit = speedLimit or 0
 
+  if userSettings.penaltyToggles.speeding == false then
+    trip.speedingEpisodeTime = 0
+    trip.speedingEpisodeCounted = false
+    trip.speedingEpisodeDisposition = nil
+    trip.activeSpeedingEvent = nil
+    trip.speedMoodPenaltySteps = 0
+    return
+  end
+
   if not speedLimit then
     trip.speedingEpisodeTime = 0
     trip.speedingEpisodeCounted = false
@@ -3217,6 +3396,7 @@ local function updateRushTimer(dtSim)
 
   trip.rushTimeRemaining = math.max(0, (trip.rushTimeRemaining or trip.rushTimeLimit or 0) - dtSim)
   if trip.rushTimeRemaining > 0 then return end
+  if userSettings.penaltyToggles.rushBonus == false then return end
 
   trip.rushBonusLost = true
   local bonusEvent = addPenaltyEvent(
@@ -3243,6 +3423,7 @@ end
 
 function realisticFuel.calculatePassengerWaitPenalty(stationId)
   if not trip or trip.isDelivery or not isPassengerOnboardPhase(state.phase) then return 0 end
+  if userSettings.penaltyToggles.fuelStop == false then return 0 end
   if trip.fuelVisitedStations and trip.fuelVisitedStations[tostring(stationId or "")] then return 0 end
   local baseByDifficulty = {
     elementary = 0.006,
@@ -3261,6 +3442,7 @@ end
 
 function realisticFuel.applyPassengerWaitPenalty(stationId, stationName)
   if not trip then return 0 end
+  if userSettings.penaltyToggles.fuelStop == false then return 0 end
   local penalty = math.max(0, realisticFuel.detour.penaltyPercent or 0) / 100
   if penalty <= 0 then return 0 end
   trip.fuelVisitedStations = trip.fuelVisitedStations or {}
@@ -3520,8 +3702,9 @@ local function updateActiveMode(dtSim)
   elseif state.phase == phases.alighting then
     phaseTimer = phaseTimer - dtSim
     if phaseTimer <= 0 then
-      if trip and not trip.isDelivery then
-        togglePassengerDoor(vehicle, trip.passengerDoorTriggerId)
+      if trip then
+        if trip.isDelivery then toggleCargoAccess(vehicle, trip.cargoDoorTriggerId)
+        else togglePassengerDoor(vehicle, trip.passengerDoorTriggerId) end
       end
       finishRide()
     end
@@ -3710,23 +3893,117 @@ function M.setDifficulty(presetId)
 end
 
 function M.saveSettings(incomingSettings)
+  local routeGuidanceChanged = userSettings.showRouteGuidance ~=
+    (type(incomingSettings) ~= "table" or incomingSettings.showRouteGuidance ~= false)
+  local previousDeliveryShare = userSettings.deliveryOrderSharePercent
+  local sessionLanEnabled = type(incomingSettings) == "table" and
+    incomingSettings.lanEnabled == true
   userSettings = sanitizeUserSettings(incomingSettings, false)
+  userSettings.lanEnabled = sessionLanEnabled
   settingsNeedsLegacyImport = false
   applyDifficulty(userSettings.difficulty)
+  lanBridge.setEnabled(userSettings.lanEnabled)
   writeUserSettings()
 
-  restoreNavigationVisualSettings()
-  if state.active then
-    if state.phase == phases.toFuelStation and realisticFuel.detour.active then
-      setNavigationTarget({pos = realisticFuel.detour.pos})
-    elseif state.phase == phases.toPickup and trip then
-      setNavigationTarget(trip.pickup)
-    elseif state.phase == phases.toStop and trip.stops then
-      setNavigationTarget(trip.stops[trip.currentStopIndex or 0])
-    elseif state.phase == phases.toDestination then
-      setNavigationTarget(trip.destination)
+  if routeGuidanceChanged then
+    restoreNavigationVisualSettings()
+    if state.active then
+      if state.phase == phases.toFuelStation and realisticFuel.detour.active then
+        setNavigationTarget({pos = realisticFuel.detour.pos})
+      elseif state.phase == phases.toPickup and trip then
+        setNavigationTarget(trip.pickup)
+      elseif state.phase == phases.toStop and trip.stops then
+        setNavigationTarget(trip.stops[trip.currentStopIndex or 0])
+      elseif state.phase == phases.toDestination then
+        setNavigationTarget(trip.destination)
+      end
     end
   end
+  if state.phase == phases.searching and
+    math.abs((previousDeliveryShare or 50) - userSettings.deliveryOrderSharePercent) > 0.001 then
+    local rebuiltPlan = {}
+    for _, offer in ipairs(offers) do
+      table.insert(rebuiltPlan, offer.isDelivery and "delivery" or
+        (offer.isMultiStop and "multiStop" or (offer.isRush and "rush" or "normal")))
+    end
+    local remainingPlan = buildOfferTypePlan(
+      math.max(0, offerTargetCount - #rebuiltPlan),
+      not offerGeneration.multiStopUnavailableForPool
+    )
+    for _, orderType in ipairs(remainingPlan) do table.insert(rebuiltPlan, orderType) end
+    offerTypePlan = rebuiltPlan
+    offerGeneration.poolJob = nil
+    offerGeneration.poolRequestedType = nil
+    offerTimer = math.min(offerTimer, 0.25)
+  end
+  notifyHud()
+end
+
+function M.disableExternalPhone()
+  userSettings.lanEnabled = false
+  lanBridge.setEnabled(false)
+  notifyHud()
+end
+
+-- Called only by a TaxiDriverHUD instance running through BeamNG's native
+-- External UI bridge. A short heartbeat lets the in-game instance collapse
+-- while the remote phone is actually connected.
+function M.externalPhoneHeartbeat(token)
+  return lanBridge.externalHeartbeat(token)
+end
+
+function M.requestExternalMapData()
+  lanBridge.requestExternalMap()
+end
+
+function M.cheatSetRating(value)
+  local rating = clampValue(tonumber(value) or state.rating or 5, 0, 5)
+  if not userProgress then userProgress = createDefaultUserProgress() end
+  state.ratingCount = math.max(1, math.floor(tonumber(state.ratingCount) or 0))
+  state.rating = rating
+  state.ratingTotal = rating * state.ratingCount
+  userProgress.rating = rating
+  userProgress.ratingCount = state.ratingCount
+  userProgress.ratingTotal = state.ratingTotal
+  userProgress.sequence = math.max(0, math.floor(tonumber(userProgress.sequence) or 0)) + 1
+  table.insert(userProgress.ratingHistory, {
+    index = userProgress.sequence,
+    value = roundMoney(rating),
+    timestamp = os.time()
+  })
+  writeUserProgress()
+  notifyProfile()
+  notifyHud()
+end
+
+function M.cheatAddMoney(value)
+  local amount = tonumber(value) or 0
+  if amount ~= 1 and amount ~= 5 and amount ~= 10 and amount ~= 50 then return end
+  state.balance = roundMoney(math.max(0, state.balance + amount))
+  realisticFuel.recordBalanceHistory()
+  notifyProfile()
+  notifyHud()
+end
+
+function M.cheatAddRandomReview()
+  local rating = math.random(100, 500) / 100
+  recordProgressEvent(
+    identity.createPassengerName(),
+    getPassengerReviewEmoji(rating),
+    rating / 5 * 100,
+    0,
+    "cheatReview",
+    rating
+  )
+  notifyProfile()
+  notifyHud()
+end
+
+function M.cheatResetProgress()
+  userProgress = createDefaultUserProgress()
+  applyUserProgressToState()
+  writeUserProgress()
+  notifyProfile()
   notifyHud()
 end
 
@@ -3838,7 +4115,8 @@ function M.onTelemetry(vehicleId, data)
     local damageDelta = damage - lastDamage
     trip.lastDamage = damage
 
-    if trip.isDelivery and (damageDelta >= taxiConfig.delivery.collisionDamageThreshold or
+    if userSettings.penaltyToggles.cargoDamage ~= false and trip.isDelivery and
+      (damageDelta >= taxiConfig.delivery.collisionDamageThreshold or
       ((trip.collisionCooldown or 0) > 0 and trip.activeCollisionEvent)) then
       local isNewImpact = (trip.collisionCooldown or 0) <= 0 or not trip.activeCollisionEvent
       if isNewImpact then
@@ -3874,7 +4152,8 @@ function M.onTelemetry(vehicleId, data)
         trip.activeCollisionEvent.detail = string.format("Package damaged by %.1f%%", impactPercent)
       end
       trip.collisionCooldown = balanceConfig.collisionCooldownSeconds
-    elseif not trip.isDelivery and damageDelta >= balanceConfig.collisionDamageThreshold then
+    elseif userSettings.penaltyToggles.collision ~= false and not trip.isDelivery and
+      damageDelta >= balanceConfig.collisionDamageThreshold then
       local previousPenalty = trip.collisionPenalty
       local isNewCollision = trip.collisionCooldown <= 0
       trip.collisionDamage = trip.collisionDamage + damageDelta
@@ -3928,6 +4207,11 @@ function M.onTelemetry(vehicleId, data)
   end
 
   if trip.isDelivery then return end
+  if userSettings.penaltyToggles.aggression == false then
+    trip.aggressionActive = false
+    trip.aggressionCooldown = 0
+    return
+  end
 
   local longitudinal = math.abs(telemetry.longitudinalG)
   local lateral = telemetry.lateralG
@@ -3982,9 +4266,11 @@ function M.onTelemetry(vehicleId, data)
 end
 
 function M.onUpdate(dtReal, dtSim)
-  if not state.active then return end
   dtReal = math.max(0, dtReal or 0)
   dtSim = math.max(0, dtSim or 0)
+  lanBridge.update(dtReal)
+  if lanBridge.consumeStatusChanged() then notifyHud() end
+  if not state.active then return end
   updateActiveMode(dtSim)
 
   hudTimer = hudTimer + dtReal
@@ -4027,6 +4313,46 @@ function M.onExtensionLoaded()
   loadUserSettings()
   loadDriverProfile()
   loadUserProgress()
+  lanBridge.setCommandHandler(function(action, args)
+    args = type(args) == "table" and args or {}
+    if action == "start" then
+      M.startMode()
+      return state.active == true
+    elseif action == "stop" then
+      if trip and isPassengerOnboardPhase(state.phase) then
+        if args.force == true then
+          M.confirmDriverAbandonment()
+          return true
+        end
+        return false, "confirmation_required"
+      end
+      M.stopMode()
+      return state.active == false
+    elseif action == "acceptOffer" then
+      local id = math.floor(tonumber(args.id) or -1)
+      local beforeTripId = trip and trip.id or 0
+      M.acceptOrder(id)
+      return trip ~= nil and (trip.id or 0) ~= beforeTripId
+    elseif action == "acceptNextOffer" then
+      M.acceptNextOffer(args.id)
+      return nextOfferAccepted == true
+    elseif action == "requestFuelStop" then
+      if not state.realisticMode then return false, "realistic_mode_required" end
+      M.requestFuelStop()
+      return true
+    elseif action == "cancelFuelStop" then
+      M.cancelFuelStop()
+      return true
+    elseif action == "completeFuelStop" then
+      M.completeFuelStop()
+      return true
+    elseif action == "purchaseFuel" then
+      M.purchaseRealisticFuel(tostring(args.energyType or ""), tonumber(args.quantity) or 0)
+      return true
+    end
+    return false, "unsupported_command"
+  end)
+  lanBridge.setEnabled(userSettings.lanEnabled)
   delivery.applyVehicleMass(getPlayerVehicle(), 0)
   notifyHud()
 end
@@ -4050,6 +4376,7 @@ function M.onClientEndMission()
 end
 
 function M.onExtensionUnloaded()
+  lanBridge.stop()
   hideNativeMinimap()
   delivery.applyVehicleMass(getPlayerVehicle(), 0)
   realisticFuel.restoreEconomy()

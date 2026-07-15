@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#101318">
+  <title>TaxiDriver</title>
+  <link rel="stylesheet" href="./loader.css">
+</head>
+<body>
+  <main id="taxi-external-root" aria-live="polite"></main>
+
+  <section id="taxi-loader" class="taxi-loader">
+    <div class="taxi-loader__card">
+      <div class="taxi-loader__brand"><span>T</span><strong>TaxiDriver</strong></div>
+      <div class="taxi-loader__spinner" aria-hidden="true"><i></i></div>
+      <h1 id="taxi-loader-title">Connecting to BeamNG.drive</h1>
+      <p id="taxi-loader-detail">Opening the live game connection…</p>
+      <div class="taxi-loader__progress"><i id="taxi-loader-progress"></i></div>
+      <ol id="taxi-loader-steps" class="taxi-loader__steps">
+        <li data-step="connection" class="is-active"><i></i><span>Game connection</span><b>Connecting</b></li>
+        <li data-step="runtime"><i></i><span>Application runtime</span><b>Waiting</b></li>
+        <li data-step="assets"><i></i><span>Interface and sounds</span><b>Waiting</b></li>
+        <li data-step="state"><i></i><span>Live trip state</span><b>Waiting</b></li>
+      </ol>
+      <div id="taxi-loader-error" class="taxi-loader__error" hidden></div>
+      <button id="taxi-loader-retry" class="taxi-loader__retry" type="button" hidden>Retry</button>
+      <small>Keep BeamNG.drive running and use the same local network.</small>
+    </div>
+  </section>
+
+  <script src="/ui/entrypoints/main/comms.js"></script>
+  <script src="./external.js"></script>
+</body>
+</html>

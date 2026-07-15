@@ -4,8 +4,83 @@ local M = {}
 
 M.supportedLanguages = {
   en = true, de = true, fr = true, es = true,
-  pl = true, uk = true, ru = true
+  it = true, pl = true, uk = true, ru = true
 }
+
+local function clamp(value, minimum, maximum)
+  return math.max(minimum, math.min(maximum, value))
+end
+
+M.customDifficultyDefaults = {
+  speedToleranceKmh = 10,
+  speedGraceSeconds = 4,
+  speedPenaltyStrengthPercent = 100,
+  collisionSensitivityPercent = 50,
+  collisionPenaltyStrengthPercent = 100,
+  longitudinalGThreshold = 0.65,
+  lateralGThreshold = 0.58,
+  aggressionPenaltyStrengthPercent = 100,
+  pickupPenaltyStrengthPercent = 100,
+  maxFareReductionPercent = 50,
+  earlyExitRatingLossPercent = 30
+}
+
+M.customDifficultyRanges = {
+  speedToleranceKmh = {0, 30},
+  speedGraceSeconds = {0, 10},
+  speedPenaltyStrengthPercent = {0, 250},
+  collisionSensitivityPercent = {0, 100},
+  collisionPenaltyStrengthPercent = {0, 250},
+  longitudinalGThreshold = {0.30, 1.20},
+  lateralGThreshold = {0.30, 1.20},
+  aggressionPenaltyStrengthPercent = {0, 250},
+  pickupPenaltyStrengthPercent = {0, 200},
+  maxFareReductionPercent = {10, 75},
+  earlyExitRatingLossPercent = {0, 60}
+}
+
+function M.sanitizeCustomDifficulty(source)
+  source = type(source) == "table" and source or {}
+  local result = {}
+  for key, defaultValue in pairs(M.customDifficultyDefaults) do
+    local range = M.customDifficultyRanges[key]
+    result[key] = clamp(tonumber(source[key]) or defaultValue, range[1], range[2])
+  end
+  return result
+end
+
+function M.buildCustomDifficulty(source)
+  local custom = M.sanitizeCustomDifficulty(source)
+  local speedStrength = custom.speedPenaltyStrengthPercent / 100
+  local collisionStrength = custom.collisionPenaltyStrengthPercent / 100
+  local aggressionStrength = custom.aggressionPenaltyStrengthPercent / 100
+  local pickupStrength = custom.pickupPenaltyStrengthPercent / 100
+  local collisionSensitivity = custom.collisionSensitivityPercent / 100
+  return {
+    maxTotalPenalty = custom.maxFareReductionPercent / 100,
+    pickupLateBasePenalty = 0.05 * pickupStrength,
+    pickupLatePenaltyPerSecond = 0.000333 * pickupStrength,
+    maxPickupLatePenalty = 0.12 * pickupStrength,
+    speedToleranceKmh = custom.speedToleranceKmh,
+    speedToleranceRatio = 0,
+    speedGraceSeconds = custom.speedGraceSeconds,
+    speedPenaltyRate = 0.0008 * speedStrength,
+    maxSpeedPenalty = 0.15 * speedStrength,
+    collisionDamageScale = 30000 - 24000 * collisionSensitivity,
+    collisionDamageThreshold = 100 - 95 * collisionSensitivity,
+    collisionDamagePenalty = 0.18 * collisionStrength,
+    collisionEventPenalty = 0.01 * collisionStrength,
+    maxCollisionPenalty = 0.20 * collisionStrength,
+    longitudinalGThreshold = custom.longitudinalGThreshold,
+    lateralGThreshold = custom.lateralGThreshold,
+    longitudinalGRelease = math.max(0.15, custom.longitudinalGThreshold * 0.65),
+    lateralGRelease = math.max(0.15, custom.lateralGThreshold * 0.65),
+    aggressionEventPenalty = 0.005 * aggressionStrength,
+    aggressionExtraRate = 0.015 * aggressionStrength,
+    aggressionExtraMax = 0.01 * aggressionStrength,
+    maxAggressionPenalty = 0.12 * aggressionStrength
+  }
+end
 
 M.runtime = {
   minRideDistance = 1000,
@@ -175,6 +250,9 @@ M.delivery = {
 
 M.difficultyPresets = {
   elementary = {
+    maxTotalPenalty = 0.50,
+    pickupLateBasePenalty = 0.05, pickupLatePenaltyPerSecond = 0.000333,
+    maxPickupLatePenalty = 0.12,
     speedToleranceKmh = 15, speedToleranceRatio = 0.25, speedGraceSeconds = 6,
     speedPenaltyRate = 0.00025, maxSpeedPenalty = 0.06,
     collisionDamageScale = 22000, collisionDamageThreshold = 60,
@@ -185,6 +263,9 @@ M.difficultyPresets = {
     aggressionExtraMax = 0.004, maxAggressionPenalty = 0.05
   },
   easy = {
+    maxTotalPenalty = 0.50,
+    pickupLateBasePenalty = 0.05, pickupLatePenaltyPerSecond = 0.000333,
+    maxPickupLatePenalty = 0.12,
     speedToleranceKmh = 11, speedToleranceRatio = 0.20, speedGraceSeconds = 4.5,
     speedPenaltyRate = 0.00045, maxSpeedPenalty = 0.10,
     collisionDamageScale = 17000, collisionDamageThreshold = 35,
@@ -195,6 +276,9 @@ M.difficultyPresets = {
     aggressionExtraMax = 0.006, maxAggressionPenalty = 0.08
   },
   standard = {
+    maxTotalPenalty = 0.50,
+    pickupLateBasePenalty = 0.05, pickupLatePenaltyPerSecond = 0.000333,
+    maxPickupLatePenalty = 0.12,
     speedToleranceKmh = 8, speedToleranceRatio = 0.15, speedGraceSeconds = 3,
     speedPenaltyRate = 0.0008, maxSpeedPenalty = 0.15,
     collisionDamageScale = 12000, collisionDamageThreshold = 20,
@@ -205,6 +289,9 @@ M.difficultyPresets = {
     aggressionExtraMax = 0.01, maxAggressionPenalty = 0.12
   },
   professional = {
+    maxTotalPenalty = 0.50,
+    pickupLateBasePenalty = 0.05, pickupLatePenaltyPerSecond = 0.000333,
+    maxPickupLatePenalty = 0.12,
     speedToleranceKmh = 4, speedToleranceRatio = 0.08, speedGraceSeconds = 1.5,
     speedPenaltyRate = 0.0018, maxSpeedPenalty = 0.25,
     collisionDamageScale = 8000, collisionDamageThreshold = 10,
