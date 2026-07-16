@@ -65,6 +65,7 @@
     soundToggles: { click: true, newRide: true, offline: true, online: true, violation: true, message: true, overspeed: true },
     dynamicZoomIntensity: 120, overspeedWarningKmh: 10, economyMultiplier: 1, deliveryOrderSharePercent: 45,
     lanEnabled: true, silentMode: false, showRouteGuidance: true, realisticMode: true,
+    randomEventsEnabled: true,
   };
 
   const offer = (id, delivery = false) => ({
@@ -80,9 +81,11 @@
     active: false, phase: "inactive", phaseLabel: "", message: "", balance: 75.15,
     rating: 4.37, ratingCount: 18, completedRides: 18,
     driverProfile: { fullName: "Alex Morgan", avatar: "🙂" },
+    currentVehicle: { available: true, key: "etk800|854t", name: "ETK 854t", preview: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 300'%3E%3Cpath fill='%23ffd11a' d='M85 205l42-91q12-27 43-31l251-18q42-3 68 30l63 78 39 16v48H52v-20z'/%3E%3Cpath fill='%23171a1f' d='M182 105l218-16q28-2 47 21l45 56H144z'/%3E%3Ccircle fill='%23252a31' stroke='%23e7ebef' stroke-width='12' cx='164' cy='226' r='43'/%3E%3Ccircle fill='%23252a31' stroke='%23e7ebef' stroke-width='12' cx='494' cy='226' r='43'/%3E%3C/svg%3E", distanceMeters: 12843.7, completedRides: 7, income: 184.25 },
     passengerOnboard: false, deliveryOnboard: false, realisticMode: true,
+    shift: { active: false, current: {}, last: { rides: 6, netIncome: 82.40, averageRating: 4.73 } },
     vehicleEnergy: { available: true, energyType: "gasoline", quantity: 13.42, maxQuantity: 55, percent: 24.4, unit: "L", estimatedRangeKm: 128 },
-    fuelStation: { available: false, id: "", name: "Gas Station", options: [], balance: 75.15,
+    fuelStation: { available: false, id: "", name: "Gas Station", magic: false, vehicleStopped: true, options: [], balance: 75.15,
       refueling: { active: false, completing: false, energyType: "", quantity: 0, cost: 0, duration: 0, elapsed: 0, progress: 0, remainingSeconds: 0, completionId: 0 } },
     fuelDetour: { active: false, hadTrip: false, passengerOnboard: false, stationName: "", routeDistance: 0, penaltyPercent: 0, arrived: false },
     lan: { enabled: true, connected: 0, address: "192.168.93.143", port: 8084,
@@ -101,6 +104,7 @@
     currentStopIndex: 0, stopProgressMarkers: [], stopWaitDuration: 10, stopWaitRemaining: 0,
     rushOrder: false, rushBonusActive: false, rushBonusLost: false, rushBonusAmount: 0,
     rushTimeLimit: 0, rushTimeRemaining: 0, penaltyPercent: 5.9, speedLimit: 50,
+    fuelEnoughForTrip: true, nextStopDistance: 0, tipAmount: 0, tripEvent: { kind: "none" },
     currentSpeed: 42, penalties: { speedingPercent: 2.1, collisionPercent: 0,
       aggressionPercent: 3.8, pickupPercent: 0, fuelStopPercent: 0,
       speedingEvents: 1, collisions: 0, aggressionEvents: 2 },
@@ -133,6 +137,7 @@
     settings: base(),
     settingsConnection: base(),
     profile: base(),
+    profileVehicles: base(),
     compact: tripState(false),
     nextOffer: Object.assign(tripState(false), { routeProgress: 0.88, nextOffer: Object.assign(offer(9, false), { duration: 5, timeRemaining: 3.8, accepted: false }) }),
     fuelRoute: Object.assign(tripState(false), {
@@ -140,12 +145,26 @@
       fuelDetour: { active: true, hadTrip: true, passengerOnboard: true, stationName: "West Coast Fuel", routeDistance: 5200, penaltyPercent: 2.5, arrived: false },
     }),
     fuel: Object.assign(tripState(false), { fuelStation: {
-      available: true, id: "mock-fuel", name: "Gas Station", balance: 75.15,
+      available: true, id: "mock-fuel", name: "Gas Station", magic: false, vehicleStopped: true, balance: 75.15,
       options: [{ energyType: "gasoline", unit: "L", currentPercent: 24, currentQuantity: 13.42,
-        missingQuantity: 41.58, affordableQuantity: 28.4, pricePerUnit: 0.92 }],
+        maxQuantity: 55, missingQuantity: 41.58, affordableQuantity: 28.4, pricePerUnit: 0.92,
+        consumptionPer100Km: 10 }],
       refueling: { active: false, completing: false, energyType: "", quantity: 0, cost: 0,
         duration: 0, elapsed: 0, progress: 0, remainingSeconds: 0, completionId: 0 },
     } }),
+    magicFuel: Object.assign(tripState(false), {
+      phase: "toFuelStation",
+      fuelDetour: { active: true, hadTrip: true, passengerOnboard: true, stationName: "Magic Fuel", routeDistance: 0, penaltyPercent: 2.5, arrived: true },
+      fuelStation: {
+        available: true, id: "taxiDriverMagicFuel", name: "Magic Fuel", magic: true,
+        vehicleStopped: true, balance: 75.15,
+        options: [{ energyType: "gasoline", unit: "L", currentPercent: 24, currentQuantity: 13.42,
+          maxQuantity: 55, missingQuantity: 41.58, affordableQuantity: 41.58, pricePerUnit: 0.93,
+          consumptionPer100Km: 10 }],
+        refueling: { active: false, completing: false, energyType: "", quantity: 0, cost: 0,
+          duration: 0, elapsed: 0, progress: 0, remainingSeconds: 0, completionId: 0 },
+      },
+    }),
   };
 
   window.bngApi = {

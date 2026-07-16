@@ -64,11 +64,16 @@
       <span class="phone-status__icons"><span>●●●</span><span>⌁</span><i class="phone-status__battery"></i></span>
     </div>
 
+    <div class="phone-odometer" ng-if="state.currentVehicle.available" title="{{ state.currentVehicle.name }}">
+      <span class="phone-odometer__vehicle">{{ state.currentVehicle.name }}</span>
+      <strong>{{ formatOdometer(state.currentVehicle.distanceMeters) }}</strong>
+    </div>
+
     <div class="taxi-appbar">
       <div class="taxi-appbar__logo">T</div>
       <div class="taxi-appbar__title">
         <strong>{{ profileOpen ? (profileDraft.fullName || 'John Doe') : 'TaxiDriver' }}</strong>
-        <span>{{ fuelStationOpen ? (state.fuelStation.name || t('refuelTitle')) : (settingsOpen ? t('settingsTitle') : (profileOpen ? t('profileTitle') : (state.active ? getPhaseLabel() : t('appSubtitle')))) }}</span>
+        <span>{{ fuelStationOpen ? (state.fuelStation.magic ? t('magicFuelTitle') : (state.fuelStation.name || t('refuelTitle'))) : (settingsOpen ? t('settingsTitle') : (profileOpen ? t('profileTitle') : (state.active ? getPhaseLabel() : t('appSubtitle')))) }}</span>
       </div>
       <div class="taxi-appbar__live" ng-if="state.active && !settingsOpen && !profileOpen && !fuelStationOpen">{{ t('online') }}</div>
       <button type="button" class="taxi-appbar__fuel" ng-if="state.active && state.realisticMode && !settingsOpen && !profileOpen && !fuelStationOpen" ng-click="hud.handleFuelAction()" aria-label="{{ t('refuelAction') }}">{{ t('refuelAction') }}</button>
@@ -334,6 +339,7 @@
         <button type="button" class="taxi-profile__tab" ng-class="{'taxi-profile__tab--active': profileTab === 'identity'}" ng-click="hud.selectProfileTab('identity')">{{ t('tabIdentity') }}</button>
         <button type="button" class="taxi-profile__tab" ng-class="{'taxi-profile__tab--active': profileTab === 'reviews'}" ng-click="hud.selectProfileTab('reviews')">{{ t('tabReviews') }}</button>
         <button type="button" class="taxi-profile__tab" ng-class="{'taxi-profile__tab--active': profileTab === 'analytics'}" ng-click="hud.selectProfileTab('analytics')">{{ t('tabAnalytics') }}</button>
+        <button type="button" class="taxi-profile__tab" ng-class="{'taxi-profile__tab--active': profileTab === 'vehicles'}" ng-click="hud.selectProfileTab('vehicles')">{{ t('tabVehicles') }}</button>
       </div>
       <div class="taxi-profile__content">
         <div class="taxi-profile__panel" ng-if="profileTab === 'identity'">
@@ -388,6 +394,29 @@
             <div class="taxi-chart-card__hint">{{ t('historyHint') }}</div>
           </div>
         </div>
+
+        <div class="taxi-profile__panel taxi-profile__panel--vehicles" ng-if="profileTab === 'vehicles'">
+          <div class="taxi-profile__empty" ng-if="!profileVehicles.length">{{ t('noVehicleHistory') }}</div>
+          <label class="taxi-vehicle-history__sort" ng-if="profileVehicles.length"><span>{{ t('sortBy') }}</span><select ng-model="vehicleSort"><option value="distance">{{ t('distance') }}</option><option value="income">{{ t('vehicleIncome') }}</option><option value="rides">{{ t('vehicleTrips') }}</option></select></label>
+          <div class="taxi-vehicle-history" ng-repeat="vehicle in getSortedProfileVehicles() track by vehicle.key">
+            <div class="taxi-vehicle-history__preview"><span>🚘</span><img ng-if="vehicle.preview" ng-src="{{ vehicle.preview }}" alt="{{ vehicle.name }}" onerror="this.style.display='none'"></div>
+            <div class="taxi-vehicle-history__head">
+              <strong>{{ vehicle.name }}</strong>
+              <span>{{ formatOdometer(vehicle.distanceMeters) }}</span>
+            </div>
+            <div class="taxi-vehicle-history__stats">
+              <span>{{ t('vehicleTrips') }}<strong>{{ vehicle.completedRides || 0 }}</strong></span>
+              <span>{{ t('vehicleIncome') }}<strong>{{ formatMoney(vehicle.income) }}</strong></span>
+              <span>{{ t('averageIncome') }}<strong>{{ formatMoney(vehicle.averageIncome) }}</strong></span>
+              <span>{{ t('averageRating') }}<strong>{{ vehicle.averageRating | number:2 }} ★</strong></span>
+              <span>{{ t('passengerTrips') }} / {{ t('cargoTrips') }}<strong>{{ vehicle.passengerRides }} / {{ vehicle.deliveryRides }}</strong></span>
+              <span>{{ t('penaltyLosses') }}<strong>−{{ formatMoney(vehicle.penaltyLoss) }}</strong></span>
+              <span>{{ t('cargoDamageLosses') }}<strong>−{{ formatMoney(vehicle.cargoDamageLoss) }}</strong></span>
+              <span ng-if="vehicle.fuelConsumed > 0">{{ t('fuelConsumed') }}<strong>{{ vehicle.fuelConsumed | number:1 }} · {{ formatMoney(vehicle.fuelCost) }}</strong></span>
+              <span>{{ t('profitPerDistance') }}<strong>{{ formatMoney(getVehicleProfitPerDistance(vehicle)) }}/{{ settings.unitSystem === 'imperial' ? t('unitMile') : t('unitKm') }}</strong></span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -397,13 +426,37 @@
         <div class="taxi-home__pin"><span>T</span></div>
         <h2>{{ t('homeTitle') }}</h2>
         <p>{{ t('homeDesc') }}</p>
-        <label class="taxi-home__realistic" ng-class="{'taxi-home__realistic--active': settings.realisticMode}">
+        <button type="button" class="taxi-home__vehicle" ng-if="state.currentVehicle.available" ng-click="hud.openVehicleSelector()" title="{{ t('selectVehicle') }}" aria-label="{{ t('selectVehicle') }}">
+          <div class="taxi-home__vehicle-preview">
+            <span class="taxi-home__vehicle-fallback">&#128663;</span>
+            <img ng-if="state.currentVehicle.preview" ng-src="{{ state.currentVehicle.preview }}" alt="{{ state.currentVehicle.name }}" onerror="this.style.display='none'">
+          </div>
+          <div class="taxi-home__vehicle-copy">
+            <strong>{{ state.currentVehicle.name }}</strong>
+            <span>{{ formatOdometer(state.currentVehicle.distanceMeters) }}</span>
+            <span ng-if="state.vehicleEnergy.available">{{ formatDashboardEnergy() }} · ≈ {{ formatEnergyRange(state.vehicleEnergy.estimatedRangeKm) }}</span>
+          </div>
+        </button>
+        <label class="taxi-home__realistic taxi-home__realistic--fuel" ng-class="{'taxi-home__realistic--active': settings.realisticMode}">
           <span class="taxi-home__realistic-icon">⛽</span>
           <strong>{{ t('realisticMode') }}</strong>
           <small>5% / EV 30%</small>
           <input type="checkbox" ng-model="settings.realisticMode" ng-change="hud.toggleRealisticMode()">
           <span class="taxi-home__realistic-switch"></span>
         </label>
+        <label class="taxi-home__realistic taxi-home__realistic--events" ng-class="{'taxi-home__realistic--active': settings.randomEventsEnabled}">
+          <span class="taxi-home__realistic-icon">⚡</span>
+          <strong>{{ t('randomEvents') }}</strong>
+          <small>{{ t('randomEventsShort') }}</small>
+          <input type="checkbox" ng-model="settings.randomEventsEnabled" ng-change="hud.toggleRandomEvents()">
+          <span class="taxi-home__realistic-switch"></span>
+        </label>
+        <div class="taxi-home__last-shift" ng-if="state.shift.last.rides > 0">
+          <strong>{{ t('lastShift') }}</strong>
+          <span>{{ t('rides') }} <b>{{ state.shift.last.rides }}</b></span>
+          <span>{{ t('netIncome') }} <b>{{ formatMoney(state.shift.last.netIncome) }}</b></span>
+          <span>{{ t('averageRating') }} <b>{{ state.shift.last.averageRating | number:2 }} ★</b></span>
+        </div>
         <button class="taxi-start" ng-click="hud.startMode()">{{ t('start') }}</button>
         <div class="taxi-home__stats">
           <span>{{ t('balance') }}<br><b>{{ formatMoney(state.balance) }}</b></span>
@@ -419,13 +472,24 @@
           <div class="taxi-orders__spinner" ng-if="state.offers.length < state.offerTargetCount"></div>
           <div><strong>{{ state.offers.length ? t('chooseOrder') : t('searchOrders') }}</strong><span>{{ getStatusText() }}</span></div>
         </div>
+        <div class="taxi-orders__sort">
+          <span>{{ t('sortBy') }}</span>
+          <div class="taxi-sort-menu" ng-class="{'taxi-sort-menu--open': offerSortMenuOpen}">
+            <button type="button" class="taxi-sort-menu__trigger" ng-click="hud.toggleOfferSortMenu()" aria-haspopup="true" aria-expanded="{{ offerSortMenuOpen }}">
+              <span>{{ getOfferSortLabel() }}</span><i>⌄</i>
+            </button>
+            <div class="taxi-sort-menu__options" ng-if="offerSortMenuOpen">
+              <button type="button" ng-repeat="option in offerSortOptions track by option.value" ng-class="{'taxi-sort-menu__option--active': offerSort === option.value}" ng-click="hud.selectOfferSort(option.value)">{{ t(option.label) }}</button>
+            </div>
+          </div>
+        </div>
 
         <div class="taxi-orders__list">
           <div class="taxi-orders__empty" ng-if="!state.offers.length">
             {{ t('emptyOffers') }}
           </div>
 
-          <div class="taxi-order-card" ng-class="{'taxi-order-card--rush': offer.isRush, 'taxi-order-card--multi': offer.isMultiStop, 'taxi-order-card--delivery': offer.isDelivery}" ng-repeat="offer in state.offers track by offer.id">
+          <div class="taxi-order-card" ng-class="{'taxi-order-card--rush': offer.isRush, 'taxi-order-card--multi': offer.isMultiStop, 'taxi-order-card--delivery': offer.isDelivery}" ng-repeat="offer in getSortedOffers() track by offer.id">
             <div class="taxi-order-card__top">
               <div class="taxi-order-card__avatar">{{ offer.isDelivery ? '📦' : getInitials(offer.passengerName) }}</div>
               <div class="taxi-order-card__name">
@@ -441,6 +505,7 @@
               <div class="taxi-order-card__badge" ng-if="offer.isRush">+{{ offer.bonusPercent }}%</div>
               <div class="taxi-order-card__badge taxi-order-card__badge--multi" ng-if="offer.isMultiStop">{{ t('multiStopBadge', {count: offer.stopCount}) }}</div>
             </div>
+            <div class="taxi-order-card__efficiency"><span>{{ formatMoney(getOfferIncomePerMinute(offer)) }}/{{ t('minuteShort') }}</span><span>{{ formatMoney(getOfferIncomePerKm(offer)) }}/{{ settings.unitSystem === 'imperial' ? t('unitMile') : t('unitKm') }}</span></div>
             <div class="taxi-order-card__metrics">
               <div class="taxi-order-card__metric"><span>{{ t('trip') }}</span><b>{{ formatEta(offer.etaMinutes) }}</b></div>
               <div class="taxi-order-card__metric"><span>{{ t('distance') }}</span><b>{{ formatDistance(offer.rideDistance) }}</b></div>
@@ -656,20 +721,23 @@
             </div>
           </div>
         </div>
+        <div class="taxi-trip-notice" ng-if="state.isMultiStop && state.nextStopDistance > 0">{{ t('nextStop') }} · {{ formatDistance(state.nextStopDistance) }}</div>
+        <div class="taxi-trip-notice" ng-if="state.vehicleEnergy.available" ng-class="{'taxi-trip-notice--good': state.fuelEnoughForTrip, 'taxi-trip-notice--danger': !state.fuelEnoughForTrip}">{{ state.fuelEnoughForTrip ? t('fuelEnough') : t('fuelNotEnough') }}</div>
+        <div class="taxi-trip-notice taxi-trip-notice--event" ng-if="state.tripEvent.kind === 'fragileCargo'">{{ t('fragileCargo') }}</div>
 
         <div class="taxi-metrics">
-          <div class="taxi-metric taxi-metric--fare"><span>{{ t('payout') }}</span><strong>{{ formatMoney(state.adjustedFare) }}</strong></div>
+          <div class="taxi-metric taxi-metric--fare"><span>{{ t('projectedPayout') }}</span><strong>{{ formatMoney(state.adjustedFare + state.tipAmount) }}</strong></div>
           <div class="taxi-metric"><span>{{ t('estimate') }}</span><strong>{{ formatMoney(state.estimatedFare) }}</strong></div>
           <div class="taxi-metric taxi-metric--penalty"><span>{{ state.isDelivery ? t('cargoDamage') : t('reduction') }}</span><strong>−{{ state.penaltyPercent | number:1 }}%</strong></div>
         </div>
 
         <div class="taxi-penalty-log">
-          <div class="taxi-penalty-log__header">
-            <strong>{{ state.isDelivery ? t('cargoDamage') : t('penaltyEvents') }}</strong>
-            <span>−{{ state.penaltyPercent | number:1 }}%</span>
-          </div>
-          <div class="taxi-penalty-log__empty" ng-if="!state.penaltyEvents.length">{{ state.isDelivery ? t('noCargoDamage') : t('noViolations') }}</div>
-          <div class="taxi-penalty-log__events" ng-if="state.penaltyEvents.length">
+          <button type="button" class="taxi-penalty-log__header" ng-click="penaltiesExpanded = !penaltiesExpanded">
+            <strong>{{ t('violationSummary', {count: state.penaltyEvents.length, amount: formatMoney(getPenaltyFareLoss())}) }}</strong>
+            <span>{{ penaltiesExpanded ? '−' : '+' }}</span>
+          </button>
+          <div class="taxi-penalty-log__empty" ng-if="penaltiesExpanded && !state.penaltyEvents.length">{{ state.isDelivery ? t('noCargoDamage') : t('noViolations') }}</div>
+          <div class="taxi-penalty-log__events" ng-if="penaltiesExpanded && state.penaltyEvents.length">
             <div class="taxi-penalty-event" ng-repeat="event in state.penaltyEvents track by event.id">
               <div class="taxi-penalty-event__icon">!</div>
               <div class="taxi-penalty-event__text"><strong>{{ getPenaltyLabel(event) }}</strong><span>{{ getPenaltyDetail(event) }}</span></div>
@@ -705,11 +773,15 @@
       </div>
     </div>
 
-    <div class="taxi-fuel" ng-if="fuelStationOpen && state.fuelStation.available">
+    <div class="taxi-fuel" ng-class="{'taxi-fuel--magic': state.fuelStation.magic}" ng-if="fuelStationOpen && state.fuelStation.available">
       <div class="taxi-fuel__head">
         <div class="taxi-fuel__icon">⛽</div>
-        <div class="taxi-fuel__title"><strong>Gas Station</strong></div>
+        <div class="taxi-fuel__title"><strong>{{ state.fuelStation.magic ? t('magicFuelTitle') : (state.fuelStation.name || t('refuelTitle')) }}</strong></div>
         <button type="button" class="taxi-fuel__close" ng-click="hud.closeFuelStation()" ng-disabled="state.fuelStation.refueling.active" aria-label="{{ t('refuelClose') }}">×</button>
+      </div>
+      <div class="taxi-fuel__magic" ng-if="state.fuelStation.magic">
+        <strong>{{ t('magicFuelNoStations') }}</strong>
+        <span>{{ t('magicFuelDesc') }}</span>
       </div>
       <div class="taxi-fuel__dashboard" ng-if="getSelectedFuelOption()">
         <div class="taxi-fuel__metric"><span>{{ t('refuelBalance') }}</span><strong>{{ formatMoney(state.balance) }}</strong></div>
@@ -726,12 +798,14 @@
         </div>
         <div class="taxi-fuel__tank-change" ng-show="!state.fuelStation.refueling.active">{{ getSelectedFuelOption().currentPercent | number:0 }}% → {{ getProjectedFuelPercent() | number:0 }}%</div>
         <div ng-show="!state.fuelStation.refueling.active">
+          <div class="taxi-fuel__presets"><button type="button" ng-click="hud.setRefuelPreset(5)">+5 {{ getFuelDisplayUnit(getSelectedFuelOption()) }}</button><button type="button" ng-click="hud.setRefuelPreset(10)">+10 {{ getFuelDisplayUnit(getSelectedFuelOption()) }}</button><button type="button" ng-click="hud.setRefuelPreset('half')">50%</button><button type="button" ng-click="hud.setRefuelPreset('full')">{{ t('refuelFullPreset') }}</button></div>
           <div class="taxi-fuel__selector">
             <div class="taxi-fuel__selector-track"><span class="taxi-fuel__selector-fill" ng-style="{'width': getRefuelSelectionPercent() + '%'}"></span></div>
             <span class="taxi-fuel__selector-thumb" ng-style="{'left': getRefuelSelectionPercent() + '%'}"></span>
-            <input class="taxi-fuel__range" type="range" min="0" ng-attr-max="{{ getRefuelMaximum() }}" step="0.1" ng-model="refuel.amount" ng-change="hud.updateRefuelAmount()">
+            <input class="taxi-fuel__range" type="range" min="0" ng-attr-max="{{ getRefuelMaximum() }}" step="0.1" ng-model="refuel.amount" ng-change="hud.updateRefuelAmount()" ng-disabled="!state.fuelStation.vehicleStopped">
           </div>
           <div class="taxi-fuel__selection-meta"><span>{{ t('refuelAvailable') }} · {{ getFuelDisplayQuantity(getRefuelMaximum(), getSelectedFuelOption()) | number:1 }} {{ getFuelDisplayUnit(getSelectedFuelOption()) }}</span><strong>{{ formatMoney(getRefuelCost()) }}</strong></div>
+          <div class="taxi-fuel__projection"><span>{{ t('projectedRange') }}</span><strong>≈ {{ formatEnergyRange(getProjectedFuelRange()) }}</strong><small ng-if="state.distanceToTarget > 0" ng-class="{'is-good': isProjectedFuelEnough(), 'is-danger': !isProjectedFuelEnough()}">{{ isProjectedFuelEnough() ? t('fuelEnough') : t('fuelNotEnough') }}</small></div>
         </div>
         <div class="taxi-fuel__progress" ng-show="state.fuelStation.refueling.active">
           <div class="taxi-fuel__progress-track"><span ng-style="{'width': (state.fuelStation.refueling.progress * 100) + '%'}"></span></div>
@@ -739,11 +813,12 @@
         </div>
       </div>
       <div class="taxi-fuel__empty" ng-if="!state.fuelStation.options.length">…</div>
-      <button type="button" class="taxi-fuel__buy" ng-click="hud.purchaseFuel()" ng-disabled="state.fuelStation.refueling.active || !getSelectedFuelOption() || refuel.amount <= 0">
+      <button type="button" class="taxi-fuel__buy" ng-click="hud.purchaseFuel()" ng-disabled="state.fuelStation.refueling.active || !state.fuelStation.vehicleStopped || !getSelectedFuelOption() || refuel.amount <= 0">
         <span ng-if="state.fuelStation.refueling.active">{{ t('refuelProgress') }} · {{ state.fuelStation.refueling.progress * 100 | number:0 }}%</span>
-        <span ng-if="!state.fuelStation.refueling.active && getSelectedFuelOption() && getSelectedFuelOption().missingQuantity <= 0.01">{{ t('refuelFull') }}</span>
-        <span ng-if="!state.fuelStation.refueling.active && getSelectedFuelOption() && getSelectedFuelOption().missingQuantity > 0.01 && getRefuelMaximum() <= 0">{{ t('refuelNoMoney') }}</span>
-        <span ng-if="!state.fuelStation.refueling.active && (!getSelectedFuelOption() || (getSelectedFuelOption().missingQuantity > 0.01 && getRefuelMaximum() > 0))">{{ t('refuelBuy') }}</span>
+        <span ng-if="!state.fuelStation.refueling.active && !state.fuelStation.vehicleStopped">{{ t('refuelStayStopped') }}</span>
+        <span ng-if="!state.fuelStation.refueling.active && state.fuelStation.vehicleStopped && getSelectedFuelOption() && getSelectedFuelOption().missingQuantity <= 0.01">{{ t('refuelFull') }}</span>
+        <span ng-if="!state.fuelStation.refueling.active && state.fuelStation.vehicleStopped && getSelectedFuelOption() && getSelectedFuelOption().missingQuantity > 0.01 && getRefuelMaximum() <= 0">{{ t('refuelNoMoney') }}</span>
+        <span ng-if="!state.fuelStation.refueling.active && state.fuelStation.vehicleStopped && (!getSelectedFuelOption() || (getSelectedFuelOption().missingQuantity > 0.01 && getRefuelMaximum() > 0))">{{ t('refuelBuy') }}</span>
       </button>
     </div>
 

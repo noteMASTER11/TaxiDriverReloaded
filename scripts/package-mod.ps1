@@ -1,0 +1,90 @@
+param(
+  [string]$InstallDirectory = ""
+)
+
+$ErrorActionPreference = "Stop"
+$root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$dist = Join-Path $root "dist"
+$zipPath = Join-Path $dist "taxidriver.zip"
+
+if (-not (Test-Path -LiteralPath $dist)) {
+  New-Item -ItemType Directory -Path $dist | Out-Null
+}
+if (Test-Path -LiteralPath $zipPath) {
+  Remove-Item -LiteralPath $zipPath -Force
+}
+
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archive = [System.IO.Compression.ZipFile]::Open(
+  $zipPath,
+  [System.IO.Compression.ZipArchiveMode]::Create
+)
+try {
+  $files = @((Join-Path $root "CREDITS.txt"))
+  foreach ($directoryName in @("lua", "mod_info", "settings", "ui")) {
+    $directory = Join-Path $root $directoryName
+    $files += [System.IO.Directory]::GetFiles(
+      $directory,
+      "*",
+      [System.IO.SearchOption]::AllDirectories
+    )
+  }
+  foreach ($file in ($files | Sort-Object)) {
+    $entryName = $file.Substring($root.Length + 1).Replace("\", "/")
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+      $archive,
+      $file,
+      $entryName,
+      [System.IO.Compression.CompressionLevel]::Optimal
+    ) | Out-Null
+  }
+}
+finally {
+  $archive.Dispose()
+}
+
+$requiredEntries = @(
+  "lua/ge/extensions/taxiDriver/taxiDriver.lua",
+  "lua/ge/extensions/taxiDriver/persistence.lua",
+  "lua/ge/extensions/taxiDriver/routePlanner.lua",
+  "lua/ge/extensions/taxiDriver/shiftTracker.lua",
+  "lua/ge/extensions/taxiDriver/tripEvents.lua",
+  "lua/ge/extensions/taxiDriver/vehicleControl.lua",
+  "lua/ge/extensions/taxiDriver/vehicleHistory.lua",
+  "ui/modules/apps/TaxiDriverHUD/app.html",
+  "ui/modules/apps/TaxiDriverHUD/app.js",
+  "ui/modules/apps/TaxiDriverHUD/locales.json",
+  "mod_info/TaxiDriver/info.json"
+)
+$readArchive = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+try {
+  $entries = @($readArchive.Entries)
+  foreach ($entryName in $requiredEntries) {
+    if (-not ($entries | Where-Object FullName -eq $entryName)) {
+      throw "Missing archive entry: $entryName"
+    }
+  }
+  if ($entries.Count -ne 37) {
+    throw "Unexpected archive entry count: $($entries.Count)"
+  }
+}
+finally {
+  $readArchive.Dispose()
+}
+
+$hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
+if ($InstallDirectory) {
+  $resolvedInstallDirectory = (Resolve-Path -LiteralPath $InstallDirectory).Path
+  $installedPath = Join-Path $resolvedInstallDirectory "taxidriver.zip"
+  Copy-Item -LiteralPath $zipPath -Destination $installedPath -Force
+  $installedHash = (Get-FileHash -LiteralPath $installedPath -Algorithm SHA256).Hash
+  if ($hash -ne $installedHash) {
+    throw "Installed archive hash mismatch"
+  }
+  Write-Output "Installed: $installedPath"
+}
+
+Write-Output "Archive: $zipPath"
+Write-Output "Entries: 37"
+Write-Output "SHA256: $hash"

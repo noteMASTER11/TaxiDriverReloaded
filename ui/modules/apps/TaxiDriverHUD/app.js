@@ -123,6 +123,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         const initialSilentMode = persisted.silentMode === true;
         const initialShowRouteGuidance = persisted.showRouteGuidance !== false;
         const initialRealisticMode = persisted.realisticMode === true;
+        const initialRandomEventsEnabled = persisted.randomEventsEnabled === true;
         const initialLanEnabled = false;
         const initialUnitSystem = persisted.unitSystem === "imperial" ? "imperial" : "metric";
         const initialTimeFormat = persisted.timeFormat === "24h" ? "24h" : "12h";
@@ -221,6 +222,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           silentMode: initialSilentMode,
           showRouteGuidance: initialShowRouteGuidance,
           realisticMode: initialRealisticMode,
+          randomEventsEnabled: initialRandomEventsEnabled,
         };
         $scope.driverProfile = { fullName: "John Doe", birthDate: "", avatar: "🙂" };
         $scope.profileDraft = Object.assign({}, $scope.driverProfile);
@@ -229,6 +231,17 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           balance: 0, rating: 5, completedRides: 0,
         };
         $scope.profileReviews = [];
+        $scope.profileVehicles = [];
+        $scope.vehicleSort = "distance";
+        $scope.offerSort = "fare";
+        $scope.offerSortMenuOpen = false;
+        $scope.offerSortOptions = [
+          { value: "fare", label: "sortFare" },
+          { value: "pickup", label: "sortPickup" },
+          { value: "duration", label: "sortDuration" },
+          { value: "perKm", label: "sortPerKm" },
+        ];
+        $scope.penaltiesExpanded = false;
         $scope.avatarOptions = [
           "🙂", "😊", "😎", "🤓", "🧑", "👨", "👩", "🧔",
           "👨‍🦰", "👩‍🦰", "👨‍🦱", "👩‍🦱", "👨‍🦳", "👩‍🦳", "🧑‍✈️", "🧑‍💼",
@@ -265,12 +278,14 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           ratingCount: 0,
           completedRides: 0,
           driverProfile: { fullName: "John Doe", avatar: "🙂" },
+          currentVehicle: { available: false, key: "", name: "", preview: "", distanceMeters: 0, completedRides: 0, income: 0 },
           passengerOnboard: false,
           deliveryOnboard: false,
           realisticMode: false,
+          shift: { active: false, current: {}, last: {} },
           vehicleEnergy: { available: false, energyType: "", quantity: 0, maxQuantity: 0, percent: 0, unit: "", estimatedRangeKm: 0 },
           fuelStation: {
-            available: false, id: "", name: "", options: [], balance: 0,
+            available: false, id: "", name: "", magic: false, vehicleStopped: false, options: [], balance: 0,
             refueling: { active: false, completing: false, energyType: "", quantity: 0, cost: 0, duration: 0, elapsed: 0, progress: 0, remainingSeconds: 0, completionId: 0 },
           },
           fuelDetour: { active: false, hadTrip: false, passengerOnboard: false, stationName: "", routeDistance: 0, penaltyPercent: 0, arrived: false },
@@ -329,6 +344,10 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           rushTimeLimit: 0,
           rushTimeRemaining: 0,
           penaltyPercent: 0,
+          fuelEnoughForTrip: false,
+          tipAmount: 0,
+          nextStopDistance: 0,
+          tripEvent: { kind: "none" },
           speedLimit: 0,
           currentSpeed: 0,
           nextOffer: null,
@@ -826,6 +845,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             silentMode: value.silentMode === true,
             showRouteGuidance: value.showRouteGuidance !== false,
             realisticMode: value.realisticMode === true,
+            randomEventsEnabled: value.randomEventsEnabled === true,
           };
         };
 
@@ -843,11 +863,14 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             currentPercent: Math.max(0, Math.min(100, Number(option.currentPercent || 0))),
             pricePerUnit: Math.max(0, Number(option.pricePerUnit || 0)),
             maxCost: Math.max(0, Number(option.maxCost || 0)),
+            consumptionPer100Km: Math.max(0, Number(option.consumptionPer100Km || 0)),
           })).filter((option) => option.energyType) : [];
           return {
             available: value.available === true,
             id: String(value.id || ""),
             name: String(value.name || ""),
+            magic: value.magic === true,
+            vehicleStopped: value.vehicleStopped === true,
             balance: Math.max(0, Number(value.balance || 0)),
             options,
             refueling: {
@@ -1364,7 +1387,17 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
 
         this.startMode = () => callTaxiDriver("startMode");
+        this.openVehicleSelector = () => callTaxiDriver("openVehicleSelector");
         this.stopMode = () => callTaxiDriver("stopMode");
+        this.toggleOfferSortMenu = () => {
+          $scope.offerSortMenuOpen = !$scope.offerSortMenuOpen;
+        };
+        this.selectOfferSort = (value) => {
+          if ($scope.offerSortOptions.some((option) => option.value === value)) {
+            $scope.offerSort = value;
+          }
+          $scope.offerSortMenuOpen = false;
+        };
         this.beginOfflineHold = (event) => {
           if ($scope.offlineConfirmOpen || offlineHoldTimer) return;
           if (event && event.button !== undefined && event.button !== 0) return;
@@ -1439,7 +1472,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           }
         };
         this.selectProfileTab = (tab) => {
-          if (["identity", "reviews", "analytics"].includes(tab)) $scope.profileTab = tab;
+          if (["identity", "reviews", "analytics", "vehicles"].includes(tab)) $scope.profileTab = tab;
         };
         this.selectAvatar = (avatar) => {
           if ($scope.avatarOptions.includes(avatar)) $scope.profileDraft.avatar = avatar;
@@ -1511,6 +1544,10 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
         this.toggleRealisticMode = () => {
           $scope.settings.realisticMode = $scope.settings.realisticMode === true;
+          persistSettingsNow();
+        };
+        this.toggleRandomEvents = () => {
+          $scope.settings.randomEventsEnabled = $scope.settings.randomEventsEnabled === true;
           persistSettingsNow();
         };
         this.cheatSetRating = () => {
@@ -1596,8 +1633,22 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           $scope.refuel.amount = 0;
         };
         this.updateRefuelAmount = () => clampRefuelAmount();
+        this.setRefuelPreset = (preset) => {
+          const option = getFuelOption($scope.selectedFuelType);
+          if (!option || $scope.state.fuelStation.refueling.active) return;
+          const affordable = Math.max(0, Number(option.affordableQuantity || 0));
+          if (preset === "half") {
+            $scope.refuel.amount = Math.max(0,
+              Number(option.maxQuantity || 0) * 0.5 - Number(option.currentQuantity || 0));
+          } else if (preset === "full") {
+            $scope.refuel.amount = affordable;
+          } else {
+            $scope.refuel.amount = Number($scope.refuel.amount || 0) + Math.max(0, Number(preset || 0));
+          }
+          clampRefuelAmount();
+        };
         this.purchaseFuel = () => {
-          if ($scope.state.fuelStation.refueling.active) return;
+          if ($scope.state.fuelStation.refueling.active || !$scope.state.fuelStation.vehicleStopped) return;
           const option = getFuelOption($scope.selectedFuelType);
           clampRefuelAmount();
           const quantity = Number($scope.refuel.amount || 0);
@@ -1628,6 +1679,15 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
 
         $scope.formatMoney = (value) => `$${Number(value || 0).toFixed(2)}`;
+        $scope.formatOdometer = (meters) => {
+          const distance = Math.max(0, Number(meters || 0));
+          const value = $scope.settings.unitSystem === "imperial"
+            ? distance / 1609.344 : distance / 1000;
+          const fixed = value.toFixed(1).split(".");
+          const decimalSeparator = $scope.language === "en" ? "." : ",";
+          const unit = $scope.t($scope.settings.unitSystem === "imperial" ? "unitMile" : "unitKm");
+          return `${fixed[0].padStart(4, "0")}${decimalSeparator}${fixed[1]} ${unit}`;
+        };
         $scope.formatDistance = (meters) => {
           const value = Math.max(0, Number(meters || 0));
           if ($scope.settings.unitSystem === "imperial") {
@@ -1731,6 +1791,33 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           `${Number($scope.settings.economyMultiplier || 1).toFixed(2)}×`;
         $scope.formatRating = (value) => Number(value || 0).toFixed(2);
         $scope.formatBonusPercent = (value) => Number(value || 0).toFixed(1).replace(/\.0$/, "");
+        $scope.getOfferIncomePerMinute = (offer) => Number(offer && offer.estimatedFare || 0) /
+          Math.max(0.1, Number(offer && offer.etaMinutes || 0));
+        $scope.getOfferIncomePerKm = (offer) => Number(offer && offer.estimatedFare || 0) /
+          Math.max(0.1, Number(offer && offer.rideDistance || 0) / 1000) *
+          ($scope.settings.unitSystem === "imperial" ? 1.609344 : 1);
+        $scope.getVehicleProfitPerDistance = (vehicle) => Number(vehicle && vehicle.profitPerKm || 0) *
+          ($scope.settings.unitSystem === "imperial" ? 1.609344 : 1);
+        $scope.getOfferSortLabel = () => {
+          const selected = $scope.offerSortOptions.find((option) => option.value === $scope.offerSort);
+          return $scope.t(selected ? selected.label : "sortFare");
+        };
+        $scope.getSortedOffers = () => ($scope.state.offers || []).slice().sort((left, right) => {
+          const key = $scope.offerSort;
+          if (key === "pickup") return Number(left.pickupDistance || 0) - Number(right.pickupDistance || 0);
+          if (key === "duration") return Number(left.etaMinutes || 0) - Number(right.etaMinutes || 0);
+          if (key === "perKm") return $scope.getOfferIncomePerKm(right) - $scope.getOfferIncomePerKm(left);
+          return Number(right.estimatedFare || 0) - Number(left.estimatedFare || 0);
+        });
+        $scope.getPenaltyFareLoss = () => Math.max(
+          0,
+          Number($scope.state.estimatedFare || 0) - Number($scope.state.adjustedFare || 0)
+        );
+        $scope.getSortedProfileVehicles = () => $scope.profileVehicles.slice().sort((left, right) => {
+          if ($scope.vehicleSort === "income") return Number(right.income || 0) - Number(left.income || 0);
+          if ($scope.vehicleSort === "rides") return Number(right.completedRides || 0) - Number(left.completedRides || 0);
+          return Number(right.distanceMeters || 0) - Number(left.distanceMeters || 0);
+        });
         $scope.getSelectedFuelOption = () => getFuelOption($scope.selectedFuelType);
         $scope.getFuelDisplayUnit = (option) => option && option.unit === "L" &&
           $scope.settings.unitSystem === "imperial" ? $scope.t("unitGallon") : String(option && option.unit || "");
@@ -1784,6 +1871,14 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           const added = maximum > 0 ? Number($scope.refuel.amount || 0) / maximum * 100 : 0;
           return Math.max(0, Math.min(100, Number(option.currentPercent || 0) + added));
         };
+        $scope.getProjectedFuelRange = () => {
+          const option = getFuelOption($scope.selectedFuelType);
+          if (!option || Number(option.consumptionPer100Km || 0) <= 0) return 0;
+          return (Number(option.currentQuantity || 0) + Number($scope.refuel.amount || 0)) /
+            Number(option.consumptionPer100Km) * 100;
+        };
+        $scope.isProjectedFuelEnough = () => $scope.getProjectedFuelRange() * 1000 >=
+          Math.max(0, Number($scope.state.distanceToTarget || 0));
         $scope.getDisplayedFuelPercent = () => {
           const option = getFuelOption($scope.selectedFuelType);
           if (!option) return 0;
@@ -1886,6 +1981,10 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
 
         $scope.$on("TaxiDriverHUDState", (_, data) => {
           if (!data) return;
+          data.currentVehicle = Object.assign(
+            { available: false, key: "", name: "", preview: "", distanceMeters: 0, completedRides: 0, income: 0 },
+            data.currentVehicle || {}
+          );
           data.vehicleEnergy = Object.assign(
             { available: false, energyType: "", quantity: 0, maxQuantity: 0, percent: 0, unit: "", estimatedRangeKm: 0 },
             data.vehicleEnergy || {}
@@ -2072,6 +2171,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           }
           const profile = normalizeProfile(data.profile);
           const progress = data.progress && typeof data.progress === "object" ? data.progress : {};
+          const vehicles = Array.isArray(data.vehicles) ? data.vehicles : [];
           progress.reviews = Array.isArray(progress.reviews) ? progress.reviews : [];
           progress.ratingHistory = Array.isArray(progress.ratingHistory) ? progress.ratingHistory : [];
           progress.balanceHistory = Array.isArray(progress.balanceHistory) ? progress.balanceHistory : [];
@@ -2082,6 +2182,25 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             reviews: [], ratingHistory: [], balanceHistory: [],
           }, progress);
           $scope.profileReviews = progress.reviews.slice().reverse();
+          $scope.profileVehicles = vehicles.map((vehicle) => ({
+            key: String(vehicle.key || ""),
+            name: String(vehicle.name || ""),
+            preview: String(vehicle.preview || ""),
+            distanceMeters: Math.max(0, Number(vehicle.distanceMeters || 0)),
+            completedRides: Math.max(0, Math.floor(Number(vehicle.completedRides || 0))),
+            income: Math.max(0, Number(vehicle.income || 0)),
+            passengerRides: Math.max(0, Math.floor(Number(vehicle.passengerRides || 0))),
+            deliveryRides: Math.max(0, Math.floor(Number(vehicle.deliveryRides || 0))),
+            averageIncome: Math.max(0, Number(vehicle.averageIncome || 0)),
+            averageRating: Math.max(0, Number(vehicle.averageRating || 0)),
+            penaltyLoss: Math.max(0, Number(vehicle.penaltyLoss || 0)),
+            cargoDamageLoss: Math.max(0, Number(vehicle.cargoDamageLoss || 0)),
+            fuelConsumed: Math.max(0, Number(vehicle.fuelConsumed || 0)),
+            fuelCost: Math.max(0, Number(vehicle.fuelCost || 0)),
+            rideDistanceMeters: Math.max(0, Number(vehicle.rideDistanceMeters || 0)),
+            profitPerKm: Math.max(0, Number(vehicle.profitPerKm || 0)),
+            lastSeen: Math.max(0, Number(vehicle.lastSeen || 0)),
+          })).filter((vehicle) => vehicle.key && vehicle.name);
           $scope.reviewPage = Math.min($scope.reviewPage, $scope.getReviewPageCount());
         });
         $scope.$on("onCefVisibilityChanged", (_, visible) => {

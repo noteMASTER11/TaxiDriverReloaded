@@ -8,8 +8,6 @@ M.dependencies = {
   "gameplay_sites_sitesManager"
 }
 
-local Route = require("gameplay/route/route")
-local trafficUtils = require("gameplay/traffic/trafficUtils")
 local offerGenerator = require("taxiDriver/offerGenerator")
 local taxiConfig = require("taxiDriver/config")
 local identity = require("taxiDriver/identity")
@@ -17,16 +15,15 @@ local passengerMood = require("taxiDriver/passengerMood")
 local routeDiversity = require("taxiDriver/routeDiversity")
 local delivery = require("taxiDriver/delivery")
 local lanBridge = require("taxiDriver/lanBridge")
+local vehicleHistory = require("taxiDriver/vehicleHistory")
+local persistence = require("taxiDriver/persistence")
+local vehicleControl = require("taxiDriver/vehicleControl")
+local routePlanner = require("taxiDriver/routePlanner")
+local shiftTracker = require("taxiDriver/shiftTracker")
+local tripEvents = require("taxiDriver/tripEvents")
 
 local logTag = "taxiDriver"
-local modVersion = "2.24.0"
-local settingsSchemaVersion = 1
-local profileSchemaVersion = 1
-local progressSchemaVersion = 1
-local settingsDirectoryPath = "/settings/TaxiDriver"
-local settingsFilePath = settingsDirectoryPath .. "/settings.json"
-local profileFilePath = settingsDirectoryPath .. "/profile.json"
-local progressFilePath = settingsDirectoryPath .. "/progress.json"
+local modVersion = "2.25.0"
 
 local supportedLanguages = taxiConfig.supportedLanguages
 local minRideDistance = taxiConfig.runtime.minRideDistance
@@ -122,6 +119,20 @@ local driverAvatarSet = identity.driverAvatarSet
 local difficultyPresets = taxiConfig.difficultyPresets
 local phases = taxiConfig.phases
 local phaseLabels = taxiConfig.phaseLabels
+local dataStore = persistence.new({
+  modVersion = modVersion,
+  taxiConfig = taxiConfig,
+  supportedLanguages = supportedLanguages,
+  difficultyPresets = difficultyPresets,
+  driverAvatarSet = driverAvatarSet
+})
+local getVehicleSpeedKmh = vehicleControl.getSpeedKmh
+local setTelemetryEnabled = vehicleControl.setTelemetryEnabled
+local setVehicleForcedStop = vehicleControl.setForcedStop
+local setVehicleFrozen = vehicleControl.setFrozen
+local releaseForcedPassengerStop = vehicleControl.releaseForcedStop
+local togglePassengerDoor = vehicleControl.togglePassengerDoor
+local toggleCargoAccess = vehicleControl.toggleCargoAccess
 
 local state = {
   active = false,
@@ -138,44 +149,7 @@ local state = {
 }
 
 local function createDefaultUserSettings()
-  return {
-    schemaVersion = settingsSchemaVersion,
-    modVersion = modVersion,
-    language = "en",
-    rememberLanguage = false,
-    difficulty = "standard",
-    customDifficulty = taxiConfig.sanitizeCustomDifficulty(nil),
-    uiScalePercent = 100,
-    appVolume = 0.65,
-    unitSystem = "metric",
-    timeFormat = "12h",
-    penaltyToggles = {
-      speeding = true,
-      collision = true,
-      aggression = true,
-      pickupDelay = true,
-      fuelStop = true,
-      rushBonus = true,
-      cargoDamage = true
-    },
-    soundToggles = {
-      click = true,
-      newRide = true,
-      offline = true,
-      online = true,
-      violation = true,
-      message = true,
-      overspeed = true
-    },
-    dynamicZoomIntensity = 100,
-    overspeedWarningKmh = 10,
-    economyMultiplier = 1,
-    deliveryOrderSharePercent = 50,
-    lanEnabled = false,
-    silentMode = false,
-    showRouteGuidance = true,
-    realisticMode = false
-  }
+  return dataStore:createDefaultSettings()
 end
 
 local userSettings = createDefaultUserSettings()
@@ -183,6 +157,7 @@ local settingsNeedsLegacyImport = false
 local driverProfile = nil
 local userProgress = nil
 local progressNeedsLegacyImport = false
+local shiftTracking = shiftTracker.new(nil)
 
 local trip = nil
 local offers = {}
@@ -216,14 +191,19 @@ local minimapOwned = false
 local minimapOriginalDrawPlayer = nil
 local minimapWrappedDrawPlayer = nil
 local minimapZoomMultiplier = nil
-local stopCandidateCache = nil
-local stopCandidateLevel = nil
-local recentTaxiStopPositions = {}
-local recentTaxiStopLimit = offerConfig.recentStopLimit
-local recentTaxiStopSeparation = offerConfig.recentStopSeparation
 local navigationVisualOverrideActive = false
 local originalNavigationGroundmarkers = nil
 local originalNavigationArrows = nil
+local routePlanning = routePlanner.new({
+  minimumDrivability = minimumDrivability,
+  offerConfig = offerConfig,
+  onLevelChanged = function()
+    offerGeneration.recentRoutes = {}
+  end
+})
+local calculateRouteDistance = routePlanning.calculateDistance
+local rememberOfferStops = routePlanning.rememberOfferStops
+local chooseTaxiStopPoint = routePlanning.chooseStop
 local function clampValue(value, minimum, maximum)
   return math.max(minimum, math.min(maximum, value))
 end
@@ -249,325 +229,37 @@ local function applyDifficulty(presetId)
   return true
 end
 
-local function sanitizeUserSettings(source, requireSchema)
-  local result = createDefaultUserSettings()
-  if type(source) ~= "table" then return result, false end
-  if requireSchema and tonumber(source.schemaVersion) ~= settingsSchemaVersion then
-    return result, false
-  end
-
-  if supportedLanguages[tostring(source.language or "")] then
-    result.language = tostring(source.language)
-  end
-  result.rememberLanguage = source.rememberLanguage == true
-  if difficultyPresets[tostring(source.difficulty or "")] or
-    tostring(source.difficulty or "") == "custom" then
-    result.difficulty = tostring(source.difficulty)
-  end
-  result.customDifficulty = taxiConfig.sanitizeCustomDifficulty(source.customDifficulty)
-
-  local uiScalePercent = tonumber(source.uiScalePercent)
-  if not uiScalePercent then
-    local legacyFontBoost = tonumber(source.fontBoost)
-    if legacyFontBoost then
-      uiScalePercent = 100 + (clampValue(legacyFontBoost, 0, 5) - 2) * 10
-    end
-  end
-  if uiScalePercent then
-    result.uiScalePercent = math.floor(
-      clampValue(uiScalePercent, 80, 180) / 10 + 0.5
-    ) * 10
-  end
-  local appVolume = tonumber(source.appVolume)
-  if appVolume then result.appVolume = clampValue(appVolume, 0, 1) end
-  if source.unitSystem == "imperial" then result.unitSystem = "imperial" end
-  if source.timeFormat == "24h" then result.timeFormat = "24h" end
-  local penaltySource = type(source.penaltyToggles) == "table" and
-    source.penaltyToggles or {}
-  result.penaltyToggles.speeding = penaltySource.speeding ~= false
-  result.penaltyToggles.collision = penaltySource.collision ~= false
-  result.penaltyToggles.aggression = penaltySource.aggression ~= false
-  result.penaltyToggles.pickupDelay = penaltySource.pickupDelay ~= false
-  result.penaltyToggles.fuelStop = penaltySource.fuelStop ~= false
-  result.penaltyToggles.rushBonus = penaltySource.rushBonus ~= false
-  result.penaltyToggles.cargoDamage = penaltySource.cargoDamage ~= false
-  local soundSource = type(source.soundToggles) == "table" and
-    source.soundToggles or {}
-  result.soundToggles.click = soundSource.click ~= false
-  result.soundToggles.newRide = soundSource.newRide ~= false
-  result.soundToggles.offline = soundSource.offline ~= false
-  result.soundToggles.online = soundSource.online ~= false
-  result.soundToggles.violation = soundSource.violation ~= false
-  result.soundToggles.message = soundSource.message ~= false
-  result.soundToggles.overspeed = soundSource.overspeed ~= false
-  result.dynamicZoomIntensity = clampValue(
-    tonumber(source.dynamicZoomIntensity) or result.dynamicZoomIntensity,
-    0,
-    200
-  )
-  result.overspeedWarningKmh = clampValue(
-    tonumber(source.overspeedWarningKmh) or result.overspeedWarningKmh,
-    0,
-    30
-  )
-  result.economyMultiplier = clampValue(
-    tonumber(source.economyMultiplier) or result.economyMultiplier,
-    0.25,
-    5
-  )
-  result.deliveryOrderSharePercent = clampValue(
-    tonumber(source.deliveryOrderSharePercent) or result.deliveryOrderSharePercent,
-    0,
-    100
-  )
-  -- External phone sharing is deliberately session-only. Never restore it
-  -- from settings.json when the mod or UI App starts.
-  result.lanEnabled = false
-  result.silentMode = source.silentMode == true
-  result.showRouteGuidance = source.showRouteGuidance ~= false
-  result.realisticMode = source.realisticMode == true
-  return result, true
-end
-
 function M.writeDifficultySettings()
-  local ok, errorMessage = pcall(function()
-    if not FS:directoryExists(settingsDirectoryPath) then
-      FS:directoryCreate(settingsDirectoryPath)
-    end
-    jsonWriteFile(settingsDirectoryPath .. "/difficulty.json", {
-      schemaVersion = 1,
-      modVersion = modVersion,
-      customDifficulty = taxiConfig.sanitizeCustomDifficulty(userSettings.customDifficulty),
-      penaltyToggles = {
-        speeding = userSettings.penaltyToggles.speeding ~= false,
-        collision = userSettings.penaltyToggles.collision ~= false,
-        aggression = userSettings.penaltyToggles.aggression ~= false,
-        pickupDelay = userSettings.penaltyToggles.pickupDelay ~= false,
-        fuelStop = userSettings.penaltyToggles.fuelStop ~= false,
-        rushBonus = userSettings.penaltyToggles.rushBonus ~= false,
-        cargoDamage = userSettings.penaltyToggles.cargoDamage ~= false
-      }
-    }, true)
-  end)
-  if not ok then
-    log("E", logTag, "Unable to write difficulty settings: " .. tostring(errorMessage))
-  end
-  return ok
+  return dataStore:writeDifficulty(userSettings)
 end
 
 local function writeUserSettings()
-  local ok, errorMessage = pcall(function()
-    if not FS:directoryExists(settingsDirectoryPath) then
-      FS:directoryCreate(settingsDirectoryPath)
-    end
-    local settingsData = {}
-    for key, value in pairs(userSettings) do
-      if key ~= "customDifficulty" and key ~= "penaltyToggles" and
-        key ~= "lanEnabled" then
-        settingsData[key] = value
-      end
-    end
-    jsonWriteFile(settingsFilePath, settingsData, true)
-  end)
-  if not ok then
-    log("E", logTag, "Unable to write settings: " .. tostring(errorMessage))
-  end
-  return M.writeDifficultySettings() and ok
+  return dataStore:writeSettings(userSettings)
 end
 
 local function loadUserSettings()
-  local fileExists = FS:fileExists(settingsFilePath)
-  local source = nil
-  if fileExists then
-    local ok, loaded = pcall(jsonReadFile, settingsFilePath)
-    if ok then source = loaded end
-  end
-
-  userSettings = sanitizeUserSettings(source, true)
-  local difficultyPath = settingsDirectoryPath .. "/difficulty.json"
-  local difficultyExists = FS:fileExists(difficultyPath)
-  if difficultyExists then
-    local difficultyOk, difficultySource = pcall(jsonReadFile, difficultyPath)
-    if difficultyOk and type(difficultySource) == "table" and
-      tonumber(difficultySource.schemaVersion) == 1 then
-      userSettings.customDifficulty = taxiConfig.sanitizeCustomDifficulty(
-        difficultySource.customDifficulty
-      )
-      local penaltySource = type(difficultySource.penaltyToggles) == "table" and
-        difficultySource.penaltyToggles or {}
-      userSettings.penaltyToggles.speeding = penaltySource.speeding ~= false
-      userSettings.penaltyToggles.collision = penaltySource.collision ~= false
-      userSettings.penaltyToggles.aggression = penaltySource.aggression ~= false
-      userSettings.penaltyToggles.pickupDelay = penaltySource.pickupDelay ~= false
-      userSettings.penaltyToggles.fuelStop = penaltySource.fuelStop ~= false
-      userSettings.penaltyToggles.rushBonus = penaltySource.rushBonus ~= false
-      userSettings.penaltyToggles.cargoDamage = penaltySource.cargoDamage ~= false
-    else
-      local defaults = createDefaultUserSettings()
-      userSettings.customDifficulty = defaults.customDifficulty
-      userSettings.penaltyToggles = defaults.penaltyToggles
-    end
-  end
-  settingsNeedsLegacyImport = not fileExists
+  userSettings, settingsNeedsLegacyImport = dataStore:loadSettings()
   applyDifficulty(userSettings.difficulty)
-
-  -- Always rewrite a canonical file. This repairs invalid fields and replaces
-  -- unsupported schemas with the defaults understood by this mod version.
-  writeUserSettings()
 end
 
 local function roundMoney(value)
   return math.floor(value * 100 + 0.5) / 100
 end
 
-local function ensureSettingsDirectory()
-  if not FS:directoryExists(settingsDirectoryPath) then
-    FS:directoryCreate(settingsDirectoryPath)
-  end
-end
-
 local function trimText(value)
-  local text = tostring(value or "")
-  text = text:gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s%s+", " ")
-  return text
-end
-
-local function sanitizeBirthDate(value)
-  local text = trimText(value)
-  if text == "" then return "" end
-  local year, month, day = text:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
-  year, month, day = tonumber(year), tonumber(month), tonumber(day)
-  local currentYear = tonumber(os.date("%Y")) or 2026
-  if not year or year < 1900 or year > currentYear or
-    not month or month < 1 or month > 12 or not day or day < 1 or day > 31 then
-    return ""
-  end
-  local timestamp = os.time({year = year, month = month, day = day, hour = 12})
-  local verified = timestamp and os.date("*t", timestamp) or nil
-  if not verified or verified.year ~= year or verified.month ~= month or verified.day ~= day then
-    return ""
-  end
-  return string.format("%04d-%02d-%02d", year, month, day)
+  return dataStore:trimText(value)
 end
 
 local function createDefaultDriverProfile()
-  return {
-    schemaVersion = profileSchemaVersion,
-    modVersion = modVersion,
-    fullName = "John Doe",
-    birthDate = "",
-    avatar = "🙂"
-  }
+  return dataStore:createDefaultProfile()
 end
 
 local function sanitizeDriverProfile(source, requireSchema)
-  local result = createDefaultDriverProfile()
-  if type(source) ~= "table" then return result, false end
-  if requireSchema and tonumber(source.schemaVersion) ~= profileSchemaVersion then
-    return result, false
-  end
-
-  local fullName = trimText(source.fullName)
-  if fullName ~= "" and #fullName <= 160 then result.fullName = fullName end
-  result.birthDate = sanitizeBirthDate(source.birthDate)
-  local avatar = tostring(source.avatar or "")
-  if driverAvatarSet[avatar] then result.avatar = avatar end
-  return result, true
+  return dataStore:sanitizeProfile(source, requireSchema)
 end
 
 local function createDefaultUserProgress()
-  local now = os.time()
-  return {
-    schemaVersion = progressSchemaVersion,
-    modVersion = modVersion,
-    balance = 0,
-    rating = 5,
-    ratingTotal = 0,
-    ratingCount = 0,
-    completedRides = 0,
-    sequence = 0,
-    reviews = {},
-    ratingHistory = {{index = 0, value = 5, timestamp = now}},
-    balanceHistory = {{index = 0, value = 0, timestamp = now}}
-  }
-end
-
-local reviewEmojiSet = {
-  ["🤩"] = true, ["😍"] = true, ["😄"] = true, ["😊"] = true,
-  ["🙂"] = true, ["😐"] = true, ["😕"] = true, ["😠"] = true,
-  ["😡"] = true, ["🤬"] = true
-}
-
-local function sanitizeProgressHistory(source, minimum, maximum)
-  local result = {}
-  if type(source) ~= "table" then return result end
-  for _, item in ipairs(source) do
-    if type(item) == "table" then
-      local index = math.max(0, math.floor(tonumber(item.index) or 0))
-      local value = tonumber(item.value)
-      if value then
-        table.insert(result, {
-          index = index,
-          value = roundMoney(clampValue(value, minimum, maximum)),
-          timestamp = math.max(0, math.floor(tonumber(item.timestamp) or 0))
-        })
-      end
-    end
-  end
-  return result
-end
-
-local function sanitizeUserProgress(source, requireSchema)
-  local result = createDefaultUserProgress()
-  if type(source) ~= "table" then return result, false end
-  if requireSchema and tonumber(source.schemaVersion) ~= progressSchemaVersion then
-    return result, false
-  end
-
-  result.balance = roundMoney(math.max(0, tonumber(source.balance) or 0))
-  result.ratingCount = math.max(0, math.floor(tonumber(source.ratingCount) or 0))
-  result.completedRides = math.max(0, math.floor(tonumber(source.completedRides) or result.ratingCount))
-  result.rating = clampValue(tonumber(source.rating) or 5, 0, 5)
-  result.ratingTotal = math.max(0, tonumber(source.ratingTotal) or 0)
-  if result.ratingCount > 0 then
-    if result.ratingTotal <= 0 then result.ratingTotal = result.rating * result.ratingCount end
-    result.rating = clampValue(result.ratingTotal / result.ratingCount, 0, 5)
-  end
-
-  result.sequence = math.max(0, math.floor(tonumber(source.sequence) or result.completedRides))
-  result.reviews = {}
-  if type(source.reviews) == "table" then
-    for _, review in ipairs(source.reviews) do
-      if type(review) == "table" then
-        local id = math.max(1, math.floor(tonumber(review.id) or (#result.reviews + 1)))
-        local passengerName = trimText(review.passengerName)
-        if passengerName == "" or #passengerName > 160 then passengerName = "Passenger" end
-        local emoji = tostring(review.emoji or "😐")
-        if not reviewEmojiSet[emoji] then emoji = "😐" end
-        table.insert(result.reviews, {
-          id = id,
-          passengerName = passengerName,
-          emoji = emoji,
-          quality = clampValue(tonumber(review.quality) or 0, 0, 100),
-          fare = roundMoney(math.max(0, tonumber(review.fare) or 0)),
-          rating = clampValue(tonumber(review.rating) or result.rating, 0, 5),
-          timestamp = math.max(0, math.floor(tonumber(review.timestamp) or 0)),
-          outcome = tostring(review.outcome or "completed")
-        })
-        result.sequence = math.max(result.sequence, id)
-      end
-    end
-  end
-
-  result.ratingHistory = sanitizeProgressHistory(source.ratingHistory, 0, 5)
-  result.balanceHistory = sanitizeProgressHistory(source.balanceHistory, 0, 1000000000)
-  if #result.ratingHistory == 0 then
-    result.ratingHistory = {{index = result.sequence, value = roundMoney(result.rating), timestamp = os.time()}}
-  end
-  if #result.balanceHistory == 0 then
-    result.balanceHistory = {{index = result.sequence, value = result.balance, timestamp = os.time()}}
-  end
-  return result, true
+  return dataStore:createDefaultProgress()
 end
 
 local function applyUserProgressToState()
@@ -581,53 +273,32 @@ end
 
 local function syncUserProgressFromState()
   if not userProgress then userProgress = createDefaultUserProgress() end
-  userProgress.schemaVersion = progressSchemaVersion
+  userProgress.schemaVersion = 1
   userProgress.modVersion = modVersion
   userProgress.balance = roundMoney(math.max(0, tonumber(state.balance) or 0))
   userProgress.rating = clampValue(tonumber(state.rating) or 5, 0, 5)
   userProgress.ratingTotal = math.max(0, tonumber(state.ratingTotal) or 0)
   userProgress.ratingCount = math.max(0, math.floor(tonumber(state.ratingCount) or 0))
   userProgress.completedRides = math.max(0, math.floor(tonumber(state.completedRides) or 0))
+  userProgress.lastShift = shiftTracking:getHud().last
 end
 
 local function writeDriverProfile()
-  local ok, errorMessage = pcall(function()
-    ensureSettingsDirectory()
-    jsonWriteFile(profileFilePath, driverProfile, true)
-  end)
-  if not ok then log("E", logTag, "Unable to write driver profile: " .. tostring(errorMessage)) end
-  return ok
+  return dataStore:writeProfile(driverProfile)
 end
 
 local function writeUserProgress()
   syncUserProgressFromState()
-  local ok, errorMessage = pcall(function()
-    ensureSettingsDirectory()
-    jsonWriteFile(progressFilePath, userProgress, true)
-  end)
-  if not ok then log("E", logTag, "Unable to write driver progress: " .. tostring(errorMessage)) end
-  return ok
+  return dataStore:writeProgress(userProgress)
 end
 
 local function loadDriverProfile()
-  local source = nil
-  if FS:fileExists(profileFilePath) then
-    local ok, loaded = pcall(jsonReadFile, profileFilePath)
-    if ok then source = loaded end
-  end
-  driverProfile = sanitizeDriverProfile(source, true)
-  writeDriverProfile()
+  driverProfile = dataStore:loadProfile()
 end
 
 local function loadUserProgress()
-  local fileExists = FS:fileExists(progressFilePath)
-  local source = nil
-  if fileExists then
-    local ok, loaded = pcall(jsonReadFile, progressFilePath)
-    if ok then source = loaded end
-  end
-  userProgress = sanitizeUserProgress(source, true)
-  progressNeedsLegacyImport = not fileExists
+  userProgress, progressNeedsLegacyImport = dataStore:loadProgress()
+  shiftTracking = shiftTracker.new(userProgress.lastShift)
   applyUserProgressToState()
   writeUserProgress()
 end
@@ -691,10 +362,6 @@ end
 
 local function getPlayerVehicle()
   return be and be:getPlayerVehicle(0) or nil
-end
-
-local function getVehicleSpeedKmh(vehicle)
-  return vehicle and vehicle:getVelocity():length() * 3.6 or 0
 end
 
 function delivery.applyVehicleMass(vehicle, massKg)
@@ -1026,8 +693,10 @@ end
 function realisticFuel.buildHud()
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
   local refueling = realisticFuel.refueling
+  local vehicleStopped = vehicle ~= nil and getVehicleSpeedKmh(vehicle) <= 2
+  local magic = realisticFuel.station and realisticFuel.station.magic == true
   local available = state.active and state.realisticMode and realisticFuel.station ~= nil and
-    vehicle ~= nil and (getVehicleSpeedKmh(vehicle) <= 2 or refueling.active)
+    vehicle ~= nil and (magic or vehicleStopped or refueling.active)
   if available and realisticFuel.station.center then
     available = vehicle:getPosition():distance(realisticFuel.station.center) <=
       realisticFuel.station.radius
@@ -1036,6 +705,8 @@ function realisticFuel.buildHud()
     available = available == true,
     id = realisticFuel.station and realisticFuel.station.id or "",
     name = realisticFuel.station and realisticFuel.station.name or "",
+    magic = magic == true,
+    vehicleStopped = vehicleStopped == true,
     options = realisticFuel.options,
     balance = roundMoney(state.balance),
     refueling = {
@@ -1098,6 +769,7 @@ local function buildHudState()
     ratingCount = state.ratingCount,
     completedRides = state.completedRides,
     driverProfile = {fullName = profile.fullName, avatar = profile.avatar},
+    currentVehicle = vehicleHistory.getCurrentHud(),
     passengerOnboard = trip ~= nil and isPassengerOnboardPhase(state.phase),
     deliveryOnboard = trip ~= nil and trip.isDelivery == true and
       isPassengerOnboardPhase(state.phase),
@@ -1120,6 +792,7 @@ local function buildHudState()
     lan = lanBridge.getStatus(),
     settings = userSettings,
     settingsNeedsLegacyImport = settingsNeedsLegacyImport,
+    shift = shiftTracking:getHud(),
     offers = buildHudOffers(),
     offerTargetCount = offerTargetCount,
     nextOffer = hudNextOffer,
@@ -1155,6 +828,7 @@ local function buildHudState()
     driverAbandonmentExtraPercent = trip and (trip.driverAbandonmentExtraLoss or 0) * 100 or 0,
     estimatedFare = trip and trip.estimatedFare or 0,
     adjustedFare = getAdjustedFare(),
+    tipAmount = trip and trip.tipAmount or 0,
     finalFare = trip and trip.finalFare or 0,
     rideRating = trip and trip.rideRating or 0,
     rideDistance = trip and trip.rideDistance or 0,
@@ -1172,6 +846,15 @@ local function buildHudState()
     isMultiStop = trip and trip.isMultiStop == true or false,
     stopCount = trip and #(trip.stops or {}) or 0,
     currentStopIndex = trip and trip.currentStopIndex or 0,
+    nextStopDistance = trip and trip.isMultiStop and state.phase ~= phases.toDestination and
+      remainingDistance or 0,
+    tripEvent = trip and trip.randomEvent and {
+      kind = trip.randomEvent.kind or "none",
+      active = trip.randomEvent.active == true,
+      triggered = trip.randomEvent.triggered == true,
+      condition = trip.randomEvent.condition or "",
+      tipAmount = trip.tipAmount or 0
+    } or {kind = "none"},
     stopProgressMarkers = buildStopProgressMarkers(),
     stopWaitDuration = stopWaitingDuration,
     stopWaitRemaining = state.phase == phases.stopWaiting and math.max(0, phaseTimer) or 0,
@@ -1183,6 +866,9 @@ local function buildHudState()
     rushTimeRemaining = trip and trip.isRush and
       (trip.rushTimeRemaining or trip.rushTimeLimit or 0) or 0,
     penaltyPercent = getPenaltyTotal() * 100,
+    fuelEnoughForTrip = realisticFuel.dashboardEnergy.available == true and
+      realisticFuel.dashboardEnergy.estimatedRangeKm * 1000 >=
+        math.max(remainingDistance, rideRemainingDistance),
     speedLimit = trip and trip.speedLimit or 0,
     currentSpeed = trip and trip.currentSpeed or 0,
     penalties = {
@@ -1209,6 +895,7 @@ local function notifyProfile()
   guihooks.trigger("TaxiDriverProfileData", {
     profile = driverProfile or createDefaultDriverProfile(),
     progress = userProgress or createDefaultUserProgress(),
+    vehicles = vehicleHistory.buildHud(),
     avatarOptions = driverAvatarOptions
   })
 end
@@ -1233,7 +920,7 @@ local function recordProgressEvent(passengerName, emoji, quality, fare, outcome,
   table.insert(userProgress.reviews, {
     id = userProgress.sequence,
     passengerName = trimText(passengerName) ~= "" and trimText(passengerName) or "Passenger",
-    emoji = reviewEmojiSet[emoji] and emoji or "😐",
+    emoji = dataStore:isValidReviewEmoji(emoji) and emoji or "😐",
     quality = clampValue(tonumber(quality) or 0, 0, 100),
     fare = roundMoney(math.max(0, tonumber(fare) or 0)),
     rating = clampValue(tonumber(reviewRating) or tonumber(state.rating) or 5, 0, 5),
@@ -1302,8 +989,8 @@ function realisticFuel.resetDashboardEnergy()
 end
 
 function realisticFuel.refreshDashboardEnergy()
-  if realisticFuel.dashboardEnergyPending or not state.active then return end
-  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  if realisticFuel.dashboardEnergyPending then return end
+  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
   if not vehicle then
     realisticFuel.resetDashboardEnergy()
     return
@@ -1313,7 +1000,8 @@ function realisticFuel.refreshDashboardEnergy()
   local vehicleId = vehicle:getID()
   core_vehicleBridge.requestValue(vehicle, function(data)
     realisticFuel.dashboardEnergyPending = false
-    if not state.active or tonumber(state.activeVehicleId) ~= tonumber(vehicleId) then return end
+    local currentVehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
+    if not currentVehicle or tonumber(currentVehicle:getID()) ~= tonumber(vehicleId) then return end
 
     local tanks = type(data) == "table" and data[1] or nil
     local aggregated = {}
@@ -1362,7 +1050,6 @@ function realisticFuel.refreshDashboardEnergy()
 end
 
 function realisticFuel.updateDashboardEnergy(dtSim)
-  if not state.active then return end
   realisticFuel.dashboardEnergyTimer = math.max(
     0,
     realisticFuel.dashboardEnergyTimer - math.max(0, dtSim or 0)
@@ -1471,7 +1158,8 @@ function realisticFuel.setStation(element)
     name = "Gas Station",
     facility = facility,
     center = center,
-    radius = math.max(15, radius + 12)
+    radius = math.max(15, radius + 12),
+    magic = false
   }
   realisticFuel.stationFuelTypes = realisticFuel.buildTypeLookup(facility)
   realisticFuel.options = {}
@@ -1526,6 +1214,7 @@ function realisticFuel.refreshOptions()
     local options = {}
     for energyType, option in pairs(aggregated) do
       option.pricePerUnit = realisticFuel.getPrice(stationAtRequest, energyType)
+      option.consumptionPer100Km = realisticFuel.config.estimatedConsumptionPer100Km[energyType] or 0
       option.missingQuantity = math.max(0, option.maxQuantity - option.currentQuantity)
       option.affordableQuantity = math.min(
         option.missingQuantity,
@@ -1662,6 +1351,11 @@ function realisticFuel.finishPurchase()
     )
   end
   state.balance = roundMoney(math.max(0, (tonumber(state.balance) or 0) - session.cost))
+  shiftTracking:recordFuelCost(session.cost)
+  if trip then
+    trip.fuelCost = roundMoney((trip.fuelCost or 0) + session.cost)
+    trip.refueledQuantity = (trip.refueledQuantity or 0) + session.quantity
+  end
   realisticFuel.recordBalanceHistory()
   local completed = {
     energyType = session.energyType,
@@ -1872,104 +1566,6 @@ function realisticFuel.updateStation(dtSim)
   end
 end
 
-local function setTelemetryEnabled(vehicle, enabled)
-  if not vehicle then return end
-  vehicle:queueLuaCommand(string.format(
-    "if extensions.taxiDriverTelemetry then extensions.taxiDriverTelemetry.setEnabled(%s) end",
-    enabled and "true" or "false"
-  ))
-end
-
-local function setVehicleForcedStop(vehicle, enabled)
-  if not vehicle then return end
-  vehicle:queueLuaCommand(string.format(
-    "if extensions.taxiDriverTelemetry then extensions.taxiDriverTelemetry.setForcedStop(%s) end",
-    enabled and "true" or "false"
-  ))
-end
-
-local function setVehicleFrozen(vehicle, enabled)
-  if not vehicle then return end
-  vehicle:queueLuaCommand(string.format("controller.setFreeze(%d)", enabled and 1 or 0))
-end
-
-local function releaseForcedPassengerStop(vehicle)
-  setVehicleFrozen(vehicle, false)
-  setVehicleForcedStop(vehicle, false)
-end
-
-local function toggleVehicleAccess(vehicle, preferredTriggerId, accessType)
-  if not vehicle or not extensions.core_vehicle_manager or not core_vehicleTriggers then return nil end
-
-  local vehicleId = vehicle:getID()
-  local vehicleData = extensions.core_vehicle_manager.getVehicleData(vehicleId)
-  local vdata = vehicleData and vehicleData.vdata or nil
-  if not vdata or type(vdata.triggers) ~= "table" or
-    type(vdata.triggerEventLinksDict) ~= "table" then return nil end
-
-  local selectedId = nil
-  local selectedScore = -1
-  for _, trigger in pairs(vdata.triggers) do
-    local triggerId = trigger.abid
-    local links = triggerId and vdata.triggerEventLinksDict[triggerId] or nil
-    local name = string.lower(tostring(trigger.name or trigger.id or ""))
-
-    if preferredTriggerId and triggerId == preferredTriggerId and links and links.action0 then
-      selectedId = triggerId
-      break
-    end
-
-    local score = -1
-    if links and links.action0 and accessType == "cargo" then
-      if string.find(name, "trunk", 1, true) then score = 130
-      elseif string.find(name, "tailgate", 1, true) then score = 125
-      elseif string.find(name, "liftgate", 1, true) then score = 120
-      elseif string.find(name, "hatch", 1, true) then score = 115
-      elseif string.find(name, "boot", 1, true) then score = 110
-      elseif string.find(name, "frunk", 1, true) then score = 105
-      elseif string.find(name, "cargo door", 1, true) then score = 100
-      elseif string.find(name, "rear gate", 1, true) then score = 95
-      elseif string.find(name, "rear door", 1, true) then score = 70
-      end
-    elseif links and links.action0 and string.find(name, "door", 1, true) and
-      not string.find(name, "int", 1, true) and
-      not string.find(name, "interior", 1, true) and
-      not string.find(name, "cargo", 1, true) then
-      score = 10
-      if string.find(name, "rr", 1, true) or string.find(name, "rear right", 1, true) then
-        score = 100
-      elseif string.find(name, "rl", 1, true) or string.find(name, "rear left", 1, true) then
-        score = 90
-      elseif string.find(name, "fr", 1, true) or string.find(name, "front right", 1, true) then
-        score = 70
-      elseif string.find(name, "passenger", 1, true) then
-        score = 60
-      end
-    end
-    if score >= 0 then
-      if score > selectedScore then
-        selectedScore = score
-        selectedId = triggerId
-      end
-    end
-  end
-
-  if not selectedId then return nil end
-  local success = pcall(function()
-    core_vehicleTriggers.triggerEvent("action0", 1, selectedId, vehicleId, vdata)
-    core_vehicleTriggers.triggerEvent("action0", 0, selectedId, vehicleId, vdata)
-  end)
-  return success and selectedId or nil
-end
-
-local function togglePassengerDoor(vehicle, preferredTriggerId)
-  return toggleVehicleAccess(vehicle, preferredTriggerId, "passenger")
-end
-
-local function toggleCargoAccess(vehicle, preferredTriggerId)
-  return toggleVehicleAccess(vehicle, preferredTriggerId, "cargo")
-end
-
 local function clearNavigation()
   if core_groundMarkers then
     core_groundMarkers.setPath(nil)
@@ -2086,364 +1682,6 @@ local function setNavigationTarget(target)
     clearPathOnReachingTarget = false,
     cutOffDrivability = minimumDrivability
   })
-end
-
-local function getRoadLink(nodes, nodeA, nodeB)
-  if not (nodes[nodeA] and nodes[nodeB]) then return nil end
-  return nodes[nodeA].links[nodeB] or nodes[nodeB].links[nodeA]
-end
-
-local function isUsableRoad(nodes, nodeA, nodeB, allowPrivate)
-  local link = getRoadLink(nodes, nodeA, nodeB)
-  if not link or (link.type == "private" and not allowPrivate) then return false end
-  if (link.drivability or 0) < minimumDrivability then return false end
-  local minimumRadius = allowPrivate and 1.8 or 2.4
-  if math.min(nodes[nodeA].radius or 0, nodes[nodeB].radius or 0) < minimumRadius then return false end
-  return true
-end
-
-local function calculateRouteDistance(fromPos, toPos)
-  local planner = Route()
-  planner:setRouteParams(minimumDrivability)
-  planner:setupPath(fromPos, toPos)
-
-  if not (planner.path and planner.path[1] and planner.path[2]) then return nil end
-
-  local hasRoadNode = false
-  for _, pathPoint in ipairs(planner.path) do
-    if pathPoint.wp then
-      hasRoadNode = true
-      break
-    end
-  end
-
-  if not hasRoadNode then return nil end
-  return planner.path[1].distToTarget
-end
-
-local function isRecentlyUsedTaxiStop(pos)
-  if not pos then return false end
-  for _, recentPos in ipairs(recentTaxiStopPositions) do
-    if pos:distance(recentPos) < recentTaxiStopSeparation then return true end
-  end
-  return false
-end
-
-local function rememberTaxiStop(pos)
-  if not pos then return end
-  table.insert(recentTaxiStopPositions, vec3(pos))
-  while #recentTaxiStopPositions > recentTaxiStopLimit do
-    table.remove(recentTaxiStopPositions, 1)
-  end
-end
-
-local function rememberOfferStops(offer)
-  if not offer then return end
-  if offer.pickup then rememberTaxiStop(offer.pickup.pos) end
-  for _, stop in ipairs(offer.stops or {}) do rememberTaxiStop(stop.pos) end
-  if offer.destination then rememberTaxiStop(offer.destination.pos) end
-end
-
-local function projectAnchorToRoadEdge(anchorPos, preferredNodeA, preferredNodeB, allowPrivate)
-  local mapData = map.getMap()
-  if not mapData or not tableHasValues(mapData.nodes) then return nil end
-
-  local nodes = mapData.nodes
-  local nodeA, nodeB = preferredNodeA, preferredNodeB
-  if not (nodeA and nodeB and nodes[nodeA] and nodes[nodeB]) then
-    nodeA, nodeB = map.findClosestRoad(anchorPos)
-  end
-  if not (nodeA and nodeB and isUsableRoad(nodes, nodeA, nodeB, allowPrivate)) then return nil end
-
-  local startPos = nodes[nodeA].pos
-  local endPos = nodes[nodeB].pos
-  local segment = endPos - startPos
-  local segmentLengthSquared = segment:squaredLength()
-  if segmentLengthSquared < 1 then return nil end
-
-  local segmentLength = math.sqrt(segmentLengthSquared)
-  local baseInterpolation = clampValue((anchorPos - startPos):dot(segment) / segmentLengthSquared, 0, 1)
-  local interpolation = baseInterpolation
-  local roadCenter = startPos + segment * interpolation
-  if anchorPos:distance(roadCenter) > 120 then return nil end
-
-  -- Keep the stop at the road edge, but vary its longitudinal position so a
-  -- single building, parking area, or bus stop does not always yield the exact
-  -- same pickup coordinate.
-  local endpointMargin = math.min(0.25, 4 / segmentLength)
-  local longitudinalJitter = math.min(
-    offerConfig.semanticLongitudinalJitterMax,
-    segmentLength * 0.38
-  )
-  interpolation = clampValue(
-    baseInterpolation + randomRange(-longitudinalJitter, longitudinalJitter) / segmentLength,
-    endpointMargin,
-    1 - endpointMargin
-  )
-  roadCenter = startPos + segment * interpolation
-
-  local roadDirection = vec3(segment.x, segment.y, 0)
-  if roadDirection:length() < 0.1 then return nil end
-  roadDirection:normalize()
-  local roadSide = vec3(-roadDirection.y, roadDirection.x, 0)
-  local sideDot = (anchorPos - roadCenter):dot(roadSide)
-  local sideSign = sideDot < 0 and -1 or 1
-  if math.abs(sideDot) < 0.5 and math.random() < 0.5 then sideSign = -sideSign end
-
-  local radiusA = nodes[nodeA].radius or 2.4
-  local radiusB = nodes[nodeB].radius or radiusA
-  local roadRadius = radiusA + (radiusB - radiusA) * interpolation
-  local edgeOffset = clampValue(roadRadius - 0.75 + randomRange(-0.25, 0.55), 1.5, 14)
-  local edgePos = roadCenter + roadSide * (edgeOffset * sideSign)
-
-  local _, legalDirection = trafficUtils.finalizeSpawnPoint(
-    edgePos,
-    roadDirection,
-    nodeA,
-    nodeB,
-    {legalDirection = true}
-  )
-
-  return {
-    pos = vec3(edgePos),
-    dir = legalDirection and vec3(legalDirection) or roadDirection,
-    nodeA = nodeA,
-    nodeB = nodeB
-  }
-end
-
-local function getStopCandidates()
-  local level = getCurrentLevelIdentifier() or ""
-  if stopCandidateCache and stopCandidateLevel == level then return stopCandidateCache end
-  if stopCandidateLevel ~= level then
-    recentTaxiStopPositions = {}
-    offerGeneration.recentRoutes = {}
-  end
-
-  local candidates = {}
-  local occupiedCells = {}
-  local scanWork = 0
-  local function addCandidate(pos, kind, name)
-    if not pos then return end
-    local anchor = vec3(pos)
-    local cellKey = string.format("%d:%d", math.floor(anchor.x / 8), math.floor(anchor.y / 8))
-    if occupiedCells[cellKey] then return end
-    occupiedCells[cellKey] = true
-    table.insert(candidates, {anchor = anchor, kind = kind, name = name or kind})
-  end
-
-  for _, objectId in ipairs(scenetree.findClassObjects("BeamNGTrigger") or {}) do
-    scanWork = scanWork + 1
-    if scanWork % offerConfig.semanticScanBatchSize == 0 then offerGenerator.yield() end
-    local object = scenetree.findObject(objectId)
-    if object and object.type == "busstop" then
-      addCandidate(object:getPosition(), "busStop", object.stopName or objectId)
-    end
-  end
-
-  local sitesManager = gameplay_sites_sitesManager
-  if sitesManager then
-    for _, sitesFile in ipairs(sitesManager.getCurrentLevelSitesFiles() or {}) do
-      local lowerPath = string.lower(sitesFile)
-      if not lowerPath:find("/missions/", 1, true) and
-        not lowerPath:find("/quickrace/", 1, true) and
-        not lowerPath:find("/scenarios/", 1, true) then
-        local loaded, sites = pcall(sitesManager.loadSites, sitesFile)
-        if not loaded then
-          log("W", logTag, string.format("Unable to read taxi stop anchors from '%s'", sitesFile))
-          sites = nil
-        end
-        if sites and sites.parkingSpots and sites.parkingSpots.sorted then
-          for _, spot in ipairs(sites.parkingSpots.sorted) do
-            scanWork = scanWork + 1
-            if scanWork % offerConfig.semanticScanBatchSize == 0 then offerGenerator.yield() end
-            local tags = spot.customFields and spot.customFields.tags or {}
-            if not tags.banned then
-              addCandidate(spot.pos, tags.street and "streetParking" or "parking", spot.name)
-            end
-          end
-        end
-      end
-    end
-  end
-
-  for _, objectId in ipairs(scenetree.findClassObjects("BeamNGPointOfInterest") or {}) do
-    scanWork = scanWork + 1
-    if scanWork % offerConfig.semanticScanBatchSize == 0 then offerGenerator.yield() end
-    local object = scenetree.findObject(objectId)
-    if object then addCandidate(object:getPosition(), "pointOfInterest", objectId) end
-  end
-
-  stopCandidateCache = candidates
-  stopCandidateLevel = level
-  log("I", logTag, string.format("Prepared %d semantic taxi stop anchors for level '%s'", #candidates, level))
-  return candidates
-end
-
-local function chooseSemanticStopPoint(startPos, minimumDistance, maximumDistance)
-  local candidates = getStopCandidates()
-  if not candidates[1] then return nil end
-
-  local order = {}
-  for index = 1, #candidates do order[index] = index end
-  for index = #order, 2, -1 do
-    local swapIndex = math.random(index)
-    order[index], order[swapIndex] = order[swapIndex], order[index]
-  end
-
-  local maximumAttempts = math.min(#order, offerConfig.semanticCandidateAttempts)
-  local recentFallback = nil
-  for attempt = 1, maximumAttempts do
-    offerGenerator.yield()
-    local candidate = candidates[order[attempt]]
-    local directDistance = startPos:distance(candidate.anchor)
-    if directDistance >= minimumDistance * 0.2 and
-      directDistance <= maximumDistance + 500 then
-      local stop = projectAnchorToRoadEdge(candidate.anchor, nil, nil, true)
-      if stop then
-        local actualDistance = calculateRouteDistance(startPos, stop.pos)
-        if actualDistance and actualDistance >= minimumDistance and actualDistance <= maximumDistance then
-          stop.routeDistance = actualDistance
-          stop.anchorKind = candidate.kind
-          stop.anchorName = candidate.name
-          if not isRecentlyUsedTaxiStop(stop.pos) then return stop end
-          recentFallback = recentFallback or stop
-        end
-      end
-    end
-  end
-  -- Keep a recently used semantic point only as a last resort. Returning it
-  -- separately lets the caller try a fresh graph-derived road edge first.
-  return nil, recentFallback
-end
-
-local function buildRandomPath(nodes, startNode, startDirection, maximumDistance)
-  local path = map.getGraphpath():getRandomPathG(
-    startNode,
-    startDirection,
-    maximumDistance + 1000,
-    0.35 + math.random() * 0.5,
-    1,
-    true
-  )
-
-  if not path or #path < 2 then return nil end
-
-  local planner = Route()
-  for _, nodeId in ipairs(path) do
-    local node = nodes[nodeId]
-    if node then
-      table.insert(planner.path, {
-        pos = node.pos,
-        wp = nodeId,
-        linkCount = map.getNodeLinkCount(nodeId)
-      })
-    end
-  end
-
-  if #planner.path < 2 then return nil end
-  planner:calcDistance()
-  return planner
-end
-
-local function chooseRandomRoadPoint(startPos, startDirection, minimumDistance, maximumDistance, maximumAttempts)
-  local mapData = map.getMap()
-  if not mapData or not tableHasValues(mapData.nodes) then
-    return nil, "На этой карте отсутствует дорожный граф"
-  end
-
-  local nodes = mapData.nodes
-  local nodeA, nodeB = map.findClosestRoad(startPos)
-  if not (nodeA and nodeB and nodes[nodeA] and nodes[nodeB]) then
-    return nil, "Не удалось найти дорогу рядом с автомобилем"
-  end
-
-  local forward = vec3(startDirection)
-  forward.z = 0
-  if forward:length() < 0.1 then
-    forward:set(1, 0, 0)
-  else
-    forward:normalize()
-  end
-
-  local roadDirection = (nodes[nodeB].pos - nodes[nodeA].pos):normalized()
-  if roadDirection:dot(forward) < 0 then
-    nodeA, nodeB = nodeB, nodeA
-  end
-
-  local recentFallback = nil
-  for attempt = 1, math.max(
-    1,
-    tonumber(maximumAttempts) or offerConfig.randomRouteAttempts
-  ) do
-    offerGenerator.yield()
-    local searchDirection = vec3(forward)
-    if attempt % 4 == 0 then
-      searchDirection:setScaled(-1)
-    end
-
-    local distanceRatio = math.random() ^ offerConfig.randomDistanceExponent
-    local desiredDistance = minimumDistance + (maximumDistance - minimumDistance) * distanceRatio
-    local planner = buildRandomPath(nodes, nodeA, searchDirection, maximumDistance)
-
-    if planner and planner.path[1].distToTarget >= desiredDistance then
-      local road = planner:stepAhead(desiredDistance, true)
-      if road and road.n1 and road.n2 and isUsableRoad(nodes, road.n1, road.n2) then
-        local direction = (nodes[road.n2].pos - nodes[road.n1].pos):normalized()
-        local lanePos, laneDir = trafficUtils.finalizeSpawnPoint(
-          road.pos,
-          direction,
-          road.n1,
-          road.n2,
-          {legalDirection = true}
-        )
-
-        local edgePoint = projectAnchorToRoadEdge(lanePos, road.n1, road.n2)
-        local targetPos = edgePoint and edgePoint.pos or lanePos
-        local targetDir = edgePoint and edgePoint.dir or laneDir
-        local actualDistance = calculateRouteDistance(startPos, targetPos)
-        if actualDistance and actualDistance >= minimumDistance and actualDistance <= maximumDistance then
-          local stop = {
-            pos = vec3(targetPos),
-            dir = vec3(targetDir),
-            routeDistance = actualDistance,
-            nodeA = road.n1,
-            nodeB = road.n2,
-            anchorKind = "roadEdge"
-          }
-          if not isRecentlyUsedTaxiStop(stop.pos) then return stop end
-          recentFallback = recentFallback or stop
-        end
-      end
-    end
-  end
-
-  if recentFallback then return recentFallback end
-
-  return nil, string.format(
-    "Не удалось построить маршрут длиной от %.0f до %.0f км",
-    minimumDistance / 1000,
-    maximumDistance / 1000
-  )
-end
-
-local function chooseTaxiStopPoint(startPos, startDirection, minimumDistance, maximumDistance, maximumAttempts)
-  local semanticStop, semanticFallback = chooseSemanticStopPoint(
-    startPos,
-    minimumDistance,
-    maximumDistance
-  )
-  if semanticStop then return semanticStop end
-  local randomStop, randomError = chooseRandomRoadPoint(
-    startPos,
-    startDirection,
-    minimumDistance,
-    maximumDistance,
-    maximumAttempts
-  )
-  if randomStop then return randomStop end
-  if semanticFallback then return semanticFallback end
-  return nil, randomError
 end
 
 local function addPenaltyEvent(kind, label, penalty, detail)
@@ -2572,6 +1810,11 @@ local function stopModeInternal(message, showNotification, notificationKey)
   phaseTimer = 0
   offerTimer = 0
 
+  if shiftTracking:getHud().active then
+    shiftTracking:finish()
+    writeUserProgress()
+  end
+
   if showNotification and message then
     showPhoneNotification(notificationKey or "notify_modeStopped", {}, "info")
   end
@@ -2695,6 +1938,18 @@ local function createOffer(requestedType, generationFailureCount)
 
   local estimatedFare = roundMoney(ratingAdjustedFare * (1 + bonusPercent / 100))
   local passengerCalmness = math.random(0, 100)
+  local randomEvent = userSettings.randomEventsEnabled == true and
+    tripEvents.create(isDelivery, isRush, isMultiStop) or {kind = "none"}
+  if tripEvents.needsTarget(randomEvent) then
+    local eventTarget = chooseTaxiStopPoint(
+      destination.pos,
+      destination.dir,
+      1000,
+      3500,
+      12
+    )
+    if eventTarget then randomEvent.target = eventTarget else randomEvent = {kind = "none"} end
+  end
   local offer = {
     id = nextOfferId,
     passengerName = isDelivery and "Delivery" or identity.createPassengerName(),
@@ -2720,7 +1975,8 @@ local function createOffer(requestedType, generationFailureCount)
     isRush = isRush,
     bonusPercent = bonusPercent,
     bonusAmount = roundMoney(estimatedFare - ratingAdjustedFare),
-    rushTimeLimit = rushTimeLimit
+    rushTimeLimit = rushTimeLimit,
+    randomEvent = randomEvent
   }
   nextOfferId = nextOfferId + 1
   return offer
@@ -2869,6 +2125,11 @@ local function startAcceptedOffer(selected)
   trip.completedRideDistance = 0
   trip.currentLegDistance = 0
   trip.currentStopIndex = 0
+  trip.startFuelQuantity = realisticFuel.dashboardEnergy.available and
+    realisticFuel.dashboardEnergy.quantity or nil
+  trip.startFuelType = realisticFuel.dashboardEnergy.energyType
+  trip.refueledQuantity = 0
+  trip.fuelCost = 0
 
   state.phase = phases.toPickup
   state.message = trip.isDelivery and "Drive to the cargo" or
@@ -3084,6 +2345,9 @@ local function beginRide()
     startPassengerLeg(trip.destination, phases.toDestination)
     showPhoneNotification("notify_passengerAboard", {}, "success")
   end
+  if trip.randomEvent and trip.randomEvent.kind == "fragileCargo" then
+    showPhoneNotification("notify_fragileCargo", {}, "warning")
+  end
   notifyHud()
 end
 
@@ -3263,7 +2527,14 @@ local function finishRide()
 
   clearNavigation()
   local penalty = getPenaltyTotal()
-  local fare = getAdjustedFare()
+  local fareBeforeTip = getAdjustedFare()
+  local tipAmount = tripEvents.calculateTip(
+    trip.randomEvent,
+    fareBeforeTip,
+    penalty,
+    trip.isRush and not trip.rushBonusLost
+  )
+  local fare = roundMoney(fareBeforeTip + tipAmount)
   local rideRating = trip.isDelivery and
     delivery.calculateRating(trip.cargoDamagePercent or 0, taxiConfig.delivery) or
     clampValue(
@@ -3274,12 +2545,33 @@ local function finishRide()
     )
 
   trip.finalFare = fare
+  trip.tipAmount = tipAmount
   trip.rideRating = rideRating
   state.balance = state.balance + fare
   state.ratingTotal = state.ratingTotal + rideRating
   state.ratingCount = state.ratingCount + 1
   state.rating = state.ratingTotal / state.ratingCount
   state.completedRides = state.completedRides + 1
+  local penaltyLoss = math.max(0, (trip.estimatedFare or fareBeforeTip) - fareBeforeTip)
+  local currentEnergy = realisticFuel.dashboardEnergy
+  local fuelConsumed = 0
+  if trip.startFuelQuantity and currentEnergy.available and
+    currentEnergy.energyType == trip.startFuelType then
+    fuelConsumed = math.max(0,
+      trip.startFuelQuantity + (trip.refueledQuantity or 0) - currentEnergy.quantity
+    )
+  end
+  vehicleHistory.recordRide({
+    fare = fare,
+    rating = rideRating,
+    isDelivery = trip.isDelivery,
+    penaltyLoss = penaltyLoss,
+    cargoDamageLoss = trip.isDelivery and penaltyLoss or 0,
+    fuelConsumed = fuelConsumed,
+    fuelCost = trip.fuelCost or 0,
+    rideDistanceMeters = trip.rideDistance or 0
+  })
+  shiftTracking:recordRide(fare, rideRating, penaltyLoss)
   if not trip.reviewRecorded then
     trip.reviewRecorded = true
     recordProgressEvent(
@@ -3292,6 +2584,7 @@ local function finishRide()
   else
     writeUserProgress()
   end
+  notifyProfile()
   state.phase = phases.complete
   state.message = string.format("Получено $%.2f", fare)
   phaseTimer = completedDuration
@@ -3302,31 +2595,17 @@ local function finishRide()
   )
   showPhoneNotification(
     trip.isDelivery and "notify_deliveryComplete" or "notify_rideComplete",
-    {fare = string.format("$%.2f", fare)},
+    {fare = string.format("$%.2f", fare), tip = string.format("$%.2f", tipAmount)},
     "success"
   )
   notifyHud()
-end
-
-local function getNearestRoadSpeedLimit(pos)
-  if not pos then return nil end
-  local nodeA, nodeB = map.findClosestRoad(pos)
-  if not (nodeA and nodeB) then return nil end
-
-  local nodes = map.getMap().nodes
-  local link = getRoadLink(nodes, nodeA, nodeB)
-  if not link or not link.speedLimit then return nil end
-
-  local speedLimit = link.speedLimit * 3.6
-  if speedLimit < 5 or speedLimit > 250 then return nil end
-  return speedLimit
 end
 
 local function updateSpeedPenalty(vehicle, dtSim)
   if not trip or trip.isDelivery or not isPassengerDrivingPhase(state.phase) then return end
 
   local speed = getVehicleSpeedKmh(vehicle)
-  local speedLimit = getNearestRoadSpeedLimit(vehicle:getPosition())
+  local speedLimit = routePlanning.getNearestRoadSpeedLimit(vehicle:getPosition())
   trip.currentSpeed = speed
   trip.speedLimit = speedLimit or 0
 
@@ -3460,6 +2739,53 @@ local function updateTripCooldowns(dtSim)
   trip.damageGraceTimer = math.max(0, (trip.damageGraceTimer or 0) - dtSim)
 end
 
+local function updateRandomTripEvent(vehicle, dtSim)
+  local event = trip and trip.randomEvent or nil
+  if not event or event.kind == "none" then return false end
+
+  if state.phase == phases.toPickup and tripEvents.updateBeforePickup(event, dtSim) then
+    beginSearching("Passenger cancelled the order")
+    showPhoneNotification("notify_passengerCancelled", {}, "warning")
+    return true
+  end
+
+  if state.phase ~= phases.toDestination or not vehicle or
+    not tripEvents.shouldTriggerOnRoute(event, getRouteProgress(getRemainingDistance())) then
+    return false
+  end
+
+  local target = event.target
+  local extraDistance = math.max(0, tonumber(target and target.routeDistance) or 0)
+  local incrementalFare = math.max(0, calculateFare(extraDistance, 0) - calculateFare(0, 0))
+  local adjustedIncrement = roundMoney(incrementalFare * (1 + (trip.ratingBonusRate or 0)))
+  trip.baseFare = roundMoney((trip.baseFare or 0) + incrementalFare)
+  trip.ratingAdjustedFare = roundMoney((trip.ratingAdjustedFare or 0) + adjustedIncrement)
+  trip.ratingBonusAmount = roundMoney((trip.ratingBonusAmount or 0) + adjustedIncrement - incrementalFare)
+  trip.estimatedFare = roundMoney((trip.estimatedFare or 0) + adjustedIncrement)
+  trip.rideDistance = math.max(0, trip.rideDistance or 0) + extraDistance
+  trip.totalEtaMinutes = calculateEtaMinutes(trip.rideDistance) +
+    #(trip.stops or {}) * stopWaitingDuration / 60
+
+  if event.kind == "destinationChange" then
+    local distance = calculateRouteDistance(vehicle:getPosition(), target.pos)
+    if distance then target.routeDistance = distance end
+    trip.destination = target
+    startPassengerLeg(target, phases.toDestination)
+    showPhoneNotification("notify_destinationChanged", {}, "info")
+  elseif event.kind == "additionalStop" then
+    local oldDestination = trip.destination
+    trip.stops = {oldDestination}
+    trip.isMultiStop = true
+    trip.currentStopIndex = 1
+    trip.destination = target
+    trip.currentLegDistance = getRemainingDistance()
+    state.phase = phases.toStop
+    showPhoneNotification("notify_additionalStop", {}, "info")
+  end
+  notifyHud()
+  return false
+end
+
 function realisticFuel.calculatePassengerWaitPenalty(stationId)
   if not trip or trip.isDelivery or not isPassengerOnboardPhase(state.phase) then return 0 end
   if userSettings.penaltyToggles.fuelStop == false then return 0 end
@@ -3514,7 +2840,7 @@ function realisticFuel.beginDetour(facility, position, routeDistance, arrived)
     hadTrip = trip ~= nil,
     passengerOnboard = passengerOnboard,
     stationId = tostring(facility.id or "fuelStation"),
-    stationName = "Gas Station",
+    stationName = tostring(facility.taxiDriverName or "Gas Station"),
     pos = position,
     routeDistance = math.max(0, tonumber(routeDistance) or 0),
     previousRemainingDistance = getRemainingDistance(),
@@ -3522,17 +2848,25 @@ function realisticFuel.beginDetour(facility, position, routeDistance, arrived)
     penaltyApplied = false,
     arrived = arrived == true
   }
-  if arrived and passengerOnboard then
-    realisticFuel.applyPassengerWaitPenalty(facility.id, "Gas Station")
+  local activeVehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  if arrived and passengerOnboard and activeVehicle and getVehicleSpeedKmh(activeVehicle) <= 2 then
+    realisticFuel.applyPassengerWaitPenalty(
+      facility.id,
+      tostring(facility.taxiDriverName or "Gas Station")
+    )
     realisticFuel.detour.penaltyApplied = true
   end
   state.phase = phases.toFuelStation
   state.message = "Следуйте к заправке"
   phaseTimer = 0
   if arrived then clearNavigation() else setNavigationTarget({pos = position}) end
-  showPhoneNotification("notify_fuelRouteSet", {
-    station = realisticFuel.detour.stationName
-  }, "info")
+  if facility.taxiDriverMagic == true then
+    showPhoneNotification("notify_magicFuelAvailable", {}, "info")
+  else
+    showPhoneNotification("notify_fuelRouteSet", {
+      station = realisticFuel.detour.stationName
+    }, "info")
+  end
   notifyHud()
   return true
 end
@@ -3541,7 +2875,9 @@ function realisticFuel.resumeRoute()
   if not realisticFuel.detour.active then return end
   local previousPhase = realisticFuel.detour.previousPhase
   local previousRemainingDistance = realisticFuel.detour.previousRemainingDistance or 0
+  local closeMagicStation = realisticFuel.station and realisticFuel.station.magic == true
   realisticFuel.resetDetour()
+  if closeMagicStation then realisticFuel.clearStation() end
   clearNavigation()
 
   if previousPhase == phases.searching then
@@ -3584,6 +2920,30 @@ function realisticFuel.resumeRoute()
     return
   end
   notifyHud()
+end
+
+function realisticFuel.openMagicStation(vehicle)
+  if not vehicle or realisticFuel.detour.active then return false end
+  local facility = {
+    id = "taxiDriverMagicFuel",
+    energyTypes = {"any"},
+    taxiDriverMagic = true,
+    taxiDriverName = "Magic Fuel"
+  }
+  realisticFuel.station = {
+    id = facility.id,
+    name = facility.taxiDriverName,
+    facility = facility,
+    center = nil,
+    radius = 0,
+    magic = true
+  }
+  realisticFuel.stationFuelTypes = {any = true}
+  realisticFuel.options = {}
+  realisticFuel.dataTimer = 0
+  local opened = realisticFuel.beginDetour(facility, vehicle:getPosition(), 0, true)
+  if opened then realisticFuel.refreshOptions() end
+  return opened
 end
 
 function realisticFuel.requestRoute()
@@ -3652,7 +3012,7 @@ function realisticFuel.requestRoute()
     end
 
     if not bestFacility then
-      showPhoneNotification("notify_noFuelStation", {}, "warning")
+      realisticFuel.openMagicStation(vehicle)
       return
     end
     realisticFuel.beginDetour(bestFacility, bestPosition, bestDistance, false)
@@ -3671,7 +3031,7 @@ local function updateActiveMode(dtSim)
   if dtSim <= 0 then return end
 
   updateTripCooldowns(dtSim)
-  realisticFuel.updateDashboardEnergy(dtSim)
+  if updateRandomTripEvent(vehicle, dtSim) then return end
   realisticFuel.updateStation(dtSim)
   realisticFuel.updatePassengerMood(dtSim)
 
@@ -3800,8 +3160,15 @@ function M.startMode()
   else
     realisticFuel.restoreEconomy()
   end
+  shiftTracking:start()
   setTelemetryEnabled(vehicle, true)
   beginSearching("Подключение к линии заказов")
+end
+
+function M.openVehicleSelector()
+  -- Open BeamNG's native vehicle selection state. This also works when the
+  -- command comes from the external Web UI through the game's UI bridge.
+  guihooks.trigger("ChangeState", {state = "menu.vehicles"})
 end
 
 function M.acceptOrder(offerId)
@@ -3937,7 +3304,7 @@ function M.saveSettings(incomingSettings)
   local previousDeliveryShare = userSettings.deliveryOrderSharePercent
   local sessionLanEnabled = type(incomingSettings) == "table" and
     incomingSettings.lanEnabled == true
-  userSettings = sanitizeUserSettings(incomingSettings, false)
+  userSettings = dataStore:sanitizeSettings(incomingSettings, false)
   userSettings.lanEnabled = sessionLanEnabled
   settingsNeedsLegacyImport = false
   applyDifficulty(userSettings.difficulty)
@@ -4047,6 +3414,7 @@ end
 
 function M.cheatResetProgress()
   userProgress = createDefaultUserProgress()
+  vehicleHistory.reset()
   applyUserProgressToState()
   writeUserProgress()
   notifyProfile()
@@ -4182,6 +3550,13 @@ function M.onTelemetry(vehicleId, data)
         trip.activeDeliveryImpactDamage,
         taxiConfig.delivery
       )
+      if trip.randomEvent and trip.randomEvent.kind == "fragileCargo" then
+        impactPercent = clampValue(
+          impactPercent * (trip.randomEvent.damageMultiplier or 1.4),
+          0,
+          100
+        )
+      end
       local addedPercent = math.max(0, impactPercent - (trip.activeDeliveryImpactPercent or 0))
       trip.activeDeliveryImpactPercent = impactPercent
       trip.cargoDamagePercent = clampValue(
@@ -4314,12 +3689,20 @@ end
 function M.onUpdate(dtReal, dtSim)
   dtReal = math.max(0, dtReal or 0)
   dtSim = math.max(0, dtSim or 0)
+  local vehicleChanged = vehicleHistory.update(dtReal, dtSim)
+  realisticFuel.updateDashboardEnergy(dtSim)
   lanBridge.update(dtReal)
   if lanBridge.consumeStatusChanged() then notifyHud() end
-  if not state.active then return end
+  hudTimer = hudTimer + dtReal
+  if not state.active then
+    if vehicleChanged or hudTimer >= 0.5 then
+      hudTimer = 0
+      notifyHud()
+    end
+    return
+  end
   updateActiveMode(dtSim)
 
-  hudTimer = hudTimer + dtReal
   if hudTimer >= hudUpdateInterval then
     hudTimer = 0
     notifyHud()
@@ -4330,6 +3713,8 @@ function M.onVehicleSwitched(oldId, newId)
   if state.active and oldId == state.activeVehicleId and newId ~= oldId then
     stopModeInternal("Режим остановлен после смены автомобиля", true, "notify_vehicleChanged")
   end
+  vehicleHistory.selectVehicle(newId)
+  notifyHud()
 end
 
 local function handleVehicleReset(vehicleId)
@@ -4337,6 +3722,7 @@ local function handleVehicleReset(vehicleId)
   if vehicleId then
     realisticFuel.initializedVehicles[vehicleId] = nil
     realisticFuel.initializationPending[vehicleId] = nil
+    vehicleHistory.onVehicleReset(vehicleId)
   end
   if state.active and vehicleId and vehicleId == tonumber(state.activeVehicleId) then
     -- Clear the queued order before stopping the session. The explicit clear
@@ -4355,10 +3741,18 @@ function M.onTelemetryVehicleReset(vehicleId)
   handleVehicleReset(vehicleId)
 end
 
+function M.onClientStartMission()
+  vehicleHistory.resetTracking()
+  vehicleHistory.refreshCurrentVehicle()
+  notifyHud()
+end
+
 function M.onExtensionLoaded()
   loadUserSettings()
   loadDriverProfile()
   loadUserProgress()
+  vehicleHistory.load(modVersion)
+  vehicleHistory.refreshCurrentVehicle()
   lanBridge.setCommandHandler(function(action, args)
     args = type(args) == "table" and args or {}
     if action == "start" then
@@ -4374,6 +3768,9 @@ function M.onExtensionLoaded()
       end
       M.stopMode()
       return state.active == false
+    elseif action == "openVehicleSelector" then
+      M.openVehicleSelector()
+      return true
     elseif action == "acceptOffer" then
       local id = math.floor(tonumber(args.id) or -1)
       local beforeTripId = trip and trip.id or 0
@@ -4408,9 +3805,7 @@ function M.onClientEndMission()
   realisticFuel.restoreEconomy()
   realisticFuel.initializedVehicles = {}
   realisticFuel.initializationPending = {}
-  stopCandidateCache = nil
-  stopCandidateLevel = nil
-  recentTaxiStopPositions = {}
+  routePlanning.reset()
   offerGeneration.recentRoutes = {}
   realisticFuel.resetDashboardEnergy()
   phoneNotification = nil
@@ -4418,6 +3813,8 @@ function M.onClientEndMission()
     stopModeInternal(nil, false)
   end
   writeUserProgress()
+  vehicleHistory.write()
+  vehicleHistory.resetTracking()
   restoreNavigationVisualSettings()
 end
 
@@ -4426,13 +3823,15 @@ function M.onExtensionUnloaded()
   hideNativeMinimap()
   delivery.applyVehicleMass(getPlayerVehicle(), 0)
   realisticFuel.restoreEconomy()
-  recentTaxiStopPositions = {}
+  routePlanning.clearRecent()
   offerGeneration.recentRoutes = {}
   realisticFuel.resetDashboardEnergy()
   if state.active then
     stopModeInternal(nil, false)
   end
   writeUserProgress()
+  vehicleHistory.write()
+  vehicleHistory.resetTracking()
   restoreNavigationVisualSettings()
 end
 
@@ -4474,11 +3873,11 @@ function M.onDeserialized(data)
   clearNextOffer()
   offerTimer = 0
   phoneNotification = nil
-  stopCandidateCache = nil
-  stopCandidateLevel = nil
-  recentTaxiStopPositions = {}
+  routePlanning.reset()
   offerGeneration.recentRoutes = {}
   realisticFuel.resetDashboardEnergy()
+  vehicleHistory.resetTracking()
+  vehicleHistory.refreshCurrentVehicle()
   notifyHud()
 end
 

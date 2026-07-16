@@ -48,7 +48,8 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 ### A living dispatcher
 
 - Browse a gradually populated pool of **10–12 mixed requests**.
-- Compare passenger, pickup deadline, trip time, distance, fare, rating bonus, Calmness, and scheduled stops.
+- Compare passenger, pickup deadline, trip time, distance, fare, rating bonus, Calmness, scheduled stops, estimated income per minute, and income per kilometre/mile.
+- Sort requests by highest fare, nearest pickup, shortest duration, or best income per kilometre/mile.
 - Choose between regular rides, rush requests, multi-stop work, and long-distance cargo deliveries.
 - Rush requests offer additional pay but impose a tighter arrival target.
 - Multi-stop requests create longer routes and require a **10-second stationary wait** at every intermediate stop.
@@ -85,6 +86,13 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Each mood change briefly flashes a green or red border around the emoji. Positive recovery is capped at 40 percentage points above the passenger's initial mood.
 - Relaxed passengers may ignore some penalty events; sensitive passengers react more strongly to poor driving.
 - A passenger who becomes critically dissatisfied can demand an immediate stop and end the ride early.
+- Optional Random Events let passengers cancel before pickup, change the destination, request an additional stop, or offer a conditional tip for careful or quick driving. Delivery orders can carry fragile cargo with increased impact sensitivity.
+
+### Shift overview
+
+- Going online starts a shift that tracks completed work, gross income, fuel costs, penalty losses, net income, and average rating.
+- The start screen summarizes the previous shift with its ride count, net income, and average rating.
+- The primary action is localized as **Start Shift** in all eight interface languages.
 
 ### Persistent driver profile
 
@@ -92,6 +100,8 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Choose an avatar from a large emoji grid directly in the phone.
 - Passenger reviews are retained without a fixed limit and displayed with pagination.
 - Profile analytics chart rating and wallet balance changes from ride to ride.
+- The Vehicles tab groups completed rides, earned income, accumulated distance, average income and rating, passenger/cargo split, penalty and cargo-damage losses, fuel use/cost, and profit per distance by the model/configuration name shown in BeamNG's vehicle selector.
+- Vehicle history can be sorted by mileage, income, or completed trips; unused vehicles with zero completed work are not retained.
 - Rating, balance, reviews, and profile details persist independently of the mod archive.
 
 ### Driving quality that affects the fare
@@ -103,6 +113,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Difficulty presets range from **Elementary** to **Professional**.
 - A strong driver rating increases earnings, reaching a **15% rating bonus at 5.00**.
 - The persistent driver rating is displayed on a five-star progress scale from `0.00` to `5.00`.
+- The active-trip screen shows projected final payout, fuel sufficiency, the next scheduled stop, and a compact violation summary that expands on demand.
 
 ### Navigation built for the phone
 
@@ -111,6 +122,8 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - ETA is calculated using a city-driving reference speed of **40 km/h**.
 - Arrival time, remaining distance, route progress, speed limit, stop markers, and trip metrics remain visible around the map.
 - The ride footer shows current fuel or charge to two decimal places and an approximate remaining driving range.
+- A narrow odometer below the phone clock tracks the current vehicle configuration in kilometres or miles.
+- The start screen shows the selected vehicle's BeamNG preview, selector name, odometer, fuel/charge, and estimated range. Clicking the card opens BeamNG's native vehicle selector.
 - Road-surface route arrows can be disabled in settings.
 - A configurable 0–30 km/h overspeed-warning margin (10 km/h by default) turns the speed-limit sign red and plays a one-shot alert while the trigger is exceeded.
 
@@ -133,9 +146,11 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Combustion vehicles begin the shift with 5% fuel; electric vehicles begin with 30% charge.
 - Stop at a compatible fuel station to open the in-phone refueling screen.
 - Use the persistent **Refuel** action to route to the nearest compatible station while browsing orders or during an active ride.
+- Maps without a compatible station open a clearly marked magic-fuel fallback that reuses the ordinary tank, wallet, slider, timing, and passenger-wait rules.
 - Fuel routing temporarily takes priority without discarding the passenger, queued ride, or dispatcher state.
 - A fuel stop with a passenger aboard applies a small wait penalty balanced by difficulty, passenger Calmness, and driver rating.
 - Choose fuel or energy with a slider limited by tank capacity and the current TaxiDriver wallet balance.
+- Use quick-fill presets for +5 L, +10 L, 50%, or Full and review before/after level, unit price, total cost, projected range, and whether the result is sufficient for the active order.
 - Refueling is timed and animated: liquid fuel flows at 2 L/s, while EV charging adds 4 percentage points per second. The process follows simulation time and pauses with the game.
 - The realism economy uses a Midwest-oriented gasoline price of $0.93/L and a public fast-charging price of $0.50/kWh.
 - Fuel prices and energy units follow BeamNG.drive's station economy data.
@@ -149,6 +164,7 @@ Open the gear icon in the TaxiDriver phone to configure:
 - Elementary, Easy, Standard, Professional, or fully adjustable Custom difficulty;
 - independent penalty switches for speeding, collisions, harsh maneuvers, late pickup, fuel stops, rush bonuses, and cargo damage;
 - passenger/delivery order ratio and dynamic minimap zoom intensity;
+- optional Random Events, independently persisted from Realistic Mode;
 - TaxiDriver sound volume with a random sound test button and separate toggles for all seven sound groups, including an iOS-compatible Connected Phone audio engine;
 - silent mode;
 - road-surface route guidance.
@@ -164,6 +180,7 @@ Settings, profile details, and driver progress are stored separately outside the
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\difficulty.json
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\profile.json
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\progress.json
+%LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\vehicles.json
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\lan.json
 ```
 
@@ -172,6 +189,21 @@ Settings, profile details, and driver progress are stored separately outside the
 If any file is missing, invalid, or uses an unsupported schema, safe defaults for that file are restored and saved automatically.
 
 All application sounds—including clicks, online/offline cues, passenger messages, penalties, and new offers—follow BeamNG.drive's **Interface Volume** setting in real time and can be reduced further with TaxiDriver's own volume slider.
+
+## Runtime architecture
+
+`taxiDriver.lua` is the BeamNG extension entry point and gameplay orchestrator. Domain state is delegated to focused modules:
+
+- `persistence.lua` owns settings, difficulty, profile, progress schemas, validation, and JSON I/O;
+- `routePlanner.lua` owns road-graph routing, semantic stop discovery, level caches, and recently used stops;
+- `vehicleControl.lua` owns telemetry commands, forced-stop/freeze control, and passenger/cargo access triggers;
+- `vehicleHistory.lua` owns current-vehicle detection, per-configuration odometers, previews, ride counts, and income;
+- `shiftTracker.lua` owns current/previous shift totals and fuel-adjusted net income;
+- `tripEvents.lua` owns optional cancellations, route changes, additional stops, conditional tips, and fragile cargo;
+- `lanBridge.lua` owns the Connected Phone server, proxy, live state, and map export;
+- `delivery.lua`, `passengerMood.lua`, `routeDiversity.lua`, `offerGenerator.lua`, and `identity.lua` contain their corresponding gameplay domains.
+
+The main extension is guarded by a regression check for LuaJIT's 200-local main-chunk limit. Runtime modules are also compiled with LuaJIT 2.1 during release verification.
 
 ## Installation
 
@@ -184,7 +216,7 @@ All application sounds—including clicks, online/offline cues, passenger messag
 
 3. Start BeamNG.drive and open a free-roam session.
 4. Open the UI Apps editor and add **TaxiDriverHUD**.
-5. Press **Start Ride** on the phone and wait for dispatch to populate the order list.
+5. Press **Start Shift** on the phone and wait for dispatch to populate the order list.
 
 > Do not keep packed and unpacked copies of the same mod version active at the same time. Duplicate Lua and UI files may cause loading conflicts.
 

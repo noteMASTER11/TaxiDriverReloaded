@@ -18,17 +18,95 @@ const externalLoaderSource = await fs.readFile(
   path.join(here, "../../ui/modules/apps/TaxiDriverHUD/external/external.js"),
   "utf8"
 );
+const taxiDriverLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/taxiDriver.lua"),
+  "utf8"
+);
+const vehicleHistoryLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/vehicleHistory.lua"),
+  "utf8"
+);
+const persistenceLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/persistence.lua"),
+  "utf8"
+);
+const routePlannerLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/routePlanner.lua"),
+  "utf8"
+);
+const shiftTrackerLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/shiftTracker.lua"),
+  "utf8"
+);
+const tripEventsLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/tripEvents.lua"),
+  "utf8"
+);
 assert.match(
   externalLoaderSource,
   /\.api\.subscribeToEvents\(\s*["']\{\}["']\s*\)/,
   "External phone loader must subscribe before expecting TaxiDriver GUI hooks"
 );
+assert.match(vehicleHistoryLuaSource, /filePath\s*=\s*settingsDirectoryPath\s*\.\.\s*["']\/vehicles\.json["']/,
+  "Vehicle odometer and ride history must use a separate vehicles.json document");
+assert.match(taxiDriverLuaSource, /if not bestFacility then\s+realisticFuel\.openMagicStation\(vehicle\)/,
+  "Missing compatible stations must open the magic refueling fallback");
+assert.match(taxiDriverLuaSource, /state\.completedRides\s*=\s*state\.completedRides\s*\+\s*1[\s\S]*?vehicleHistory\.recordRide\(\{/,
+  "Completed rides and income must be attributed to the current vehicle");
+assert.match(vehicleHistoryLuaSource, /maximumPlausibleDistance\s*=\s*math\.max/,
+  "Vehicle odometer must reject implausible teleport/reset distance jumps");
+assert.doesNotMatch(vehicleHistoryLuaSource, /getPlayerVehicle\(\s*\)/,
+  "BeamNG's global getPlayerVehicle API requires an explicit player index");
+assert.match(vehicleHistoryLuaSource, /be:getPlayerVehicle\(0\)/,
+  "Vehicle history must resolve the primary player's vehicle through BeamNGEngine");
+assert.match(taxiDriverLuaSource, /function M\.onVehicleSwitched[\s\S]*?vehicleHistory\.selectVehicle\(newId\)[\s\S]*?notifyHud\(\)/,
+  "Switching vehicles must select the new vehicle and publish its odometer immediately");
+assert.match(taxiDriverLuaSource, /function M\.onClientStartMission\(\)[\s\S]*?vehicleHistory\.refreshCurrentVehicle\(\)[\s\S]*?notifyHud\(\)/,
+  "Loading a level must refresh and publish the selected vehicle independently of taxi mode");
+assert.match(taxiDriverLuaSource, /function M\.openVehicleSelector\(\)[\s\S]*?guihooks\.trigger\(["']ChangeState["'],\s*\{state\s*=\s*["']menu\.vehicles["']\}\)/,
+  "Vehicle card must open BeamNG's native vehicle selector");
+assert.match(vehicleHistoryLuaSource, /configData and configData\.preview/,
+  "Current-vehicle state must expose BeamNG's configuration preview asset");
+assert.match(taxiDriverLuaSource, /require\(["']taxiDriver\/persistence["']\)/,
+  "The main extension must delegate JSON schemas and storage to persistence.lua");
+assert.match(taxiDriverLuaSource, /require\(["']taxiDriver\/vehicleControl["']\)/,
+  "The main extension must delegate vehicle controls to vehicleControl.lua");
+assert.match(taxiDriverLuaSource, /require\(["']taxiDriver\/routePlanner["']\)/,
+  "The main extension must delegate route generation and stop caches to routePlanner.lua");
+assert.match(persistenceLuaSource, /function store:loadSettings\(\)/,
+  "Persistence module must own settings loading and canonicalization");
+assert.match(routePlannerLuaSource, /function service\.chooseStop\(/,
+  "Route planner module must expose a named stop-selection API");
+assert.match(routePlannerLuaSource, /function service\.getNearestRoadSpeedLimit\(pos\)/,
+  "Road speed-limit lookup must remain in the route planner module");
+assert.match(taxiDriverLuaSource, /routePlanning\.getNearestRoadSpeedLimit\(vehicle:getPosition\(\)\)/,
+  "Speed penalties must use the route planner instead of an unavailable global getRoadLink function");
+assert.doesNotMatch(taxiDriverLuaSource, /\bgetRoadLink\s*\(/,
+  "The main extension must not call BeamNG's unavailable global getRoadLink function");
+assert.match(taxiDriverLuaSource, /userSettings\.randomEventsEnabled\s*==\s*true[\s\S]*?tripEvents\.create/,
+  "Random trip events must be gated by their persisted mode toggle");
+assert.match(shiftTrackerLuaSource, /function service:finish\(\)/,
+  "Shift lifecycle must remain isolated in shiftTracker.lua");
+assert.match(tripEventsLuaSource, /function M\.calculateTip\(/,
+  "Trip event rules must expose deterministic tip calculation");
+assert.match(vehicleHistoryLuaSource, /if completedRides > 0 then table\.insert\(result\.vehicles/,
+  "Vehicles with zero completed rides must not be persisted in history");
+const mainChunkLocalCount = taxiDriverLuaSource.split(/\r?\n/).reduce((count, line) => {
+  if (!line.startsWith("local ")) return count;
+  if (line.startsWith("local function ")) return count + 1;
+  const declaration = line.slice(6).split("=", 1)[0];
+  return count + declaration.split(",").filter(Boolean).length;
+}, 0);
+assert.ok(mainChunkLocalCount < 199,
+  `taxiDriver.lua has ${mainChunkLocalCount} main-chunk locals and is too close to LuaJIT's 200-local limit`);
+assert.ok(taxiDriverLuaSource.split(/\r?\n/).length < 4000,
+  "taxiDriver.lua must remain an orchestrator instead of absorbing extracted domain modules again");
 const { server, port } = await startHarnessServer(41735);
 const browser = await chromium.launch({ headless: true });
 
 const scenarios = [
   "home", "orders", "trip", "delivery", "overspeed", "boarding", "forcedExit",
-  "settings", "settingsConnection", "profile", "compact", "nextOffer", "fuelRoute", "fuel",
+  "settings", "settingsConnection", "profile", "profileVehicles", "compact", "nextOffer", "fuelRoute", "fuel", "magicFuel",
 ];
 const viewports = [
   { width: 320, height: 568 },
@@ -48,6 +126,8 @@ const baselineScreenshots = new Set([
   "game-compact-320x568.png",
   "web-settingsConnection-1024x768.png",
   "web-profile-768x1024.png",
+  "web-profileVehicles-768x1024.png",
+  "web-magicFuel-390x844.png",
   "web-forcedExit-390x844.png",
   "web-fuel-390x844.png",
   "hidpi-trip-390x844@2x.png",
@@ -68,6 +148,8 @@ const harnessUrl = (scenario, viewport, options = {}) => {
   if (options.uiScale !== undefined) query.set("uiScale", String(options.uiScale));
   if (options.mockWebAudio) query.set("mockWebAudio", "1");
   if (options.extreme) query.set("extreme", "1");
+  if (options.realistic !== undefined) query.set("realistic", options.realistic ? "1" : "0");
+  if (options.events !== undefined) query.set("events", options.events ? "1" : "0");
   return `http://127.0.0.1:${port}/?${query}`;
 };
 
@@ -156,6 +238,92 @@ try {
     "Cheat rating must be sent as a plain Lua statement with a serialized value");
   assert.doesNotMatch(command, /\b(?:if|return)\b/,
     "Cheat rating command must not use callback-incompatible Lua control flow");
+
+  await functionalPage.goto(harnessUrl("home", { width: 520, height: 900 }));
+  await waitForHarness(functionalPage);
+  assert.equal((await functionalPage.locator(".taxi-home__vehicle-copy strong").textContent()).trim(), "ETK 854t",
+    "Home screen must show the currently selected vehicle name");
+  assert.equal(await functionalPage.locator(".taxi-home__vehicle-preview img").evaluate((image) => image.naturalWidth > 0), true,
+    "Home screen must render the selected vehicle preview");
+  await functionalPage.locator(".taxi-home__vehicle").click();
+  const selectorCommand = await functionalPage.evaluate(() =>
+    (window.__taxiEngineLuaCommands || []).find((value) => value.includes("openVehicleSelector")) || ""
+  );
+  assert.match(selectorCommand, /taxiDriver_taxiDriver\.openVehicleSelector\(\)/,
+    "Clicking the vehicle card must ask Lua to open the native selector");
+  assert.equal((await functionalPage.locator(".phone-odometer strong").textContent()).trim(), "0012.8 km",
+    "Current-vehicle odometer must use a four-digit, one-decimal metric format");
+  await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    scope.$apply(() => { scope.settings.unitSystem = "imperial"; });
+  });
+  assert.equal((await functionalPage.locator(".phone-odometer strong").textContent()).trim(), "0008.0 mi",
+    "Current-vehicle odometer must convert to the selected imperial unit");
+
+  await functionalPage.goto(harnessUrl("orders", { width: 520, height: 900 }));
+  await waitForHarness(functionalPage);
+  const sortValues = ["fare", "pickup", "duration", "perKm"];
+  for (let index = 0; index < sortValues.length; index += 1) {
+    await functionalPage.locator(".taxi-sort-menu__trigger").click();
+    assert.equal(await functionalPage.locator(".taxi-sort-menu__options button").count(), 4,
+      "Order sorting menu must expose all four choices");
+    await functionalPage.locator(".taxi-sort-menu__options button").nth(index).click();
+    assert.equal(await functionalPage.evaluate(() => {
+      const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+      return scope.offerSort;
+    }), sortValues[index], `Order sorting choice ${sortValues[index]} must be clickable`);
+    assert.equal(await functionalPage.locator(".taxi-sort-menu__options").count(), 0,
+      "Order sorting menu must close after selection");
+  }
+
+  await functionalPage.goto(harnessUrl("profileVehicles", { width: 520, height: 900 }));
+  await waitForHarness(functionalPage);
+  assert.equal(await functionalPage.locator(".taxi-vehicle-history").count(), 3,
+    "Vehicle history tab must list every persisted vehicle record");
+  assert.match((await functionalPage.locator(".taxi-vehicle-history").filter({ hasText: "ETK 854t" }).textContent()), /ETK 854t[\s\S]*7[\s\S]*\$184\.25/,
+    "Vehicle history must show selector name, completed rides, and income");
+
+  for (const realistic of [false, true]) {
+    for (const events of [false, true]) {
+      for (const scenario of ["home", "orders", "trip", "delivery", "magicFuel"]) {
+        await functionalPage.goto(harnessUrl(scenario, { width: 390, height: 844 }, { realistic, events }));
+        await waitForHarness(functionalPage);
+        await assertVisualAudit(functionalPage,
+          `mode matrix realistic=${realistic} events=${events} scenario=${scenario}`);
+        const settingsState = await functionalPage.evaluate(() => {
+          const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+          return {
+            realistic: scope.settings.realisticMode === true,
+            events: scope.settings.randomEventsEnabled === true,
+          };
+        });
+        assert.deepEqual(settingsState, { realistic, events });
+      }
+    }
+  }
+
+  await functionalPage.goto(harnessUrl("trip", { width: 390, height: 844 }));
+  await waitForHarness(functionalPage);
+  assert.equal(await functionalPage.locator(".taxi-penalty-log__events").count(), 0,
+    "Penalty details must start collapsed");
+  await functionalPage.locator("button.taxi-penalty-log__header").click();
+  assert.equal(await functionalPage.locator(".taxi-penalty-event").count(), 3,
+    "Penalty summary must expand into individual events");
+
+  await functionalPage.goto(harnessUrl("magicFuel", { width: 390, height: 844 }));
+  await waitForHarness(functionalPage);
+  assert.equal(await functionalPage.locator(".taxi-fuel__magic").isVisible(), true,
+    "Missing stations must show an explanatory magic-fuel panel");
+  assert.equal(await functionalPage.locator(".taxi-fuel__range").isEnabled(), true,
+    "Magic fuel must reuse the ordinary amount slider while stopped");
+  await functionalPage.evaluate(() => window.__taxiSetState({
+    fuelStation: Object.assign({}, window.__taxiScenarios.magicFuel.fuelStation, { vehicleStopped: false }),
+  }));
+  await functionalPage.waitForFunction(() =>
+    document.querySelector(".taxi-fuel__buy")?.textContent.includes("Keep the vehicle stopped")
+  );
+  assert.equal(await functionalPage.locator(".taxi-fuel__range").isDisabled(), true,
+    "Magic refueling controls must remain locked while the vehicle is moving");
 
   await functionalPage.goto(harnessUrl("overspeed", { width: 520, height: 900 }));
   await waitForHarness(functionalPage);
