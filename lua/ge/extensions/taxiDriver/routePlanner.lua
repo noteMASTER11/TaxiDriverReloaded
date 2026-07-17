@@ -217,6 +217,10 @@ function M.new(options)
     return candidates
   end
 
+  function service.getStopCandidateCount()
+    return #getStopCandidates()
+  end
+
   local function chooseSemanticStop(startPos, minimumDistance, maximumDistance)
     local candidates = getStopCandidates()
     if not candidates[1] then return nil end

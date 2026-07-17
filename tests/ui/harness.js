@@ -112,6 +112,7 @@
   window.__taxiVisualAudit = () => {
     const stage = document.querySelector(".taxi-test-stage");
     const phone = document.querySelector(".taxi-phone");
+    const compact = document.querySelector(".taxi-compact");
     const screen = document.querySelector(".taxi-phone__screen");
     const settingsPanel = document.querySelector(".taxi-settings");
     const qr = document.querySelector(".taxi-lan__qr");
@@ -124,12 +125,14 @@
       inner.right <= outer.right + tolerance && inner.top >= outer.top - tolerance &&
       inner.bottom <= outer.bottom + tolerance;
     if (phone && !within(stageRect, phone.getBoundingClientRect(), 2)) failures.push("phone-outside-stage");
+    if (compact && !within(stageRect, compact.getBoundingClientRect(), 2)) failures.push("compact-outside-stage");
     if (document.documentElement.scrollWidth > window.innerWidth + 1) failures.push("document-horizontal-overflow");
     const title = document.querySelector(".taxi-appbar__title");
     if (title && title.getBoundingClientRect().width > 0 &&
         title.getBoundingClientRect().width < 48 * uiScale) failures.push("appbar-title-collapsed");
     const appbar = document.querySelector(".taxi-appbar");
     if (appbar) {
+      const appbarRect = appbar.getBoundingClientRect();
       const children = Array.from(appbar.children).filter((element) => {
         const rect = element.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0;
@@ -139,6 +142,18 @@
         const current = children[index].getBoundingClientRect();
         if (current.left < previous.right - 1) failures.push("appbar-items-overlap");
       }
+      const contentPanels = Array.from(document.querySelectorAll(
+        ".taxi-settings, .taxi-profile, .taxi-home, .taxi-orders, .taxi-transfer, " +
+        ".taxi-fuel-route, .taxi-trip-layout, .taxi-fuel"
+      )).filter((element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
+      contentPanels.forEach((panel) => {
+        if (panel.getBoundingClientRect().top < appbarRect.bottom - 1) {
+          failures.push(`content-under-appbar:${panel.className}`);
+        }
+      });
     }
     const compactMetrics = Array.from(document.querySelectorAll(".taxi-compact__metric"));
     if (compactMetrics.some((element) => element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1)) {
@@ -154,6 +169,21 @@
         const rect = element.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0 && rect.height < 40 * uiScale;
       })) failures.push("web-touch-target-too-small");
+    } else {
+      let smallTextValue = "";
+      const smallText = Array.from(document.querySelectorAll(".taxi-phone *")).find((element) => {
+        const rect = element.getBoundingClientRect();
+        if (rect.width < 1 || rect.height < 1) return false;
+        const ownText = Array.from(element.childNodes)
+          .filter((node) => node.nodeType === Node.TEXT_NODE)
+          .map((node) => node.textContent.trim())
+          .join(" ");
+        if (!/[0-9A-Za-zА-Яа-яЁёÀ-ÿ]/.test(ownText)) return false;
+        const fontSize = Number.parseFloat(getComputedStyle(element).fontSize);
+        if (fontSize > 0 && fontSize < 14) smallTextValue = ownText.slice(0, 28);
+        return fontSize > 0 && fontSize < 14;
+      });
+      if (smallText) failures.push(`native-text-under-14:${smallText.className || smallText.tagName}:${smallTextValue}`);
     }
     const canvas = document.querySelector("canvas.taxi-external-minimap");
     if (canvas && window.devicePixelRatio > 1) {

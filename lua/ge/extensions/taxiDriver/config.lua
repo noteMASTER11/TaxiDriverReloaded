@@ -121,6 +121,7 @@ M.offer = {
   nextOfferDuration = 5,
   nextOfferRetryMin = 5,
   nextOfferRetryMax = 10,
+  nextOfferErrorLimit = 3,
   nextOfferProgressThreshold = 0.80,
   pickupTimeMultiplier = 1.35,
   pickupTimeGraceSeconds = 60,

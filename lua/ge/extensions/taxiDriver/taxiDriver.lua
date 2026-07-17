@@ -23,7 +23,7 @@ local shiftTracker = require("taxiDriver/shiftTracker")
 local tripEvents = require("taxiDriver/tripEvents")
 
 local logTag = "taxiDriver"
-local modVersion = "2.25.0"
+local modVersion = "2.25.1"
 
 local supportedLanguages = taxiConfig.supportedLanguages
 local minRideDistance = taxiConfig.runtime.minRideDistance
@@ -188,6 +188,8 @@ local offerGeneration = {
 local nextOfferId = 1
 local minimapOriginalMode = nil
 local minimapOwned = false
+local minimapAppVisible = true
+local minimapUiBlocked = false
 local minimapOriginalDrawPlayer = nil
 local minimapWrappedDrawPlayer = nil
 local minimapZoomMultiplier = nil
@@ -1744,6 +1746,8 @@ local function resetTripMetrics()
   trip.nextPenaltyEventId = 0
   trip.nextOfferPrompted = false
   trip.nextOfferRetryTimer = 0
+  trip.nextOfferFailureCount = 0
+  trip.nextOfferDisabled = false
   trip.passengerStress = 0
   trip.passengerInitialCalmness = clampValue(
     tonumber(trip.passengerInitialCalmness) or tonumber(trip.passengerCalmness) or 50,
@@ -1845,7 +1849,7 @@ local function createOffer(requestedType, generationFailureCount)
     (requestedType == nil and math.random() < offerConfig.multiStopChance)
   )
   local isMultiStop = wantsMultiStop and
-    #getStopCandidates() >= offerConfig.multiStopMinimumCandidates
+    routePlanning.getStopCandidateCount() >= offerConfig.multiStopMinimumCandidates
   local stops = {}
   local routeOrigin = pickup
   local rideDistance = 0
@@ -2168,8 +2172,32 @@ local function scheduleNextOfferRetry()
   )
 end
 
+local function recordNextOfferError(errorMessage)
+  if not trip then return end
+  offerGeneration.nextJob = nil
+  trip.nextOfferFailureCount = (trip.nextOfferFailureCount or 0) + 1
+  local errorLimit = math.max(1, tonumber(offerConfig.nextOfferErrorLimit) or 3)
+  if trip.nextOfferFailureCount >= errorLimit then
+    trip.nextOfferDisabled = true
+    log("E", logTag, string.format(
+      "Next-offer generation disabled for the current trip after %d errors: %s",
+      trip.nextOfferFailureCount,
+      tostring(errorMessage or "unknown error")
+    ))
+    return
+  end
+
+  scheduleNextOfferRetry()
+  log("W", logTag, string.format(
+    "Next-offer generation error %d/%d: %s",
+    trip.nextOfferFailureCount,
+    errorLimit,
+    tostring(errorMessage or "unknown error")
+  ))
+end
+
 local function updateNextOfferOpportunity(dtSim)
-  if not trip or state.phase ~= phases.toDestination then return end
+  if not trip or state.phase ~= phases.toDestination or trip.nextOfferDisabled then return end
 
   if nextOffer then
     if not nextOfferAccepted then
@@ -2202,9 +2230,10 @@ local function updateNextOfferOpportunity(dtSim)
   if status == "pending" then return end
   offerGeneration.nextJob = nil
   if status == "error" then
-    errorMessage = generatedOffer
-    generatedOffer = nil
+    recordNextOfferError(generatedOffer)
+    return
   end
+  trip.nextOfferFailureCount = 0
   if generatedOffer then
     rememberOfferStops(generatedOffer)
     nextOffer = generatedOffer
@@ -2215,6 +2244,13 @@ local function updateNextOfferOpportunity(dtSim)
     scheduleNextOfferRetry()
     log("W", logTag, errorMessage or "Unable to generate next taxi offer")
   end
+end
+
+local function updateNextOfferOpportunitySafely(dtSim)
+  local ok, errorMessage = xpcall(function()
+    updateNextOfferOpportunity(dtSim)
+  end, debug.traceback)
+  if not ok then recordNextOfferError(errorMessage) end
 end
 
 local function failOrder(message, notificationKey)
@@ -3082,7 +3118,7 @@ local function updateActiveMode(dtSim)
     updateRushTimer(dtSim)
     updateSpeedPenalty(vehicle, dtSim)
     if state.phase ~= phases.toDestination then return end
-    updateNextOfferOpportunity(dtSim)
+    updateNextOfferOpportunitySafely(dtSim)
     if vehicle:getPosition():distance(trip.destination.pos) <= arrivalRadius and getVehicleSpeedKmh(vehicle) <= maxArrivalSpeedKmh then
       beginAlighting()
     end
@@ -3168,6 +3204,8 @@ end
 function M.openVehicleSelector()
   -- Open BeamNG's native vehicle selection state. This also works when the
   -- command comes from the external Web UI through the game's UI bridge.
+  minimapUiBlocked = true
+  hideNativeMinimap()
   guihooks.trigger("ChangeState", {state = "menu.vehicles"})
 end
 
@@ -3422,12 +3460,21 @@ function M.cheatResetProgress()
 end
 
 local function canShowNativeMinimap()
-  return state.active and (
+  return minimapAppVisible and not minimapUiBlocked and state.active and (
     state.phase == phases.toPickup or
     state.phase == phases.toStop or
     state.phase == phases.toDestination or
     state.phase == phases.toFuelStation
   )
+end
+
+function M.setMinimapAppVisibility(visible)
+  minimapAppVisible = visible == true
+  if not minimapAppVisible then
+    hideNativeMinimap()
+  elseif not minimapUiBlocked then
+    guihooks.trigger("TaxiDriverMinimapInvalidated")
+  end
 end
 
 function M.setMinimapTransform(x, y, width, height)
@@ -3742,9 +3789,38 @@ function M.onTelemetryVehicleReset(vehicleId)
 end
 
 function M.onClientStartMission()
+  minimapAppVisible = true
+  minimapUiBlocked = false
   vehicleHistory.resetTracking()
   vehicleHistory.refreshCurrentVehicle()
   notifyHud()
+end
+
+function M.onUiChangedState(to, from)
+  -- BeamNG uses several intermediate states while the UI App itself remains
+  -- visible. Blocking every state except the literal "play" permanently hid
+  -- the native map after app editing and vehicle selection. Only states known
+  -- to cover the gameplay UI are treated as blockers; CEF visibility remains
+  -- the primary source of truth through setMinimapAppVisibility().
+  local blockingPrefixes = {
+    "menu.mainmenu", "menu.photomode", "menu.options", "menu.vehicles",
+    "menu.vehiclesnew", "menu.appedit", "menu.levels", "menu.mods",
+    "menu.appselect"
+  }
+  local function isBlocking(value)
+    local name = tostring(value or "")
+    for _, prefix in ipairs(blockingPrefixes) do
+      if string.sub(name, 1, string.len(prefix)) == prefix then return true end
+    end
+    return false
+  end
+  if isBlocking(to) then
+    minimapUiBlocked = true
+    hideNativeMinimap()
+  elseif isBlocking(from) then
+    minimapUiBlocked = false
+    if minimapAppVisible then guihooks.trigger("TaxiDriverMinimapInvalidated") end
+  end
 end
 
 function M.onExtensionLoaded()

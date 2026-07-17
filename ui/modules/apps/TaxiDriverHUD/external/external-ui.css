@@ -37,8 +37,6 @@
 .taxi-shell--external .taxi-appbar__fuel { min-height: 44px; }
 .taxi-shell--external .taxi-appbar__settings,
 .taxi-shell--external .taxi-appbar__profile { width: 44px; height: 44px; flex-basis: 44px; }
-.taxi-shell--external .taxi-settings,
-.taxi-shell--external .taxi-fuel { top: calc(64px + env(safe-area-inset-top)); }
 .taxi-shell--external .taxi-settings { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
 .taxi-shell--external .taxi-sheet,
 .taxi-shell--external .taxi-orders__list,
@@ -68,8 +66,6 @@
     padding-top: calc(6px + env(safe-area-inset-top));
     padding-bottom: 6px;
   }
-  .taxi-shell--external .taxi-settings,
-  .taxi-shell--external .taxi-fuel { top: calc(56px + env(safe-area-inset-top)); }
   .taxi-shell--external .taxi-trip-layout,
   .taxi-shell--external .taxi-fuel-route {
     display: grid;

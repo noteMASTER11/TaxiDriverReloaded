@@ -164,6 +164,7 @@
     left: 0;
     display: flex;
     height: 340px;
+    box-sizing: border-box;
     flex-direction: column;
     overflow: hidden;
     color: #f7f8fa;
@@ -1341,12 +1342,9 @@
   }
 
   .taxi-settings {
-    position: absolute;
+    position: relative;
     z-index: 10;
-    top: 86px;
-    right: 0;
-    bottom: 0;
-    left: 0;
+    flex: 1 1 auto;
     width: 100%;
     min-height: 0;
     padding: 16px;
@@ -1937,6 +1935,7 @@
     border-radius: 11px;
     cursor: pointer;
   }
+  .taxi-home__modes { display: contents; }
   .taxi-home__realistic--active { background: rgba(255,209,26,.09); border-color: rgba(255,209,26,.4); }
   .taxi-home__realistic-icon { display: grid; width: 29px; height: 29px; place-items: center; font-size: 16px; background: rgba(255,209,26,.12); border-radius: 8px; }
   .taxi-home__realistic strong { min-width: 0; flex: 1; font-size: 12px; }
@@ -2028,13 +2027,12 @@
   .taxi-fuel-route__cancel { width: 100%; margin-top: auto; padding: 12px; color: #e4e7ea; font-size: 10px; font-weight: 1000; background: rgba(255,255,255,.065); border: 1px solid rgba(255,255,255,.12); border-radius: 9px; cursor: pointer; }
 
   .taxi-fuel {
-    position: absolute;
+    position: relative;
     z-index: 65;
-    top: 86px;
-    right: 0;
-    bottom: 0;
-    left: 0;
     display: flex;
+    width: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
     flex-direction: column;
     padding: 16px;
     color: #f5f7f9;
@@ -2430,4 +2428,305 @@
     }
     .taxi-shell--minimized .taxi-shell__toggle { top: 4px; }
     .taxi-compact__dashboard { min-width: 0; padding: 9px 12px; }
+  }
+
+  /* Native BeamNG UI App: desktop readability --------------------------- */
+  .taxi-shell:not(.taxi-shell--external) .taxi-phone {
+    --taxi-caption: 14px;
+    --taxi-body-small: 15px;
+    --taxi-body: 16px;
+    --taxi-label: 16px;
+    --taxi-heading: 20px;
+    --taxi-title: 28px;
+    --taxi-display: 32px;
+  }
+
+  .taxi-shell:not(.taxi-shell--external) .phone-status {
+    min-height: 34px;
+    padding-right: 16px;
+    padding-left: 16px;
+    font-size: var(--taxi-caption);
+  }
+  .taxi-shell:not(.taxi-shell--external) .phone-status__icons,
+  .taxi-shell:not(.taxi-shell--external) .phone-odometer {
+    font-size: var(--taxi-caption);
+  }
+  .taxi-shell:not(.taxi-shell--external) .phone-odometer {
+    min-height: 28px;
+    padding: 4px 16px;
+    line-height: 1.25;
+  }
+
+  .taxi-shell:not(.taxi-shell--external) .taxi-appbar {
+    min-height: 68px;
+    gap: 10px;
+    padding: 9px 16px;
+  }
+  .taxi-shell:not(.taxi-shell--external) .taxi-appbar__logo {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+    font-size: 23px;
+    border-radius: 11px;
+  }
+  .taxi-shell:not(.taxi-shell--external) .taxi-appbar__title strong { font-size: var(--taxi-heading); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-appbar__title span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-appbar__live { font-size: var(--taxi-caption); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-appbar__fuel {
+    min-height: 46px;
+    padding: 0 15px;
+    font-size: var(--taxi-body);
+  }
+  .taxi-shell:not(.taxi-shell--external) .taxi-appbar__settings,
+  .taxi-shell:not(.taxi-shell--external) .taxi-appbar__profile {
+    width: 46px;
+    height: 46px;
+    flex-basis: 46px;
+    font-size: 22px;
+  }
+
+  .taxi-shell:not(.taxi-shell--external) .taxi-sheet {
+    padding: 18px 17px 0;
+    scrollbar-gutter: stable;
+  }
+  .taxi-shell:not(.taxi-shell--external) .taxi-sheet__heading { gap: 12px; }
+  .taxi-shell:not(.taxi-shell--external) .taxi-sheet__avatar {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+    font-size: var(--taxi-caption);
+  }
+  .taxi-shell:not(.taxi-shell--external) .taxi-trip-notice,
+  .taxi-shell:not(.taxi-shell--external) .taxi-transfer__rating-loss,
+  .taxi-shell:not(.taxi-shell--external) .taxi-settings__intro > strong,
+  .taxi-shell:not(.taxi-shell--external) .taxi-settings__group-icon,
+  .taxi-shell:not(.taxi-shell--external) .taxi-lan__status,
+  .taxi-shell:not(.taxi-shell--external) .taxi-settings__cheat-stats span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-settings__cheat-rating button,
+  .taxi-shell:not(.taxi-shell--external) .taxi-settings__money-grid button,
+  .taxi-shell:not(.taxi-shell--external) .taxi-profile__age,
+  .taxi-shell:not(.taxi-shell--external) .taxi-profile__saved,
+  .taxi-shell:not(.taxi-shell--external) .taxi-review__rating,
+  .taxi-shell:not(.taxi-shell--external) .taxi-vehicle-history__head span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-vehicle-history__stats span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-chart-card__head span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-orders__sort,
+  .taxi-shell:not(.taxi-shell--external) .taxi-vehicle-history__sort,
+  .taxi-shell:not(.taxi-shell--external) .taxi-order-card__efficiency,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel-route__copy span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel-route__context,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel-route__progress-head,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel-route__stat span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel-route__cancel,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel__magic span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel__magic strong,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel__metric span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel__tank-change,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel__presets button,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel__selection-meta,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel__projection span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel__projection small,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel__progress-meta {
+    font-size: var(--taxi-caption);
+    line-height: 1.35;
+  }
+  .taxi-shell:not(.taxi-shell--external) .taxi-lan__url { font-size: var(--taxi-caption); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-settings__cheat-stats strong { font-size: var(--taxi-body-small); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-profile__save,
+  .taxi-shell:not(.taxi-shell--external) .taxi-vehicle-history__stats strong,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel-route__context strong,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fuel-route__stat strong { font-size: var(--taxi-body-small); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-vehicle-history__head strong { font-size: var(--taxi-label); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-trip-dashboard__label,
+  .taxi-shell:not(.taxi-shell--external) .taxi-trip-dashboard__value small,
+  .taxi-shell:not(.taxi-shell--external) .taxi-metric span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer__stat span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer__energy-type,
+  .taxi-shell:not(.taxi-shell--external) .taxi-orders__footer {
+    font-size: var(--taxi-caption);
+  }
+  .taxi-shell:not(.taxi-shell--external) .taxi-trip-dashboard__value strong,
+  .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer__stat strong,
+  .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer__energy strong,
+  .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer__energy-range,
+  .taxi-shell:not(.taxi-shell--external) .taxi-offline-hold {
+    font-size: var(--taxi-body-small);
+  }
+  .taxi-shell:not(.taxi-shell--external) .taxi-trip-dashboard__metric { min-height: 48px; padding: 7px 9px 7px 12px; }
+  .taxi-shell:not(.taxi-shell--external) .taxi-metric { min-height: 58px; padding: 8px 10px; }
+  .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer {
+    margin: auto -3px 0;
+    padding: 12px;
+  }
+  .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer__energy { min-height: 38px; padding: 7px 9px; }
+  .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer__stat { min-height: 46px; padding: 7px 9px; }
+  .taxi-shell:not(.taxi-shell--external) .taxi-offline-hold { min-width: 112px; min-height: 52px; }
+
+  .taxi-shell:not(.taxi-shell--external) .taxi-order-card { padding: 14px; margin-bottom: 12px; }
+  .taxi-shell:not(.taxi-shell--external) .taxi-order-card__avatar { width: 40px; height: 40px; font-size: var(--taxi-caption); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-order-card__accept { min-height: 46px; font-size: var(--taxi-body-small); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-order-card__metric { min-height: 48px; padding: 7px 9px; }
+
+  .taxi-shell:not(.taxi-shell--external) .taxi-home__vehicle-copy strong,
+  .taxi-shell:not(.taxi-shell--external) .taxi-home__realistic strong { font-size: var(--taxi-label); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-home__vehicle-copy span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-home__realistic small,
+  .taxi-shell:not(.taxi-shell--external) .taxi-home__last-shift > strong,
+  .taxi-shell:not(.taxi-shell--external) .taxi-home__last-shift span { font-size: var(--taxi-caption); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-home__last-shift b { font-size: var(--taxi-body-small); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-home__pin { display: none; }
+  .taxi-shell:not(.taxi-shell--external) .taxi-home p { margin: 7px 0 14px; }
+  .taxi-shell:not(.taxi-shell--external) .taxi-home__realistic { min-height: 52px; padding: 9px 10px; }
+  .taxi-shell:not(.taxi-shell--external) .taxi-home__last-shift { padding: 11px; }
+  .taxi-shell:not(.taxi-shell--external) .taxi-start { min-height: 52px; font-size: var(--taxi-label); }
+
+  .taxi-shell:not(.taxi-shell--external) .taxi-compact {
+    height: min(530px, calc(100% - 42px));
+  }
+  .taxi-shell--minimized:not(.taxi-shell--external) .taxi-shell__toggle {
+    top: max(4px, calc(100% - 572px));
+  }
+  @media (orientation: landscape) and (max-height: 500px) {
+    .taxi-shell:not(.taxi-shell--external) .taxi-compact {
+      height: calc(100% - 46px);
+    }
+  }
+  .taxi-shell:not(.taxi-shell--external) .taxi-compact__dashboard { flex-basis: 200px; }
+  .taxi-shell:not(.taxi-shell--external) .taxi-compact__route-info span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-compact__route-info small,
+  .taxi-shell:not(.taxi-shell--external) .taxi-compact__copy span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-compact__progress-labels,
+  .taxi-shell:not(.taxi-shell--external) .taxi-compact__metric span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-compact__metric small { font-size: var(--taxi-caption); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-compact__route-info strong { font-size: var(--taxi-display); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-compact__copy strong,
+  .taxi-shell:not(.taxi-shell--external) .taxi-compact__distance { font-size: var(--taxi-heading); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-compact__metric { min-height: 48px; padding: 8px 9px; }
+  .taxi-shell:not(.taxi-shell--external) .taxi-compact__metric strong { font-size: var(--taxi-body-small); }
+
+  @media (min-height: 700px) {
+    .taxi-shell:not(.taxi-shell--external) .taxi-trip-layout > .taxi-map,
+    .taxi-shell:not(.taxi-shell--external) .taxi-fuel-route > .taxi-map { flex-basis: 295px; }
+  }
+
+  .taxi-shell:not(.taxi-shell--external) .taxi-trip-notice--fuel { display: none; }
+
+  @media (min-width: 460px) {
+    .taxi-shell:not(.taxi-shell--external) .taxi-home__modes {
+      display: grid;
+      width: 100%;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .taxi-shell:not(.taxi-shell--external) .taxi-home__modes .taxi-home__realistic { margin: 0; }
+    .taxi-shell:not(.taxi-shell--external) .taxi-home__modes .taxi-home__realistic small { display: none; }
+
+    .taxi-shell:not(.taxi-shell--external) .taxi-trip-dashboard__metric:not(.taxi-trip-dashboard__metric--calmness) {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .taxi-shell:not(.taxi-shell--external) .taxi-trip-dashboard__value { margin-top: 0; }
+    .taxi-shell:not(.taxi-shell--external) .taxi-metrics {
+      grid-template-columns: minmax(0, 1.7fr) repeat(2, minmax(0, .85fr));
+    }
+
+    .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(150px, 1fr);
+      grid-template-rows: auto auto auto;
+      gap: 3px 10px;
+    }
+    .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer__rating-head { grid-column: 1; grid-row: 1; }
+    .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer__rating-track { grid-column: 1; grid-row: 2; }
+    .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer__energy {
+      grid-column: 1;
+      grid-row: 3;
+      margin-top: 3px;
+    }
+    .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer__bottom {
+      min-width: 0;
+      grid-column: 2;
+      grid-row: 1 / 4;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 0;
+    }
+    .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer__stats { flex: 1; }
+    .taxi-shell:not(.taxi-shell--external) .taxi-ride-footer .taxi-offline-hold { width: 100%; min-height: 44px; }
+
+    .taxi-shell:not(.taxi-shell--external) .taxi-order-card {
+      display: grid;
+      grid-template-columns: minmax(168px, .8fr) minmax(0, 1.2fr);
+      column-gap: 10px;
+    }
+    .taxi-shell:not(.taxi-shell--external) .taxi-order-card__top,
+    .taxi-shell:not(.taxi-shell--external) .taxi-order-card__accept,
+    .taxi-shell:not(.taxi-shell--external) .taxi-order-card__rush,
+    .taxi-shell:not(.taxi-shell--external) .taxi-order-card__multi,
+    .taxi-shell:not(.taxi-shell--external) .taxi-order-card__delivery,
+    .taxi-shell:not(.taxi-shell--external) .taxi-order-card__rating-bonus { grid-column: 1 / -1; }
+    .taxi-shell:not(.taxi-shell--external) .taxi-order-card__efficiency {
+      grid-column: 1;
+      align-items: stretch;
+      margin: 9px 0;
+    }
+    .taxi-shell:not(.taxi-shell--external) .taxi-order-card__efficiency span {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      padding: 5px 6px;
+      white-space: nowrap;
+    }
+    .taxi-shell:not(.taxi-shell--external) .taxi-order-card__metrics {
+      grid-column: 2;
+      margin: 9px 0;
+    }
+  }
+
+  .taxi-shell:not(.taxi-shell--external) .taxi-calmness-emoji__percent {
+    min-width: 27px;
+    padding: 2px 3px;
+    font-size: var(--taxi-caption);
+  }
+
+  @media (max-width: 420px) {
+    .taxi-shell:not(.taxi-shell--external) .taxi-appbar__fuel {
+      width: 44px;
+      min-width: 44px;
+      max-width: 44px;
+      flex-basis: 44px;
+      padding: 0;
+      font-size: 0;
+    }
+    .taxi-shell:not(.taxi-shell--external) .taxi-appbar__fuel::before {
+      content: "\26FD";
+      font-size: 20px;
+      line-height: 1;
+    }
+  }
+
+  @media (max-width: 359px) {
+    .taxi-shell:not(.taxi-shell--external) .taxi-appbar { gap: 7px; padding-right: 9px; padding-left: 9px; }
+    .taxi-shell:not(.taxi-shell--external) .taxi-appbar__logo {
+      width: 40px;
+      height: 40px;
+      flex-basis: 40px;
+    }
+    .taxi-shell:not(.taxi-shell--external) .taxi-appbar__settings,
+    .taxi-shell:not(.taxi-shell--external) .taxi-appbar__profile {
+      width: 42px;
+      height: 42px;
+      flex-basis: 42px;
+    }
+    .taxi-shell:not(.taxi-shell--external) .taxi-appbar__fuel {
+      width: 42px;
+      min-width: 42px;
+      max-width: 42px;
+      flex-basis: 42px;
+      padding: 0;
+      font-size: 0;
+    }
   }

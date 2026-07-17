@@ -22,6 +22,10 @@ const taxiDriverLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/taxiDriver.lua"),
   "utf8"
 );
+const configLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/config.lua"),
+  "utf8"
+);
 const vehicleHistoryLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/vehicleHistory.lua"),
   "utf8"
@@ -63,8 +67,16 @@ assert.match(taxiDriverLuaSource, /function M\.onVehicleSwitched[\s\S]*?vehicleH
   "Switching vehicles must select the new vehicle and publish its odometer immediately");
 assert.match(taxiDriverLuaSource, /function M\.onClientStartMission\(\)[\s\S]*?vehicleHistory\.refreshCurrentVehicle\(\)[\s\S]*?notifyHud\(\)/,
   "Loading a level must refresh and publish the selected vehicle independently of taxi mode");
-assert.match(taxiDriverLuaSource, /function M\.openVehicleSelector\(\)[\s\S]*?guihooks\.trigger\(["']ChangeState["'],\s*\{state\s*=\s*["']menu\.vehicles["']\}\)/,
-  "Vehicle card must open BeamNG's native vehicle selector");
+assert.match(taxiDriverLuaSource, /function M\.openVehicleSelector\(\)[\s\S]*?hideNativeMinimap\(\)[\s\S]*?guihooks\.trigger\(["']ChangeState["'],\s*\{state\s*=\s*["']menu\.vehicles["']\}\)/,
+  "Vehicle card must hide the native map before opening BeamNG's vehicle selector");
+assert.match(taxiDriverLuaSource, /local function canShowNativeMinimap\(\)[\s\S]*?minimapAppVisible and not minimapUiBlocked and state\.active/,
+  "Native map updates must require a visible app and an unobstructed BeamNG UI");
+assert.match(taxiDriverLuaSource, /function M\.setMinimapAppVisibility\(visible\)[\s\S]*?minimapAppVisible\s*=\s*visible\s*==\s*true[\s\S]*?TaxiDriverMinimapInvalidated/,
+  "Native map visibility must follow the actual CEF UI App visibility");
+assert.match(taxiDriverLuaSource, /function M\.onUiChangedState\(to, from\)[\s\S]*?menu\.vehiclesnew[\s\S]*?menu\.appedit[\s\S]*?if isBlocking\(to\)[\s\S]*?hideNativeMinimap\(\)[\s\S]*?elseif isBlocking\(from\)[\s\S]*?TaxiDriverMinimapInvalidated/,
+  "Known BeamNG overlays must hide the native map without blocking unrelated intermediate UI states");
+assert.match(taxiDriverLuaSource, /function M\.openVehicleSelector\(\)[\s\S]*?minimapUiBlocked\s*=\s*true[\s\S]*?hideNativeMinimap\(\)/,
+  "Opening the vehicle selector must block timer-driven map redraws immediately");
 assert.match(vehicleHistoryLuaSource, /configData and configData\.preview/,
   "Current-vehicle state must expose BeamNG's configuration preview asset");
 assert.match(taxiDriverLuaSource, /require\(["']taxiDriver\/persistence["']\)/,
@@ -77,6 +89,20 @@ assert.match(persistenceLuaSource, /function store:loadSettings\(\)/,
   "Persistence module must own settings loading and canonicalization");
 assert.match(routePlannerLuaSource, /function service\.chooseStop\(/,
   "Route planner module must expose a named stop-selection API");
+assert.match(routePlannerLuaSource, /function service\.getStopCandidateCount\(\)/,
+  "Route planner module must expose semantic stop availability to the orchestrator");
+assert.match(taxiDriverLuaSource, /routePlanning\.getStopCandidateCount\(\)/,
+  "Multi-stop offer generation must query the extracted route planner API");
+assert.doesNotMatch(taxiDriverLuaSource, /\bgetStopCandidates\s*\(/,
+  "The main extension must not call route planner internals after extraction");
+assert.match(configLuaSource, /nextOfferErrorLimit\s*=\s*3/,
+  "Repeated late next-offer failures must have a bounded per-trip retry limit");
+assert.match(taxiDriverLuaSource, /local function recordNextOfferError[\s\S]*?trip\.nextOfferDisabled\s*=\s*true/,
+  "Repeated next-offer errors must disable only that optional subsystem for the current trip");
+assert.match(taxiDriverLuaSource, /local function updateNextOfferOpportunitySafely[\s\S]*?xpcall\([\s\S]*?updateNextOfferOpportunity\(dtSim\)[\s\S]*?recordNextOfferError/,
+  "Late next-offer generation must not propagate Lua errors into the main update loop");
+assert.match(taxiDriverLuaSource, /updateNextOfferOpportunitySafely\(dtSim\)[\s\S]*?beginAlighting\(\)/,
+  "A failed optional next-offer update must not prevent destination arrival handling");
 assert.match(routePlannerLuaSource, /function service\.getNearestRoadSpeedLimit\(pos\)/,
   "Road speed-limit lookup must remain in the route planner module");
 assert.match(taxiDriverLuaSource, /routePlanning\.getNearestRoadSpeedLimit\(vehicle:getPosition\(\)\)/,
@@ -212,6 +238,13 @@ try {
   const functionalPage = await browser.newPage({ viewport: { width: 520, height: 900 } });
   await functionalPage.goto(harnessUrl("settingsConnection", { width: 520, height: 900 }));
   await waitForHarness(functionalPage);
+  const settingsBoundary = await functionalPage.evaluate(() => {
+    const appbar = document.querySelector(".taxi-appbar").getBoundingClientRect();
+    const settings = document.querySelector(".taxi-settings").getBoundingClientRect();
+    return { appbarBottom: appbar.bottom, settingsTop: settings.top };
+  });
+  assert.ok(settingsBoundary.settingsTop >= settingsBoundary.appbarBottom - 1,
+    `Settings must begin below the complete header (${JSON.stringify(settingsBoundary)})`);
   const openIndicator = functionalPage.locator(".taxi-settings__group--open .taxi-settings__group-head i").last();
   assert.equal((await openIndicator.textContent()).trim(), "-", "An expanded Settings group must show '-'");
   await openIndicator.locator("..").click();
@@ -310,6 +343,78 @@ try {
   assert.equal(await functionalPage.locator(".taxi-penalty-event").count(), 3,
     "Penalty summary must expand into individual events");
 
+  await functionalPage.goto(harnessUrl("trip", { width: 520, height: 900 }));
+  await waitForHarness(functionalPage);
+  const nativeMapHeight = await functionalPage.locator(".taxi-trip-layout > .taxi-map")
+    .evaluate((element) => element.getBoundingClientRect().height);
+  assert.ok(nativeMapHeight >= 290 && nativeMapHeight <= 300,
+    `Native trip map must retain its enlarged 295px block (${nativeMapHeight}px)`);
+  assert.ok((await functionalPage.evaluate(() => window.__taxiEngineLuaCommands || []))
+    .some((value) => value.includes("setMinimapAppVisibility(true)")),
+  "Native UI initialization must explicitly release stale Lua map visibility state");
+  await functionalPage.evaluate(() => {
+    window.__taxiEngineLuaCommands = [];
+    const rootScope = angular.element(document).injector().get("$rootScope");
+    rootScope.$broadcast("onCefVisibilityChanged", false);
+    rootScope.$broadcast("onCefVisibilityChanged", true);
+  });
+  await functionalPage.waitForFunction(() => {
+    const commands = window.__taxiEngineLuaCommands || [];
+    return commands.some((value) => value.includes("setMinimapAppVisibility(false)")) &&
+      commands.some((value) => value.includes("setMinimapAppVisibility(true)")) &&
+      commands.some((value) => value.includes("setMinimapTransform"));
+  });
+  await functionalPage.evaluate(() => {
+    window.__taxiEngineLuaCommands = [];
+    angular.element(document).injector().get("$rootScope")
+      .$broadcast("TaxiDriverMinimapInvalidated");
+  });
+  await functionalPage.waitForFunction(() =>
+    (window.__taxiEngineLuaCommands || []).some((value) => value.includes("setMinimapTransform"))
+  );
+  assert.ok((await functionalPage.evaluate(() => window.__taxiEngineLuaCommands || []))
+    .some((value) => value.includes("setMinimapTransform")),
+  "Returning from a BeamNG menu must republish the native trip-map transform");
+  await functionalPage.evaluate(() => window.__taxiSetState({ penaltyEvents: [] }));
+  const emptyPenaltyFooter = await functionalPage.evaluate(() => {
+    const screen = document.querySelector(".taxi-phone__screen").getBoundingClientRect();
+    const footer = document.querySelector(".taxi-ride-footer").getBoundingClientRect();
+    const energy = document.querySelector(".taxi-ride-footer__energy").getBoundingClientRect();
+    const fuelNotice = document.querySelector(".taxi-trip-notice--fuel");
+    return {
+      bottomGap: Math.abs(screen.bottom - footer.bottom),
+      footerHeight: footer.height,
+      energyHeight: energy.height,
+      fuelNoticeDisplay: getComputedStyle(fuelNotice).display,
+    };
+  });
+  assert.ok(emptyPenaltyFooter.bottomGap <= 2,
+    `Trip footer must remain pinned with no penalties (${JSON.stringify(emptyPenaltyFooter)})`);
+  assert.ok(emptyPenaltyFooter.footerHeight >= 100 && emptyPenaltyFooter.energyHeight >= 36,
+    `Fuel status must not collapse with no penalties (${JSON.stringify(emptyPenaltyFooter)})`);
+  assert.equal(emptyPenaltyFooter.fuelNoticeDisplay, "none",
+    "Native trip UI must not duplicate fuel sufficiency as a separate vertical badge");
+
+  await functionalPage.goto(harnessUrl("compact", { width: 520, height: 900 }));
+  await waitForHarness(functionalPage);
+  const compactMapHeight = await functionalPage.locator(".taxi-compact__map")
+    .evaluate((element) => element.getBoundingClientRect().height);
+  assert.ok(compactMapHeight >= 275 && compactMapHeight <= 285,
+    `Minimized native map must be approximately twice its former height (${compactMapHeight}px)`);
+  await functionalPage.evaluate(() => {
+    window.__taxiEngineLuaCommands = [];
+    angular.element(document).injector().get("$rootScope")
+      .$broadcast("TaxiDriverMinimapInvalidated");
+  });
+  await functionalPage.waitForFunction(() =>
+    (window.__taxiEngineLuaCommands || []).some((value) => value.includes("setMinimapTransform"))
+  );
+  const compactMapCommand = await functionalPage.evaluate(() =>
+    (window.__taxiEngineLuaCommands || []).findLast((value) => value.includes("setMinimapTransform")) || ""
+  );
+  assert.match(compactMapCommand, /setMinimapTransform\([^)]*[1-9][0-9]*\)/,
+    "Minimized native UI must publish a non-empty map rectangle");
+
   await functionalPage.goto(harnessUrl("magicFuel", { width: 390, height: 844 }));
   await waitForHarness(functionalPage);
   assert.equal(await functionalPage.locator(".taxi-fuel__magic").isVisible(), true,
@@ -350,12 +455,15 @@ try {
     external: true, mockWebAudio: true,
   }));
   await waitForHarness(iphoneAudioPage);
-  await iphoneAudioPage.waitForFunction(() => window.__taxiMockWebAudio?.decoded === 7);
+  assert.equal(await iphoneAudioPage.evaluate(() => window.__taxiMockWebAudio.contextsCreated), 0,
+    "Mobile AudioContext must not be created before a trusted user gesture");
+  assert.equal(await iphoneAudioPage.evaluate(() => window.__taxiMockWebAudio.decoded), 0,
+    "Mobile sound decoding must wait for the first user gesture");
   await iphoneAudioPage.evaluate(() => window.__taxiSetState({ active: false }));
-  await iphoneAudioPage.waitForFunction(() => window.__taxiMockWebAudio.resumeCalls > 0);
   assert.equal(await iphoneAudioPage.evaluate(() => window.__taxiMockWebAudio.starts.length), 0,
     "External event audio must remain queued until iOS grants a user gesture");
   await iphoneAudioPage.locator(".taxi-appbar__settings").click();
+  await iphoneAudioPage.waitForFunction(() => window.__taxiMockWebAudio?.decoded === 7);
   await iphoneAudioPage.waitForFunction(() => window.__taxiMockWebAudio.starts.length >= 2);
   const unlockedStarts = await iphoneAudioPage.evaluate(() => window.__taxiMockWebAudio.starts.length);
   await iphoneAudioPage.evaluate(() => window.__taxiSetState({ active: true }));
@@ -374,7 +482,31 @@ try {
   await iphoneAudioPage.waitForFunction((count) =>
     window.__taxiMockWebAudio.starts.length >= count + 3, burstStart
   );
+  const interruptedStart = await iphoneAudioPage.evaluate(() => {
+    window.__taxiMockWebAudio.interrupt();
+    window.__taxiSetState({ active: false });
+    return window.__taxiMockWebAudio.starts.length;
+  });
+  await iphoneAudioPage.locator(".taxi-appbar__settings").click();
+  await iphoneAudioPage.waitForFunction((count) =>
+    window.__taxiMockWebAudio.starts.length > count, interruptedStart
+  );
+  assert.ok(await iphoneAudioPage.evaluate(() => window.__taxiMockWebAudio.stateChanges >= 2),
+    "Mobile audio must observe and recover from Safari's interrupted context state");
   await iphoneAudioPage.close();
+
+  const htmlAudioPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await htmlAudioPage.goto(harnessUrl("trip", { width: 390, height: 844 }, { external: true }));
+  await waitForHarness(htmlAudioPage);
+  await htmlAudioPage.evaluate(() => window.__taxiSetState({ active: false }));
+  assert.equal(await htmlAudioPage.evaluate(() =>
+    window.__taxiPlayedSounds.some((source) => source.includes("taxidriver_offline.mp3"))
+  ), false, "HTMLAudio fallback must queue events before mobile user activation");
+  await htmlAudioPage.locator(".taxi-appbar__settings").click();
+  await htmlAudioPage.waitForFunction(() =>
+    window.__taxiPlayedSounds.some((source) => source.includes("taxidriver_offline.mp3"))
+  );
+  await htmlAudioPage.close();
 
   for (const locale of locales) {
     const page = await browser.newPage({ viewport: { width: 360, height: 640 } });

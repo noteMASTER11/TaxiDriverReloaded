@@ -420,7 +420,7 @@
       </div>
     </div>
 
-    <div class="taxi-home" ng-if="!settingsOpen && !profileOpen && !state.active">
+    <div class="taxi-home" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && !state.active">
       <div class="taxi-home__shade"></div>
       <div class="taxi-home__content">
         <div class="taxi-home__pin"><span>T</span></div>
@@ -437,6 +437,7 @@
             <span ng-if="state.vehicleEnergy.available">{{ formatDashboardEnergy() }} · ≈ {{ formatEnergyRange(state.vehicleEnergy.estimatedRangeKm) }}</span>
           </div>
         </button>
+        <div class="taxi-home__modes">
         <label class="taxi-home__realistic taxi-home__realistic--fuel" ng-class="{'taxi-home__realistic--active': settings.realisticMode}">
           <span class="taxi-home__realistic-icon">⛽</span>
           <strong>{{ t('realisticMode') }}</strong>
@@ -451,6 +452,7 @@
           <input type="checkbox" ng-model="settings.randomEventsEnabled" ng-change="hud.toggleRandomEvents()">
           <span class="taxi-home__realistic-switch"></span>
         </label>
+        </div>
         <div class="taxi-home__last-shift" ng-if="state.shift.last.rides > 0">
           <strong>{{ t('lastShift') }}</strong>
           <span>{{ t('rides') }} <b>{{ state.shift.last.rides }}</b></span>
@@ -466,7 +468,7 @@
       </div>
     </div>
 
-    <div class="taxi-orders" ng-if="!settingsOpen && !profileOpen && state.active && state.phase === 'searching'">
+    <div class="taxi-orders" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && state.phase === 'searching'">
       <div class="taxi-orders__sheet">
         <div class="taxi-orders__search">
           <div class="taxi-orders__spinner" ng-if="state.offers.length < state.offerTargetCount"></div>
@@ -534,7 +536,7 @@
       </div>
     </div>
 
-    <div class="taxi-transfer" ng-if="!settingsOpen && !profileOpen && state.active && (state.phase === 'boarding' || state.phase === 'alighting')">
+    <div class="taxi-transfer" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && (state.phase === 'boarding' || state.phase === 'alighting')">
       <div class="taxi-transfer__loader"><div ng-class="state.isDelivery ? 'taxi-transfer__cargo' : 'taxi-transfer__door'"></div></div>
       <h2>{{ getPhaseLabel() }}</h2>
       <div class="taxi-transfer__passenger">{{ state.isDelivery ? formatCargoWeight(state.cargoWeightKg) : state.passengerName }}</div>
@@ -546,7 +548,7 @@
       <div class="taxi-transfer__progress"></div>
     </div>
 
-    <div class="taxi-transfer taxi-transfer--critical" ng-if="!settingsOpen && !profileOpen && state.active && state.phase === 'passengerStopDemand'">
+    <div class="taxi-transfer taxi-transfer--critical" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && state.phase === 'passengerStopDemand'">
       <div class="taxi-transfer__alert">!</div>
       <h2>{{ t('stopDemandTitle') }}</h2>
       <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
@@ -554,7 +556,7 @@
       <div class="taxi-transfer__progress"></div>
     </div>
 
-    <div class="taxi-transfer taxi-transfer--critical" ng-if="!settingsOpen && !profileOpen && state.active && state.phase === 'passengerForcedExit'">
+    <div class="taxi-transfer taxi-transfer--critical" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && state.phase === 'passengerForcedExit'">
       <div class="taxi-transfer__loader"><div class="taxi-transfer__door"></div></div>
       <h2>{{ t('forcedExitTitle') }}</h2>
       <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
@@ -563,7 +565,7 @@
       <div class="taxi-transfer__progress taxi-transfer__progress--determinate"><div class="taxi-transfer__progress-fill" ng-style="{'width': ((state.forcedExitDuration - state.forcedExitRemaining) / state.forcedExitDuration * 100) + '%'}"></div></div>
     </div>
 
-    <div class="taxi-transfer taxi-transfer--critical" ng-if="!settingsOpen && !profileOpen && state.active && state.phase === 'driverAbandoning'">
+    <div class="taxi-transfer taxi-transfer--critical" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && state.phase === 'driverAbandoning'">
       <div class="taxi-transfer__loader"><div class="taxi-transfer__door"></div></div>
       <h2>{{ t('driverAbandoningTitle') }}</h2>
       <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
@@ -572,7 +574,7 @@
       <div class="taxi-transfer__progress taxi-transfer__progress--determinate"><div class="taxi-transfer__progress-fill" ng-style="{'width': ((state.forcedExitDuration - state.forcedExitRemaining) / state.forcedExitDuration * 100) + '%'}"></div></div>
     </div>
 
-    <div class="taxi-transfer" ng-if="!settingsOpen && !profileOpen && state.active && state.phase === 'stopWaiting'">
+    <div class="taxi-transfer" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && state.phase === 'stopWaiting'">
       <div class="taxi-transfer__stop">{{ state.currentStopIndex }}</div>
       <h2>{{ getPhaseLabel() }}</h2>
       <div class="taxi-transfer__passenger">{{ t('stopProgress', {current: state.currentStopIndex, total: state.stopCount}) }}</div>
@@ -581,7 +583,7 @@
       <div class="taxi-transfer__progress taxi-transfer__progress--determinate"><div class="taxi-transfer__progress-fill" ng-style="{'width': ((state.stopWaitDuration - state.stopWaitRemaining) / state.stopWaitDuration * 100) + '%'}"></div></div>
     </div>
 
-    <div class="taxi-transfer" ng-if="!settingsOpen && !profileOpen && state.active && state.phase === 'complete'">
+    <div class="taxi-transfer" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && state.phase === 'complete'">
       <div class="taxi-transfer__check">✓</div>
       <h2>{{ state.isDelivery ? t('deliveryComplete') : t('complete') }}</h2>
       <div class="taxi-transfer__passenger">{{ t('payout') }} {{ formatMoney(state.adjustedFare) }}</div>
@@ -590,7 +592,7 @@
       <div class="taxi-transfer__progress"></div>
     </div>
 
-    <div class="taxi-fuel-route" ng-if="!settingsOpen && !profileOpen && state.active && state.phase === 'toFuelStation'">
+    <div class="taxi-fuel-route" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && state.phase === 'toFuelStation'">
       <div class="taxi-map">
         <div class="taxi-minimap-surface"></div>
         <canvas class="taxi-external-minimap" ng-if="externalPhoneMode"></canvas>
@@ -629,7 +631,7 @@
       </div>
     </div>
 
-    <div class="taxi-trip-layout" ng-if="!settingsOpen && !profileOpen && state.active && (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination')">
+    <div class="taxi-trip-layout" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination')">
       <div class="taxi-map">
         <div class="taxi-minimap-surface"></div>
         <canvas class="taxi-external-minimap" ng-if="externalPhoneMode"></canvas>
@@ -722,7 +724,7 @@
           </div>
         </div>
         <div class="taxi-trip-notice" ng-if="state.isMultiStop && state.nextStopDistance > 0">{{ t('nextStop') }} · {{ formatDistance(state.nextStopDistance) }}</div>
-        <div class="taxi-trip-notice" ng-if="state.vehicleEnergy.available" ng-class="{'taxi-trip-notice--good': state.fuelEnoughForTrip, 'taxi-trip-notice--danger': !state.fuelEnoughForTrip}">{{ state.fuelEnoughForTrip ? t('fuelEnough') : t('fuelNotEnough') }}</div>
+        <div class="taxi-trip-notice taxi-trip-notice--fuel" ng-if="state.vehicleEnergy.available" ng-class="{'taxi-trip-notice--good': state.fuelEnoughForTrip, 'taxi-trip-notice--danger': !state.fuelEnoughForTrip}">{{ state.fuelEnoughForTrip ? t('fuelEnough') : t('fuelNotEnough') }}</div>
         <div class="taxi-trip-notice taxi-trip-notice--event" ng-if="state.tripEvent.kind === 'fragileCargo'">{{ t('fragileCargo') }}</div>
 
         <div class="taxi-metrics">

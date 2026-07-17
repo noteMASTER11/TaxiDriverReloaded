@@ -1,5 +1,6 @@
 local tripEvents = dofile("lua/ge/extensions/taxiDriver/tripEvents.lua")
 local shiftTracker = dofile("lua/ge/extensions/taxiDriver/shiftTracker.lua")
+local offerGenerator = dofile("lua/ge/extensions/taxiDriver/offerGenerator.lua")
 
 math.randomseed(240717)
 
@@ -55,4 +56,13 @@ assert(completed.netIncome == 17)
 assert(completed.averageRating == 4.5)
 assert(not shifts:getHud().active)
 
-print("TaxiDriver Lua combinatorics: 4 mode combinations x 4 order types passed")
+for _ = 1, 10000 do
+  local job = offerGenerator.create(function()
+    error("synthetic late next-offer failure")
+  end, 0)
+  local status, errorMessage = offerGenerator.step(job, 1)
+  assert(status == "error")
+  assert(tostring(errorMessage):find("synthetic late next-offer failure", 1, true))
+end
+
+print("TaxiDriver Lua combinatorics: 4 mode combinations x 4 order types and 10000 contained coroutine failures passed")

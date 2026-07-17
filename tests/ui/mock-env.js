@@ -18,13 +18,21 @@
     window.TaxiDriverSoundData = Object.fromEntries(soundFiles.map((fileName) =>
       [fileName, "data:audio/mpeg;base64,AA=="]
     ));
-    window.__taxiMockWebAudio = { decoded: 0, resumeCalls: 0, starts: [] };
+    window.__taxiMockWebAudio = {
+      decoded: 0, resumeCalls: 0, starts: [], contextsCreated: 0, stateChanges: 0,
+      interrupt() {},
+    };
     let audioGestureReceived = false;
+    let currentAudioContext = null;
     document.addEventListener("pointerdown", () => { audioGestureReceived = true; }, true);
     class MockAudioContext {
       constructor() {
         this.state = "suspended";
         this.destination = {};
+        this.sampleRate = 44100;
+        this.listeners = new Map();
+        currentAudioContext = this;
+        window.__taxiMockWebAudio.contextsCreated += 1;
       }
       decodeAudioData() {
         const buffer = { id: ++window.__taxiMockWebAudio.decoded };
@@ -38,15 +46,29 @@
         };
         return source;
       }
+      createBuffer() { return { id: "prime" }; }
       createGain() { return { gain: { value: 1 }, connect() {} }; }
+      addEventListener(type, listener) { this.listeners.set(type, listener); }
+      removeEventListener(type) { this.listeners.delete(type); }
+      dispatchStateChange() {
+        window.__taxiMockWebAudio.stateChanges += 1;
+        const listener = this.listeners.get("statechange") || this.onstatechange;
+        if (listener) listener();
+      }
       resume() {
         window.__taxiMockWebAudio.resumeCalls += 1;
         if (!audioGestureReceived) return Promise.reject(new Error("NotAllowedError"));
         this.state = "running";
+        this.dispatchStateChange();
         return Promise.resolve();
       }
       close() { this.state = "closed"; return Promise.resolve(); }
     }
+    window.__taxiMockWebAudio.interrupt = () => {
+      if (!currentAudioContext) return;
+      currentAudioContext.state = "interrupted";
+      currentAudioContext.dispatchStateChange();
+    };
     window.AudioContext = MockAudioContext;
     window.webkitAudioContext = MockAudioContext;
   }
