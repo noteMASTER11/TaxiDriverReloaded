@@ -5,6 +5,21 @@ local function clamp(value, minimum, maximum)
   return math.max(minimum, math.min(maximum, value))
 end
 
+function M.applyVehicleMass(vehicle, massKg)
+  if not vehicle then return end
+  local targetMass = math.max(0, tonumber(massKg) or 0)
+  if targetMass > 0 then
+    vehicle:queueLuaCommand(string.format(
+      "extensions.load('taxiDriverCargo'); if extensions.taxiDriverCargo then extensions.taxiDriverCargo.setCargoMass(%.3f) end",
+      targetMass
+    ))
+  else
+    vehicle:queueLuaCommand(
+      "if extensions.taxiDriverCargo then extensions.taxiDriverCargo.setCargoMass(0); extensions.unload('taxiDriverCargo') end"
+    )
+  end
+end
+
 function M.generateWeight(config)
   config = config or {}
   local minimum = math.max(0, tonumber(config.minimumWeightKg) or 2)

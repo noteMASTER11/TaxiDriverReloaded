@@ -1,4 +1,4 @@
--- Universal physical cargo mass for TaxiDriver deliveries. The added mass is
+-- Lazy-loaded physical cargo mass for TaxiDriver deliveries. The added mass is
 -- distributed across stable body nodes while avoiding wheel and energy-storage
 -- nodes whose mass is managed dynamically by BeamNG.
 local M = {}

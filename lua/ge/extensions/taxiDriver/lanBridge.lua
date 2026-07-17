@@ -2,14 +2,16 @@
 -- It uses BeamNG's native bng-ext-app-v1 transport, but serves only the
 -- TaxiDriver phone instead of booting the complete game UI in the browser.
 local M = {}
+local logger = require("taxiDriver/logger")
 
 local port = 8085
 local protocolName = "bng-ext-app-v1"
 local externalEntryPoint = "/ui/modules/apps/TaxiDriverHUD/external/index.html"
+local externalUiRevision = "300-beta"
 local connectionFilePath = "/settings/TaxiDriver/lan.json"
-local heartbeatTimeout = 3.5
+local heartbeatTimeout = 8.0
 local mapRefreshInterval = 1.5
-local vehicleRefreshInterval = 0.20
+local vehicleRefreshInterval = 0.25
 local maximumRoadSegments = 50000
 local roadChunkSize = 750
 local maximumProxyClients = 24
@@ -26,6 +28,13 @@ local sessionToken = ""
 local statusChanged = false
 local mapTimer = 0
 local vehicleTimer = 0
+local externalView = "home"
+local externalVisible = true
+local externalMapEnabled = true
+local externalTerrainEnabled = true
+local externalMapQuality = "balanced"
+local authoritativeActive = false
+local authoritativePhase = "inactive"
 local mapKey = ""
 local mapRevision = 0
 local cachedMap = nil
@@ -42,6 +51,27 @@ local proxyConnections = {}
 local bridgeReady = false
 local bridgeError = ""
 local isPrivateIPv4
+
+local navigationViews = {
+  trip = true,
+  compact = true,
+  fuelRoute = true
+}
+
+local navigationPhases = {
+  toPickup = true,
+  toStop = true,
+  toDestination = true,
+  toFuelStation = true
+}
+
+local function canPublishNavigation()
+  -- The game state is authoritative. A browser tab may miss a view-change
+  -- event or be backgrounded, but that must never stop live vehicle telemetry
+  -- for an active route.
+  return connected and externalMapEnabled and authoritativeActive and
+    navigationPhases[authoritativePhase] == true
+end
 
 local function closeSocket(socket)
   if socket then pcall(function() socket:close() end) end
@@ -76,15 +106,13 @@ local function startLanProxy()
   end)
   if not ok or not listenerOrError then
     bridgeError = tostring(ok and bindError or listenerOrError)
-    log("E", "taxiDriverLan", "Unable to bind LAN bridge on " ..
-      chosenAddress .. ":" .. port .. ": " .. bridgeError)
+    logger.error("lan", "proxy_bind_failed", {address = chosenAddress, port = port, reason = bridgeError})
     return false
   end
   lanListener = listenerOrError
   lanListener:settimeout(0)
   bridgeReady = true
-  log("I", "taxiDriverLan", "LAN bridge listening on " ..
-    chosenAddress .. ":" .. port .. " -> 127.0.0.1:" .. port)
+  logger.info("lan", "proxy_listening", {address = chosenAddress, port = port})
   return true
 end
 
@@ -152,7 +180,7 @@ local function acceptProxyClients()
         closeSocket(client)
         closeSocket(upstream)
         bridgeError = "Loopback connection failed: " .. tostring(connectError)
-        log("W", "taxiDriverLan", bridgeError)
+        logger.warn("lan", "loopback_connection_failed", {reason = bridgeError})
       end
     end
   end
@@ -414,12 +442,12 @@ end
 local function rebuildRoads()
   local mapData = map and map.getMap and map.getMap() or nil
   cachedRoads = buildRoadNetwork(mapData)
-  cachedTerrainTiles = buildTerrainTiles()
+  cachedTerrainTiles = externalTerrainEnabled and buildTerrainTiles() or {}
   roadRevision = roadRevision + 1
   roadLevelKey = currentRoadLevelKey()
-  local message = string.format("Prepared external map: %d roads, %d terrain tiles",
-    #cachedRoads, #cachedTerrainTiles)
-  log(#cachedRoads > 0 and "I" or "W", "taxiDriverLan", message)
+  local mapFields = {roads = #cachedRoads, terrainTiles = #cachedTerrainTiles}
+  if #cachedRoads > 0 then logger.info("lan", "map_prepared", mapFields)
+  else logger.warn("lan", "map_empty", mapFields) end
 end
 
 local function queueRoadPublish()
@@ -460,7 +488,30 @@ local function setConnected(value)
   if connected ~= value then
     connected = value
     statusChanged = true
+    logger.info("lan", value and "client_connected" or "client_disconnected", {view = externalView})
   end
+end
+
+local function normalizeExternalView(view)
+  local normalizedView = tostring(view or "home")
+  if not navigationViews[normalizedView] and normalizedView ~= "home" and
+    normalizedView ~= "orders" and normalizedView ~= "settings" and
+    normalizedView ~= "profile" and normalizedView ~= "fuel" and
+    normalizedView ~= "status" and normalizedView ~= "hidden" then
+    normalizedView = "home"
+  end
+  return normalizedView
+end
+
+local function applyExternalView(view, visible, wasPublishing)
+  local normalizedView = normalizeExternalView(view)
+  if wasPublishing == nil then wasPublishing = canPublishNavigation() end
+  local normalizedVisible = visible == true and normalizedView ~= "hidden"
+  local changed = externalView ~= normalizedView or externalVisible ~= normalizedVisible
+  externalView = normalizedView
+  externalVisible = normalizedVisible
+  if changed then vehicleTimer = 0 end
+  if not wasPublishing and canPublishNavigation() then M.requestExternalMap() end
 end
 
 function M.start()
@@ -487,7 +538,7 @@ function M.start()
     server = nil
     enabled = false
     statusChanged = true
-    log("E", "taxiDriverLan", "Unable to start TaxiDriver External UI server")
+    logger.error("lan", "server_start_failed")
     return false
   end
   server = createdServer
@@ -500,13 +551,12 @@ function M.start()
     server = nil
     enabled = false
     statusChanged = true
-    log("E", "taxiDriverLan", "TaxiDriver External UI is unavailable: " ..
-      tostring(bridgeError))
+    logger.error("lan", "external_ui_unavailable", {reason = bridgeError})
     return false
   end
   enabled = true
   statusChanged = true
-  log("I", "taxiDriverLan", "TaxiDriver External UI: http://" .. chosenAddress .. ":" .. port .. "/")
+  logger.info("lan", "external_ui_started", {address = chosenAddress, port = port})
   return true
 end
 
@@ -517,6 +567,10 @@ function M.stop()
     server = nil
   end
   enabled = false
+  externalView = "home"
+  externalVisible = true
+  authoritativeActive = false
+  authoritativePhase = "inactive"
   externalHeartbeatAge = math.huge
   setConnected(false)
   cachedMap = nil
@@ -527,6 +581,7 @@ function M.stop()
   pendingRoadChunk = 0
   pendingRoadChunkCount = 0
   statusChanged = true
+  logger.info("lan", "external_ui_stopped")
 end
 
 function M.setEnabled(value)
@@ -535,21 +590,54 @@ function M.setEnabled(value)
   return true
 end
 
-function M.externalHeartbeat(token)
+function M.externalHeartbeat(token, view, visible)
   if not enabled then return false end
   if tostring(token or "") ~= sessionToken then return false end
+  local wasPublishing = canPublishNavigation()
   externalHeartbeatAge = 0
   setConnected(true)
+  if view ~= nil then applyExternalView(view, visible, wasPublishing) end
   return true
 end
 
 function M.requestExternalMap()
-  if not enabled then return end
+  if not enabled or not canPublishNavigation() then return end
   if not cachedRoads or roadLevelKey ~= currentRoadLevelKey() then rebuildRoads() end
   publishMap()
   queueRoadPublish()
   publishNextRoadChunk()
   guihooks.trigger("TaxiDriverExternalVehicleState", vehicleSnapshot() or {})
+end
+
+function M.setExternalView(view, visible, token)
+  if not enabled or tostring(token or "") ~= sessionToken then return false end
+  applyExternalView(view, visible)
+  return true
+end
+
+function M.setPerformanceOptions(options)
+  options = type(options) == "table" and options or {}
+  local previousTerrain = externalTerrainEnabled
+  externalMapEnabled = options.externalMapEnabled ~= false
+  externalTerrainEnabled = options.externalTerrainEnabled ~= false
+  local quality = tostring(options.externalMapQuality or "balanced")
+  if quality ~= "eco" and quality ~= "smooth" then quality = "balanced" end
+  externalMapQuality = quality
+  vehicleRefreshInterval = quality == "eco" and 0.5 or
+    (quality == "smooth" and 0.125 or 0.25)
+  if previousTerrain ~= externalTerrainEnabled then
+    cachedRoads = nil
+    cachedTerrainTiles = nil
+    roadLevelKey = ""
+    pendingRoadChunk = 0
+  end
+  logger.info("lan", "performance_options", {
+    mapEnabled = externalMapEnabled,
+    quality = externalMapQuality,
+    terrainEnabled = externalTerrainEnabled,
+    vehicleRefreshInterval = vehicleRefreshInterval
+  })
+  if not externalMapEnabled then pendingRoadChunk = 0 end
 end
 
 function M.getStatus()
@@ -561,7 +649,7 @@ function M.getStatus()
     address = chosenAddress,
     port = port,
     url = enabled and ("http://" .. chosenAddress .. ":" .. port ..
-      externalEntryPoint .. "?token=" .. sessionToken) or ""
+      externalEntryPoint .. "?token=" .. sessionToken .. "&v=" .. externalUiRevision) or ""
   }
 end
 
@@ -587,6 +675,8 @@ function M.update(dtReal)
   if externalHeartbeatAge > heartbeatTimeout then setConnected(false) end
   if not connected then return end
 
+  if not canPublishNavigation() then return end
+
   mapTimer = mapTimer + dtReal
   local newKey = currentMapKey()
   if not cachedMap or (mapTimer >= mapRefreshInterval and newKey ~= mapKey) then
@@ -609,8 +699,19 @@ function M.update(dtReal)
   end
 end
 
--- Kept as no-ops so older taxiDriver.lua builds can load this module safely.
-function M.setState() end
+function M.setState(state)
+  state = type(state) == "table" and state or {}
+  local wasPublishing = canPublishNavigation()
+  authoritativeActive = state.active == true
+  authoritativePhase = tostring(state.phase or "inactive")
+  if not wasPublishing and canPublishNavigation() then M.requestExternalMap() end
+end
+
+function M.isConnected()
+  return connected
+end
+
+-- Kept as a no-op so older taxiDriver.lua builds can load this module safely.
 function M.setCommandHandler() end
 
 return M

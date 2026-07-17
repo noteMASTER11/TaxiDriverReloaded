@@ -1399,6 +1399,7 @@
   .taxi-settings__check input { width: 17px; height: 17px; accent-color: var(--yellow); }
   .taxi-settings__range { width: 100%; margin-top: 12px; accent-color: var(--yellow); }
   .taxi-settings__segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 9px; padding: 4px; background: rgba(0,0,0,.2); border-radius: 9px; }
+  .taxi-settings__segmented--three { grid-template-columns: repeat(3, 1fr); }
   .taxi-settings__segmented button { padding: 8px; color: var(--muted); font-size: 10px; font-weight: 900; background: transparent; border: 0; border-radius: 7px; cursor: pointer; }
   .taxi-settings__segmented button.taxi-settings__segmented-active { color: #17140a; background: var(--yellow); box-shadow: 0 2px 8px rgba(0,0,0,.25); }
   .taxi-settings__difficulty { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
@@ -1462,6 +1463,8 @@
     transition: transform .22s ease, background .22s;
   }
   .taxi-settings__switch-row input:checked + .taxi-settings__switch { background: var(--yellow); border-color: var(--yellow); }
+  .taxi-settings__switch-row--disabled { opacity: .48; cursor: default; }
+  .taxi-settings__section--remote-performance .taxi-settings__switch-row + .taxi-settings__switch-row { margin-top: 13px; }
   .taxi-settings__switch-row input:checked + .taxi-settings__switch::after { background: #17140a; transform: translateX(21px); }
   .taxi-settings__danger-help { margin: 11px 0 0; color: #ff9ba2; font-size: 9px; line-height: 1.4; }
   .taxi-settings__cheat-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }

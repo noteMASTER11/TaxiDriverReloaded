@@ -1,9 +1,9 @@
 <style>
-  @import url("/ui/modules/apps/TaxiDriverHUD/app.css");
-  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css");
+  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=300-beta");
+  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=300-beta");
 </style>
 
-<div class="taxi-shell" ng-class="{'taxi-shell--minimized': phoneMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
+<div class="taxi-shell" ng-if="externalPhoneMode || !vehicleConfigSuspended" ng-class="{'taxi-shell--minimized': phoneMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
   <div class="taxi-shell__scale-stage" ng-class="getUiScaleClass()" ng-style="getUiScaleStyle()">
   <button type="button" class="taxi-shell__remote-toggle" ng-if="!externalPhoneMode && state.lan.connected > 0" ng-click="hud.toggleLocalPhone()" aria-label="{{ localPhoneOpen ? t('externalHideLocal') : t('externalShowLocal') }}">
     <span>&#128241;</span><i ng-if="state.nextOffer"></i>
@@ -269,6 +269,25 @@
               <span class="taxi-settings__switch"></span>
             </label>
           </div>
+          <div class="taxi-settings__section taxi-settings__section--remote-performance">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('externalMapEnabled') }}</strong><span>{{ t('externalMapEnabledHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.externalMapEnabled" ng-change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+            <label class="taxi-settings__switch-row taxi-settings__switch-row--subtle" ng-class="{'taxi-settings__switch-row--disabled': !settings.externalMapEnabled}">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('externalTerrainEnabled') }}</strong><span>{{ t('externalTerrainEnabledHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.externalTerrainEnabled" ng-disabled="!settings.externalMapEnabled" ng-change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+            <div class="taxi-settings__label"><span>{{ t('externalMapQuality') }}</span></div>
+            <div class="taxi-settings__help">{{ t('externalMapQualityHelp') }}</div>
+            <div class="taxi-settings__segmented taxi-settings__segmented--three">
+              <button type="button" ng-class="{'taxi-settings__segmented-active': settings.externalMapQuality === 'eco'}" ng-click="hud.selectExternalMapQuality('eco')">{{ t('externalMapEco') }}</button>
+              <button type="button" ng-class="{'taxi-settings__segmented-active': settings.externalMapQuality === 'balanced'}" ng-click="hud.selectExternalMapQuality('balanced')">{{ t('externalMapBalanced') }}</button>
+              <button type="button" ng-class="{'taxi-settings__segmented-active': settings.externalMapQuality === 'smooth'}" ng-click="hud.selectExternalMapQuality('smooth')">{{ t('externalMapSmooth') }}</button>
+            </div>
+          </div>
           <div class="taxi-lan" ng-if="settings.lanEnabled">
             <div class="taxi-lan__status" ng-class="{'taxi-lan__status--connected': state.lan.connected > 0}">
               <i></i><strong>{{ state.lan.connected > 0 ? t('externalConnected') : (state.lan.enabled ? t('externalWaiting') : t('externalStarting')) }}</strong>
@@ -302,6 +321,28 @@
               <input class="taxi-settings__range" type="range" min="0" max="5" step="0.01" ng-model="cheatRating">
               <button type="button" ng-click="hud.cheatSetRating()">{{ t('set') }}</button>
             </div>
+          </div>
+          <div class="taxi-settings__cheat-card">
+            <div class="taxi-settings__label"><span>{{ t('cheatSetEnergy') }}</span><span>{{ cheatEnergyPercent | number:0 }}%</span></div>
+            <div class="taxi-settings__help">{{ t('cheatSetEnergyHelp') }}</div>
+            <div class="taxi-settings__cheat-rating">
+              <input class="taxi-settings__range" type="range" min="0" max="100" step="1" ng-model="cheatEnergyPercent" ng-change="hud.cheatEnergyChanged()">
+              <button type="button" ng-click="hud.cheatSetEnergyPercent($event)">{{ t('set') }}</button>
+            </div>
+          </div>
+          <div class="taxi-settings__cheat-card">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('cheatGodMode') }}</strong><span>{{ t('cheatGodModeHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.godMode" ng-change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <div class="taxi-settings__cheat-card">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('cheatDebugLogging') }}</strong><span>{{ t('cheatDebugLoggingHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.debugLogging" ng-change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
           </div>
           <button type="button" class="taxi-settings__cheat-action" ng-click="hud.cheatAddRandomReview()">{{ t('cheatRandomReview') }}</button>
           <div class="taxi-settings__cheat-card">

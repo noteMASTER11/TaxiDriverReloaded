@@ -6,18 +6,32 @@ end
 
 function M.setTelemetryEnabled(vehicle, enabled)
   if not vehicle then return end
-  vehicle:queueLuaCommand(string.format(
-    "if extensions.taxiDriverTelemetry then extensions.taxiDriverTelemetry.setEnabled(%s) end",
-    enabled and "true" or "false"
-  ))
+  if enabled then
+    vehicle:queueLuaCommand(
+      "extensions.load('taxiDriverTelemetry'); " ..
+      "if extensions.taxiDriverTelemetry then extensions.taxiDriverTelemetry.setEnabled(true) end"
+    )
+  else
+    vehicle:queueLuaCommand(
+      "if extensions.taxiDriverTelemetry then " ..
+      "extensions.taxiDriverTelemetry.setForcedStop(false); " ..
+      "extensions.taxiDriverTelemetry.setEnabled(false); extensions.unload('taxiDriverTelemetry') end"
+    )
+  end
 end
 
 function M.setForcedStop(vehicle, enabled)
   if not vehicle then return end
-  vehicle:queueLuaCommand(string.format(
-    "if extensions.taxiDriverTelemetry then extensions.taxiDriverTelemetry.setForcedStop(%s) end",
-    enabled and "true" or "false"
-  ))
+  if enabled then
+    vehicle:queueLuaCommand(
+      "extensions.load('taxiDriverTelemetry'); " ..
+      "if extensions.taxiDriverTelemetry then extensions.taxiDriverTelemetry.setForcedStop(true) end"
+    )
+  else
+    vehicle:queueLuaCommand(
+      "if extensions.taxiDriverTelemetry then extensions.taxiDriverTelemetry.setForcedStop(false) end"
+    )
+  end
 end
 
 function M.setFrozen(vehicle, enabled)

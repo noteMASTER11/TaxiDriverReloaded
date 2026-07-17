@@ -55,6 +55,19 @@ function M.new(lastShift)
     return {active = self.active ~= nil, current = snapshot(self.active), last = snapshot(self.last)}
   end
 
+  function service:setAllRatings(value)
+    local rating = math.max(0, math.min(5, tonumber(value) or 0))
+    local function apply(shift)
+      if type(shift) == "table" then
+        local rides = math.max(0, math.floor(tonumber(shift.rides) or 0))
+        shift.ratingTotal = rating * rides
+        shift.averageRating = rides > 0 and rating or 0
+      end
+    end
+    apply(self.active)
+    apply(self.last)
+  end
+
   return service
 end
 

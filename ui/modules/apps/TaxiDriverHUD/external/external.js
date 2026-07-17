@@ -11,6 +11,9 @@
   let completed = 0;
   let ready = false;
   let failed = false;
+  const assetRevision = "300-beta";
+  window.TaxiDriverAssetRevision = assetRevision;
+  const versionedAsset = (src) => `${src}${src.includes("?") ? "&" : "?"}v=${assetRevision}`;
 
   const setStep = (name, status, label) => {
     const row = document.querySelector(`[data-step="${name}"]`);
@@ -42,7 +45,7 @@
 
   const loadScript = (src) => new Promise((resolve, reject) => {
     const script = document.createElement("script");
-    script.src = src;
+    script.src = versionedAsset(src);
     script.onload = resolve;
     script.onerror = () => reject(new Error(`Could not load ${src}`));
     document.head.appendChild(script);
@@ -54,7 +57,9 @@
       "/ui/modules/apps/TaxiDriverHUD/app.css",
       "/ui/modules/apps/TaxiDriverHUD/locales.json"
     ];
-    const results = await Promise.all(assets.map((asset) => fetch(asset, { cache: "force-cache" })));
+    const results = await Promise.all(assets.map((asset) =>
+      fetch(versionedAsset(asset), { cache: "no-store" })
+    ));
     if (results.some((response) => !response.ok)) throw new Error("One or more TaxiDriver assets are unavailable.");
   };
 

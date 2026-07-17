@@ -7,7 +7,6 @@ local modVersion = "unknown"
 local history = nil
 local tracking = {
   vehicleId = nil,
-  fingerprint = "",
   key = "",
   entry = nil,
   lastPosition = nil,
@@ -108,12 +107,6 @@ local function writeHistory()
     tracking.saveTimer = 0
   end
   return ok
-end
-
-local function getVehicleFingerprint(vehicle)
-  if not vehicle then return "" end
-  return tostring(vehicle.jbeam or vehicle.JBeam or "") .. "|" ..
-    tostring(vehicle.partConfig or "")
 end
 
 local function getVehicleIdentity(vehicle)
@@ -217,17 +210,14 @@ end
 local function trackVehicle(vehicle)
   if not vehicle then return false end
   local vehicleId = tonumber(vehicle:getID())
-  local fingerprint = getVehicleFingerprint(vehicle)
   local identity = getVehicleIdentity(vehicle)
   local entry = ensureEntry(identity)
   if not entry then return false end
 
-  local changed = vehicleId ~= tracking.vehicleId or
-    fingerprint ~= tracking.fingerprint or entry.key ~= tracking.key
+  local changed = vehicleId ~= tracking.vehicleId or entry.key ~= tracking.key
   if changed and tracking.dirtyDistance > 0 then writeHistory() end
 
   tracking.vehicleId = vehicleId
-  tracking.fingerprint = fingerprint
   tracking.key = entry.key
   tracking.entry = entry
   local pos = vehicle:getPosition()
@@ -238,7 +228,6 @@ end
 
 function M.resetTracking()
   tracking.vehicleId = nil
-  tracking.fingerprint = ""
   tracking.key = ""
   tracking.entry = nil
   tracking.lastPosition = nil
@@ -271,8 +260,10 @@ function M.refreshCurrentVehicle()
   end
 
   local vehicleId = tonumber(vehicle:getID())
-  local fingerprint = getVehicleFingerprint(vehicle)
-  if vehicleId == tracking.vehicleId and fingerprint == tracking.fingerprint and tracking.entry then
+  -- A live parts/configuration edit keeps the same BeamNG vehicle object.
+  -- Treat its id as the lifetime identity so opening the parts selector cannot
+  -- trigger expensive core_vehicles lookups, JSON writes, or a new profile row.
+  if vehicleId == tracking.vehicleId and tracking.entry then
     return false
   end
   return trackVehicle(vehicle)
@@ -281,6 +272,7 @@ end
 function M.selectVehicle(vehicleId)
   vehicleId = tonumber(vehicleId)
   if not vehicleId then return M.refreshCurrentVehicle() end
+  if vehicleId == tracking.vehicleId and tracking.entry then return false end
   local vehicle = getObjectByID(vehicleId)
   if not vehicle then return false end
   return trackVehicle(vehicle)
@@ -294,9 +286,7 @@ function M.update(dtReal, dtSim)
   end
 
   local vehicleId = tonumber(vehicle:getID())
-  local fingerprint = getVehicleFingerprint(vehicle)
-  local identityChanged = vehicleId ~= tracking.vehicleId or
-    fingerprint ~= tracking.fingerprint
+  local identityChanged = vehicleId ~= tracking.vehicleId or tracking.entry == nil
   if identityChanged then
     return trackVehicle(vehicle)
   end
@@ -407,6 +397,16 @@ function M.recordRide(details)
   writeHistory()
 end
 
+function M.setAllRatings(value)
+  local rating = math.max(0, math.min(5, tonumber(value) or 0))
+  for _, entry in ipairs(history and history.vehicles or {}) do
+    local rides = math.max(0, math.floor(tonumber(entry.completedRides) or 0))
+    entry.ratingCount = rides
+    entry.ratingTotal = rating * rides
+  end
+  writeHistory()
+end
+
 function M.reset()
   history = createDefaultHistory()
   M.resetTracking()
@@ -417,7 +417,11 @@ end
 function M.onVehicleReset(vehicleId)
   if tonumber(vehicleId) == tonumber(tracking.vehicleId) then
     if tracking.dirtyDistance > 0 then writeHistory() end
-    M.resetTracking()
+    -- BeamNG respawns the same vehicle object for every parts/tuning change.
+    -- Keep its cached identity and history row; only discard the position so
+    -- the respawn displacement cannot be counted as odometer distance.
+    tracking.lastPosition = nil
+    tracking.saveTimer = 0
   end
 end
 

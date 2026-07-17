@@ -1,5 +1,4 @@
 local M = {}
-
 M.dependencies = {
   "core_groundMarkers",
   "core_vehicleTriggers",
@@ -7,7 +6,6 @@ M.dependencies = {
   "freeroam_gasStations",
   "gameplay_sites_sitesManager"
 }
-
 local offerGenerator = require("taxiDriver/offerGenerator")
 local taxiConfig = require("taxiDriver/config")
 local identity = require("taxiDriver/identity")
@@ -16,14 +14,17 @@ local routeDiversity = require("taxiDriver/routeDiversity")
 local delivery = require("taxiDriver/delivery")
 local lanBridge = require("taxiDriver/lanBridge")
 local vehicleHistory = require("taxiDriver/vehicleHistory")
+local vehicleScanGuard = require("taxiDriver/vehicleScanGuard")
 local persistence = require("taxiDriver/persistence")
 local vehicleControl = require("taxiDriver/vehicleControl")
 local routePlanner = require("taxiDriver/routePlanner")
 local shiftTracker = require("taxiDriver/shiftTracker")
 local tripEvents = require("taxiDriver/tripEvents")
+local hudPublisher = require("taxiDriver/hudPublisher")
+local logger = require("taxiDriver/logger")
 
 local logTag = "taxiDriver"
-local modVersion = "2.25.1"
+local modVersion = "3.0.0-beta"
 
 local supportedLanguages = taxiConfig.supportedLanguages
 local minRideDistance = taxiConfig.runtime.minRideDistance
@@ -75,6 +76,7 @@ local realisticFuel = {
   dataTimer = 0,
   dashboardEnergyPending = false,
   dashboardEnergyTimer = 0,
+  dashboardEnergyRequestGeneration = 0,
   dashboardEnergy = {
     available = false,
     energyType = "",
@@ -113,7 +115,6 @@ local realisticFuel = {
     arrived = false
   }
 }
-
 local driverAvatarOptions = identity.driverAvatarOptions
 local driverAvatarSet = identity.driverAvatarSet
 local difficultyPresets = taxiConfig.difficultyPresets
@@ -153,6 +154,7 @@ local function createDefaultUserSettings()
 end
 
 local userSettings = createDefaultUserSettings()
+logger.setEnabledProvider(function() return userSettings.debugLogging ~= false end)
 local settingsNeedsLegacyImport = false
 local driverProfile = nil
 local userProgress = nil
@@ -242,6 +244,7 @@ end
 local function loadUserSettings()
   userSettings, settingsNeedsLegacyImport = dataStore:loadSettings()
   applyDifficulty(userSettings.difficulty)
+  lanBridge.setPerformanceOptions(userSettings)
 end
 
 local function roundMoney(value)
@@ -364,14 +367,6 @@ end
 
 local function getPlayerVehicle()
   return be and be:getPlayerVehicle(0) or nil
-end
-
-function delivery.applyVehicleMass(vehicle, massKg)
-  if not vehicle then return end
-  vehicle:queueLuaCommand(string.format(
-    "if extensions.taxiDriverCargo then extensions.taxiDriverCargo.setCargoMass(%.3f) end",
-    math.max(0, tonumber(massKg) or 0)
-  ))
 end
 
 local function calculateEtaMinutes(distanceMeters)
@@ -889,7 +884,20 @@ end
 local function notifyHud()
   local hudState = buildHudState()
   lanBridge.setState(hudState)
-  guihooks.trigger("TaxiDriverHUDState", hudState)
+  hudPublisher.publishFull(hudState, guihooks.trigger, jsonEncode)
+end
+
+local function notifyHudPatch()
+  local hudState = buildHudState()
+  lanBridge.setState(hudState)
+  if lanBridge.isConnected() then
+    hudPublisher.publishPatch(hudState, guihooks.trigger, jsonEncode)
+  else
+    -- Keep the in-game UI App on simple authoritative full snapshots. Delta
+    -- traffic is only enabled while the battery-sensitive phone client is
+    -- actually connected.
+    hudPublisher.publishFull(hudState, guihooks.trigger, jsonEncode)
+  end
 end
 
 local function notifyProfile()
@@ -977,6 +985,8 @@ function realisticFuel.readableUnitToEnergy(quantity, energyType)
 end
 
 function realisticFuel.resetDashboardEnergy()
+  realisticFuel.dashboardEnergyRequestGeneration =
+    realisticFuel.dashboardEnergyRequestGeneration + 1
   realisticFuel.dashboardEnergyPending = false
   realisticFuel.dashboardEnergyTimer = 0
   realisticFuel.dashboardEnergy = {
@@ -990,8 +1000,17 @@ function realisticFuel.resetDashboardEnergy()
   }
 end
 
+function realisticFuel.deferDashboardEnergy()
+  -- A callback belonging to the old vehicle VM may still arrive later. Its
+  -- generation check prevents it from overwriting the stable vehicle state.
+  realisticFuel.dashboardEnergyRequestGeneration =
+    realisticFuel.dashboardEnergyRequestGeneration + 1
+  realisticFuel.dashboardEnergyPending = false
+  realisticFuel.dashboardEnergyTimer = 0
+end
+
 function realisticFuel.refreshDashboardEnergy()
-  if realisticFuel.dashboardEnergyPending then return end
+  if realisticFuel.dashboardEnergyPending or vehicleScanGuard.isSuspended() then return end
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
   if not vehicle then
     realisticFuel.resetDashboardEnergy()
@@ -1000,7 +1019,14 @@ function realisticFuel.refreshDashboardEnergy()
 
   realisticFuel.dashboardEnergyPending = true
   local vehicleId = vehicle:getID()
+  local requestGeneration = realisticFuel.dashboardEnergyRequestGeneration
+  local scanGeneration = vehicleScanGuard.getGeneration()
   core_vehicleBridge.requestValue(vehicle, function(data)
+    if requestGeneration ~= realisticFuel.dashboardEnergyRequestGeneration or
+      scanGeneration ~= vehicleScanGuard.getGeneration() or
+      not vehicleScanGuard.isRequestCurrent(scanGeneration) then
+      return
+    end
     realisticFuel.dashboardEnergyPending = false
     local currentVehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
     if not currentVehicle or tonumber(currentVehicle:getID()) ~= tonumber(vehicleId) then return end
@@ -1047,11 +1073,12 @@ function realisticFuel.refreshDashboardEnergy()
       unit = "",
       estimatedRangeKm = 0
     }
-    notifyHud()
+    notifyHudPatch()
   end, "energyStorage")
 end
 
 function realisticFuel.updateDashboardEnergy(dtSim)
+  if vehicleScanGuard.isSuspended() then return end
   realisticFuel.dashboardEnergyTimer = math.max(
     0,
     realisticFuel.dashboardEnergyTimer - math.max(0, dtSim or 0)
@@ -1400,8 +1427,8 @@ function realisticFuel.updateRefueling(dtSim)
   if session.elapsed >= session.duration then
     realisticFuel.finishPurchase()
   elseif session.hudTimer <= 0 then
-    session.hudTimer = 0.1
-    notifyHud()
+    session.hudTimer = hudUpdateInterval
+    notifyHudPatch()
   end
 end
 
@@ -1479,6 +1506,34 @@ function realisticFuel.restoreEconomy()
   end
 end
 
+function realisticFuel.setVehicleEnergyLevels(vehicle, fuelLevel, electricLevel, callback)
+  if not vehicle then return false end
+  core_vehicleBridge.requestValue(vehicle, function(data)
+    local tanks = type(data) == "table" and data[1] or nil
+    local changedCount = 0
+    for _, tank in ipairs(type(tanks) == "table" and tanks or {}) do
+      local energyType = tostring(tank.energyType or "")
+      if energyType == "gasoline" or energyType == "diesel" or
+        energyType == "kerosine" or energyType == "kerosene" or
+        energyType == "electricEnergy" then
+        local maxEnergy = math.max(0, tonumber(tank.maxEnergy) or 0)
+        if maxEnergy > 0 then
+          local level = energyType == "electricEnergy" and electricLevel or fuelLevel
+          core_vehicleBridge.executeAction(
+            vehicle,
+            "setEnergyStorageEnergy",
+            tank.name,
+            maxEnergy * clampValue(tonumber(level) or 0, 0, 1)
+          )
+          changedCount = changedCount + 1
+        end
+      end
+    end
+    if type(callback) == "function" then callback(changedCount > 0, changedCount) end
+  end, "energyStorage")
+  return true
+end
+
 function realisticFuel.initializeVehicle(vehicle)
   if not vehicle then return end
   local vehicleId = vehicle:getID()
@@ -1486,46 +1541,23 @@ function realisticFuel.initializeVehicle(vehicle)
     realisticFuel.initializationPending[vehicleId] then return end
   realisticFuel.initializationPending[vehicleId] = true
 
-  core_vehicleBridge.requestValue(vehicle, function(data)
-    realisticFuel.initializationPending[vehicleId] = nil
-    local tanks = type(data) == "table" and data[1] or nil
-    if type(tanks) ~= "table" then
-      if state.active and state.realisticMode then
+  realisticFuel.setVehicleEnergyLevels(
+    vehicle,
+    realisticFuel.config.fuelInitialLevel,
+    realisticFuel.config.electricInitialLevel,
+    function(initialized)
+      realisticFuel.initializationPending[vehicleId] = nil
+      if initialized then
+        realisticFuel.initializedVehicles[vehicleId] = true
+        if state.active and state.realisticMode and
+          tonumber(state.activeVehicleId) == tonumber(vehicleId) then
+          showPhoneNotification("notify_realisticFuelSet", {}, "success")
+        end
+      elseif state.active and state.realisticMode then
         showPhoneNotification("notify_realisticFuelUnsupported", {}, "warning")
       end
-      return
     end
-
-    local initialized = false
-    for _, tank in ipairs(tanks) do
-      local energyType = tostring(tank.energyType or "")
-      if energyType == "gasoline" or energyType == "diesel" or
-        energyType == "kerosine" or energyType == "electricEnergy" then
-        local maxEnergy = math.max(0, tonumber(tank.maxEnergy) or 0)
-        if maxEnergy > 0 then
-          core_vehicleBridge.executeAction(
-            vehicle,
-            "setEnergyStorageEnergy",
-            tank.name,
-            maxEnergy * (energyType == "electricEnergy" and
-              realisticFuel.config.electricInitialLevel or
-              realisticFuel.config.fuelInitialLevel)
-          )
-          initialized = true
-        end
-      end
-    end
-
-    if initialized then
-      realisticFuel.initializedVehicles[vehicleId] = true
-      if state.active and state.realisticMode and
-        tonumber(state.activeVehicleId) == tonumber(vehicleId) then
-        showPhoneNotification("notify_realisticFuelSet", {}, "success")
-      end
-    elseif state.active and state.realisticMode then
-      showPhoneNotification("notify_realisticFuelUnsupported", {}, "warning")
-    end
-  end, "energyStorage")
+  )
 end
 
 function realisticFuel.updateStation(dtSim)
@@ -3256,14 +3288,17 @@ function M.confirmDriverAbandonment()
 end
 
 function M.requestHudState()
+  if vehicleScanGuard.isConfigurationOpen() then return end
   notifyHud()
 end
 
 function M.requestProfileData()
+  if vehicleScanGuard.isConfigurationOpen() then return end
   notifyProfile()
 end
 
 function M.requestRealisticFuelData()
+  if vehicleScanGuard.isConfigurationOpen() then return end
   realisticFuel.dataTimer = 0
   realisticFuel.refreshOptions()
 end
@@ -3346,6 +3381,7 @@ function M.saveSettings(incomingSettings)
   userSettings.lanEnabled = sessionLanEnabled
   settingsNeedsLegacyImport = false
   applyDifficulty(userSettings.difficulty)
+  lanBridge.setPerformanceOptions(userSettings)
   lanBridge.setEnabled(userSettings.lanEnabled)
   writeUserSettings()
 
@@ -3392,12 +3428,38 @@ end
 -- Called only by a TaxiDriverHUD instance running through BeamNG's native
 -- External UI bridge. A short heartbeat lets the in-game instance collapse
 -- while the remote phone is actually connected.
-function M.externalPhoneHeartbeat(token)
-  return lanBridge.externalHeartbeat(token)
+function M.externalPhoneHeartbeat(token, view, visible, clientEpoch, clientRevision)
+  local accepted = lanBridge.externalHeartbeat(token, view, visible)
+  if vehicleScanGuard.isConfigurationOpen() then return accepted end
+  if accepted and clientEpoch ~= nil and clientRevision ~= nil and
+    hudPublisher.clientNeedsSync(clientEpoch, clientRevision) then
+    notifyHud()
+  end
+  return accepted
+end
+
+function M.hudClientHeartbeat(clientEpoch, clientRevision)
+  if vehicleScanGuard.isConfigurationOpen() then return false end
+  if clientEpoch ~= nil and clientRevision ~= nil and
+    hudPublisher.clientNeedsSync(clientEpoch, clientRevision) then
+    notifyHud()
+    return true
+  end
+  return false
 end
 
 function M.requestExternalMapData()
+  if vehicleScanGuard.isConfigurationOpen() then return end
   lanBridge.requestExternalMap()
+end
+
+function M.requestExternalHudState()
+  if vehicleScanGuard.isConfigurationOpen() then return end
+  notifyHud()
+end
+
+function M.setExternalPhoneView(view, visible, token)
+  return lanBridge.setExternalView(view, visible, token)
 end
 
 function M.cheatSetRating(value)
@@ -3408,23 +3470,52 @@ function M.cheatSetRating(value)
   end
   local rating = clampValue(requestedRating, 0, 5)
   if not userProgress then userProgress = createDefaultUserProgress() end
-  state.ratingCount = math.max(1, math.floor(tonumber(state.ratingCount) or 0))
+  state.ratingCount = math.max(0, math.floor(tonumber(state.completedRides) or 0))
   state.rating = rating
   state.ratingTotal = rating * state.ratingCount
   userProgress.rating = rating
   userProgress.ratingCount = state.ratingCount
   userProgress.ratingTotal = state.ratingTotal
-  userProgress.sequence = math.max(0, math.floor(tonumber(userProgress.sequence) or 0)) + 1
-  table.insert(userProgress.ratingHistory, {
-    index = userProgress.sequence,
-    value = roundMoney(rating),
-    timestamp = os.time()
-  })
+  for _, review in ipairs(userProgress.reviews or {}) do
+    review.rating = rating
+    review.quality = rating / 5 * 100
+    review.emoji = getPassengerReviewEmoji(rating)
+  end
+  for _, point in ipairs(userProgress.ratingHistory or {}) do
+    point.value = roundMoney(rating)
+  end
+  vehicleHistory.setAllRatings(rating)
+  shiftTracking:setAllRatings(rating)
+  userProgress.lastShift = shiftTracking:getHud().last
   writeUserProgress()
   notifyProfile()
   notifyHud()
   log("I", logTag, string.format("Cheat rating applied: %.2f", rating))
   return rating
+end
+
+function M.cheatSetEnergyPercent(value)
+  local percent = clampValue(tonumber(value) or 0, 0, 100)
+  local vehicle = getPlayerVehicle()
+  if not vehicle then return false end
+  local vehicleId = vehicle:getID()
+  return realisticFuel.setVehicleEnergyLevels(vehicle, percent / 100, percent / 100,
+    function(changed, storageCount)
+      logger.info("cheat", "energy_percent_applied", {
+        percent = percent,
+        storageCount = storageCount,
+        vehicleId = vehicleId
+      })
+      if not changed then return end
+      if realisticFuel.dashboardEnergy.available then
+        realisticFuel.dashboardEnergy.quantity =
+          realisticFuel.dashboardEnergy.maxQuantity * percent / 100
+        realisticFuel.dashboardEnergy.percent = percent
+      end
+      realisticFuel.deferDashboardEnergy()
+      notifyHud()
+    end
+  )
 end
 
 function M.cheatAddMoney(value)
@@ -3732,46 +3823,71 @@ function M.onTelemetry(vehicleId, data)
     trip.aggressionActive = false
   end
 end
-
 function M.onUpdate(dtReal, dtSim)
+  if vehicleScanGuard.isConfigurationOpen() then return end
+  logger.observeRuntime(state, trip, #offers)
   dtReal = math.max(0, dtReal or 0)
   dtSim = math.max(0, dtSim or 0)
-  local vehicleChanged = vehicleHistory.update(dtReal, dtSim)
+  local scannerBecameReady = vehicleScanGuard.update(dtReal)
+  local vehicleChanged = false
+  if not vehicleScanGuard.isSuspended() then vehicleChanged = vehicleHistory.update(dtReal, dtSim) end
+  if scannerBecameReady then
+    realisticFuel.dashboardEnergyTimer = 0
+    local stableVehicle = state.active and state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+    setTelemetryEnabled(stableVehicle, state.active == true)
+    if stableVehicle and trip and trip.isDelivery then delivery.applyVehicleMass(stableVehicle, trip.cargoWeightKg or 0) end
+  end
   realisticFuel.updateDashboardEnergy(dtSim)
   lanBridge.update(dtReal)
   if lanBridge.consumeStatusChanged() then notifyHud() end
+  if vehicleScanGuard.isSuspended() then return end
   hudTimer = hudTimer + dtReal
   if not state.active then
     if vehicleChanged or hudTimer >= 0.5 then
       hudTimer = 0
-      notifyHud()
+      notifyHudPatch()
     end
     return
   end
   updateActiveMode(dtSim)
-
   if hudTimer >= hudUpdateInterval then
     hudTimer = 0
-    notifyHud()
+    notifyHudPatch()
   end
 end
-
 function M.onVehicleSwitched(oldId, newId)
+  if vehicleScanGuard.isConfigurationOpen() then return end
   if state.active and oldId == state.activeVehicleId and newId ~= oldId then
     stopModeInternal("Режим остановлен после смены автомобиля", true, "notify_vehicleChanged")
   end
   vehicleHistory.selectVehicle(newId)
   notifyHud()
 end
+local function deferVehicleScan(vehicleId)
+  if vehicleScanGuard.isConfigurationOpen() then return end
+  local currentVehicle = getPlayerVehicle()
+  local currentVehicleId = currentVehicle and currentVehicle:getID() or nil
+  if vehicleScanGuard.onVehicleLifecycle(vehicleId, currentVehicleId) then realisticFuel.deferDashboardEnergy() end
+end
 
 local function handleVehicleReset(vehicleId)
+  if vehicleScanGuard.isConfigurationOpen() then return end
   vehicleId = tonumber(vehicleId)
   if vehicleId then
+    deferVehicleScan(vehicleId)
     realisticFuel.initializedVehicles[vehicleId] = nil
     realisticFuel.initializationPending[vehicleId] = nil
     vehicleHistory.onVehicleReset(vehicleId)
   end
   if state.active and vehicleId and vehicleId == tonumber(state.activeVehicleId) then
+    if userSettings.godMode == true then
+      realisticFuel.dashboardEnergyTimer = 0
+      if trip and trip.isDelivery then
+        delivery.applyVehicleMass(getObjectByID(vehicleId), trip.cargoWeightKg or 0)
+      end
+      notifyHud()
+      return
+    end
     -- Clear the queued order before stopping the session. The explicit clear
     -- also guarantees an immediate HUD reset if the vehicle and GE reset hooks
     -- arrive in different frames.
@@ -3787,6 +3903,8 @@ end
 function M.onTelemetryVehicleReset(vehicleId)
   handleVehicleReset(vehicleId)
 end
+M.onPreVehicleSpawned = deferVehicleScan
+M.onVehicleSpawned = deferVehicleScan
 
 function M.onClientStartMission()
   minimapAppVisible = true
@@ -3795,8 +3913,14 @@ function M.onClientStartMission()
   vehicleHistory.refreshCurrentVehicle()
   notifyHud()
 end
-
 function M.onUiChangedState(to, from)
+  if vehicleScanGuard.onUiChangedState(to, from) then
+    local configurationOpen = vehicleScanGuard.isConfigurationOpen()
+    guihooks.trigger("TaxiDriverUiSuspended", {suspended = configurationOpen})
+    realisticFuel.deferDashboardEnergy()
+    local activeVehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+    if configurationOpen and state.active then setTelemetryEnabled(activeVehicle, false); delivery.applyVehicleMass(activeVehicle, 0) end
+  end
   -- BeamNG uses several intermediate states while the UI App itself remains
   -- visible. Blocking every state except the literal "play" permanently hid
   -- the native map after app editing and vehicle selection. Only states known
@@ -3824,6 +3948,7 @@ function M.onUiChangedState(to, from)
 end
 
 function M.onExtensionLoaded()
+  vehicleScanGuard.reset()
   loadUserSettings()
   loadDriverProfile()
   loadUserProgress()
@@ -3895,6 +4020,7 @@ function M.onClientEndMission()
 end
 
 function M.onExtensionUnloaded()
+  vehicleScanGuard.reset()
   lanBridge.stop()
   hideNativeMinimap()
   delivery.applyVehicleMass(getPlayerVehicle(), 0)
@@ -3956,5 +4082,5 @@ function M.onDeserialized(data)
   vehicleHistory.refreshCurrentVehicle()
   notifyHud()
 end
-
+logger.attachOperations(M)
 return M

@@ -61,14 +61,9 @@ end
 
 local function onReset()
   updateTimer = 0
+  enabled = false
+  if forcedStop then releaseForcedStopInputs() end
   forcedStop = false
-  releaseForcedStopInputs()
-  if not enabled then return end
-
-  obj:queueGameEngineLua(string.format(
-    "if taxiDriver_taxiDriver then taxiDriver_taxiDriver.onTelemetryVehicleReset(%d) end",
-    obj:getID()
-  ))
 end
 
 M.setEnabled = setEnabled

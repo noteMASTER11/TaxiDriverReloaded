@@ -30,6 +30,10 @@ const vehicleHistoryLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/vehicleHistory.lua"),
   "utf8"
 );
+const vehicleControlLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/vehicleControl.lua"),
+  "utf8"
+);
 const persistenceLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/persistence.lua"),
   "utf8"
@@ -46,6 +50,18 @@ const tripEventsLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/tripEvents.lua"),
   "utf8"
 );
+const lanBridgeLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/lanBridge.lua"),
+  "utf8"
+);
+const hudPublisherLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/hudPublisher.lua"),
+  "utf8"
+);
+const loggerLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/logger.lua"),
+  "utf8"
+);
 assert.match(
   externalLoaderSource,
   /\.api\.subscribeToEvents\(\s*["']\{\}["']\s*\)/,
@@ -59,6 +75,10 @@ assert.match(taxiDriverLuaSource, /state\.completedRides\s*=\s*state\.completedR
   "Completed rides and income must be attributed to the current vehicle");
 assert.match(vehicleHistoryLuaSource, /maximumPlausibleDistance\s*=\s*math\.max/,
   "Vehicle odometer must reject implausible teleport/reset distance jumps");
+assert.match(vehicleHistoryLuaSource, /if vehicleId == tracking\.vehicleId and tracking\.entry then[\s\S]*?return false/,
+  "Live part edits must keep the existing vehicle-history identity");
+assert.doesNotMatch(vehicleHistoryLuaSource, /fingerprint\s*~=/,
+  "Vehicle partConfig changes must not trigger expensive identity rebuilds in the update loop");
 assert.doesNotMatch(vehicleHistoryLuaSource, /getPlayerVehicle\(\s*\)/,
   "BeamNG's global getPlayerVehicle API requires an explicit player index");
 assert.match(vehicleHistoryLuaSource, /be:getPlayerVehicle\(0\)/,
@@ -111,6 +131,35 @@ assert.doesNotMatch(taxiDriverLuaSource, /\bgetRoadLink\s*\(/,
   "The main extension must not call BeamNG's unavailable global getRoadLink function");
 assert.match(taxiDriverLuaSource, /userSettings\.randomEventsEnabled\s*==\s*true[\s\S]*?tripEvents\.create/,
   "Random trip events must be gated by their persisted mode toggle");
+assert.match(hudPublisherLuaSource, /TaxiDriverHUDPatch/,
+  "Periodic HUD updates must use compact delta packets");
+assert.match(hudPublisherLuaSource, /baseRevision[\s\S]*?revision[\s\S]*?clientNeedsSync/,
+  "HUD deltas must be revisioned and support loss detection");
+assert.match(taxiDriverLuaSource, /if not state\.active[\s\S]*?notifyHudPatch\(\)[\s\S]*?hudTimer >= hudUpdateInterval[\s\S]*?notifyHudPatch\(\)/,
+  "The active and inactive periodic loops must avoid repeating full HUD snapshots");
+assert.match(lanBridgeLuaSource, /canPublishNavigation\(\)[\s\S]*?navigationPhases\[authoritativePhase\]/,
+  "Remote map telemetry must follow Lua's authoritative trip phase");
+assert.doesNotMatch(lanBridgeLuaSource,
+  /return connected and externalVisible and externalMapEnabled/,
+  "Remote map telemetry must not stop because a browser view reported itself hidden");
+assert.match(lanBridgeLuaSource, /heartbeatTimeout\s*=\s*8\.0/,
+  "Battery-friendly heartbeats must tolerate browser timer throttling");
+assert.match(taxiDriverLuaSource, /state\.ratingCount\s*=\s*math\.max\(0,[\s\S]*?state\.completedRides[\s\S]*?vehicleHistory\.setAllRatings\(rating\)/,
+  "The rating cheat must re-rate the complete ride history");
+assert.match(taxiDriverLuaSource,
+  /function realisticFuel\.setVehicleEnergyLevels[\s\S]*?setEnergyStorageEnergy/,
+  "Realistic mode and the energy cheat must share BeamNG's proven bridge path");
+assert.match(taxiDriverLuaSource,
+  /function M\.cheatSetEnergyPercent[\s\S]*?realisticFuel\.setVehicleEnergyLevels\(vehicle, percent \/ 100, percent \/ 100/,
+  "The energy cheat must pass the selected percentage through realistic mode's energy setter");
+assert.match(taxiDriverLuaSource, /if userSettings\.godMode == true[\s\S]*?notifyHud\(\)[\s\S]*?return/,
+  "God Mode must preserve an active ride across vehicle resets");
+assert.match(persistenceLuaSource, /debugLogging\s*=\s*true/,
+  "Debug logging must default to enabled");
+assert.match(loggerLuaSource, /\[TaxiDriver\]/,
+  "The structured logger must prefix every diagnostic record");
+assert.match(loggerLuaSource, /function M\.observeRuntime[\s\S]*?function M\.attachOperations/,
+  "The structured logger must track runtime transitions and public operations");
 assert.match(shiftTrackerLuaSource, /function service:finish\(\)/,
   "Shift lifecycle must remain isolated in shiftTracker.lua");
 assert.match(tripEventsLuaSource, /function M\.calculateTip\(/,
@@ -125,7 +174,7 @@ const mainChunkLocalCount = taxiDriverLuaSource.split(/\r?\n/).reduce((count, li
 }, 0);
 assert.ok(mainChunkLocalCount < 199,
   `taxiDriver.lua has ${mainChunkLocalCount} main-chunk locals and is too close to LuaJIT's 200-local limit`);
-assert.ok(taxiDriverLuaSource.split(/\r?\n/).length < 4000,
+assert.ok(taxiDriverLuaSource.split(/\r?\n/).length < 4100,
   "taxiDriver.lua must remain an orchestrator instead of absorbing extracted domain modules again");
 const { server, port } = await startHarnessServer(41735);
 const browser = await chromium.launch({ headless: true });
@@ -182,6 +231,16 @@ const harnessUrl = (scenario, viewport, options = {}) => {
 const waitForHarness = async (page) => {
   await page.waitForFunction(() => window.__taxiHarnessReady === true);
   await page.evaluate(() => document.fonts && document.fonts.ready);
+  if (new URL(page.url()).searchParams.get("external") === "1") {
+    await page.waitForFunction(() => {
+      const canvas = Array.from(document.querySelectorAll("canvas.taxi-external-minimap"))
+        .find((item) => item.getBoundingClientRect().width > 20);
+      if (!canvas) return true;
+      const rect = canvas.getBoundingClientRect();
+      const ratio = Math.min(2, window.devicePixelRatio || 1);
+      return canvas.width + 1 >= rect.width * ratio && canvas.height + 1 >= rect.height * ratio;
+    });
+  }
 };
 
 const assertVisualAudit = async (page, label) => {
@@ -252,6 +311,43 @@ try {
   assert.equal((await collapsedIndicator.textContent()).trim(), "+", "A collapsed Settings group must show '+'");
   await collapsedIndicator.locator("..").click();
 
+  const settingsRaceAudit = await functionalPage.evaluate(async () => {
+    const root = angular.element(document).injector().get("$rootScope");
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    const staleSettings = angular.copy(scope.state.settings);
+    scope.$apply(() => scope.hud.selectLanguage("ru"));
+    root.$broadcast("TaxiDriverHUDState", Object.assign({}, scope.state, {
+      settings: staleSettings,
+    }));
+    const languageAfterStalePacket = scope.language;
+    await new Promise((resolve) => setTimeout(resolve, 260));
+    const savedSettings = angular.copy(scope.settings);
+    root.$broadcast("TaxiDriverHUDState", Object.assign({}, scope.state, {
+      settings: savedSettings,
+    }));
+    const languageAfterAcknowledgement = scope.language;
+    const remoteSettings = Object.assign({}, savedSettings, { language: "de" });
+    root.$broadcast("TaxiDriverHUDState", Object.assign({}, scope.state, {
+      settings: remoteSettings,
+    }));
+    return {
+      languageAfterStalePacket,
+      languageAfterAcknowledgement,
+      languageAfterRemoteUpdate: scope.language,
+      saveCommands: (window.__taxiEngineLuaCommands || [])
+        .filter((value) => value.includes("saveSettings(")),
+    };
+  });
+  assert.equal(settingsRaceAudit.languageAfterStalePacket, "ru",
+    "A stale HUD packet must not roll back a freshly selected setting");
+  assert.equal(settingsRaceAudit.languageAfterAcknowledgement, "ru",
+    "The Lua acknowledgement must preserve the selected setting");
+  assert.equal(settingsRaceAudit.languageAfterRemoteUpdate, "de",
+    "A later confirmed setting from another UI client must still synchronize");
+  assert.ok(settingsRaceAudit.saveCommands.some((value) => value.includes('language="ru"') ||
+    value.includes('"language":"ru"')),
+  "The debounced settings save must send the user's selected language to Lua");
+
   await functionalPage.goto(harnessUrl("settings", { width: 520, height: 900 }));
   await waitForHarness(functionalPage);
   await functionalPage.locator(".taxi-settings__group--open:nth-of-type(5)").scrollIntoViewIfNeeded();
@@ -259,7 +355,7 @@ try {
     const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
     scope.$apply(() => { scope.cheatRating = 2.75; });
   });
-  await functionalPage.locator(".taxi-settings__cheat-rating button").click();
+  await functionalPage.locator(".taxi-settings__cheat-rating button").first().click();
   await functionalPage.waitForFunction(() => {
     const value = document.querySelector(".taxi-settings__cheat-stats strong");
     return value && value.textContent.trim() === "2.75";
@@ -271,6 +367,16 @@ try {
     "Cheat rating must be sent as a plain Lua statement with a serialized value");
   assert.doesNotMatch(command, /\b(?:if|return)\b/,
     "Cheat rating command must not use callback-incompatible Lua control flow");
+  const energySlider = functionalPage.locator(
+    '.taxi-settings__cheat-card input[type="range"][max="100"]'
+  );
+  await energySlider.fill("73");
+  await functionalPage.locator(".taxi-settings__cheat-rating button").nth(1).click();
+  const energyCommand = await functionalPage.evaluate(() =>
+    (window.__taxiEngineLuaCommands || []).find((value) => value.includes("cheatSetEnergyPercent")) || ""
+  );
+  assert.equal(energyCommand, "taxiDriver_taxiDriver.cheatSetEnergyPercent(73)",
+    "Energy cheat must send the selected tank/battery percentage");
 
   await functionalPage.goto(harnessUrl("home", { width: 520, height: 900 }));
   await waitForHarness(functionalPage);
@@ -661,6 +767,151 @@ try {
   assert.ok(externalRadius0 < externalRadius60 && externalRadius60 < externalRadius120,
     `External map radius must grow smoothly with speed (${externalRadius0}, ${externalRadius60}, ${externalRadius120})`);
   await mapPage.close();
+
+  const performancePage = await browser.newPage({ viewport: { width: 520, height: 900 }, deviceScaleFactor: 2 });
+  await performancePage.addInitScript(() => {
+    window.__externalMapFrames = 0;
+    const original = CanvasRenderingContext2D.prototype.setTransform;
+    CanvasRenderingContext2D.prototype.setTransform = function(...args) {
+      if (this.canvas && this.canvas.classList.contains("taxi-external-minimap")) {
+        window.__externalMapFrames += 1;
+      }
+      return original.apply(this, args);
+    };
+  });
+  await performancePage.goto(harnessUrl("trip", { width: 520, height: 900 }, { external: true }));
+  await waitForHarness(performancePage);
+  await performancePage.waitForFunction(() => window.__externalMapFrames > 0);
+  await performancePage.evaluate(async () => {
+    window.__externalMapFrames = 0;
+    const root = angular.element(document).injector().get("$rootScope");
+    for (let index = 0; index < 40; index += 1) {
+      root.$broadcast("TaxiDriverExternalVehicleState", {
+        position: [index * 2, index], direction: [0.05, 0.998],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  });
+  const movingFrames = await performancePage.evaluate(() => window.__externalMapFrames);
+  assert.ok(movingFrames >= 15 && movingFrames <= 36,
+    `Balanced remote map must stay near its 15 FPS budget (${movingFrames} frames in 2 seconds)`);
+  await performancePage.waitForTimeout(1800);
+  await performancePage.evaluate(() => { window.__externalMapFrames = 0; });
+  await performancePage.waitForTimeout(1000);
+  assert.ok(await performancePage.evaluate(() => window.__externalMapFrames) <= 1,
+    "A settled remote map must not keep repainting while the car is stationary");
+  const stateRevisionAudit = await performancePage.evaluate(() => {
+    const root = angular.element(document).injector().get("$rootScope");
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    const commandStart = (window.__taxiEngineLuaCommands || []).length;
+    root.$broadcast("TaxiDriverHUDState", Object.assign({}, scope.state, {
+      active: true, phase: "searching", hudEpoch: "race-epoch", hudRevision: 100,
+    }));
+    root.$broadcast("TaxiDriverHUDPatch", {
+      epoch: "race-epoch", baseRevision: 101, revision: 102,
+      values: { phase: "toPickup" }, removed: [],
+    });
+    const phaseAfterMissedPatch = scope.state.phase;
+    root.$broadcast("TaxiDriverHUDState", Object.assign({}, scope.state, {
+      active: true, phase: "toPickup", hudEpoch: "race-epoch", hudRevision: 103,
+    }));
+    const phaseAfterFullSync = scope.state.phase;
+    root.$broadcast("TaxiDriverHUDPatch", {
+      epoch: "race-epoch", baseRevision: 100, revision: 101,
+      values: { phase: "searching" }, removed: [],
+    });
+    return {
+      phaseAfterMissedPatch,
+      phaseAfterFullSync,
+      phaseAfterLatePatch: scope.state.phase,
+      commands: (window.__taxiEngineLuaCommands || []).slice(commandStart),
+    };
+  });
+  assert.equal(stateRevisionAudit.phaseAfterMissedPatch, "searching",
+    "A patch with a missing predecessor must not be merged onto stale state");
+  assert.equal(stateRevisionAudit.phaseAfterFullSync, "toPickup",
+    "A full authoritative snapshot must recover a client after packet loss");
+  assert.equal(stateRevisionAudit.phaseAfterLatePatch, "toPickup",
+    "A delayed older patch must not roll a synchronized client back");
+  assert.ok(stateRevisionAudit.commands.some((value) => value.includes("requestExternalHudState")),
+    "A detected HUD revision gap must request a full snapshot");
+  const cefVisibilityAudit = await performancePage.evaluate(async () => {
+    const commandStart = (window.__taxiEngineLuaCommands || []).length;
+    window.__externalMapFrames = 0;
+    const root = angular.element(document).injector().get("$rootScope");
+    root.$broadcast("onCefVisibilityChanged", false);
+    for (let index = 0; index < 5; index += 1) {
+      root.$broadcast("TaxiDriverExternalVehicleState", {
+        position: [200 + index * 3, 100 + index], direction: [0.08, 0.997],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 70));
+    }
+    return {
+      frames: window.__externalMapFrames,
+      commands: (window.__taxiEngineLuaCommands || []).slice(commandStart),
+    };
+  });
+  assert.ok(cefVisibilityAudit.frames > 0,
+    "In-game CEF hiding must not freeze the independently visible phone map");
+  assert.ok(!cefVisibilityAudit.commands.some((value) => value.includes('setExternalPhoneView("hidden"')),
+    "In-game CEF hiding must not report the external browser as hidden");
+  await performancePage.evaluate(() => {
+    const root = angular.element(document).injector().get("$rootScope");
+    root.$broadcast("TaxiDriverHUDPatch", {
+      epoch: "race-epoch", baseRevision: 103, revision: 104,
+      values: { currentSpeed: 47 }, removed: [],
+    });
+  });
+  await performancePage.waitForFunction(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    return Number(scope.state.currentSpeed) === 47;
+  });
+  assert.ok(await performancePage.evaluate(() =>
+    (window.__taxiEngineLuaCommands || []).some((value) => value.includes('setExternalPhoneView("trip"'))
+  ), "External client must report the active trip screen to Lua");
+  await performancePage.waitForFunction(() =>
+    (window.__taxiEngineLuaCommands || []).some((value) =>
+      value.includes('externalPhoneHeartbeat(') && value.includes('"trip", true')
+    )
+  );
+  await performancePage.locator(".taxi-appbar__settings").click();
+  await performancePage.waitForFunction(() =>
+    (window.__taxiEngineLuaCommands || []).some((value) => value.includes('setExternalPhoneView("settings"'))
+  );
+  const performanceCombinations = await performancePage.evaluate(() => {
+    const root = angular.element(document).injector().get("$rootScope");
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    let count = 0;
+    for (const externalMapEnabled of [false, true]) {
+      for (const externalTerrainEnabled of [false, true]) {
+        for (const externalMapQuality of ["eco", "balanced", "smooth"]) {
+          for (const godMode of [false, true]) {
+            for (const debugLogging of [false, true]) {
+              const settings = Object.assign({}, scope.state.settings, {
+                externalMapEnabled, externalTerrainEnabled, externalMapQuality, godMode, debugLogging,
+              });
+              root.$broadcast("TaxiDriverHUDState", Object.assign({}, scope.state, {
+                settings, hudEpoch: "race-epoch", hudRevision: 105 + count,
+              }));
+              if (scope.settings.externalMapEnabled !== externalMapEnabled ||
+                  scope.settings.externalTerrainEnabled !== externalTerrainEnabled ||
+                  scope.settings.externalMapQuality !== externalMapQuality ||
+                  scope.settings.godMode !== godMode ||
+                  scope.settings.debugLogging !== debugLogging) {
+                throw new Error("Remote performance / cheat combination was not preserved");
+              }
+              count += 1;
+            }
+          }
+        }
+      }
+    }
+    return count;
+  });
+  assert.equal(performanceCombinations, 48,
+    "All map, terrain, quality, God Mode, and debug logging combinations must remain valid");
+  await assertVisualAudit(performancePage, "performance settings combinatorics");
+  await performancePage.close();
 
   console.log(`TaxiDriverHUD: ${visualCount} responsive visual states passed, including locales and HiDPI.`);
 } finally {

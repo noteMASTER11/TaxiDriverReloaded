@@ -10,17 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/latest"><img src="https://img.shields.io/github/v/release/noteMASTER11/TaxiDriverReloaded?display_name=tag&style=flat-square&color=ffd11a" alt="Latest release"></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.0.0-beta"><img src="https://img.shields.io/github/v/release/noteMASTER11/TaxiDriverReloaded?include_prereleases&display_name=tag&style=flat-square&color=ffd11a" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/BeamNG.drive-0.38.6-f28c28?style=flat-square" alt="BeamNG.drive 0.38.6">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/latest"><strong>Download the latest release</strong></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.0.0-beta"><strong>Download 3.0.0 Beta</strong></a>
 </p>
 
 ---
+
+> **3.0.0 Beta:** this prerelease introduces a new synchronized HUD transport, Connected Phone performance controls, lazy vehicle integration, and expanded diagnostics. Existing 2.25.1 settings and progress remain compatible.
 
 TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
@@ -207,7 +209,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Installation
 
-1. Download `taxidriver.zip` from the [latest GitHub release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/latest).
+1. Download `taxidriver.zip` from the [3.0.0 Beta release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.0.0-beta).
 2. Place the archive directly in:
 
    ```text
@@ -231,7 +233,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ```text
 lua/ge/extensions/taxiDriver/       Runtime controller and focused Lua modules
-lua/vehicle/extensions/auto/        Vehicle telemetry bridge and physical cargo mass
+lua/vehicle/extensions/             Lazy-loaded vehicle telemetry and physical cargo mass
 ui/modules/apps/TaxiDriverHUD/      Phone UI, styles, localizations, assets, and sounds
 tools/TaxiDriver.LanProbe/          Automated real-subnet HTTP/WebSocket bridge test
 tests/ui/                            Mock-state visual and interaction test harness
@@ -240,7 +242,7 @@ mod_info/TaxiDriver/                BeamNG mod metadata
 
 Order discovery is processed incrementally across simulation updates. Complex road graphs may therefore take longer to fill the dispatcher, but route scanning no longer performs a large synchronous workload in a single frame.
 
-Packaged builds are distributed through [GitHub Releases](https://github.com/noteMASTER11/TaxiDriverReloaded/releases) and are intentionally excluded from the source tree.
+Packaged builds are distributed through [GitHub Releases](https://github.com/noteMASTER11/TaxiDriverReloaded/releases) and are intentionally excluded from the source tree. See the repository [Changelog](CHANGELOG.md) for detailed release notes.
 
 ## Credits
 

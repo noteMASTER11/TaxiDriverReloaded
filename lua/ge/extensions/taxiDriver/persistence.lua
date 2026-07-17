@@ -111,10 +111,15 @@ function M.new(options)
       economyMultiplier = 1,
       deliveryOrderSharePercent = 50,
       lanEnabled = false,
+      externalMapEnabled = true,
+      externalTerrainEnabled = true,
+      externalMapQuality = "balanced",
       silentMode = false,
       showRouteGuidance = true,
       realisticMode = false,
-      randomEventsEnabled = false
+      randomEventsEnabled = false,
+      godMode = false,
+      debugLogging = true
     }
   end
 
@@ -160,10 +165,19 @@ function M.new(options)
     result.economyMultiplier = clamp(tonumber(source.economyMultiplier) or result.economyMultiplier, 0.25, 5)
     result.deliveryOrderSharePercent = clamp(tonumber(source.deliveryOrderSharePercent) or result.deliveryOrderSharePercent, 0, 100)
     result.lanEnabled = false
+    result.externalMapEnabled = source.externalMapEnabled ~= false
+    result.externalTerrainEnabled = source.externalTerrainEnabled ~= false
+    local externalMapQuality = tostring(source.externalMapQuality or "balanced")
+    if externalMapQuality ~= "eco" and externalMapQuality ~= "smooth" then
+      externalMapQuality = "balanced"
+    end
+    result.externalMapQuality = externalMapQuality
     result.silentMode = source.silentMode == true
     result.showRouteGuidance = source.showRouteGuidance ~= false
     result.realisticMode = source.realisticMode == true
     result.randomEventsEnabled = source.randomEventsEnabled == true
+    result.godMode = source.godMode == true
+    result.debugLogging = source.debugLogging ~= false
     return result, true
   end
 
