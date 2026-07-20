@@ -4,7 +4,7 @@ local prefix = "[TaxiDriver]"
 local enabledProvider = function() return true end
 local unpackValues = unpack or table.unpack
 local defaultOperations = {
-  "startMode", "openVehicleSelector", "acceptOrder", "acceptNextOffer", "expireNextOffer",
+  "startMode", "openVehicleSelector", "toggleAutopilot", "acceptOrder", "acceptNextOffer", "expireNextOffer",
   "stopMode", "confirmDriverAbandonment", "purchaseRealisticFuel", "requestFuelStop",
   "completeFuelStop", "cancelFuelStop", "saveDriverProfile", "setDifficulty", "saveSettings",
   "disableExternalPhone", "setExternalPhoneView", "cheatSetRating", "cheatSetEnergyPercent",

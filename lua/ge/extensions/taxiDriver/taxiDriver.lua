@@ -1,6 +1,6 @@
 local M = {}
 M.dependencies = {
-  "core_groundMarkers",
+  "core_groundMarkers", "core_trafficSignals",
   "core_vehicleTriggers",
   "core_vehicle_manager",
   "freeroam_gasStations",
@@ -19,13 +19,12 @@ local persistence = require("taxiDriver/persistence")
 local vehicleControl = require("taxiDriver/vehicleControl")
 local routePlanner = require("taxiDriver/routePlanner")
 local shiftTracker = require("taxiDriver/shiftTracker")
+local shiftHistory = require("taxiDriver/shiftHistory")
 local tripEvents = require("taxiDriver/tripEvents")
 local hudPublisher = require("taxiDriver/hudPublisher")
 local logger = require("taxiDriver/logger")
-
 local logTag = "taxiDriver"
-local modVersion = "3.0.0-beta"
-
+local modVersion = "3.1.0-beta"
 local supportedLanguages = taxiConfig.supportedLanguages
 local minRideDistance = taxiConfig.runtime.minRideDistance
 local maxRideDistance = taxiConfig.runtime.maxRideDistance
@@ -45,7 +44,6 @@ local offerConfig = taxiConfig.offer
 local balanceConfig = taxiConfig.balance
 local earlyExitRatingLoss = taxiConfig.earlyExitRatingLoss
 local driverAbandonmentExtraLoss = taxiConfig.driverAbandonmentExtraLoss
-
 -- These factors mirror BeamNG's career refueling conversion from joules to
 -- litres, kilograms, or kilowatt-hours.
 local realisticFuel = {
@@ -74,6 +72,9 @@ local realisticFuel = {
   options = {},
   dataPending = false,
   dataTimer = 0,
+  routeRequestPending = false,
+  automaticStopDeferred = false,
+  resumeAutopilotAtStation = false,
   dashboardEnergyPending = false,
   dashboardEnergyTimer = 0,
   dashboardEnergyRequestGeneration = 0,
@@ -134,7 +135,6 @@ local setVehicleFrozen = vehicleControl.setFrozen
 local releaseForcedPassengerStop = vehicleControl.releaseForcedStop
 local togglePassengerDoor = vehicleControl.togglePassengerDoor
 local toggleCargoAccess = vehicleControl.toggleCargoAccess
-
 local state = {
   active = false,
   phase = phases.inactive,
@@ -148,11 +148,9 @@ local state = {
   realisticMode = false,
   message = ""
 }
-
 local function createDefaultUserSettings()
   return dataStore:createDefaultSettings()
 end
-
 local userSettings = createDefaultUserSettings()
 logger.setEnabledProvider(function() return userSettings.debugLogging ~= false end)
 local settingsNeedsLegacyImport = false
@@ -160,7 +158,6 @@ local driverProfile = nil
 local userProgress = nil
 local progressNeedsLegacyImport = false
 local shiftTracking = shiftTracker.new(nil)
-
 local trip = nil
 local offers = {}
 local nextOffer = nil
@@ -205,6 +202,15 @@ local routePlanning = routePlanner.new({
     offerGeneration.recentRoutes = {}
   end
 })
+local autopilot = require("taxiDriver/autopilot").new({
+  config = taxiConfig.autopilot,
+  phases = phases,
+  getSpeedKmh = getVehicleSpeedKmh,
+  getRoutePath = function()
+    local planner = core_groundMarkers and core_groundMarkers.routePlanner or nil
+    return planner and planner.path or {}
+  end
+})
 local calculateRouteDistance = routePlanning.calculateDistance
 local rememberOfferStops = routePlanning.rememberOfferStops
 local chooseTaxiStopPoint = routePlanning.chooseStop
@@ -233,39 +239,21 @@ local function applyDifficulty(presetId)
   return true
 end
 
-function M.writeDifficultySettings()
-  return dataStore:writeDifficulty(userSettings)
-end
-
-local function writeUserSettings()
-  return dataStore:writeSettings(userSettings)
-end
+function M.writeDifficultySettings() return dataStore:writeDifficulty(userSettings) end
+local function writeUserSettings() return dataStore:writeSettings(userSettings) end
 
 local function loadUserSettings()
   userSettings, settingsNeedsLegacyImport = dataStore:loadSettings()
   applyDifficulty(userSettings.difficulty)
+  autopilot:configure(userSettings.aiDriver)
   lanBridge.setPerformanceOptions(userSettings)
 end
 
-local function roundMoney(value)
-  return math.floor(value * 100 + 0.5) / 100
-end
-
-local function trimText(value)
-  return dataStore:trimText(value)
-end
-
-local function createDefaultDriverProfile()
-  return dataStore:createDefaultProfile()
-end
-
-local function sanitizeDriverProfile(source, requireSchema)
-  return dataStore:sanitizeProfile(source, requireSchema)
-end
-
-local function createDefaultUserProgress()
-  return dataStore:createDefaultProgress()
-end
+local function roundMoney(value) return math.floor(value * 100 + 0.5) / 100 end
+local function trimText(value) return dataStore:trimText(value) end
+local function createDefaultDriverProfile() return dataStore:createDefaultProfile() end
+local function sanitizeDriverProfile(source, requireSchema) return dataStore:sanitizeProfile(source, requireSchema) end
+local function createDefaultUserProgress() return dataStore:createDefaultProgress() end
 
 local function applyUserProgressToState()
   if not userProgress then return end
@@ -288,9 +276,7 @@ local function syncUserProgressFromState()
   userProgress.lastShift = shiftTracking:getHud().last
 end
 
-local function writeDriverProfile()
-  return dataStore:writeProfile(driverProfile)
-end
+local function writeDriverProfile() return dataStore:writeProfile(driverProfile) end
 
 local function writeUserProgress()
   syncUserProgressFromState()
@@ -308,9 +294,7 @@ local function loadUserProgress()
   writeUserProgress()
 end
 
-local function randomRange(minimum, maximum)
-  return minimum + (maximum - minimum) * math.random()
-end
+local function randomRange(minimum, maximum) return minimum + (maximum - minimum) * math.random() end
 
 local function shuffleArray(values)
   for index = #values, 2, -1 do
@@ -722,6 +706,15 @@ function realisticFuel.buildHud()
   }
 end
 
+local function getAutopilotTarget()
+  if state.phase == phases.toFuelStation and realisticFuel.detour.active then return {pos = realisticFuel.detour.pos, exactApproach = true} end
+  if state.phase == phases.toPickup and trip then return trip.pickup end
+  if state.phase == phases.toStop and trip and trip.stops then
+    return trip.stops[trip.currentStopIndex or 0]
+  end
+  if state.phase == phases.toDestination and trip then return trip.destination end
+  return nil
+end
 local function buildHudState()
   local remainingDistance = getRemainingDistance()
   local rideRemainingDistance = 0
@@ -755,6 +748,7 @@ local function buildHudState()
   end
   local abandonmentPreview = getDriverAbandonmentPreview()
   local profile = driverProfile or createDefaultDriverProfile()
+  local autopilotTarget = getAutopilotTarget()
 
   return {
     active = state.active,
@@ -787,9 +781,14 @@ local function buildHudState()
       arrived = realisticFuel.detour.arrived == true
     },
     lan = lanBridge.getStatus(),
+    autopilot = autopilot:getHud(
+      state.active and autopilotTarget ~= nil,
+      state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+    ),
     settings = userSettings,
     settingsNeedsLegacyImport = settingsNeedsLegacyImport,
     shift = shiftTracking:getHud(),
+    shiftHistory = shiftHistory.buildHud(not state.active),
     offers = buildHudOffers(),
     offerTargetCount = offerTargetCount,
     nextOffer = hudNextOffer,
@@ -880,13 +879,11 @@ local function buildHudState()
     }
   }
 end
-
 local function notifyHud()
   local hudState = buildHudState()
   lanBridge.setState(hudState)
   hudPublisher.publishFull(hudState, guihooks.trigger, jsonEncode)
 end
-
 local function notifyHudPatch()
   local hudState = buildHudState()
   lanBridge.setState(hudState)
@@ -899,7 +896,6 @@ local function notifyHudPatch()
     hudPublisher.publishFull(hudState, guihooks.trigger, jsonEncode)
   end
 end
-
 local function notifyProfile()
   syncUserProgressFromState()
   guihooks.trigger("TaxiDriverProfileData", {
@@ -909,7 +905,6 @@ local function notifyProfile()
     avatarOptions = driverAvatarOptions
   })
 end
-
 local function getPassengerReviewEmoji(rideRating)
   local rating = clampValue(tonumber(rideRating) or 0, 0, 5)
   if rating >= 4.85 then return "🤩" end
@@ -922,8 +917,7 @@ local function getPassengerReviewEmoji(rideRating)
   if rating >= 1.55 then return "😠" end
   return "😡"
 end
-
-local function recordProgressEvent(passengerName, emoji, quality, fare, outcome, reviewRating)
+local function recordProgressEvent(passengerName, emoji, quality, fare, outcome, profileRating, orderRating, usedAutopilot)
   if not userProgress then userProgress = createDefaultUserProgress() end
   userProgress.sequence = math.max(0, math.floor(tonumber(userProgress.sequence) or 0)) + 1
   local timestamp = os.time()
@@ -933,7 +927,9 @@ local function recordProgressEvent(passengerName, emoji, quality, fare, outcome,
     emoji = dataStore:isValidReviewEmoji(emoji) and emoji or "😐",
     quality = clampValue(tonumber(quality) or 0, 0, 100),
     fare = roundMoney(math.max(0, tonumber(fare) or 0)),
-    rating = clampValue(tonumber(reviewRating) or tonumber(state.rating) or 5, 0, 5),
+    rating = clampValue(tonumber(profileRating) or tonumber(state.rating) or 5, 0, 5),
+    orderRating = clampValue(tonumber(orderRating) or tonumber(profileRating) or 0, 0, 5),
+    usedAutopilot = usedAutopilot == true,
     timestamp = timestamp,
     outcome = tostring(outcome or "completed")
   })
@@ -947,6 +943,10 @@ local function recordProgressEvent(passengerName, emoji, quality, fare, outcome,
     value = roundMoney(math.max(0, tonumber(state.balance) or 0)),
     timestamp = timestamp
   })
+  if outcome == "completed" or outcome == "delivery" then
+    if usedAutopilot == true then userProgress.aiRideCount = (userProgress.aiRideCount or 0) + 1 end
+    table.insert(userProgress.aiRideHistory, {index = userProgress.sequence, value = userProgress.aiRideCount or 0, timestamp = timestamp})
+  end
   writeUserProgress()
 end
 
@@ -1145,6 +1145,8 @@ function realisticFuel.clearStation()
 end
 
 function realisticFuel.resetDetour()
+  realisticFuel.routeRequestPending = false
+  realisticFuel.resumeAutopilotAtStation = false
   realisticFuel.detour = {
     active = false,
     previousPhase = nil,
@@ -1695,6 +1697,7 @@ local function hideNativeMinimap()
     ui_apps_minimap_minimap.resetOcclusionTransform("taxiDriverRouteInfo")
     ui_apps_minimap_minimap.resetOcclusionTransform("taxiDriverSpeedLimit")
     ui_apps_minimap_minimap.resetOcclusionTransform("taxiDriverNotification")
+    ui_apps_minimap_minimap.resetOcclusionTransform("taxiDriverAutopilot")
     if minimapOwned then
       ui_apps_minimap_minimap.hide()
     end
@@ -1716,6 +1719,7 @@ local function setNavigationTarget(target)
     clearPathOnReachingTarget = false,
     cutOffDrivability = minimumDrivability
   })
+  autopilot:markRouteDirty()
 end
 
 local function addPenaltyEvent(kind, label, penalty, detail)
@@ -1817,6 +1821,13 @@ end
 
 local function stopModeInternal(message, showNotification, notificationKey)
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
+  autopilot:disable(vehicle, "shiftStopped")
+  if shiftTracking:getHud().active then
+    local completedShift = shiftTracking:finish()
+    shiftHistory.finishActive(vehicle, vehicleHistory.getCurrentShiftVehicle(),
+      realisticFuel.dashboardEnergy, completedShift)
+    writeUserProgress()
+  end
   if trip and (trip.passengerDoorTriggerId or trip.cargoDoorTriggerId) and
     (state.phase == phases.boarding or state.phase == phases.alighting or
       state.phase == phases.passengerForcedExit or state.phase == phases.driverAbandoning) then
@@ -1845,11 +1856,6 @@ local function stopModeInternal(message, showNotification, notificationKey)
   clearNextOffer()
   phaseTimer = 0
   offerTimer = 0
-
-  if shiftTracking:getHud().active then
-    shiftTracking:finish()
-    writeUserProgress()
-  end
 
   if showNotification and message then
     showPhoneNotification(notificationKey or "notify_modeStopped", {}, "info")
@@ -1909,13 +1915,18 @@ local function createOffer(requestedType, generationFailureCount)
   end
 
   local multiStopRelaxation = math.min(3, math.max(0, tonumber(generationFailureCount) or 0))
+  local unlimitedRouteDistance = userSettings.unlimitedRouteDistance == true
   local destinationMinDistance = isDelivery and taxiConfig.delivery.minimumDistance or
     (isMultiStop and math.max(
       1500,
       offerConfig.multiStopSegmentMin - multiStopRelaxation * 500
     ) or minRideDistance)
-  local destinationMaxDistance = isDelivery and taxiConfig.delivery.maximumDistance or
-    (isMultiStop and offerConfig.multiStopSegmentMax or maxRideDistance)
+  local destinationMaxDistance = nil
+  if isMultiStop then
+    destinationMaxDistance = offerConfig.multiStopSegmentMax
+  elseif not unlimitedRouteDistance then
+    destinationMaxDistance = isDelivery and taxiConfig.delivery.maximumDistance or maxRideDistance
+  end
   local destination, destinationError = chooseTaxiStopPoint(
     routeOrigin.pos,
     routeOrigin.dir,
@@ -1933,7 +1944,8 @@ local function createOffer(requestedType, generationFailureCount)
   destination.routeDistance = destinationDistance
   rideDistance = rideDistance + destinationDistance
 
-  if not isMultiStop and (rideDistance < minRideDistance or rideDistance > maxRideDistance) then
+  if not isMultiStop and (rideDistance < minRideDistance or
+    (not unlimitedRouteDistance and rideDistance > maxRideDistance)) then
     return nil, "Полученный маршрут не прошёл проверку дистанции"
   end
 
@@ -2166,6 +2178,7 @@ local function startAcceptedOffer(selected)
   trip.startFuelType = realisticFuel.dashboardEnergy.energyType
   trip.refueledQuantity = 0
   trip.fuelCost = 0
+  trip.usedAutopilot = false
 
   state.phase = phases.toPickup
   state.message = trip.isDelivery and "Drive to the cargo" or
@@ -2478,7 +2491,6 @@ local function beginAlighting()
   end
   notifyHud()
 end
-
 local function applyEarlyExitRatingLoss()
   if not trip or trip.earlyExitRatingApplied then return end
   local loss = earlyExitRatingLoss[state.difficulty] or earlyExitRatingLoss.standard
@@ -2496,7 +2508,6 @@ local function applyEarlyExitRatingLoss()
     writeUserProgress()
   end
 end
-
 local function applyDriverAbandonmentRatingLoss()
   if not trip or trip.driverAbandonmentApplied then return end
   local preview = getDriverAbandonmentPreview()
@@ -2515,7 +2526,6 @@ local function applyDriverAbandonmentRatingLoss()
     trip.isDelivery and "deliveryAbandonment" or "driverAbandonment"
   )
 end
-
 beginPassengerStopDemand = function()
   if not trip or trip.isDelivery or not isPassengerDrivingPhase(state.phase) or
     trip.passengerStopRequested then return end
@@ -2585,11 +2595,9 @@ local function beginDriverAbandonment()
   end
   notifyHud()
 end
-
 local function completeDriverAbandonment()
   stopModeInternal("Поездка отменена водителем", false)
 end
-
 local function finishRide()
   if not trip then return end
 
@@ -2637,9 +2645,10 @@ local function finishRide()
     cargoDamageLoss = trip.isDelivery and penaltyLoss or 0,
     fuelConsumed = fuelConsumed,
     fuelCost = trip.fuelCost or 0,
-    rideDistanceMeters = trip.rideDistance or 0
+    rideDistanceMeters = trip.rideDistance or 0,
+    usedAutopilot = trip.usedAutopilot == true
   })
-  shiftTracking:recordRide(fare, rideRating, penaltyLoss)
+  shiftTracking:recordRide(fare, rideRating, penaltyLoss, trip.usedAutopilot)
   if not trip.reviewRecorded then
     trip.reviewRecorded = true
     recordProgressEvent(
@@ -2647,7 +2656,10 @@ local function finishRide()
       getPassengerReviewEmoji(rideRating),
       rideRating / 5 * 100,
       fare,
-      trip.isDelivery and "delivery" or "completed"
+      trip.isDelivery and "delivery" or "completed",
+      state.rating,
+      rideRating,
+      trip.usedAutopilot
     )
   else
     writeUserProgress()
@@ -3015,7 +3027,7 @@ function realisticFuel.openMagicStation(vehicle)
 end
 
 function realisticFuel.requestRoute()
-  if not state.active or not state.realisticMode then return end
+  if not state.active or not state.realisticMode or realisticFuel.routeRequestPending then return end
   if realisticFuel.detour.active then
     if realisticFuel.station and realisticFuel.detour.arrived then notifyHud() end
     return
@@ -3041,7 +3053,9 @@ function realisticFuel.requestRoute()
 
   local requestedPhase = state.phase
   local requestedVehicleId = vehicle:getID()
+  realisticFuel.routeRequestPending = true
   core_vehicleBridge.requestValue(vehicle, function(data)
+    realisticFuel.routeRequestPending = false
     if not state.active or not state.realisticMode or realisticFuel.detour.active or
       state.phase ~= requestedPhase or
       tonumber(state.activeVehicleId) ~= tonumber(requestedVehicleId) then return end
@@ -3102,6 +3116,22 @@ local function updateActiveMode(dtSim)
   if updateRandomTripEvent(vehicle, dtSim) then return end
   realisticFuel.updateStation(dtSim)
   realisticFuel.updatePassengerMood(dtSim)
+  local criticalEnergy = state.realisticMode and taxiConfig.isCriticalEnergy(realisticFuel.dashboardEnergy)
+  if not realisticFuel.detour.active then
+    if criticalEnergy and autopilot:isEnabled() then
+      if state.phase == phases.searching or state.phase == phases.toPickup then realisticFuel.requestRoute()
+      elseif state.phase == phases.toStop or state.phase == phases.toDestination then realisticFuel.automaticStopDeferred = true end
+    elseif not criticalEnergy then realisticFuel.automaticStopDeferred = false end
+    if criticalEnergy and realisticFuel.automaticStopDeferred and state.phase == phases.searching then
+      realisticFuel.automaticStopDeferred = false; realisticFuel.resumeAutopilotAtStation = true; realisticFuel.requestRoute()
+    end
+  end
+  if realisticFuel.resumeAutopilotAtStation and realisticFuel.detour.active then
+    realisticFuel.resumeAutopilotAtStation = false; autopilot:enable(vehicle, state.phase, getAutopilotTarget())
+  end
+  autopilot:suspend(vehicle, state.phase == phases.toFuelStation and realisticFuel.detour.arrived == true)
+  autopilot:update(vehicle, state.phase, getAutopilotTarget(), dtSim)
+  if trip and autopilot:isEnabled() then trip.usedAutopilot = true end
 
   if state.phase == phases.toFuelStation and realisticFuel.detour.active then
     local previousPhase = realisticFuel.detour.previousPhase
@@ -3193,7 +3223,7 @@ local function updateActiveMode(dtSim)
   end
 end
 
-function M.startMode()
+function M.startMode(restoredEnergy)
   if state.active then
     notifyHud()
     return
@@ -3224,21 +3254,60 @@ function M.startMode()
       showPhoneNotification("notify_realisticFuelUnavailable", {}, "warning")
       return
     end
-    realisticFuel.initializeVehicle(vehicle)
+    if type(restoredEnergy) == "table" then
+      realisticFuel.initializedVehicles[vehicle:getID()] = true
+    else
+      realisticFuel.initializeVehicle(vehicle)
+    end
   else
     realisticFuel.restoreEconomy()
   end
   shiftTracking:start()
+  local shiftVehicle = vehicleHistory.getCurrentShiftVehicle()
+  shiftHistory.begin(
+    shiftVehicle,
+    type(restoredEnergy) == "table" and restoredEnergy or
+      shiftHistory.dashboardEnergy(realisticFuel.dashboardEnergy),
+    shiftTracking:getHud().current
+  )
   setTelemetryEnabled(vehicle, true)
   beginSearching("Подключение к линии заказов")
 end
-
 function M.openVehicleSelector()
   -- Open BeamNG's native vehicle selection state. This also works when the
   -- command comes from the external Web UI through the game's UI bridge.
   minimapUiBlocked = true
   hideNativeMinimap()
   guihooks.trigger("ChangeState", {state = "menu.vehicles"})
+end
+
+function M.toggleAutopilot()
+  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  local wasEnabled = autopilot:isEnabled()
+  local enabled = autopilot:toggle(vehicle, state.phase, getAutopilotTarget())
+  if enabled and trip then trip.usedAutopilot = true end
+  if wasEnabled and not enabled then realisticFuel.automaticStopDeferred = false; realisticFuel.resumeAutopilotAtStation = false end
+  if not wasEnabled and not enabled then
+    showPhoneNotification("notify_autopilotUnavailable", {}, "warning")
+  end
+  notifyHud()
+  return enabled
+end
+function M.onAutopilotBypassComplete(vehicleId, success, reason) if tonumber(vehicleId) ~= tonumber(state.activeVehicleId) then return false end
+  return autopilot:onBypassComplete(getObjectByID(vehicleId), success == true, getAutopilotTarget(), reason)
+end
+function M.onAutopilotRouteDone(vehicleId) return tonumber(vehicleId) == tonumber(state.activeVehicleId) and autopilot:onRouteDone(getObjectByID(vehicleId), getAutopilotTarget()) or false end
+function M.resumeShift(shiftId)
+  if state.active then return false end
+  local restored = shiftHistory.restore(shiftId, function(result, energy)
+    if result == "restored" then
+      vehicleHistory.resetTracking(); vehicleHistory.refreshCurrentVehicle()
+      realisticFuel.resetDashboardEnergy(); realisticFuel.dashboardEnergyTimer = 0; M.startMode(energy)
+    else showPhoneNotification(result == "unavailable" and
+      "notify_shiftUnavailable" or "notify_shiftRestoreFailed", {}, "warning") end
+  end)
+  notifyHud()
+  return restored
 end
 
 function M.acceptOrder(offerId)
@@ -3375,12 +3444,14 @@ function M.saveSettings(incomingSettings)
   local routeGuidanceChanged = userSettings.showRouteGuidance ~=
     (type(incomingSettings) ~= "table" or incomingSettings.showRouteGuidance ~= false)
   local previousDeliveryShare = userSettings.deliveryOrderSharePercent
+  local previousUnlimitedRouteDistance = userSettings.unlimitedRouteDistance == true
   local sessionLanEnabled = type(incomingSettings) == "table" and
     incomingSettings.lanEnabled == true
   userSettings = dataStore:sanitizeSettings(incomingSettings, false)
   userSettings.lanEnabled = sessionLanEnabled
   settingsNeedsLegacyImport = false
   applyDifficulty(userSettings.difficulty)
+  autopilot:configure(userSettings.aiDriver); autopilot:markRouteDirty()
   lanBridge.setPerformanceOptions(userSettings)
   lanBridge.setEnabled(userSettings.lanEnabled)
   writeUserSettings()
@@ -3415,6 +3486,10 @@ function M.saveSettings(incomingSettings)
     offerGeneration.poolJob = nil
     offerGeneration.poolRequestedType = nil
     offerTimer = math.min(offerTimer, 0.25)
+  end
+  if state.active and state.phase == phases.searching and
+    previousUnlimitedRouteDistance ~= (userSettings.unlimitedRouteDistance == true) then
+    beginSearching()
   end
   notifyHud()
 end
@@ -3478,6 +3553,7 @@ function M.cheatSetRating(value)
   userProgress.ratingTotal = state.ratingTotal
   for _, review in ipairs(userProgress.reviews or {}) do
     review.rating = rating
+    review.orderRating = rating
     review.quality = rating / 5 * 100
     review.emoji = getPassengerReviewEmoji(rating)
   end
@@ -3535,7 +3611,9 @@ function M.cheatAddRandomReview()
     rating / 5 * 100,
     0,
     "cheatReview",
-    rating
+    state.rating,
+    rating,
+    false
   )
   notifyProfile()
   notifyHud()
@@ -3605,7 +3683,8 @@ end
 function M.setMinimapOcclusions(
   routeX, routeY, routeWidth, routeHeight,
   speedX, speedY, speedWidth, speedHeight,
-  notificationX, notificationY, notificationWidth, notificationHeight
+  notificationX, notificationY, notificationWidth, notificationHeight,
+  autopilotX, autopilotY, autopilotWidth, autopilotHeight
 )
   if not canShowNativeMinimap() then return end
   if not ui_apps_minimap_minimap then
@@ -3635,13 +3714,8 @@ function M.setMinimapOcclusions(
 
   updateOcclusion("taxiDriverRouteInfo", routeX, routeY, routeWidth, routeHeight)
   updateOcclusion("taxiDriverSpeedLimit", speedX, speedY, speedWidth, speedHeight)
-  updateOcclusion(
-    "taxiDriverNotification",
-    notificationX,
-    notificationY,
-    notificationWidth,
-    notificationHeight
-  )
+  updateOcclusion("taxiDriverNotification", notificationX, notificationY, notificationWidth, notificationHeight)
+  updateOcclusion("taxiDriverAutopilot", autopilotX, autopilotY, autopilotWidth, autopilotHeight)
 end
 
 function M.hideMinimap()
@@ -3831,13 +3905,18 @@ function M.onUpdate(dtReal, dtSim)
   local scannerBecameReady = vehicleScanGuard.update(dtReal)
   local vehicleChanged = false
   if not vehicleScanGuard.isSuspended() then vehicleChanged = vehicleHistory.update(dtReal, dtSim) end
+  if shiftHistory.updateValidation(dtReal) then
+    if shiftHistory.pruneUnavailable() then notifyHud() end
+  end
   if scannerBecameReady then
     realisticFuel.dashboardEnergyTimer = 0
     local stableVehicle = state.active and state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
     setTelemetryEnabled(stableVehicle, state.active == true)
     if stableVehicle and trip and trip.isDelivery then delivery.applyVehicleMass(stableVehicle, trip.cargoWeightKg or 0) end
+    autopilot:suspend(stableVehicle, false)
   end
   realisticFuel.updateDashboardEnergy(dtSim)
+  shiftHistory.updateRestore(dtReal)
   lanBridge.update(dtReal)
   if lanBridge.consumeStatusChanged() then notifyHud() end
   if vehicleScanGuard.isSuspended() then return end
@@ -3848,6 +3927,11 @@ function M.onUpdate(dtReal, dtSim)
       notifyHudPatch()
     end
     return
+  end
+  if shiftHistory.update(dtReal, shiftTracking:getHud().current) then
+    shiftHistory.captureActive(getObjectByID(state.activeVehicleId),
+      vehicleHistory.getCurrentShiftVehicle(), realisticFuel.dashboardEnergy,
+      shiftTracking:getHud().current)
   end
   updateActiveMode(dtSim)
   if hudTimer >= hudUpdateInterval then
@@ -3885,6 +3969,7 @@ local function handleVehicleReset(vehicleId)
       if trip and trip.isDelivery then
         delivery.applyVehicleMass(getObjectByID(vehicleId), trip.cargoWeightKg or 0)
       end
+      autopilot:markRouteDirty()
       notifyHud()
       return
     end
@@ -3919,7 +4004,11 @@ function M.onUiChangedState(to, from)
     guihooks.trigger("TaxiDriverUiSuspended", {suspended = configurationOpen})
     realisticFuel.deferDashboardEnergy()
     local activeVehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
-    if configurationOpen and state.active then setTelemetryEnabled(activeVehicle, false); delivery.applyVehicleMass(activeVehicle, 0) end
+    if configurationOpen and state.active then
+      setTelemetryEnabled(activeVehicle, false)
+      delivery.applyVehicleMass(activeVehicle, 0)
+      autopilot:suspend(activeVehicle, true)
+    end
   end
   -- BeamNG uses several intermediate states while the UI App itself remains
   -- visible. Blocking every state except the literal "play" permanently hid
@@ -3941,8 +4030,12 @@ function M.onUiChangedState(to, from)
   if isBlocking(to) then
     minimapUiBlocked = true
     hideNativeMinimap()
+    autopilot:suspend(state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil, true)
   elseif isBlocking(from) then
     minimapUiBlocked = false
+    if not vehicleScanGuard.isSuspended() then
+      autopilot:suspend(state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil, false)
+    end
     if minimapAppVisible then guihooks.trigger("TaxiDriverMinimapInvalidated") end
   end
 end
@@ -3953,12 +4046,15 @@ function M.onExtensionLoaded()
   loadDriverProfile()
   loadUserProgress()
   vehicleHistory.load(modVersion)
+  shiftHistory.load(modVersion)
   vehicleHistory.refreshCurrentVehicle()
   lanBridge.setCommandHandler(function(action, args)
     args = type(args) == "table" and args or {}
     if action == "start" then
       M.startMode()
       return state.active == true
+    elseif action == "resumeShift" then
+      return M.resumeShift(args.id)
     elseif action == "stop" then
       if trip and isPassengerOnboardPhase(state.phase) then
         if args.force == true then
@@ -3972,6 +4068,8 @@ function M.onExtensionLoaded()
     elseif action == "openVehicleSelector" then
       M.openVehicleSelector()
       return true
+    elseif action == "toggleAutopilot" then
+      return M.toggleAutopilot()
     elseif action == "acceptOffer" then
       local id = math.floor(tonumber(args.id) or -1)
       local beforeTripId = trip and trip.id or 0
@@ -4002,6 +4100,8 @@ function M.onExtensionLoaded()
 end
 
 function M.onClientEndMission()
+  shiftHistory.setRestoring(nil)
+  autopilot:disable(state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil, "missionEnded")
   hideNativeMinimap()
   realisticFuel.restoreEconomy()
   realisticFuel.initializedVehicles = {}
@@ -4015,11 +4115,14 @@ function M.onClientEndMission()
   end
   writeUserProgress()
   vehicleHistory.write()
+  shiftHistory.write()
   vehicleHistory.resetTracking()
   restoreNavigationVisualSettings()
 end
 
 function M.onExtensionUnloaded()
+  shiftHistory.setRestoring(nil)
+  autopilot:disable(state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil, "extensionUnloaded")
   vehicleScanGuard.reset()
   lanBridge.stop()
   hideNativeMinimap()
@@ -4033,6 +4136,7 @@ function M.onExtensionUnloaded()
   end
   writeUserProgress()
   vehicleHistory.write()
+  shiftHistory.write()
   vehicleHistory.resetTracking()
   restoreNavigationVisualSettings()
 end
@@ -4050,6 +4154,11 @@ end
 
 function M.onDeserialized(data)
   data = data or {}
+  if shiftTracking:getHud().active then
+    local completedShift = shiftTracking:finish()
+    shiftHistory.finishActive(getPlayerVehicle(), vehicleHistory.getCurrentShiftVehicle(),
+      realisticFuel.dashboardEnergy, completedShift)
+  end
   realisticFuel.restoreEconomy()
   delivery.applyVehicleMass(getPlayerVehicle(), 0)
   if progressNeedsLegacyImport then
@@ -4070,6 +4179,8 @@ function M.onDeserialized(data)
   state.phase = phases.inactive
   state.activeVehicleId = nil
   state.realisticMode = false
+  autopilot:disable(nil, "deserialized")
+  shiftHistory.setRestoring(nil)
   trip = nil
   offers = {}
   clearNextOffer()

@@ -12,9 +12,9 @@
     "min-width": "330px",
     "min-height": "616px"
   },
-  "description": "Taxi driver phone with native BeamNG minimap, fares and ride quality",
+  "description": "Taxi driver phone with dispatch, navigation, shift history, AI control, fares and ride quality",
   "author": "IncoCode",
-  "version": "3.0.0-beta",
+  "version": "3.1.0-beta",
   "directive": "taxiDriverHud",
   "preserveAspectRatio": false
 }

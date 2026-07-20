@@ -18,6 +18,7 @@
   }
   if (params.get("realistic") !== null) state.settings.realisticMode = params.get("realistic") === "1";
   if (params.get("events") !== null) state.settings.randomEventsEnabled = params.get("events") === "1";
+  if (params.get("unlimitedRoutes") !== null) state.settings.unlimitedRouteDistance = params.get("unlimitedRoutes") === "1";
   if (params.get("extreme") === "1") {
     state.passengerName = "Alexandria-Cassandra Montgomery-Wellington";
     state.balance = 9876543.21;
@@ -51,11 +52,15 @@
     scope.$apply(() => {
       if (scenarioName === "settings") {
         scope.settingsOpen = true;
-        scope.settingsSections = { general: true, gameplay: true, navigation: true, audio: true, connectivity: true, cheats: true };
+        scope.settingsSections = { general: true, gameplay: true, aiDriver: true, navigation: true, audio: true, connectivity: true, cheats: true };
+      }
+      if (scenarioName === "settingsAi") {
+        scope.settingsOpen = true;
+        scope.settingsSections = { general: false, gameplay: false, aiDriver: true, navigation: false, audio: false, connectivity: false, cheats: false };
       }
       if (scenarioName === "settingsConnection") {
         scope.settingsOpen = true;
-        scope.settingsSections = { general: false, gameplay: false, navigation: false, audio: false, connectivity: true, cheats: false };
+        scope.settingsSections = { general: false, gameplay: false, aiDriver: false, navigation: false, audio: false, connectivity: true, cheats: false };
       }
       if (scenarioName === "profile") {
         scope.profileOpen = true;
@@ -65,18 +70,23 @@
         scope.profileOpen = true;
         scope.profileTab = "vehicles";
       }
+      if (scenarioName === "profileShifts") {
+        scope.profileOpen = true;
+        scope.profileTab = "shifts";
+      }
       if (scenarioName === "compact") scope.phoneMinimized = true;
       if (scenarioName === "fuel" || scenarioName === "magicFuel") scope.fuelStationOpen = true;
+      if (scenarioName === "shiftHistory") scope.shiftHistoryOpen = true;
     });
     rootScope.$broadcast("TaxiDriverProfileData", {
       profile: { fullName: "Alex Morgan", birthDate: "1991-05-17", avatar: "🙂" },
       progress: {
-        balance: 75.15, rating: 4.37, completedRides: 18,
-        reviews: Array.from({ length: 12 }, (_, index) => ({ id: index + 1, passengerName: `Passenger ${index + 1}`, emoji: index % 3 ? "😊" : "🤩", quality: 82 + index, timestamp: 1760000000 + index * 80000, rating: 4.1 + (index % 5) * 0.2 })),
-        ratingHistory: [], balanceHistory: [],
+        balance: 75.15, rating: 4.37, completedRides: 18, aiRideCount: 7,
+        reviews: Array.from({ length: 12 }, (_, index) => ({ id: index + 1, passengerName: `Passenger ${index + 1}`, emoji: index % 3 ? "😊" : "🤩", quality: 82 + index, timestamp: 1760000000 + index * 80000, rating: 4.3, orderRating: 3.8 + (index % 4) * 0.3, usedAutopilot: index % 2 === 0 })),
+        ratingHistory: [], balanceHistory: [], aiRideHistory: [{index: 1, value: 0}, {index: 6, value: 2}, {index: 12, value: 5}, {index: 18, value: 7}],
       },
       vehicles: [
-        { key: "etk800|854t", name: "ETK 854t", preview: window.__taxiScenarios.home.currentVehicle.preview, distanceMeters: 12843.7, completedRides: 7, income: 184.25, passengerRides: 5, deliveryRides: 2, averageIncome: 26.32, averageRating: 4.72, penaltyLoss: 8.4, cargoDamageLoss: 2.1, fuelConsumed: 18.2, fuelCost: 16.9, rideDistanceMeters: 76500, profitPerKm: 2.41, lastSeen: 1784150000 },
+        { key: "etk800|854t", name: "ETK 854t", preview: window.__taxiScenarios.home.currentVehicle.preview, distanceMeters: 12843.7, completedRides: 7, aiRides: 4, income: 184.25, passengerRides: 5, deliveryRides: 2, averageIncome: 26.32, averageRating: 4.72, penaltyLoss: 8.4, cargoDamageLoss: 2.1, fuelConsumed: 18.2, fuelCost: 16.9, rideDistanceMeters: 76500, profitPerKm: 2.41, lastSeen: 1784150000 },
         { key: "pickup|d35", name: "Gavril D35 V8 4WD", distanceMeters: 89431.2, completedRides: 24, income: 725.80, passengerRides: 14, deliveryRides: 10, averageIncome: 30.24, averageRating: 4.51, penaltyLoss: 34.2, cargoDamageLoss: 18.3, fuelConsumed: 92.5, fuelCost: 83.4, rideDistanceMeters: 318000, profitPerKm: 2.28, lastSeen: 1784100000 },
         { key: "covet|dx", name: "Ibishu Covet 1.5 DXi", distanceMeters: 2134.9, completedRides: 2, income: 41.55, passengerRides: 2, deliveryRides: 0, averageIncome: 20.78, averageRating: 4.91, penaltyLoss: 0, cargoDamageLoss: 0, fuelConsumed: 4.2, fuelCost: 3.9, rideDistanceMeters: 18200, profitPerKm: 2.28, lastSeen: 1784000000 },
       ],

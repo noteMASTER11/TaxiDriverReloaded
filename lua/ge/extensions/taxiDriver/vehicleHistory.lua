@@ -68,6 +68,7 @@ local function sanitizeHistory(source, requireSchema)
           preview = sanitizePreview(item.preview),
           distanceMeters = math.max(0, tonumber(item.distanceMeters) or 0),
           completedRides = completedRides,
+          aiRides = math.max(0, math.min(completedRides, math.floor(tonumber(item.aiRides) or 0))),
           income = roundMoney(math.max(0, tonumber(item.income) or 0)),
           passengerRides = math.max(0, math.floor(tonumber(item.passengerRides) or completedRides)),
           deliveryRides = math.max(0, math.floor(tonumber(item.deliveryRides) or 0)),
@@ -160,6 +161,7 @@ local function getVehicleIdentity(vehicle)
     key = modelKey .. "|" .. configKey,
     modelKey = modelKey,
     configKey = configKey,
+    configPath = configPath,
     name = name,
     preview = preview
   }
@@ -181,10 +183,12 @@ local function ensureEntry(identity)
       key = identity.key,
       modelKey = identity.modelKey,
       configKey = identity.configKey,
+      configPath = identity.configPath,
       name = identity.name,
       preview = identity.preview,
       distanceMeters = 0,
       completedRides = 0,
+      aiRides = 0,
       income = 0,
       passengerRides = 0,
       deliveryRides = 0,
@@ -200,6 +204,7 @@ local function ensureEntry(identity)
   else
     entry.modelKey = identity.modelKey
     entry.configKey = identity.configKey
+    entry.configPath = identity.configPath
     entry.name = identity.name
     entry.preview = identity.preview
     entry.lastSeen = os.time()
@@ -322,6 +327,7 @@ function M.getCurrentHud()
     preview = entry.preview or "",
     distanceMeters = entry.distanceMeters or 0,
       completedRides = entry.completedRides or 0,
+      aiRides = entry.aiRides or 0,
       income = roundMoney(entry.income or 0),
       passengerRides = entry.passengerRides or 0,
       deliveryRides = entry.deliveryRides or 0,
@@ -335,6 +341,21 @@ function M.getCurrentHud()
   }
 end
 
+function M.getCurrentShiftVehicle()
+  M.refreshCurrentVehicle()
+  local entry = tracking.entry
+  if not entry then return nil end
+  return {
+    key = entry.key,
+    modelKey = entry.modelKey,
+    configKey = entry.configKey,
+    configPath = entry.configPath or
+      ("/vehicles/" .. tostring(entry.modelKey) .. "/" .. tostring(entry.configKey) .. ".pc"),
+    name = entry.name,
+    preview = entry.preview or ""
+  }
+end
+
 function M.buildHud()
   local result = {}
   for _, entry in ipairs(history and history.vehicles or {}) do
@@ -345,6 +366,7 @@ function M.buildHud()
       preview = entry.preview or "",
       distanceMeters = entry.distanceMeters or 0,
       completedRides = entry.completedRides or 0,
+      aiRides = entry.aiRides or 0,
       income = roundMoney(entry.income or 0),
       passengerRides = entry.passengerRides or 0,
       deliveryRides = entry.deliveryRides or 0,
@@ -377,6 +399,9 @@ function M.recordRide(details)
   if not entry then return end
   if not findEntry(entry.key) then table.insert(history.vehicles, entry) end
   entry.completedRides = math.max(0, math.floor(tonumber(entry.completedRides) or 0)) + 1
+  if details.usedAutopilot == true then
+    entry.aiRides = math.max(0, math.floor(tonumber(entry.aiRides) or 0)) + 1
+  end
   entry.income = roundMoney(math.max(0, tonumber(entry.income) or 0) +
     math.max(0, tonumber(details.fare) or 0))
   if details.isDelivery == true then

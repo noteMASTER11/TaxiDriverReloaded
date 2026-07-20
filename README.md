@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.0.0-beta"><img src="https://img.shields.io/github/v/release/noteMASTER11/TaxiDriverReloaded?include_prereleases&display_name=tag&style=flat-square&color=ffd11a" alt="Latest release"></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.1.0-beta"><img src="https://img.shields.io/github/v/release/noteMASTER11/TaxiDriverReloaded?include_prereleases&display_name=tag&style=flat-square&color=ffd11a" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/BeamNG.drive-0.38.6-f28c28?style=flat-square" alt="BeamNG.drive 0.38.6">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.0.0-beta"><strong>Download 3.0.0 Beta</strong></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.1.0-beta"><strong>Download 3.1.0 Beta</strong></a>
 </p>
 
 ---
 
-> **3.0.0 Beta:** this prerelease introduces a new synchronized HUD transport, Connected Phone performance controls, lazy vehicle integration, and expanded diagnostics. Existing 2.25.1 settings and progress remain compatible.
+> **3.1.0 Beta:** this prerelease adds restorable shift history, a configurable route-aware AI driver, critical-energy refueling detours, AI trip accounting, Simplified Chinese, and adaptive review pagination. Existing 3.0.0 Beta settings and progress remain compatible.
 
 TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
@@ -66,12 +66,12 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Passenger-specific penalties do not apply: only collisions can damage the package.
 - Each impact can add **1–35% package damage**, proportionally reducing the delivery payout; cumulative damage is capped at 100%.
 - Package damage from 5% upward lowers the delivery review, reaching **1 star at 100% damage**.
-- Dedicated loading, unloading, cargo-weight, damage, progress, notification, and review states are available in all eight interface languages.
+- Dedicated loading, unloading, cargo-weight, damage, progress, notification, and review states are available in all nine interface languages.
 
 ### Universal and more believable destinations
 
 - Pickup and drop-off points are generated dynamically from the active map.
-- Trips are designed around practical route distances of approximately **1–25 km**.
+- Trips are designed around practical route distances of approximately **1–25 km**, with an optional setting that removes the 25 km upper bound.
 - The generator prefers suitable roadside locations near buildings and bus stops when map data is available.
 - Lane-aware placement aims for the road edge instead of dropping passengers into inner traffic lanes.
 - Controlled positional variation reduces visibly repeated pickup locations.
@@ -94,13 +94,28 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 
 - Going online starts a shift that tracks completed work, gross income, fuel costs, penalty losses, net income, and average rating.
 - The start screen summarizes the previous shift with its ride count, net income, and average rating.
-- The primary action is localized as **Start Shift** in all eight interface languages.
+- Completed shifts are stored separately with their vehicle, preview, fuel/charge level, income, rating, and AI usage. A saved shift can restore its vehicle and energy state from the start screen or Driver Profile.
+- Active shift snapshots are refreshed every minute so ordinary game shutdown does not require a dedicated finish button.
+- Missing vehicle mods and zero-ride shifts are removed from selectable history.
+- The primary action is localized as **Start Shift** in all nine interface languages.
+
+### Optional AI driver
+
+- Hand an active passenger, delivery, or refueling route to BeamNG's vehicle AI from the map overlay and take control back at any time.
+- Configure aggression, following gap, braking strength, stuck detection, traffic-rule obedience, overtaking, and oncoming-lane recovery.
+- The supervisor follows red/yellow signals, commits through intersections after the stop line, signals lane changes, maintains a speed-dependent lead gap, and can overtake a slow queue on a free same-direction lane.
+- A local recovery planner measures road and obstacle geometry, checks both bypass sides, predicts nearby traffic, and generates the smallest safe smooth corridor around a stationary obstruction.
+- Vehicle-side trajectory rays follow straight and curved motion to apply progressive or emergency braking before a collision.
+- Native AI `Route Done` is verified against the physical target. If BeamNG stops early, a low-speed exact-approach controller completes the final metres.
+- AI temporarily uses Arcade gearbox behavior, starts the powertrain when necessary, holds a stopped vehicle in drive, and restores the previous gearbox mode when released.
+- Before pickup/loading, critically low energy adds a fuel-station detour (5% for combustion, 15% for EV). An occupied passenger/cargo trip is never interrupted; maps without a station use Magic Fuel.
+- Reviews, shifts, vehicle history, and profile analytics record whether AI was used during a completed trip.
 
 ### Persistent driver profile
 
 - Edit the driver's full name and date of birth, with age calculated automatically.
 - Choose an avatar from a large emoji grid directly in the phone.
-- Passenger reviews are retained without a fixed limit and displayed with pagination.
+- Passenger reviews retain both the order/customer score and resulting profile rating, mark AI-assisted trips, and paginate from the actual available panel height.
 - Profile analytics chart rating and wallet balance changes from ride to ride.
 - The Vehicles tab groups completed rides, earned income, accumulated distance, average income and rating, passenger/cargo split, penalty and cargo-damage losses, fuel use/cost, and profit per distance by the model/configuration name shown in BeamNG's vehicle selector.
 - Vehicle history can be sorted by mileage, income, or completed trips; unused vehicles with zero completed work are not retained.
@@ -166,6 +181,8 @@ Open the gear icon in the TaxiDriver phone to configure:
 - Elementary, Easy, Standard, Professional, or fully adjustable Custom difficulty;
 - independent penalty switches for speeding, collisions, harsh maneuvers, late pickup, fuel stops, rush bonuses, and cargo damage;
 - passenger/delivery order ratio and dynamic minimap zoom intensity;
+- optional unlimited route length beyond the standard 25 km cap;
+- AI-driver aggression, following gap, braking, stuck delay, traffic rules, overtaking, and oncoming recovery;
 - optional Random Events, independently persisted from Realistic Mode;
 - TaxiDriver sound volume with a random sound test button and separate toggles for all seven sound groups, including an iOS-compatible Connected Phone audio engine;
 - silent mode;
@@ -173,7 +190,7 @@ Open the gear icon in the TaxiDriver phone to configure:
 
 Settings are grouped into expandable categories and apply automatically. The red Cheat Zone can set a rating, add test reviews or wallet funds, adjust new-order payouts, and reset driver statistics with confirmation.
 
-The interface includes English, German, French, Italian, Spanish, Polish, Russian, and Ukrainian. English is used by default unless another language is explicitly remembered.
+The interface includes English, German, French, Italian, Spanish, Polish, Russian, Ukrainian, and Simplified Chinese. English is used by default unless another language is explicitly remembered.
 
 Settings, profile details, and driver progress are stored separately outside the mod at:
 
@@ -183,6 +200,7 @@ Settings, profile details, and driver progress are stored separately outside the
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\profile.json
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\progress.json
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\vehicles.json
+%LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\shiftshistory.json
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\lan.json
 ```
 
@@ -198,9 +216,13 @@ All application sounds—including clicks, online/offline cues, passenger messag
 
 - `persistence.lua` owns settings, difficulty, profile, progress schemas, validation, and JSON I/O;
 - `routePlanner.lua` owns road-graph routing, semantic stop discovery, level caches, and recently used stops;
+- `autopilot.lua` supervises BeamNG vehicle AI, exact target approach, signal/intersection rules, following, overtaking, and recovery state;
+- `autopilotPerception.lua` measures road/vehicle geometry and builds collision-checked local bypass corridors;
+- `taxiDriverAutopilotRecovery.lua` runs vehicle-side exact approach, powertrain/gearbox control, indicators, and trajectory-ray collision braking;
 - `vehicleControl.lua` owns telemetry commands, forced-stop/freeze control, and passenger/cargo access triggers;
 - `vehicleHistory.lua` owns current-vehicle detection, per-configuration odometers, previews, ride counts, and income;
 - `shiftTracker.lua` owns current/previous shift totals and fuel-adjusted net income;
+- `shiftHistory.lua` validates and periodically persists restorable vehicle/energy/shift snapshots;
 - `tripEvents.lua` owns optional cancellations, route changes, additional stops, conditional tips, and fragile cargo;
 - `lanBridge.lua` owns the Connected Phone server, proxy, live state, and map export;
 - `delivery.lua`, `passengerMood.lua`, `routeDiversity.lua`, `offerGenerator.lua`, and `identity.lua` contain their corresponding gameplay domains.
@@ -209,7 +231,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Installation
 
-1. Download `taxidriver.zip` from the [3.0.0 Beta release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.0.0-beta).
+1. Download `taxidriver.zip` from the [3.1.0 Beta release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.1.0-beta).
 2. Place the archive directly in:
 
    ```text

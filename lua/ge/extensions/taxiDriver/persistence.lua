@@ -110,6 +110,7 @@ function M.new(options)
       overspeedWarningKmh = 10,
       economyMultiplier = 1,
       deliveryOrderSharePercent = 50,
+      unlimitedRouteDistance = false,
       lanEnabled = false,
       externalMapEnabled = true,
       externalTerrainEnabled = true,
@@ -118,6 +119,15 @@ function M.new(options)
       showRouteGuidance = true,
       realisticMode = false,
       randomEventsEnabled = false,
+      aiDriver = {
+        obeyTrafficRules = true,
+        allowOvertaking = true,
+        allowOncomingRecovery = true,
+        aggressionPercent = 30,
+        followingTimeGap = 2.2,
+        brakingDeceleration = 2.8,
+        stuckDelaySeconds = 15
+      },
       godMode = false,
       debugLogging = true
     }
@@ -164,6 +174,7 @@ function M.new(options)
     result.overspeedWarningKmh = clamp(tonumber(source.overspeedWarningKmh) or result.overspeedWarningKmh, 0, 30)
     result.economyMultiplier = clamp(tonumber(source.economyMultiplier) or result.economyMultiplier, 0.25, 5)
     result.deliveryOrderSharePercent = clamp(tonumber(source.deliveryOrderSharePercent) or result.deliveryOrderSharePercent, 0, 100)
+    result.unlimitedRouteDistance = source.unlimitedRouteDistance == true
     result.lanEnabled = false
     result.externalMapEnabled = source.externalMapEnabled ~= false
     result.externalTerrainEnabled = source.externalTerrainEnabled ~= false
@@ -176,6 +187,14 @@ function M.new(options)
     result.showRouteGuidance = source.showRouteGuidance ~= false
     result.realisticMode = source.realisticMode == true
     result.randomEventsEnabled = source.randomEventsEnabled == true
+    local aiSource = type(source.aiDriver) == "table" and source.aiDriver or {}
+    result.aiDriver.obeyTrafficRules = aiSource.obeyTrafficRules ~= false
+    result.aiDriver.allowOvertaking = aiSource.allowOvertaking ~= false
+    result.aiDriver.allowOncomingRecovery = aiSource.allowOncomingRecovery ~= false
+    result.aiDriver.aggressionPercent = clamp(tonumber(aiSource.aggressionPercent) or 30, 10, 80)
+    result.aiDriver.followingTimeGap = clamp(tonumber(aiSource.followingTimeGap) or 2.2, 1.2, 3.5)
+    result.aiDriver.brakingDeceleration = clamp(tonumber(aiSource.brakingDeceleration) or 2.8, 1.5, 4.5)
+    result.aiDriver.stuckDelaySeconds = clamp(tonumber(aiSource.stuckDelaySeconds) or 15, 8, 30)
     result.godMode = source.godMode == true
     result.debugLogging = source.debugLogging ~= false
     return result, true
@@ -268,11 +287,13 @@ function M.new(options)
       ratingTotal = 0,
       ratingCount = 0,
       completedRides = 0,
+      aiRideCount = 0,
       sequence = 0,
       lastShift = shiftTracker.sanitize(nil),
       reviews = {},
       ratingHistory = {{index = 0, value = 5, timestamp = now}},
-      balanceHistory = {{index = 0, value = 0, timestamp = now}}
+      balanceHistory = {{index = 0, value = 0, timestamp = now}},
+      aiRideHistory = {{index = 0, value = 0, timestamp = now}}
     }
   end
 
@@ -301,6 +322,8 @@ function M.new(options)
     result.balance = roundMoney(math.max(0, tonumber(source.balance) or 0))
     result.ratingCount = math.max(0, math.floor(tonumber(source.ratingCount) or 0))
     result.completedRides = math.max(0, math.floor(tonumber(source.completedRides) or result.ratingCount))
+    result.aiRideCount = math.max(0, math.min(result.completedRides,
+      math.floor(tonumber(source.aiRideCount) or 0)))
     result.rating = clamp(tonumber(source.rating) or 5, 0, 5)
     result.ratingTotal = math.max(0, tonumber(source.ratingTotal) or 0)
     if result.ratingCount > 0 then
@@ -325,6 +348,9 @@ function M.new(options)
             quality = clamp(tonumber(review.quality) or 0, 0, 100),
             fare = roundMoney(math.max(0, tonumber(review.fare) or 0)),
             rating = clamp(tonumber(review.rating) or result.rating, 0, 5),
+            orderRating = clamp(tonumber(review.orderRating) or
+              (tonumber(review.quality) or 0) / 20, 0, 5),
+            usedAutopilot = review.usedAutopilot == true,
             timestamp = math.max(0, math.floor(tonumber(review.timestamp) or 0)),
             outcome = tostring(review.outcome or "completed")
           }
@@ -334,11 +360,15 @@ function M.new(options)
     end
     result.ratingHistory = sanitizeHistory(source.ratingHistory, 0, 5)
     result.balanceHistory = sanitizeHistory(source.balanceHistory, 0, 1000000000)
+    result.aiRideHistory = sanitizeHistory(source.aiRideHistory, 0, 1000000000)
     if #result.ratingHistory == 0 then
       result.ratingHistory = {{index = result.sequence, value = roundMoney(result.rating), timestamp = os.time()}}
     end
     if #result.balanceHistory == 0 then
       result.balanceHistory = {{index = result.sequence, value = result.balance, timestamp = os.time()}}
+    end
+    if #result.aiRideHistory == 0 then
+      result.aiRideHistory = {{index = result.sequence, value = result.aiRideCount, timestamp = os.time()}}
     end
     return result, true
   end

@@ -1,12 +1,396 @@
 package.path = "lua/ge/extensions/?.lua;" .. package.path
 
+package.preload["gameplay/route/route"] = function() return {} end
+package.preload["gameplay/traffic/trafficUtils"] = function() return {} end
+log = log or function() end
+
 local tripEvents = dofile("lua/ge/extensions/taxiDriver/tripEvents.lua")
 local shiftTracker = dofile("lua/ge/extensions/taxiDriver/shiftTracker.lua")
+local shiftHistory = dofile("lua/ge/extensions/taxiDriver/shiftHistory.lua")
 local offerGenerator = dofile("lua/ge/extensions/taxiDriver/offerGenerator.lua")
 local hudPublisher = dofile("lua/ge/extensions/taxiDriver/hudPublisher.lua")
 local vehicleScanGuard = dofile("lua/ge/extensions/taxiDriver/vehicleScanGuard.lua")
 local vehicleControl = dofile("lua/ge/extensions/taxiDriver/vehicleControl.lua")
 local delivery = dofile("lua/ge/extensions/taxiDriver/delivery.lua")
+local routePlanner = dofile("lua/ge/extensions/taxiDriver/routePlanner.lua")
+local autopilotModule = dofile("lua/ge/extensions/taxiDriver/autopilot.lua")
+local taxiConfig = dofile("lua/ge/extensions/taxiDriver/config.lua")
+
+assert(taxiConfig.isCriticalEnergy({available = true, energyType = "gasoline", percent = 5}))
+assert(not taxiConfig.isCriticalEnergy({available = true, energyType = "gasoline", percent = 5.1}))
+assert(taxiConfig.isCriticalEnergy({available = true, energyType = "electricEnergy", percent = 15}))
+assert(not taxiConfig.isCriticalEnergy({available = true, energyType = "electricEnergy", percent = 15.1}))
+
+assert(routePlanner.isDistanceAllowed(25000, 1000, 25000))
+assert(not routePlanner.isDistanceAllowed(25001, 1000, 25000))
+assert(routePlanner.isDistanceAllowed(250000, 1000, nil))
+assert(not routePlanner.isDistanceAllowed(999, 1000, nil))
+
+local autopilotCommands = {}
+local autopilotPosition = {x = 0, y = 0, z = 0}
+local autopilotSpeed = 0
+local autopilotVehicle = {
+  getID = function() return 1 end,
+  getPosition = function() return autopilotPosition end,
+  getDirectionVector = function() return {x = 1, y = 0, z = 0} end,
+  queueLuaCommand = function(_, command) autopilotCommands[#autopilotCommands + 1] = command end
+}
+local autopilotPhases = {
+  toPickup = "toPickup", toStop = "toStop", toDestination = "toDestination",
+  toFuelStation = "toFuelStation", boarding = "boarding", stopWaiting = "stopWaiting"
+}
+local autopilotTarget = {
+  pos = {x = 100, y = 0, z = 0}, nodeA = "road2", nodeB = "road3"
+}
+local initialRoadLink = {oneWay = false}
+map = {
+  objects = {[2] = {pos = {x = 15, y = 0, z = 0}, vel = {x = 0, y = 0, z = 0}}},
+  getMap = function()
+    return {nodes = {
+      road0 = {pos = {x = 0, y = 0, z = 0}, radius = 6, links = {road1 = initialRoadLink}},
+      road1 = {pos = {x = 200, y = 0, z = 0}, radius = 6, links = {road0 = initialRoadLink}}
+    }}
+  end,
+  findClosestRoad = function() return "road0", "road1" end
+}
+local autopilot = autopilotModule.new({
+  phases = autopilotPhases,
+  config = {stuckDelay = 2, recoveryRetryInterval = 1, recoverySuccessDistance = 5},
+  getSpeedKmh = function() return autopilotSpeed end,
+  getRoutePath = function()
+    return {{wp = "road0"}, {wp = "road1"}, {wp = "road2"}}
+  end
+})
+assert(autopilot:enable(autopilotVehicle, "toDestination", autopilotTarget))
+assert(load(autopilotCommands[#autopilotCommands]))
+assert(autopilotCommands[#autopilotCommands]:find("ai.driveUsingPath", 1, true))
+assert(autopilotCommands[#autopilotCommands]:find('avoidCars="on"', 1, true))
+assert(autopilotCommands[#autopilotCommands]:find("enableElectrics=true", 1, true))
+autopilot:update(autopilotVehicle, "toDestination", autopilotTarget, 1)
+autopilot:update(autopilotVehicle, "toDestination", autopilotTarget, 1)
+assert(autopilot:getHud(true).status == "recovering")
+assert(not autopilotCommands[#autopilotCommands]:find('ai.setAvoidCars("off")', 1, true))
+assert(autopilotCommands[#autopilotCommands]:find("taxiDriverAutopilotRecovery.start", 1, true))
+assert(autopilotCommands[#autopilotCommands]:find("signal=-1", 1, true))
+autopilotPosition = {x = 7, y = 0, z = 0}
+assert(autopilot:onBypassComplete(autopilotVehicle, true, autopilotTarget))
+assert(autopilot:getHud(true).status == "driving")
+assert(autopilotCommands[#autopilotCommands]:find('avoidCars="on"', 1, true))
+autopilot:update(autopilotVehicle, "stopWaiting", nil, 1)
+assert(autopilot:isEnabled() and autopilot:getHud(true).status == "paused")
+
+core_trafficSignals = {
+  getMapNodeSignals = function()
+    return {road1 = {road2 = {{action = 2, pos = {x = 20, y = 0, z = 0}}}}}
+  end
+}
+autopilotTarget = {pos = {x = 120, y = 0, z = 0}, nodeA = "road2", nodeB = "road3"}
+autopilotSpeed = 72
+autopilot:update(autopilotVehicle, "toDestination", autopilotTarget, 0.2)
+local redSignalLimit = tonumber(autopilotCommands[#autopilotCommands]:match("ai.setSpeed%(([%d%.]+)%)"))
+assert(redSignalLimit and redSignalLimit < 20)
+autopilotSpeed = 0
+autopilot:update(autopilotVehicle, "toDestination", autopilotTarget, 0.1)
+autopilot:update(autopilotVehicle, "toDestination", autopilotTarget, 3)
+assert(autopilot:getHud(true).status == "waitingSignal")
+assert(autopilot:getHud(true).stuckSeconds == 0)
+autopilotPosition = {x = 21, y = 0, z = 0}
+autopilotSpeed = 10
+autopilot:update(autopilotVehicle, "toDestination", autopilotTarget, 0.2)
+assert(autopilot:getHud(true).status == "driving")
+core_trafficSignals = nil
+autopilot:disable(autopilotVehicle, "test")
+assert(not autopilot:isEnabled())
+
+local exactApproachCommands = {}
+local exactApproachVehicle = {
+  getID = function() return 9 end,
+  getPosition = function() return {x = 0, y = 0, z = 0} end,
+  getDirectionVector = function() return {x = 1, y = 0, z = 0} end,
+  queueLuaCommand = function(_, command) exactApproachCommands[#exactApproachCommands + 1] = command end
+}
+local exactApproachTarget = {
+  pos = {x = 27, y = 0, z = 0}, nodeA = "road2", nodeB = "road3", exactApproach = true
+}
+local exactApproach = autopilotModule.new({
+  phases = autopilotPhases,
+  config = {directApproachDelay = 1},
+  getSpeedKmh = function() return 0 end,
+  getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}, {wp = "road2"}} end
+})
+assert(exactApproach:enable(exactApproachVehicle, "toDestination", exactApproachTarget))
+assert(exactApproach:onRouteDone(exactApproachVehicle, exactApproachTarget))
+exactApproach:update(exactApproachVehicle, "toDestination", exactApproachTarget, 0.01)
+assert(exactApproach:getHud(true).status == "approaching")
+assert(exactApproachCommands[#exactApproachCommands]:find("stopAtEnd=true", 1, true))
+assert(exactApproachCommands[#exactApproachCommands]:find("completionRadius=1.25", 1, true))
+assert(exactApproach:onBypassComplete(exactApproachVehicle, true, exactApproachTarget))
+assert(exactApproachCommands[#exactApproachCommands]:find('ai.setMode("stop")', 1, true))
+
+for _, phase in ipairs({"toPickup", "toStop", "toDestination", "toFuelStation"}) do
+  local commands = {}
+  local controller = autopilotModule.new({
+    phases = autopilotPhases,
+    getSpeedKmh = function() return 0 end,
+    getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}, {wp = "road2"}} end
+  })
+  local vehicleForPhase = {
+    getPosition = function() return {x = 0, y = 0, z = 0} end,
+    queueLuaCommand = function(_, command) commands[#commands + 1] = command end
+  }
+  assert(controller:enable(vehicleForPhase, phase, {pos = {x = 7, y = 0, z = 0}, nodeB = "road3"}))
+  controller:update(vehicleForPhase, phase, {pos = {x = 7, y = 0, z = 0}, nodeB = "road3"}, 0.1)
+  assert(commands[#commands]:find('ai.setMode("stop")', 1, true))
+  controller:disable(vehicleForPhase, "matrix")
+end
+
+local alternatingCommands = {}
+local alternatingAutopilot = autopilotModule.new({
+  phases = autopilotPhases,
+  config = {stuckDelay = 1, recoveryRetryInterval = 1},
+  getSpeedKmh = function() return 0 end,
+  getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}, {wp = "road2"}} end
+})
+local alternatingVehicle = {
+  getID = function() return 1 end,
+  getPosition = function() return {x = 0, y = 0, z = 0} end,
+  getDirectionVector = function() return {x = 1, y = 0, z = 0} end,
+  queueLuaCommand = function(_, command) alternatingCommands[#alternatingCommands + 1] = command end
+}
+assert(alternatingAutopilot:enable(alternatingVehicle, "toDestination",
+  {pos = {x = 100, y = 0, z = 0}, nodeB = "road3"}))
+alternatingAutopilot:update(alternatingVehicle, "toDestination",
+  {pos = {x = 100, y = 0, z = 0}, nodeB = "road3"}, 1)
+local firstBypass = alternatingCommands[#alternatingCommands]
+alternatingAutopilot:update(alternatingVehicle, "toDestination",
+  {pos = {x = 100, y = 0, z = 0}, nodeB = "road3"}, 1)
+local secondBypass = alternatingCommands[#alternatingCommands]
+assert(firstBypass == secondBypass and alternatingAutopilot:getHud(true).recoveryAttempt == 1)
+
+local savedMap = map
+local roadLink = {oneWay = false}
+map = {
+  objects = {[2] = {pos = {x = 15, y = 0, z = 0}, vel = {x = 0, y = 0, z = 0}}},
+  getMap = function()
+    return {nodes = {
+      road0 = {pos = {x = 0, y = 0, z = 0}, radius = 6, links = {road1 = roadLink}},
+      road1 = {pos = {x = 200, y = 0, z = 0}, radius = 6, links = {road0 = roadLink}}
+    }}
+  end,
+  findClosestRoad = function() return "road0", "road1" end,
+  getRoadRules = function() return {rightHandDrive = false} end
+}
+local corridorCommands = {}
+local corridorVehicle = {
+  getID = function() return 1 end,
+  getPosition = function() return {x = 0, y = 0, z = 0} end,
+  getDirectionVector = function() return {x = 1, y = 0, z = 0} end,
+  queueLuaCommand = function(_, command) corridorCommands[#corridorCommands + 1] = command end
+}
+local corridorAutopilot = autopilotModule.new({
+  phases = autopilotPhases,
+  config = {stuckDelay = 1},
+  getSpeedKmh = function() return 0 end,
+  getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}} end
+})
+assert(corridorAutopilot:enable(corridorVehicle, "toDestination", autopilotTarget))
+corridorAutopilot:update(corridorVehicle, "toDestination", autopilotTarget, 1)
+assert(corridorCommands[#corridorCommands]:find("taxiDriverAutopilotRecovery", 1, true))
+assert(corridorCommands[#corridorCommands]:find("signal=-1", 1, true))
+assert(corridorAutopilot:onBypassComplete(corridorVehicle, true, autopilotTarget))
+assert(corridorCommands[#corridorCommands]:find("ai.driveUsingPath", 1, true))
+
+map.objects[2] = {pos = {x = 5, y = 0, z = 0}, dirVec = {x = 1, y = 0, z = 0}}
+local blockedCommands = {}
+local blockedVehicle = {
+  getID = corridorVehicle.getID,
+  getPosition = corridorVehicle.getPosition,
+  getDirectionVector = corridorVehicle.getDirectionVector,
+  queueLuaCommand = function(_, command) blockedCommands[#blockedCommands + 1] = command end
+}
+local blockedAutopilot = autopilotModule.new({
+  phases = autopilotPhases,
+  config = {stuckDelay = 1, oncomingRetryInterval = 2, oncomingMaxWait = 20},
+  getSpeedKmh = function() return 0 end,
+  getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}} end
+})
+assert(blockedAutopilot:enable(blockedVehicle, "toDestination", autopilotTarget))
+blockedAutopilot:update(blockedVehicle, "toDestination", autopilotTarget, 1)
+assert(blockedAutopilot:getHud(true).status == "waitingTraffic")
+assert(not blockedCommands[#blockedCommands]:find("taxiDriverAutopilotRecovery.start", 1, true))
+core_trafficSignals = {
+  getMapNodeSignals = function()
+    return {road0 = {road1 = {{action = 2, state = "redTrafficLight",
+      instance = "queueSignal", pos = {x = 20, y = 0, z = 0}}}}}
+  end
+}
+blockedAutopilot:update(blockedVehicle, "toDestination", autopilotTarget, 0.2)
+assert(blockedAutopilot:getHud(true).status == "waitingSignal")
+map.objects[2].vel = {x = 3, y = 0, z = 0}
+core_trafficSignals.getMapNodeSignals = function()
+  return {road0 = {road1 = {{action = 0, state = "greenTrafficLight",
+    instance = "queueSignal", pos = {x = 20, y = 0, z = 0}}}}}
+end
+blockedAutopilot:update(blockedVehicle, "toDestination", autopilotTarget, 0.2)
+assert(blockedAutopilot:getHud(true).status == "driving")
+core_trafficSignals = nil
+map.objects[2] = nil
+
+local clearCommands = {}
+map.objects[2] = {pos = {x = 5, y = 0, z = 0}, vel = {x = 0, y = 0, z = 0}}
+local clearAutopilot = autopilotModule.new({
+  phases = autopilotPhases,
+  config = {stuckDelay = 1, oncomingRetryInterval = 0.1},
+  getSpeedKmh = function() return 0 end,
+  getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}} end
+})
+local clearVehicle = {
+  getID = corridorVehicle.getID,
+  getPosition = corridorVehicle.getPosition,
+  getDirectionVector = corridorVehicle.getDirectionVector,
+  queueLuaCommand = function(_, command) clearCommands[#clearCommands + 1] = command end
+}
+assert(clearAutopilot:enable(clearVehicle, "toDestination", autopilotTarget))
+clearAutopilot:update(clearVehicle, "toDestination", autopilotTarget, 1)
+assert(clearAutopilot:getHud(true).status == "waitingTraffic")
+map.objects[2] = nil
+clearAutopilot:update(clearVehicle, "toDestination", autopilotTarget, 0.2)
+assert(clearAutopilot:getHud(true).status == "driving")
+assert(clearCommands[#clearCommands]:find("ai.driveUsingPath", 1, true))
+
+map.objects[3] = {pos = {x = 45, y = 0, z = 0}, vel = {x = 10, y = 0, z = 0}}
+local followingCommands = {}
+local followingVehicle = {
+  getID = corridorVehicle.getID,
+  getPosition = corridorVehicle.getPosition,
+  getDirectionVector = corridorVehicle.getDirectionVector,
+  getInitialLength = function() return 4.5 end,
+  getInitialWidth = function() return 2 end,
+  queueLuaCommand = function(_, command) followingCommands[#followingCommands + 1] = command end
+}
+local followingAutopilot = autopilotModule.new({
+  phases = autopilotPhases,
+  getSpeedKmh = function() return 72 end,
+  getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}} end
+})
+assert(followingAutopilot:enable(followingVehicle, "toDestination", autopilotTarget))
+followingAutopilot:update(followingVehicle, "toDestination", autopilotTarget, 0.2)
+local followingLimit = tonumber(followingCommands[#followingCommands]:match("ai.setSpeed%(([%d%.]+)%)"))
+assert(followingLimit and followingLimit > 10 and followingLimit < 20)
+map.objects[3] = nil
+followingAutopilot:update(followingVehicle, "toDestination", autopilotTarget, 0.2)
+assert(followingCommands[#followingCommands]:find('ai.setSpeedMode("legal")', 1, true))
+
+roadLink.lanes, roadLink.inNode = "--++", "road0"
+map.getMap = function()
+  return {nodes = {
+    road0 = {pos = {x = 0, y = 0, z = 0}, radius = 8, links = {road1 = roadLink}},
+    road1 = {pos = {x = 200, y = 0, z = 0}, radius = 8, links = {road0 = roadLink}}
+  }}
+end
+map.objects[3] = {pos = {x = 24, y = -5.4, z = 0}, vel = {x = 3, y = 0, z = 0}}
+local overtakeCommands = {}
+local overtakeVehicle = {
+  getID = function() return 1 end,
+  getPosition = function() return {x = 0, y = -5.4, z = 0} end,
+  getDirectionVector = function() return {x = 1, y = 0, z = 0} end,
+  getInitialLength = followingVehicle.getInitialLength,
+  getInitialWidth = followingVehicle.getInitialWidth,
+  queueLuaCommand = function(_, command) overtakeCommands[#overtakeCommands + 1] = command end
+}
+local overtakeAutopilot = autopilotModule.new({
+  phases = autopilotPhases,
+  getSpeedKmh = function() return 72 end,
+  getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}} end
+})
+assert(overtakeAutopilot:enable(overtakeVehicle, "toDestination", autopilotTarget))
+for _ = 1, 12 do overtakeAutopilot:update(overtakeVehicle, "toDestination", autopilotTarget, 0.2) end
+local overtakeStarted, overtakeSignaled = false, false
+for _, command in ipairs(overtakeCommands) do
+  overtakeStarted = overtakeStarted or command:find("ai.laneChange", 1, true) ~= nil
+  overtakeSignaled = overtakeSignaled or command:find("set_left_signal(true", 1, true) ~= nil
+end
+assert(overtakeStarted and overtakeSignaled)
+
+local innerLaneCommands = {}
+local innerLaneVehicle = {
+  getID = overtakeVehicle.getID,
+  getPosition = function() return {x = 0, y = -1.8, z = 0} end,
+  getDirectionVector = overtakeVehicle.getDirectionVector,
+  getInitialLength = overtakeVehicle.getInitialLength,
+  getInitialWidth = overtakeVehicle.getInitialWidth,
+  queueLuaCommand = function(_, command) innerLaneCommands[#innerLaneCommands + 1] = command end
+}
+map.objects[3].pos.y = -1.8
+local innerLaneAutopilot = autopilotModule.new({
+  phases = autopilotPhases,
+  getSpeedKmh = function() return 72 end,
+  getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}} end
+})
+assert(innerLaneAutopilot:enable(innerLaneVehicle, "toDestination", autopilotTarget))
+for _ = 1, 15 do innerLaneAutopilot:update(innerLaneVehicle, "toDestination", autopilotTarget, 0.2) end
+for _, command in ipairs(innerLaneCommands) do assert(not command:find("ai.laneChange", 1, true)) end
+
+local configuredCommands = {}
+local configuredVehicle = {
+  getID = overtakeVehicle.getID,
+  getPosition = overtakeVehicle.getPosition,
+  getDirectionVector = overtakeVehicle.getDirectionVector,
+  getInitialLength = overtakeVehicle.getInitialLength,
+  getInitialWidth = overtakeVehicle.getInitialWidth,
+  queueLuaCommand = function(_, command) configuredCommands[#configuredCommands + 1] = command end
+}
+map.objects[3].pos.y = -5.4
+local configuredAutopilot = autopilotModule.new({
+  phases = autopilotPhases,
+  getSpeedKmh = function() return 72 end,
+  getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}} end
+})
+configuredAutopilot:configure({
+  obeyTrafficRules = false, allowOvertaking = false, allowOncomingRecovery = false,
+  aggressionPercent = 55, followingTimeGap = 3.1, brakingDeceleration = 2.1,
+  stuckDelaySeconds = 24
+})
+assert(configuredAutopilot:enable(configuredVehicle, "toDestination", autopilotTarget))
+assert(configuredCommands[1]:find('aggression=0.55', 1, true))
+assert(configuredCommands[1]:find('routeSpeedMode="off"', 1, true))
+assert(configuredCommands[1]:find('setSafetyConfig({timeGap=3.1,comfortableDeceleration=2.1})', 1, true))
+for _ = 1, 15 do configuredAutopilot:update(configuredVehicle, "toDestination", autopilotTarget, 0.2) end
+for _, command in ipairs(configuredCommands) do assert(not command:find("ai.laneChange", 1, true)) end
+
+for _, obeyRules in ipairs({false, true}) do
+  for _, allowOvertaking in ipairs({false, true}) do
+    for _, allowRecovery in ipairs({false, true}) do
+      for _, profile in ipairs({
+        {aggressionPercent = 10, followingTimeGap = 1.2, brakingDeceleration = 1.5, stuckDelaySeconds = 8},
+        {aggressionPercent = 80, followingTimeGap = 3.5, brakingDeceleration = 4.5, stuckDelaySeconds = 30}
+      }) do
+        local commands = {}
+        local matrixVehicle = {
+          getID = overtakeVehicle.getID,
+          getPosition = function() return {x = 0, y = -5.4, z = 0} end,
+          getDirectionVector = overtakeVehicle.getDirectionVector,
+          getInitialLength = overtakeVehicle.getInitialLength,
+          getInitialWidth = overtakeVehicle.getInitialWidth,
+          queueLuaCommand = function(_, command) commands[#commands + 1] = command end
+        }
+        local matrixAutopilot = autopilotModule.new({
+          phases = autopilotPhases,
+          getSpeedKmh = function() return 36 end,
+          getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}} end
+        })
+        profile.obeyTrafficRules = obeyRules
+        profile.allowOvertaking = allowOvertaking
+        profile.allowOncomingRecovery = allowRecovery
+        matrixAutopilot:configure(profile)
+        assert(matrixAutopilot:enable(matrixVehicle, "toDestination", autopilotTarget))
+        assert(commands[1]:find('routeSpeedMode="' .. (obeyRules and "legal" or "off") .. '"', 1, true))
+        for _ = 1, 5 do matrixAutopilot:update(matrixVehicle, "toDestination", autopilotTarget, 0.2) end
+      end
+    end
+  end
+end
+map = savedMap
 
 local logLines = {}
 log = function(level, tag, message)
@@ -68,13 +452,14 @@ assert(tripEvents.calculateTip({kind = "tip", condition = "quick", rate = 0.1}, 
 
 local shifts = shiftTracker.new(nil)
 shifts:start()
-shifts:recordRide(20, 4.5, 2)
+shifts:recordRide(20, 4.5, 2, true)
 shifts:recordFuelCost(3)
 local completed = shifts:finish()
 assert(completed.rides == 1)
 assert(completed.grossIncome == 20)
 assert(completed.netIncome == 17)
 assert(completed.averageRating == 4.5)
+assert(completed.aiRides == 1)
 assert(not shifts:getHud().active)
 shifts:setAllRatings(3.25)
 assert(shifts:getHud().last.averageRating == 3.25)
@@ -157,6 +542,13 @@ vec3 = function(x, y, z)
   return value
 end
 core_vehicles = {
+  getModelList = function() return {models = {etk800 = {key = "etk800"}}} end,
+  getModel = function(modelKey)
+    if modelKey == "etk800" then
+      return {model = {key = "etk800"}, configs = {base = {key = "base"}}}
+    end
+    return {}
+  end,
   getVehicleDetails = function()
     detailLookups = detailLookups + 1
     return {
@@ -166,6 +558,27 @@ core_vehicles = {
     }
   end
 }
+shiftHistory.load("test")
+local savedShiftId = shiftHistory.begin({
+  modelKey = "etk800", configKey = "base", configPath = "/vehicles/etk800/base.pc",
+  name = "ETK 854t", preview = "/vehicles/etk800/base.png"
+}, {energyType = "gasoline", percent = 64, fuelPercent = 64}, {rides = 2, netIncome = 18})
+assert(savedShiftId and not shiftHistory.update(59, {rides = 2, netIncome = 18}))
+assert(shiftHistory.update(1, {rides = 3, netIncome = 25}))
+assert(shiftHistory.saveSnapshot(savedShiftId, nil,
+  {energyType = "gasoline", percent = 51, fuelPercent = 51},
+  {rides = 3, netIncome = 25, averageRating = 4.5}))
+local removedShiftId = shiftHistory.begin({
+  modelKey = "removed_mod", configKey = "missing", name = "Removed car"
+}, {energyType = "gasoline", percent = 20}, {})
+shiftHistory.finish(nil, nil, {})
+assert(not shiftHistory.get(removedShiftId))
+assert(shiftHistory.updateValidation(2))
+assert(not shiftHistory.pruneUnavailable())
+assert(shiftHistory.get(savedShiftId).energy.fuelPercent == 51)
+shiftHistory.setRestoring(savedShiftId)
+assert(shiftHistory.buildHud().restoringId == savedShiftId)
+shiftHistory.setRestoring(nil)
 local vehicleHistory = dofile("lua/ge/extensions/taxiDriver/vehicleHistory.lua")
 vehicleHistory.load("test")
 assert(vehicleHistory.refreshCurrentVehicle())
@@ -201,4 +614,109 @@ assert(vehicleScanGuard.onVehicleLifecycle(42, 42))
 assert(vehicleScanGuard.isSuspended())
 assert(not vehicleScanGuard.onVehicleLifecycle(7, 42))
 
-print("TaxiDriver Lua combinatorics: gameplay modes, lazy vehicle extensions, and 500 deferred respawns passed")
+local recoveryInputs, recoveryCallbacks = {}, {}
+local safetyObjects = {}
+local recoveryPosition = {x = 0, y = 0, z = 0}
+input = {state = {steering = {val = 0}}, event = function(name, value, _, _, _, _, source)
+  recoveryInputs[name], recoveryInputs[name .. "Source"] = value, source
+end}
+electrics = {
+  values = {wheelspeed = 0, ignitionLevel = 2},
+  setIgnitionLevel = function(value) electrics.values.ignitionLevel = value end,
+  set_left_signal = function(value) recoveryInputs.leftSignal = value end,
+  set_right_signal = function(value) recoveryInputs.rightSignal = value end
+}
+mapmgr = {getObjects = function() return safetyObjects end}
+obj = {
+  getID = function() return 42 end,
+  getPosition = function() return recoveryPosition end,
+  getDirectionVector = function() return {x = 1, y = 0, z = 0} end,
+  getInitialLength = function() return 4.5 end,
+  getInitialWidth = function() return 2 end,
+  getObjectCenterPosition = function(_, id) return safetyObjects[id] and safetyObjects[id].pos end,
+  getObjectDirectionVector = function() return {x = 1, y = 0, z = 0} end,
+  getObjectInitialLength = function() return 4.5 end,
+  getObjectInitialWidth = function() return 2 end,
+  queueGameEngineLua = function(_, command) recoveryCallbacks[#recoveryCallbacks + 1] = command end
+}
+local gearboxCalls = {}
+local mainController = {gearboxBehavior = "realistic"}
+mainController.setGearboxMode = function(mode)
+  gearboxCalls.mode = mode
+  mainController.gearboxBehavior = mode
+end
+mainController.shiftToGearIndex = function(index) gearboxCalls.gear = index end
+controller = {mainController = mainController}
+guihooks = {trigger = function() end}
+local recoveryController = dofile("lua/vehicle/extensions/taxiDriverAutopilotRecovery.lua")
+assert(recoveryController.watchRouteDone())
+recoveryController.setGearboxOverride(true)
+assert(gearboxCalls.mode == "arcade")
+guihooks.trigger("AIStatusChange", {status = "route done", category = "route"})
+assert(recoveryCallbacks[#recoveryCallbacks]:find("onAutopilotRouteDone(42)", 1, true))
+local recoveryPoints = {
+  {x = 6, y = 2, z = 0}, {x = 12, y = 4, z = 0}, {x = 27, y = 4, z = 0},
+  {x = 36, y = 2, z = 0}, {x = 44, y = 0, z = 0}
+}
+assert(recoveryController.start({points = recoveryPoints, targetSpeed = 7, timeout = 14, signal = -1}))
+assert(gearboxCalls.mode == "arcade" and gearboxCalls.gear == 2)
+recoveryController.updateGFX(0.1)
+assert(recoveryInputs.leftSignal and recoveryInputs.steering > 0 and recoveryInputs.throttle > 0)
+for _, point in ipairs(recoveryPoints) do
+  recoveryPosition = point
+  recoveryController.updateGFX(0.1)
+end
+assert(recoveryCallbacks[#recoveryCallbacks]:find("onAutopilotBypassComplete(42,true", 1, true))
+
+recoveryCallbacks = {}
+recoveryPosition = {x = 0, y = 0, z = 0}
+electrics.values.wheelspeed = 0.4
+assert(recoveryController.start({
+  points = {{x = 6, y = 0, z = 0}}, targetSpeed = 3.5, timeout = 20,
+  stopAtEnd = true, completionRadius = 6
+}))
+recoveryPosition = {x = 6, y = 0, z = 0}
+recoveryController.updateGFX(0.1)
+assert(recoveryCallbacks[#recoveryCallbacks]:find("onAutopilotBypassComplete(42,true", 1, true))
+recoveryPosition = {x = 0, y = 0, z = 0}
+electrics.values.wheelspeed = 15
+safetyObjects[77] = {pos = {x = 35, y = 0, z = 0}, vel = {x = 0, y = 0, z = 0}}
+recoveryController.setGearboxOverride(true)
+recoveryController.updateGFX(0.1)
+assert(recoveryInputs.brake > 0 and recoveryInputs.brake < 1 and recoveryInputs.throttle == 0)
+safetyObjects[77].pos = {x = 6, y = 0, z = 0}
+recoveryController.updateGFX(0.1)
+assert(recoveryInputs.brake == 1)
+safetyObjects[77].pos = {x = 8, y = 2.2, z = 0}
+input.state.steering.val = 1
+recoveryController.updateGFX(0.1)
+assert(recoveryInputs.brake > 0)
+safetyObjects = {}
+input.state.steering.val = 0
+electrics.values.wheelspeed = 0
+electrics.values.wheelspeed = 0
+input.state = {throttle = {val = 0}, brake = {val = 1}, parkingbrake = {val = 0}}
+recoveryController.updateGFX(5)
+assert(gearboxCalls.gear == 2)
+recoveryController.updateGFX(5.1)
+assert(gearboxCalls.gear == 1)
+input.state.throttle.val = 0.5
+recoveryController.updateGFX(0.1)
+assert(gearboxCalls.gear == 2)
+local starterRequests = 0
+local engine = {starterMaxAV = 10, outputAV1 = 0}
+powertrain = {getDevicesByType = function() return {engine} end}
+mainController.setEngineIgnition = function(value) gearboxCalls.ignition = value end
+mainController.setStarter = function(value) if value then starterRequests = starterRequests + 1 end end
+electrics.values.ignitionLevel = 0
+recoveryController.setGearboxOverride(false)
+recoveryController.setGearboxOverride(true)
+recoveryController.updateGFX(0.1)
+assert(electrics.values.ignitionLevel == 3 and gearboxCalls.ignition and starterRequests == 1)
+engine.outputAV1 = 9
+recoveryController.updateGFX(0.1)
+assert(electrics.values.ignitionLevel == 2)
+recoveryController.setGearboxOverride(false)
+assert(gearboxCalls.mode == "realistic")
+
+print("TaxiDriver Lua combinatorics: adaptive bypass, trajectory rays, powertrain handshake, gameplay modes, and 500 deferred respawns passed")

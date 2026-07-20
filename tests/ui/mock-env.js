@@ -86,8 +86,13 @@
     penaltyToggles: { speeding: true, collision: true, aggression: true, pickupDelay: true, fuelStop: true, rushBonus: true, cargoDamage: true },
     soundToggles: { click: true, newRide: true, offline: true, online: true, violation: true, message: true, overspeed: true },
     dynamicZoomIntensity: 120, overspeedWarningKmh: 10, economyMultiplier: 1, deliveryOrderSharePercent: 45,
+    unlimitedRouteDistance: false,
     lanEnabled: true, silentMode: false, showRouteGuidance: true, realisticMode: true,
     randomEventsEnabled: true,
+    aiDriver: {
+      obeyTrafficRules: true, allowOvertaking: true, allowOncomingRecovery: true,
+      aggressionPercent: 30, followingTimeGap: 2.2, brakingDeceleration: 2.8, stuckDelaySeconds: 15,
+    },
   };
 
   const offer = (id, delivery = false) => ({
@@ -106,10 +111,15 @@
     currentVehicle: { available: true, key: "etk800|854t", name: "ETK 854t", preview: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 300'%3E%3Cpath fill='%23ffd11a' d='M85 205l42-91q12-27 43-31l251-18q42-3 68 30l63 78 39 16v48H52v-20z'/%3E%3Cpath fill='%23171a1f' d='M182 105l218-16q28-2 47 21l45 56H144z'/%3E%3Ccircle fill='%23252a31' stroke='%23e7ebef' stroke-width='12' cx='164' cy='226' r='43'/%3E%3Ccircle fill='%23252a31' stroke='%23e7ebef' stroke-width='12' cx='494' cy='226' r='43'/%3E%3C/svg%3E", distanceMeters: 12843.7, completedRides: 7, income: 184.25 },
     passengerOnboard: false, deliveryOnboard: false, realisticMode: true,
     shift: { active: false, current: {}, last: { rides: 6, netIncome: 82.40, averageRating: 4.73 } },
+    shiftHistory: { restoring: false, restoringId: 0, items: [
+      { id: 3, startedAt: 1784500000, lastSavedAt: 1784503600, vehicleName: "ETK 854t", preview: "", energyType: "gasoline", energyPercent: 24.4, rides: 6, aiRides: 4, netIncome: 82.40, averageRating: 4.73 },
+      { id: 2, startedAt: 1784400000, lastSavedAt: 1784405400, vehicleName: "Gavril D35 V8 4WD", preview: "", energyType: "gasoline", energyPercent: 61.8, rides: 9, aiRides: 2, netIncome: 146.20, averageRating: 4.51 },
+    ] },
     vehicleEnergy: { available: true, energyType: "gasoline", quantity: 13.42, maxQuantity: 55, percent: 24.4, unit: "L", estimatedRangeKm: 128 },
     fuelStation: { available: false, id: "", name: "Gas Station", magic: false, vehicleStopped: true, options: [], balance: 75.15,
       refueling: { active: false, completing: false, energyType: "", quantity: 0, cost: 0, duration: 0, elapsed: 0, progress: 0, remainingSeconds: 0, completionId: 0 } },
     fuelDetour: { active: false, hadTrip: false, passengerOnboard: false, stationName: "", routeDistance: 0, penaltyPercent: 0, arrived: false },
+    autopilot: { available: false, enabled: false, suspended: false, status: "off", reason: "", stuckSeconds: 0, recoveryAttempt: 0 },
     lan: { enabled: true, connected: 0, address: "192.168.93.143", port: 8084,
       url: "http://192.168.93.143:8084/?token=6a574f0844bfa68fe570" },
     settings, settingsNeedsLegacyImport: false, offers: [], offerTargetCount: 12,
@@ -139,6 +149,7 @@
     cargoWeightKg: delivery ? 234 : 0, cargoWeightBonusPercent: delivery ? 140 : 0,
     cargoWeightBonusAmount: delivery ? 8.12 : 0, cargoDamagePercent: delivery ? 7.4 : 0,
     penaltyPercent: delivery ? 7.4 : 5.9,
+    autopilot: { available: true, enabled: false, suspended: false, status: "off", reason: "", stuckSeconds: 0, recoveryAttempt: 0 },
     penaltyEvents: delivery ? [
       { id: 1, type: "cargoDamage", penaltyPercent: 7.4, detail: "Impact damage" },
     ] : [

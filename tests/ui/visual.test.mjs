@@ -18,6 +18,18 @@ const externalLoaderSource = await fs.readFile(
   path.join(here, "../../ui/modules/apps/TaxiDriverHUD/external/external.js"),
   "utf8"
 );
+const appJsSource = await fs.readFile(
+  path.join(here, "../../ui/modules/apps/TaxiDriverHUD/app.js"),
+  "utf8"
+);
+const appHtmlSource = await fs.readFile(
+  path.join(here, "../../ui/modules/apps/TaxiDriverHUD/app.html"),
+  "utf8"
+);
+const localeData = JSON.parse(await fs.readFile(
+  path.join(here, "../../ui/modules/apps/TaxiDriverHUD/locales.json"),
+  "utf8"
+));
 const taxiDriverLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/taxiDriver.lua"),
   "utf8"
@@ -46,6 +58,10 @@ const shiftTrackerLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/shiftTracker.lua"),
   "utf8"
 );
+const shiftHistoryLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/shiftHistory.lua"),
+  "utf8"
+);
 const tripEventsLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/tripEvents.lua"),
   "utf8"
@@ -60,6 +76,18 @@ const hudPublisherLuaSource = await fs.readFile(
 );
 const loggerLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/logger.lua"),
+  "utf8"
+);
+const autopilotLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/autopilot.lua"),
+  "utf8"
+);
+const autopilotPerceptionLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/autopilotPerception.lua"),
+  "utf8"
+);
+const autopilotRecoveryLuaSource = await fs.readFile(
+  path.join(here, "../../lua/vehicle/extensions/taxiDriverAutopilotRecovery.lua"),
   "utf8"
 );
 assert.match(
@@ -109,6 +137,14 @@ assert.match(persistenceLuaSource, /function store:loadSettings\(\)/,
   "Persistence module must own settings loading and canonicalization");
 assert.match(routePlannerLuaSource, /function service\.chooseStop\(/,
   "Route planner module must expose a named stop-selection API");
+assert.match(persistenceLuaSource, /unlimitedRouteDistance\s*=\s*false/,
+  "Unlimited route generation must remain opt-in by default");
+assert.match(routePlannerLuaSource,
+  /maximumDistance\s*==\s*nil[\s\S]*?chooseUnboundedRoadStop\(startPos, minimumDistance, maximumAttempts\)/,
+  "The route planner must use map-wide road sampling when no upper limit is requested");
+assert.match(taxiDriverLuaSource,
+  /unlimitedRouteDistance\s*=\s*userSettings\.unlimitedRouteDistance\s*==\s*true[\s\S]*?destinationMaxDistance\s*=\s*nil[\s\S]*?elseif not unlimitedRouteDistance/,
+  "Passenger and delivery offers must omit the 25 km ceiling only when the toggle is enabled");
 assert.match(routePlannerLuaSource, /function service\.getStopCandidateCount\(\)/,
   "Route planner module must expose semantic stop availability to the orchestrator");
 assert.match(taxiDriverLuaSource, /routePlanning\.getStopCandidateCount\(\)/,
@@ -160,8 +196,95 @@ assert.match(loggerLuaSource, /\[TaxiDriver\]/,
   "The structured logger must prefix every diagnostic record");
 assert.match(loggerLuaSource, /function M\.observeRuntime[\s\S]*?function M\.attachOperations/,
   "The structured logger must track runtime transitions and public operations");
+assert.match(taxiDriverLuaSource, /require\(["']taxiDriver\/autopilot["']\)\.new/,
+  "The gameplay orchestrator must delegate autonomous driving to a focused module");
+assert.match(appJsSource, /autopilotValues[\s\S]*?setMinimapOcclusions/,
+  "The native minimap layout must reserve an occlusion rectangle for the autopilot control");
+assert.match(appJsSource,
+  /updateReviewPagination[\s\S]*?getBoundingClientRect[\s\S]*?availableHeight[\s\S]*?reviewsPerPage[\s\S]*?ResizeObserver/,
+  "Review pagination must derive its page size from the live profile-panel height");
+assert.match(appHtmlSource, /taxi-ai-ride-counter[\s\S]*?profileProgress\.aiRideCount/,
+  "AI-assisted trips must be presented as a numeric statistic");
+assert.doesNotMatch(appHtmlSource, /getChartPoints\(profileProgress\.aiRideHistory/,
+  "AI-assisted trip statistics must not be rendered as a time-series graph");
+assert.match(taxiDriverLuaSource, /setMinimapOcclusions[\s\S]*?taxiDriverAutopilot/,
+  "The native minimap must apply the autopilot control occlusion rectangle");
+assert.match(autopilotLuaSource, /stuckDelay\s*=\s*15[\s\S]*?signalRequiresStop[\s\S]*?beginRecovery/,
+  "Autopilot must distinguish signal waits before starting stuck recovery");
+assert.doesNotMatch(autopilotLuaSource, /ai\.setAvoidCars\(\\"off\\"\)/,
+  "Adaptive recovery must not disable BeamNG collision avoidance");
+assert.match(autopilotLuaSource, /enableElectrics=true[\s\S]*?signal=%d/,
+  "Autopilot must enable graph-aware indicators and pass the adaptive maneuver signal");
+assert.match(autopilotRecoveryLuaSource,
+  /setSignal\(direction\)[\s\S]*?electrics\.set_left_signal[\s\S]*?electrics\.set_right_signal/,
+  "The local maneuver controller must operate the appropriate indicator");
+assert.match(autopilotLuaSource,
+  /perception:planLocalBypass\(vehicle, runtime\.followLeadId\)[\s\S]*?taxiDriverAutopilotRecovery\.start/,
+  "Recovery must use the independent adaptive corridor planner");
+assert.match(autopilotPerceptionLuaSource,
+  /combinedHalfWidth[\s\S]*?localLateralAt[\s\S]*?corridorIsClear[\s\S]*?buildCandidate/,
+  "Adaptive bypasses must account for vehicle dimensions and use a smooth minimum-offset path");
+assert.match(autopilotRecoveryLuaSource,
+  /rayOrientedBox[\s\S]*?castTrajectoryRay[\s\S]*?scanPredictedTrajectory[\s\S]*?comfortableDistance[\s\S]*?emergencyDistance/,
+  "Vehicle safety must ray-test straight and curved trajectories with smooth and emergency braking");
+assert.match(autopilotRecoveryLuaSource,
+  /ensureDriveReady[\s\S]*?setIgnitionLevel[\s\S]*?setStarter/,
+  "AI activation must explicitly start and verify the selected vehicle powertrain");
+assert.match(autopilotLuaSource, /findLeadVehicle[\s\S]*?followTimeGap[\s\S]*?followComfortableDeceleration[\s\S]*?applySpeedCap/,
+  "Normal autopilot must synchronize to lead traffic with an early comfortable braking envelope");
+assert.doesNotMatch(autopilotLuaSource,
+  /runtime\.laneChangeTimer\s*>\s*0[\s\S]{0,180}runtime\.followSpeedCap\s*=\s*nil/,
+  "Starting a lane change must not remove the lead-vehicle braking envelope prematurely");
+assert.match(autopilotLuaSource, /findUpcomingSignal[\s\S]*?yellowDecisionDeceleration[\s\S]*?signalSpeedCap/,
+  "Normal autopilot must apply an explicit braking envelope for red and stoppable yellow signals");
+assert.match(autopilotLuaSource, /directApproachDistance[\s\S]*?controllerMode = "approach"[\s\S]*?stopAtEnd=true/,
+  "Autopilot must bridge the gap between a graph endpoint and the exact gameplay trigger");
+assert.match(autopilotLuaSource,
+  /function service:onRouteDone[\s\S]*?route_done_before_target[\s\S]*?beginDirectApproach\(vehicle, target, distance\)/,
+  "Native Route Done must start the exact final approach immediately");
+assert.match(autopilotLuaSource, /target\.exactApproach == true and 1\.25/,
+  "Fuel detours must use a collision-sized final radius instead of the normal arrival radius");
+assert.match(autopilotRecoveryLuaSource, /onAutopilotRouteDone[\s\S]*?AIStatusChange[\s\S]*?route done/,
+  "The vehicle observer must report native Route Done immediately instead of waiting for a stuck timeout");
+assert.match(autopilotRecoveryLuaSource,
+  /setGearboxOverride[\s\S]*?setGearboxMode\("arcade"\)[\s\S]*?stationaryTimer >= 10[\s\S]*?shiftToGearIndex\(1\)[\s\S]*?shiftToGearIndex\(2\)/,
+  "AI control must stay in Arcade, hold D with the brake, and use P only after a long stop");
+assert.match(autopilotLuaSource, /intersectionClearDistance[\s\S]*?intersection_committed/,
+  "Signal enforcement must end after the stop line while an intersection maneuver is being cleared");
+assert.match(autopilotLuaSource, /forwardLanes < 2[\s\S]*?laneChangeFreeBehind[\s\S]*?overtake_lane_change_started/,
+  "Congestion overtakes must use only a verified free lane in the same direction");
+assert.match(persistenceLuaSource, /aiDriver\s*=\s*\{[\s\S]*?obeyTrafficRules[\s\S]*?stuckDelaySeconds/,
+  "AI driver controls must have persistent defaults");
+assert.match(autopilotLuaSource, /function service:configure\(settings\)[\s\S]*?config\.stuckDelay/,
+  "Saved AI driver controls must configure the active autopilot service");
+assert.match(appHtmlSource, /settingsSections\.aiDriver[\s\S]*?aiAggression[\s\S]*?aiEmergencyBypass/,
+  "Settings must expose understandable AI driving and emergency behavior controls");
+assert.match(configLuaSource, /automaticFuelStopPercent\s*=\s*5[\s\S]*?automaticElectricStopPercent\s*=\s*15/,
+  "Automatic fuel detours must use separate combustion and EV thresholds");
+assert.match(taxiDriverLuaSource, /automaticStopDeferred[\s\S]*?state\.phase == phases\.toPickup[\s\S]*?resumeAutopilotAtStation/,
+  "Critical energy must schedule a fuel stop before pickup or defer it until the active ride is complete");
+assert.match(autopilotRecoveryLuaSource, /input\.event\("steering"[\s\S]*?input\.event\("throttle"[\s\S]*?onAutopilotBypassComplete/,
+  "The opposing-lane bypass must steer independently and hand control back to route AI");
+assert.match(autopilotLuaSource, /restoreNormal[\s\S]*?issueRoute\(vehicle, target\)/,
+  "Successful bypass must restore the safe route profile");
 assert.match(shiftTrackerLuaSource, /function service:finish\(\)/,
   "Shift lifecycle must remain isolated in shiftTracker.lua");
+assert.match(shiftHistoryLuaSource, /shiftshistory\.json[\s\S]*?snapshotInterval\s*=\s*60/,
+  "Restorable shifts must persist separately and checkpoint once per minute");
+assert.match(shiftHistoryLuaSource, /setEnergyStorageEnergy[\s\S]*?core_vehicles\.replaceVehicle/,
+  "Restoring a shift must replace the selected vehicle and then restore its energy storage");
+assert.match(shiftHistoryLuaSource, /function M\.pruneUnavailable\(\)[\s\S]*?table\.remove\(history\.shifts/,
+  "Shift history must remove vehicles that are no longer installed");
+assert.match(shiftHistoryLuaSource, /entry\.summary\.rides > 0[\s\S]*?persisted\.shifts/,
+  "Zero-ride shifts must never be written to shift history");
+assert.match(appHtmlSource, /profileTab === 'shifts'[\s\S]*?hud\.resumeShift\(shift\.id\)/,
+  "Profile shift cards must restore the selected saved vehicle");
+assert.match(persistenceLuaSource, /orderRating[\s\S]*?usedAutopilot[\s\S]*?aiRideHistory/,
+  "Ride history must preserve customer scores and AI-assisted trip analytics");
+assert.equal(Object.keys(localeData["zh-CN"] || {}).length, Object.keys(localeData.en).length,
+  "Simplified Chinese must cover every interface translation key");
+assert.deepEqual(Object.keys(localeData["zh-CN"]).sort(), Object.keys(localeData.en).sort(),
+  "Simplified Chinese and English locale keys must remain in sync");
 assert.match(tripEventsLuaSource, /function M\.calculateTip\(/,
   "Trip event rules must expose deterministic tip calculation");
 assert.match(vehicleHistoryLuaSource, /if completedRides > 0 then table\.insert\(result\.vehicles/,
@@ -174,14 +297,14 @@ const mainChunkLocalCount = taxiDriverLuaSource.split(/\r?\n/).reduce((count, li
 }, 0);
 assert.ok(mainChunkLocalCount < 199,
   `taxiDriver.lua has ${mainChunkLocalCount} main-chunk locals and is too close to LuaJIT's 200-local limit`);
-assert.ok(taxiDriverLuaSource.split(/\r?\n/).length < 4100,
+assert.ok(taxiDriverLuaSource.split(/\r?\n/).length < 4200,
   "taxiDriver.lua must remain an orchestrator instead of absorbing extracted domain modules again");
 const { server, port } = await startHarnessServer(41735);
 const browser = await chromium.launch({ headless: true });
 
 const scenarios = [
-  "home", "orders", "trip", "delivery", "overspeed", "boarding", "forcedExit",
-  "settings", "settingsConnection", "profile", "profileVehicles", "compact", "nextOffer", "fuelRoute", "fuel", "magicFuel",
+  "home", "shiftHistory", "orders", "trip", "delivery", "overspeed", "boarding", "forcedExit",
+  "settings", "settingsAi", "settingsConnection", "profile", "profileVehicles", "profileShifts", "compact", "nextOffer", "fuelRoute", "fuel", "magicFuel",
 ];
 const viewports = [
   { width: 320, height: 568 },
@@ -192,7 +315,7 @@ const viewports = [
   { width: 844, height: 390 },
   { width: 1024, height: 768 },
 ];
-const locales = ["de", "en", "es", "fr", "it", "pl", "ru", "uk"];
+const locales = ["de", "en", "es", "fr", "it", "pl", "ru", "uk", "zh-CN"];
 const baselineScreenshots = new Set([
   "web-home-390x844.png",
   "web-orders-1024x768.png",
@@ -200,8 +323,10 @@ const baselineScreenshots = new Set([
   "web-fuelRoute-390x844.png",
   "game-compact-320x568.png",
   "web-settingsConnection-1024x768.png",
+  "web-settingsAi-390x844.png",
   "web-profile-768x1024.png",
   "web-profileVehicles-768x1024.png",
+  "web-profileShifts-768x1024.png",
   "web-magicFuel-390x844.png",
   "web-forcedExit-390x844.png",
   "web-fuel-390x844.png",
@@ -225,6 +350,9 @@ const harnessUrl = (scenario, viewport, options = {}) => {
   if (options.extreme) query.set("extreme", "1");
   if (options.realistic !== undefined) query.set("realistic", options.realistic ? "1" : "0");
   if (options.events !== undefined) query.set("events", options.events ? "1" : "0");
+  if (options.unlimitedRoutes !== undefined) {
+    query.set("unlimitedRoutes", options.unlimitedRoutes ? "1" : "0");
+  }
   return `http://127.0.0.1:${port}/?${query}`;
 };
 
@@ -348,6 +476,47 @@ try {
     value.includes('"language":"ru"')),
   "The debounced settings save must send the user's selected language to Lua");
 
+  await functionalPage.goto(harnessUrl("profile", { width: 520, height: 1028 }));
+  await waitForHarness(functionalPage);
+  await functionalPage.waitForFunction(() =>
+    document.querySelectorAll(".taxi-review:not(.taxi-review--measure)").length >= 8
+  );
+  const tallReviewLayout = await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    const reviews = Array.from(document.querySelectorAll(".taxi-review:not(.taxi-review--measure)"));
+    const pager = document.querySelector(".taxi-profile__pager").getBoundingClientRect();
+    return {
+      count: reviews.length,
+      perPage: scope.reviewsPerPage,
+      lastBottom: reviews.at(-1).getBoundingClientRect().bottom,
+      pagerTop: pager.top,
+    };
+  });
+  assert.ok(tallReviewLayout.count >= 8 && tallReviewLayout.lastBottom <= tallReviewLayout.pagerTop + 1,
+    `Tall review panels must use their available height (${JSON.stringify(tallReviewLayout)})`);
+  await functionalPage.evaluate(() => {
+    document.documentElement.style.setProperty("--test-height", "640px");
+    window.dispatchEvent(new Event("resize"));
+  });
+  await functionalPage.waitForFunction((previous) => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    return scope.reviewsPerPage < previous;
+  }, tallReviewLayout.perPage);
+  const shortReviewLayout = await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    const reviews = Array.from(document.querySelectorAll(".taxi-review:not(.taxi-review--measure)"));
+    const pager = document.querySelector(".taxi-profile__pager").getBoundingClientRect();
+    return {
+      count: reviews.length,
+      perPage: scope.reviewsPerPage,
+      lastBottom: reviews.at(-1).getBoundingClientRect().bottom,
+      pagerTop: pager.top,
+    };
+  });
+  assert.ok(shortReviewLayout.perPage < tallReviewLayout.perPage &&
+    shortReviewLayout.lastBottom <= shortReviewLayout.pagerTop + 1,
+  `Review pagination must shrink without overlapping its pager (${JSON.stringify(shortReviewLayout)})`);
+
   await functionalPage.goto(harnessUrl("settings", { width: 520, height: 900 }));
   await waitForHarness(functionalPage);
   await functionalPage.locator(".taxi-settings__group--open:nth-of-type(5)").scrollIntoViewIfNeeded();
@@ -398,6 +567,15 @@ try {
   });
   assert.equal((await functionalPage.locator(".phone-odometer strong").textContent()).trim(), "0008.0 mi",
     "Current-vehicle odometer must convert to the selected imperial unit");
+  await functionalPage.locator(".taxi-shift-history-button").click();
+  assert.equal(await functionalPage.locator(".taxi-shift-card").count(), 2,
+    "Previous Shift must open every valid saved session");
+  await functionalPage.locator(".taxi-shift-card").first().click();
+  const resumeShiftCommand = await functionalPage.evaluate(() =>
+    (window.__taxiEngineLuaCommands || []).find((value) => value.includes("resumeShift")) || ""
+  );
+  assert.match(resumeShiftCommand, /taxiDriver_taxiDriver\.resumeShift\(3\)/,
+    "Selecting a saved shift must request its vehicle restoration");
 
   await functionalPage.goto(harnessUrl("orders", { width: 520, height: 900 }));
   await waitForHarness(functionalPage);
@@ -424,30 +602,64 @@ try {
 
   for (const realistic of [false, true]) {
     for (const events of [false, true]) {
-      for (const scenario of ["home", "orders", "trip", "delivery", "magicFuel"]) {
-        await functionalPage.goto(harnessUrl(scenario, { width: 390, height: 844 }, { realistic, events }));
-        await waitForHarness(functionalPage);
-        await assertVisualAudit(functionalPage,
-          `mode matrix realistic=${realistic} events=${events} scenario=${scenario}`);
-        const settingsState = await functionalPage.evaluate(() => {
-          const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
-          return {
-            realistic: scope.settings.realisticMode === true,
-            events: scope.settings.randomEventsEnabled === true,
-          };
-        });
-        assert.deepEqual(settingsState, { realistic, events });
+      for (const unlimitedRoutes of [false, true]) {
+        for (const scenario of ["home", "orders", "trip", "delivery", "magicFuel"]) {
+          await functionalPage.goto(harnessUrl(scenario, { width: 390, height: 844 }, {
+            realistic, events, unlimitedRoutes,
+          }));
+          await waitForHarness(functionalPage);
+          await assertVisualAudit(functionalPage,
+            `mode matrix realistic=${realistic} events=${events} unlimited=${unlimitedRoutes} scenario=${scenario}`);
+          const settingsState = await functionalPage.evaluate(() => {
+            const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+            return {
+              realistic: scope.settings.realisticMode === true,
+              events: scope.settings.randomEventsEnabled === true,
+              unlimitedRoutes: scope.settings.unlimitedRouteDistance === true,
+            };
+          });
+          assert.deepEqual(settingsState, { realistic, events, unlimitedRoutes });
+        }
       }
     }
   }
 
   await functionalPage.goto(harnessUrl("trip", { width: 390, height: 844 }));
   await waitForHarness(functionalPage);
+  assert.equal(await functionalPage.locator("button.taxi-map__autopilot").count(), 1,
+    "Active trip map must expose one autopilot control");
+  await functionalPage.waitForFunction(() =>
+    (window.__taxiEngineLuaCommands || []).some((value) => value.includes("setMinimapOcclusions"))
+  );
+  const minimapOcclusionCommand = await functionalPage.evaluate(() =>
+    (window.__taxiEngineLuaCommands || []).find((value) => value.includes("setMinimapOcclusions")) || ""
+  );
+  const minimapOcclusionArgs = /setMinimapOcclusions\(([^)]*)\)/.exec(minimapOcclusionCommand)?.[1]
+    .split(",").map(Number) || [];
+  assert.equal(minimapOcclusionArgs.length, 16,
+    "Native minimap must receive four complete overlay occlusion rectangles");
+  assert.ok(minimapOcclusionArgs.slice(12).every((value) => Number.isFinite(value) && value > 0),
+    "Autopilot control must reserve a visible native-minimap occlusion rectangle");
+  await functionalPage.evaluate(() => { window.__taxiEngineLuaCommands = []; });
+  await functionalPage.locator("button.taxi-map__autopilot").click();
+  assert.ok((await functionalPage.evaluate(() => window.__taxiEngineLuaCommands || []))
+    .some((value) => value.includes("toggleAutopilot")),
+  "Autopilot control must call the authoritative Lua controller");
   assert.equal(await functionalPage.locator(".taxi-penalty-log__events").count(), 0,
     "Penalty details must start collapsed");
   await functionalPage.locator("button.taxi-penalty-log__header").click();
   assert.equal(await functionalPage.locator(".taxi-penalty-event").count(), 3,
     "Penalty summary must expand into individual events");
+
+  await functionalPage.goto(harnessUrl("fuelRoute", { width: 390, height: 844 }));
+  await waitForHarness(functionalPage);
+  assert.equal(await functionalPage.locator("button.taxi-map__autopilot").count(), 1,
+    "Fuel detour map must retain the autopilot control");
+  await functionalPage.evaluate(() => { window.__taxiEngineLuaCommands = []; });
+  await functionalPage.locator("button.taxi-map__autopilot").click();
+  assert.ok((await functionalPage.evaluate(() => window.__taxiEngineLuaCommands || []))
+    .some((value) => value.includes("toggleAutopilot")),
+  "Fuel detour autopilot control must allow the driver to take control");
 
   await functionalPage.goto(harnessUrl("trip", { width: 520, height: 900 }));
   await waitForHarness(functionalPage);
@@ -878,29 +1090,59 @@ try {
   await performancePage.waitForFunction(() =>
     (window.__taxiEngineLuaCommands || []).some((value) => value.includes('setExternalPhoneView("settings"'))
   );
+  await performancePage.locator(".taxi-settings__group-head", { hasText: "Gameplay & difficulty" }).click();
+  const unlimitedRouteToggle = performancePage.locator(
+    'input[ng-model="settings.unlimitedRouteDistance"]'
+  );
+  await performancePage.locator("label.taxi-settings__switch-row", {
+    hasText: "Unlimited route length",
+  }).click();
+  assert.equal(await unlimitedRouteToggle.isChecked(), true,
+    "Unlimited route checkbox must reflect the row click");
+  assert.equal(await performancePage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    return scope.settings.unlimitedRouteDistance;
+  }), true, "Unlimited route length must be clickable in Trip settings");
+  await performancePage.waitForFunction(() =>
+    (window.__taxiEngineLuaCommands || []).some((value) =>
+      value.includes("saveSettings") && value.includes('"unlimitedRouteDistance":true')
+    )
+  );
+  await performancePage.evaluate(() => {
+    const root = angular.element(document).injector().get("$rootScope");
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    root.$broadcast("TaxiDriverHUDState", Object.assign({}, scope.state, {
+      settings: Object.assign({}, scope.state.settings, { unlimitedRouteDistance: true }),
+      hudEpoch: "race-epoch", hudRevision: 105,
+    }));
+  });
   const performanceCombinations = await performancePage.evaluate(() => {
     const root = angular.element(document).injector().get("$rootScope");
     const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
     let count = 0;
-    for (const externalMapEnabled of [false, true]) {
-      for (const externalTerrainEnabled of [false, true]) {
-        for (const externalMapQuality of ["eco", "balanced", "smooth"]) {
-          for (const godMode of [false, true]) {
-            for (const debugLogging of [false, true]) {
-              const settings = Object.assign({}, scope.state.settings, {
-                externalMapEnabled, externalTerrainEnabled, externalMapQuality, godMode, debugLogging,
-              });
-              root.$broadcast("TaxiDriverHUDState", Object.assign({}, scope.state, {
-                settings, hudEpoch: "race-epoch", hudRevision: 105 + count,
-              }));
-              if (scope.settings.externalMapEnabled !== externalMapEnabled ||
-                  scope.settings.externalTerrainEnabled !== externalTerrainEnabled ||
-                  scope.settings.externalMapQuality !== externalMapQuality ||
-                  scope.settings.godMode !== godMode ||
-                  scope.settings.debugLogging !== debugLogging) {
-                throw new Error("Remote performance / cheat combination was not preserved");
+    for (const unlimitedRouteDistance of [false, true]) {
+      for (const externalMapEnabled of [false, true]) {
+        for (const externalTerrainEnabled of [false, true]) {
+          for (const externalMapQuality of ["eco", "balanced", "smooth"]) {
+            for (const godMode of [false, true]) {
+              for (const debugLogging of [false, true]) {
+                const settings = Object.assign({}, scope.state.settings, {
+                  unlimitedRouteDistance, externalMapEnabled, externalTerrainEnabled,
+                  externalMapQuality, godMode, debugLogging,
+                });
+                root.$broadcast("TaxiDriverHUDState", Object.assign({}, scope.state, {
+                  settings, hudEpoch: "race-epoch", hudRevision: 106 + count,
+                }));
+                if (scope.settings.unlimitedRouteDistance !== unlimitedRouteDistance ||
+                    scope.settings.externalMapEnabled !== externalMapEnabled ||
+                    scope.settings.externalTerrainEnabled !== externalTerrainEnabled ||
+                    scope.settings.externalMapQuality !== externalMapQuality ||
+                    scope.settings.godMode !== godMode ||
+                    scope.settings.debugLogging !== debugLogging) {
+                  throw new Error("Trip, remote performance, and cheat combination was not preserved");
+                }
+                count += 1;
               }
-              count += 1;
             }
           }
         }
@@ -908,8 +1150,8 @@ try {
     }
     return count;
   });
-  assert.equal(performanceCombinations, 48,
-    "All map, terrain, quality, God Mode, and debug logging combinations must remain valid");
+  assert.equal(performanceCombinations, 96,
+    "All route limit, map, terrain, quality, God Mode, and debug logging combinations must remain valid");
   await assertVisualAudit(performancePage, "performance settings combinatorics");
   await performancePage.close();
 

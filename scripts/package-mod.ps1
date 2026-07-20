@@ -46,16 +46,20 @@ finally {
 
 $requiredEntries = @(
   "lua/ge/extensions/taxiDriver/taxiDriver.lua",
+  "lua/ge/extensions/taxiDriver/autopilot.lua",
+  "lua/ge/extensions/taxiDriver/autopilotPerception.lua",
   "lua/ge/extensions/taxiDriver/persistence.lua",
   "lua/ge/extensions/taxiDriver/routePlanner.lua",
   "lua/ge/extensions/taxiDriver/hudPublisher.lua",
   "lua/ge/extensions/taxiDriver/logger.lua",
   "lua/ge/extensions/taxiDriver/shiftTracker.lua",
+  "lua/ge/extensions/taxiDriver/shiftHistory.lua",
   "lua/ge/extensions/taxiDriver/tripEvents.lua",
   "lua/ge/extensions/taxiDriver/vehicleControl.lua",
   "lua/ge/extensions/taxiDriver/vehicleHistory.lua",
   "lua/ge/extensions/taxiDriver/vehicleScanGuard.lua",
   "lua/vehicle/extensions/taxiDriverTelemetry.lua",
+  "lua/vehicle/extensions/taxiDriverAutopilotRecovery.lua",
   "lua/vehicle/extensions/taxiDriverCargo.lua",
   "ui/modules/apps/TaxiDriverHUD/app.html",
   "ui/modules/apps/TaxiDriverHUD/app.js",
@@ -73,7 +77,7 @@ try {
   if ($entries | Where-Object FullName -like "lua/vehicle/extensions/auto/taxiDriver*") {
     throw "TaxiDriver vehicle extensions must remain lazy-loaded, not automatic"
   }
-  if ($entries.Count -ne 40) {
+  if ($entries.Count -ne 44) {
     throw "Unexpected archive entry count: $($entries.Count)"
   }
 }
@@ -94,5 +98,5 @@ if ($InstallDirectory) {
 }
 
 Write-Output "Archive: $zipPath"
-Write-Output "Entries: 40"
+Write-Output "Entries: $($entries.Count)"
 Write-Output "SHA256: $hash"

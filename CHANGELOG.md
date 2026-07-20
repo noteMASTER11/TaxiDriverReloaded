@@ -1,5 +1,79 @@
 # Changelog
 
+## 3.1.0 Beta — Shift Memory and AI Driver
+
+This prerelease contains every change made after `3.0.0-beta`.
+
+### Restorable shift history
+
+- Added `shiftHistory.lua` and a separate `shiftshistory.json` persistence document for vehicle-bound shift sessions.
+- Added **Previous shifts** to the start screen and a **Shifts** tab to Driver Profile.
+- Saved shifts retain the BeamNG model/configuration, selector name, preview, fuel/charge percentages, rides, AI rides, gross income, fuel cost, penalties, net income, and average rating.
+- Selecting a saved shift replaces the current vehicle with the recorded configuration and restores its compatible energy storages.
+- Active shifts are snapshotted every 60 seconds and during relevant lifecycle transitions, so closing the game does not require a dedicated finish action.
+- Starting a shift in another vehicle closes and records the previous vehicle-bound session before opening the new one.
+- Zero-ride sessions are not persisted, the list is capped and sanitized, and entries whose vehicle configuration is no longer installed are removed after BeamNG's vehicle registry becomes ready.
+
+### Configurable AI driver
+
+- Added an AI control overlay to active trip and refueling maps, including Connected Phone and the in-game UI App.
+- Added a GE-side supervisor around BeamNG's native vehicle AI for passenger pickup, scheduled stops, cargo delivery, destination, and fuel-station routes.
+- Added user settings for aggression, following time gap, comfortable braking deceleration, stuck timeout, traffic-rule obedience, same-direction overtaking, and oncoming-lane recovery.
+- Added lead-vehicle tracking with a speed-dependent safe gap, progressive speed caps, emergency-gap handling, and automatic release when the lane clears.
+- Added same-direction multi-lane overtaking with road-lane validation, adjacent-lane clearance checks, cooldowns, and turn indicators.
+- Added traffic-signal handling for red and yellow phases, stopping-distance decisions, stop-line commitment, and intersection exit priority so a vehicle does not stop halfway through a manoeuvre.
+- Fixed queues at traffic lights being mistaken for permanent obstacles. The AI now waits for the signal/traffic, rescans the lane, restores its route and speed cap as soon as traffic moves, and only starts bypass recovery for a genuinely stationary blockage.
+- Added immediate native `Route Done` observation and physical target validation. A route ending outside the trigger starts a low-speed exact-approach path instead of waiting for the generic stuck timer.
+- Added automatic engine-start requests and a temporary Arcade gearbox override while AI controls the vehicle; the previous gearbox behavior is restored when control returns to the player.
+- Stopped repeated Neutral/Drive hunting: short stops are held with the service brake in Drive and prolonged stationary holds transition after ten seconds.
+
+### Adaptive obstacle recovery and collision prevention
+
+- Added `autopilotPerception.lua`, which measures the current road, vehicle, stationary obstacle, road boundaries, nearby traffic and both bypass sides before choosing a recovery corridor.
+- Replaced fixed recovery offsets with a smooth seven-point local path that uses the smallest collision-free lateral movement around the obstacle.
+- Added projected traffic checks along the whole bypass path, including vehicle dimensions and movement during the manoeuvre.
+- Added `taxiDriverAutopilotRecovery.lua` as a lazy Vehicle Lua controller for exact approach, bypass steering, indicators, powertrain/gearbox coordination and completion callbacks.
+- Added straight and steering-curved trajectory rays across the vehicle width. They check dynamic oriented vehicle boxes and static geometry, then blend comfortable braking or apply emergency braking when impact is imminent.
+- Kept BeamNG obstacle avoidance enabled during normal route following; local recovery only takes control after the supervisor confirms a blocked corridor.
+
+### Energy-aware routing
+
+- Added critical-energy checks at 5% for combustion vehicles and 15% for EVs.
+- If AI is enabled before passenger pickup or cargo loading, critical energy inserts the same priority fuel detour used by the **Refuel** action without cancelling the accepted order.
+- A trip already carrying a passenger or cargo is never interrupted solely because the critical threshold is reached; refueling is deferred until the current order is complete.
+- When a map has no compatible station, AI stops and opens Magic Fuel so the player can select the amount before continuing.
+- Fuel routes use exact trigger approach, and the AI control remains accessible above the map throughout refueling.
+
+### Driver profile, analytics and reviews
+
+- Recorded whether AI was used at least once during each completed order.
+- Added AI-assisted markers to reviews and stored AI trip totals in shift and per-vehicle history.
+- Added a simple cumulative **AI-driven trips** counter to Profile Analytics.
+- Reviews now show the customer's order score separately from the resulting profile rating, with green/equal-yellow/red comparison colors.
+- Reworked review pagination to measure the actual available panel height and the rendered heights of regular and AI-assisted rows. It recalculates after resize, UI scale, tab, locale, or data changes and keeps the pager at the bottom without overlap.
+
+### Routing, localization and UI
+
+- Added **Unlimited route length** to Trip settings. When enabled, passenger and delivery generation keeps the normal minimum distance but removes the standard 25 km maximum.
+- Added complete Simplified Chinese localization, bringing the shared in-game and Connected Phone UI to nine languages.
+- Expanded profile navigation to five tabs and added responsive shift cards with vehicle previews and restore progress.
+- Added cache revision `310-beta` to the in-game and external UI assets so browsers do not mix this build with 3.0.0 Beta files.
+
+### Reliability, architecture and testing
+
+- Preserved active shift/autopilot accounting across vehicle replacement, reset and mission lifecycle callbacks while rejecting callbacks from stale vehicle instances.
+- Kept restorable shift data in a focused module rather than increasing the main Lua chunk toward LuaJIT's 200-local limit.
+- Updated deterministic packaging to require the shift and autopilot modules plus the lazy Vehicle Lua recovery controller; the release archive contains 44 verified entries.
+- Expanded Lua combinatorics with route limits, shift-history sanitization/restoration, AI phases and settings, signal queues, early `Route Done`, following, overtaking, adaptive bypass, trajectory rays, engine/gearbox control, and 500 deferred vehicle respawns.
+- Expanded responsive UI coverage to **301 states** across nine locales, both UI surfaces, compact/full layouts, 80–180% scaling and DPR 2 HiDPI rendering.
+- Added functional checks for shift restoration, fuel-route AI control, AI trip analytics, customer/profile review ratings, adaptive height-based pagination and the full AI/settings matrix.
+
+### Compatibility and Beta status
+
+- Existing 3.0.0 Beta settings, difficulty, profile, progress, vehicles, LAN identity and active gameplay data remain compatible.
+- New AI and unlimited-route settings are normalized with safe defaults; `shiftshistory.json` is created independently.
+- The build remains a prerelease while the AI supervisor and recovery controller receive broader testing across maps, traffic layouts, powertrains and community vehicles.
+
 ## 3.0.0 Beta — Runtime, Connected Phone, and Diagnostics Overhaul
 
 This prerelease contains every change made after `2.25.1`.

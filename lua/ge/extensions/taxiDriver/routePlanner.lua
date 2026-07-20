@@ -16,6 +16,13 @@ local function tableHasValues(value)
   return type(value) == "table" and next(value) ~= nil
 end
 
+local function isDistanceAllowed(distance, minimumDistance, maximumDistance)
+  return distance ~= nil and distance >= minimumDistance and
+    (maximumDistance == nil or distance <= maximumDistance)
+end
+
+M.isDistanceAllowed = isDistanceAllowed
+
 function M.new(options)
   options = options or {}
   local service = {}
@@ -25,6 +32,8 @@ function M.new(options)
   local recentSeparation = tonumber(config.recentStopSeparation) or 100
   local candidateCache = nil
   local candidateLevel = nil
+  local roadEdgeCache = nil
+  local roadEdgeLevel = nil
   local recentPositions = {}
 
   local function getRoadLink(nodes, nodeA, nodeB)
@@ -149,6 +158,37 @@ function M.new(options)
     }
   end
 
+  local function getRoadEdges()
+    local level = getCurrentLevelIdentifier() or ""
+    if roadEdgeCache and roadEdgeLevel == level then return roadEdgeCache end
+    local mapData = map.getMap()
+    local nodes = mapData and mapData.nodes
+    local edges = {}
+    local seen = {}
+    local scanned = 0
+    if tableHasValues(nodes) then
+      for nodeA, node in pairs(nodes) do
+        for nodeB, _ in pairs(node.links or {}) do
+          local firstKey = tostring(nodeA)
+          local secondKey = tostring(nodeB)
+          local edgeKey = firstKey < secondKey and
+            (firstKey .. "\0" .. secondKey) or (secondKey .. "\0" .. firstKey)
+          if not seen[edgeKey] then
+            seen[edgeKey] = true
+            if isUsableRoad(nodes, nodeA, nodeB) then
+              edges[#edges + 1] = {nodeA = nodeA, nodeB = nodeB}
+            end
+          end
+          scanned = scanned + 1
+          if scanned % 64 == 0 then offerGenerator.yield() end
+        end
+      end
+    end
+    roadEdgeCache = edges
+    roadEdgeLevel = level
+    return edges
+  end
+
   local function getStopCandidates()
     local level = getCurrentLevelIdentifier() or ""
     if candidateCache and candidateLevel == level then return candidateCache end
@@ -236,11 +276,12 @@ function M.new(options)
       offerGenerator.yield()
       local candidate = candidates[order[attempt]]
       local directDistance = startPos:distance(candidate.anchor)
-      if directDistance >= minimumDistance * 0.2 and directDistance <= maximumDistance + 500 then
+      if directDistance >= minimumDistance * 0.2 and
+        (maximumDistance == nil or directDistance <= maximumDistance + 500) then
         local stop = projectAnchorToRoadEdge(candidate.anchor, nil, nil, true)
         if stop then
           local actualDistance = service.calculateDistance(startPos, stop.pos)
-          if actualDistance and actualDistance >= minimumDistance and actualDistance <= maximumDistance then
+          if isDistanceAllowed(actualDistance, minimumDistance, maximumDistance) then
             stop.routeDistance = actualDistance
             stop.anchorKind = candidate.kind
             stop.anchorName = candidate.name
@@ -314,7 +355,7 @@ function M.new(options)
           local targetPos = edgePoint and edgePoint.pos or lanePos
           local targetDir = edgePoint and edgePoint.dir or laneDir
           local actualDistance = service.calculateDistance(startPos, targetPos)
-          if actualDistance and actualDistance >= minimumDistance and actualDistance <= maximumDistance then
+          if isDistanceAllowed(actualDistance, minimumDistance, maximumDistance) then
             local stop = {
               pos = vec3(targetPos),
               dir = vec3(targetDir),
@@ -337,16 +378,59 @@ function M.new(options)
     )
   end
 
+  local function chooseUnboundedRoadStop(startPos, minimumDistance, maximumAttempts)
+    local mapData = map.getMap()
+    local nodes = mapData and mapData.nodes
+    if not tableHasValues(nodes) then
+      return nil, "На этой карте отсутствует дорожный граф"
+    end
+    local edges = getRoadEdges()
+    if not edges[1] then return nil, "На этой карте отсутствуют доступные дороги" end
+
+    local recentFallback = nil
+    local attemptCount = math.max(1, tonumber(maximumAttempts) or config.unboundedRouteAttempts or 48)
+    for _ = 1, attemptCount do
+      offerGenerator.yield()
+      local edge = edges[math.random(#edges)]
+      local nodeA = nodes[edge.nodeA]
+      local nodeB = nodes[edge.nodeB]
+      if nodeA and nodeB then
+        local interpolation = randomRange(0.2, 0.8)
+        local anchor = nodeA.pos + (nodeB.pos - nodeA.pos) * interpolation
+        local stop = projectAnchorToRoadEdge(anchor, edge.nodeA, edge.nodeB)
+        if stop then
+          local actualDistance = service.calculateDistance(startPos, stop.pos)
+          if isDistanceAllowed(actualDistance, minimumDistance, nil) then
+            stop.routeDistance = actualDistance
+            stop.anchorKind = "roadEdge"
+            if not isRecentlyUsed(stop.pos) then return stop end
+            recentFallback = recentFallback or stop
+          end
+        end
+      end
+    end
+    if recentFallback then return recentFallback end
+    return nil, string.format(
+      "Не удалось построить маршрут длиной от %.0f км без верхнего ограничения",
+      minimumDistance / 1000
+    )
+  end
+
   function service.chooseStop(startPos, startDirection, minimumDistance, maximumDistance, maximumAttempts)
     local semanticStop, semanticFallback = chooseSemanticStop(startPos, minimumDistance, maximumDistance)
     if semanticStop then return semanticStop end
-    local randomStop, randomError = chooseRandomRoadStop(
-      startPos,
-      startDirection,
-      minimumDistance,
-      maximumDistance,
-      maximumAttempts
-    )
+    local randomStop, randomError
+    if maximumDistance == nil then
+      randomStop, randomError = chooseUnboundedRoadStop(startPos, minimumDistance, maximumAttempts)
+    else
+      randomStop, randomError = chooseRandomRoadStop(
+        startPos,
+        startDirection,
+        minimumDistance,
+        maximumDistance,
+        maximumAttempts
+      )
+    end
     if randomStop then return randomStop end
     if semanticFallback then return semanticFallback end
     return nil, randomError
@@ -355,6 +439,8 @@ function M.new(options)
   function service.reset()
     candidateCache = nil
     candidateLevel = nil
+    roadEdgeCache = nil
+    roadEdgeLevel = nil
     recentPositions = {}
   end
 

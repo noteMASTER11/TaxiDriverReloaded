@@ -39,6 +39,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           { code: "it", label: "Italiano" }, { code: "pl", label: "Polski" },
           { code: "uk", label: "Українська" },
           { code: "ru", label: "Русский" },
+          { code: "zh-CN", label: "简体中文" },
         ];
         const difficulties = ["elementary", "easy", "standard", "professional", "custom"];
         const customDifficultyDefaults = {
@@ -99,6 +100,22 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             overspeed: value.overspeed !== false,
           };
         };
+        const normalizeAiDriver = (source) => {
+          const value = source && typeof source === "object" ? source : {};
+          const clampNumber = (input, fallback, minimum, maximum) => {
+            const numeric = Number(input);
+            return Math.max(minimum, Math.min(maximum, Number.isFinite(numeric) ? numeric : fallback));
+          };
+          return {
+            obeyTrafficRules: value.obeyTrafficRules !== false,
+            allowOvertaking: value.allowOvertaking !== false,
+            allowOncomingRecovery: value.allowOncomingRecovery !== false,
+            aggressionPercent: clampNumber(value.aggressionPercent, 30, 10, 80),
+            followingTimeGap: clampNumber(value.followingTimeGap, 2.2, 1.2, 3.5),
+            brakingDeceleration: clampNumber(value.brakingDeceleration, 2.8, 1.5, 4.5),
+            stuckDelaySeconds: clampNumber(value.stuckDelaySeconds, 15, 8, 30),
+          };
+        };
         let persisted = {};
         let legacySettingsFound = false;
         try {
@@ -148,6 +165,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         const savedDeliveryOrderShare = Number(persisted.deliveryOrderSharePercent);
         const initialDeliveryOrderShare = Math.max(0, Math.min(100,
           Number.isFinite(savedDeliveryOrderShare) ? savedDeliveryOrderShare : 50));
+        const initialUnlimitedRouteDistance = persisted.unlimitedRouteDistance === true;
 
         $scope.languages = languages;
         $scope.difficulties = difficulties;
@@ -155,7 +173,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         $scope.settingsOpen = false;
         $scope.settingsSaved = false;
         $scope.settingsSections = {
-          general: true, gameplay: false, navigation: false, audio: false, connectivity: false, cheats: false,
+          general: true, gameplay: false, aiDriver: false, navigation: false, audio: false, connectivity: false, cheats: false,
         };
         $scope.customDifficultyGroups = [
           { title: "customSpeed", controls: [
@@ -212,6 +230,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         $scope.passengerMoodFlash = "";
         $scope.nextOfferAcceptedVisible = false;
         $scope.fuelStationOpen = false;
+        $scope.shiftHistoryOpen = false;
         $scope.selectedFuelType = "";
         $scope.refuel = { amount: 0 };
         $scope.settings = {
@@ -229,6 +248,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           overspeedWarningKmh: initialOverspeedWarningKmh,
           economyMultiplier: initialEconomyMultiplier,
           deliveryOrderSharePercent: initialDeliveryOrderShare,
+          unlimitedRouteDistance: initialUnlimitedRouteDistance,
           lanEnabled: initialLanEnabled,
           externalMapEnabled: initialExternalMapEnabled,
           externalTerrainEnabled: initialExternalTerrainEnabled,
@@ -237,14 +257,15 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           showRouteGuidance: initialShowRouteGuidance,
           realisticMode: initialRealisticMode,
           randomEventsEnabled: initialRandomEventsEnabled,
+          aiDriver: normalizeAiDriver(persisted.aiDriver),
           godMode: persisted.godMode === true,
           debugLogging: persisted.debugLogging !== false,
         };
         $scope.driverProfile = { fullName: "John Doe", birthDate: "", avatar: "🙂" };
         $scope.profileDraft = Object.assign({}, $scope.driverProfile);
         $scope.profileProgress = {
-          reviews: [], ratingHistory: [], balanceHistory: [],
-          balance: 0, rating: 5, completedRides: 0,
+          reviews: [], ratingHistory: [], balanceHistory: [], aiRideHistory: [],
+          balance: 0, rating: 5, completedRides: 0, aiRideCount: 0,
         };
         $scope.profileReviews = [];
         $scope.profileVehicles = [];
@@ -299,12 +320,14 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           deliveryOnboard: false,
           realisticMode: false,
           shift: { active: false, current: {}, last: {} },
+          shiftHistory: { items: [], restoring: false, restoringId: 0 },
           vehicleEnergy: { available: false, energyType: "", quantity: 0, maxQuantity: 0, percent: 0, unit: "", estimatedRangeKm: 0 },
           fuelStation: {
             available: false, id: "", name: "", magic: false, vehicleStopped: false, options: [], balance: 0,
             refueling: { active: false, completing: false, energyType: "", quantity: 0, cost: 0, duration: 0, elapsed: 0, progress: 0, remainingSeconds: 0, completionId: 0 },
           },
           fuelDetour: { active: false, hadTrip: false, passengerOnboard: false, stationName: "", routeDistance: 0, penaltyPercent: 0, arrived: false },
+          autopilot: { available: false, enabled: false, suspended: false, status: "off", reason: "", stuckSeconds: 0, recoveryAttempt: 0 },
           lan: { enabled: false, connected: 0, address: "", port: 8085, url: "" },
           offlinePenaltyExtraPercent: 30,
           offlinePenaltyRatingLoss: 2.5,
@@ -971,6 +994,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
               Number.isFinite(economyMultiplier) ? economyMultiplier : 1)),
             deliveryOrderSharePercent: Math.max(0, Math.min(100,
               Number.isFinite(deliveryOrderSharePercent) ? deliveryOrderSharePercent : 50)),
+            unlimitedRouteDistance: value.unlimitedRouteDistance === true,
             lanEnabled: value.lanEnabled === true,
             externalMapEnabled: value.externalMapEnabled !== false,
             externalTerrainEnabled: value.externalTerrainEnabled !== false,
@@ -980,6 +1004,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             showRouteGuidance: value.showRouteGuidance !== false,
             realisticMode: value.realisticMode === true,
             randomEventsEnabled: value.randomEventsEnabled === true,
+            aiDriver: normalizeAiDriver(value.aiDriver),
             godMode: value.godMode === true,
             debugLogging: value.debugLogging !== false,
           };
@@ -1205,12 +1230,86 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           const offset = ($scope.reviewPage - 1) * $scope.reviewsPerPage;
           return $scope.profileReviews.slice(offset, offset + $scope.reviewsPerPage);
         };
+        let reviewPaginationFrame = 0;
+        let reviewPaginationRetry = 0;
+        const updateReviewPagination = () => {
+          reviewPaginationFrame = 0;
+          if (!$scope.profileOpen || $scope.profileTab !== "reviews" || !$scope.profileReviews.length) return;
+          const content = appRoot.querySelector(".taxi-profile__content");
+          const panel = appRoot.querySelector(".taxi-profile__panel--reviews");
+          const regularMeasure = panel && panel.querySelector('[data-review-measure="regular"]');
+          const aiMeasure = panel && panel.querySelector('[data-review-measure="ai"]');
+          const pager = panel && panel.querySelector(".taxi-profile__pager");
+          if (!content || !panel || !regularMeasure || !aiMeasure || !pager) {
+            if (reviewPaginationRetry < 3) {
+              reviewPaginationRetry += 1;
+              reviewPaginationFrame = requestAnimationFrame(updateReviewPagination);
+            }
+            return;
+          }
+          reviewPaginationRetry = 0;
+          const contentRect = content.getBoundingClientRect();
+          const panelRect = panel.getBoundingClientRect();
+          const contentStyle = getComputedStyle(content);
+          const panelStyle = getComputedStyle(panel);
+          const cssPixels = (value) => Number.parseFloat(value) || 0;
+          const verticalInsets = cssPixels(contentStyle.paddingBottom) +
+            cssPixels(panelStyle.paddingTop) + cssPixels(panelStyle.paddingBottom) +
+            cssPixels(panelStyle.borderTopWidth) + cssPixels(panelStyle.borderBottomWidth);
+          const regularRowHeight = Math.max(1, regularMeasure.getBoundingClientRect().height);
+          const aiRowHeight = Math.max(regularRowHeight, aiMeasure.getBoundingClientRect().height);
+          const pagerHeight = pager.getBoundingClientRect().height;
+          const availableHeight = Math.max(regularRowHeight,
+            contentRect.bottom - panelRect.top - verticalInsets - pagerHeight - 8);
+          const reviewHeights = $scope.profileReviews.map((review) =>
+            review && review.usedAutopilot ? aiRowHeight : regularRowHeight
+          );
+          const maximumCandidate = Math.min(50, reviewHeights.length);
+          let nextPerPage = 1;
+          for (let candidate = 2; candidate <= maximumCandidate; candidate += 1) {
+            let fits = true;
+            for (let start = 0; start < reviewHeights.length; start += candidate) {
+              const pageHeight = reviewHeights.slice(start, start + candidate)
+                .reduce((sum, height) => sum + height, 0);
+              if (pageHeight > availableHeight + 1) {
+                fits = false;
+                break;
+              }
+            }
+            if (!fits) break;
+            nextPerPage = candidate;
+          }
+          if (nextPerPage === $scope.reviewsPerPage) return;
+          const firstVisibleIndex = ($scope.reviewPage - 1) * $scope.reviewsPerPage;
+          $scope.$evalAsync(() => {
+            $scope.reviewsPerPage = nextPerPage;
+            $scope.reviewPage = Math.floor(firstVisibleIndex / nextPerPage) + 1;
+            scheduleReviewPagination();
+          });
+        };
+        const scheduleReviewPagination = () => {
+          if (reviewPaginationFrame) cancelAnimationFrame(reviewPaginationFrame);
+          reviewPaginationRetry = 0;
+          reviewPaginationFrame = requestAnimationFrame(updateReviewPagination);
+        };
+        const stopReviewPaginationWatch = $scope.$watchGroup([
+          "profileOpen", "profileTab", "profileReviews.length", "settings.uiScalePercent",
+        ], scheduleReviewPagination);
+        const reviewResizeObserver = typeof ResizeObserver === "function"
+          ? new ResizeObserver(scheduleReviewPagination) : null;
+        if (reviewResizeObserver) reviewResizeObserver.observe(appRoot);
         $scope.formatReviewDate = (timestamp) => {
           const value = Number(timestamp || 0);
           if (!value) return "—";
           return new Date(value * 1000).toLocaleDateString($scope.language || "en", {
             year: "numeric", month: "short", day: "numeric",
           });
+        };
+        $scope.getReviewRatingClass = (review) => {
+          const orderRating = Number(review && review.orderRating || 0);
+          const profileRating = Number(review && review.rating || 0);
+          if (Math.abs(orderRating - profileRating) < 0.005) return "equal";
+          return orderRating > profileRating ? "higher" : "lower";
         };
 
         let lastMinimapRect = "";
@@ -1372,11 +1471,14 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           const speedLimitValues = normalizeRect($element[0].querySelector(
             $scope.phoneMinimized ? ".taxi-compact__speed" : ".taxi-map__speed"
           ));
+          const autopilotValues = $scope.phoneMinimized
+            ? [0, 0, 0, 0]
+            : normalizeRect($element[0].querySelector(".taxi-map__autopilot"));
           const notificationValues = $scope.phoneMinimized
             ? [0, 0, 0, 0]
             : normalizeRect($element[0].querySelector(".taxi-phone-toast"));
           const layoutKey = values
-            .concat(routeInfoValues, speedLimitValues, notificationValues)
+            .concat(routeInfoValues, speedLimitValues, notificationValues, autopilotValues)
             .map((value) => value.toFixed(5))
             .join(",");
           if (layoutKey === lastMinimapRect) return;
@@ -1385,7 +1487,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
 
           const rectKey = values.map((value) => value.toFixed(5)).join(",");
           const occlusionKey = routeInfoValues
-            .concat(speedLimitValues, notificationValues)
+            .concat(speedLimitValues, notificationValues, autopilotValues)
             .map((value) => value.toFixed(5))
             .join(",");
 
@@ -1586,7 +1688,19 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
 
         this.startMode = () => callTaxiDriver("startMode");
+        this.toggleShiftHistory = () => {
+          if ($scope.state.shiftHistory && $scope.state.shiftHistory.restoring) return;
+          $scope.shiftHistoryOpen = !$scope.shiftHistoryOpen;
+        };
+        this.resumeShift = (shiftId) => {
+          const id = Math.max(1, Math.floor(Number(shiftId) || 0));
+          $scope.profileOpen = false;
+          bngApi.engineLua(
+            `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.resumeShift(${id}) end`
+          );
+        };
         this.openVehicleSelector = () => callTaxiDriver("openVehicleSelector");
+        this.toggleAutopilot = () => callTaxiDriver("toggleAutopilot");
         this.stopMode = () => callTaxiDriver("stopMode");
         this.toggleOfferSortMenu = () => {
           $scope.offerSortMenuOpen = !$scope.offerSortMenuOpen;
@@ -1670,12 +1784,19 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             dismissPassengerChat();
             hideMinimap();
             requestProfileData();
+            scheduleReviewPagination();
           } else {
             scheduleMinimapUpdate();
           }
         };
         this.selectProfileTab = (tab) => {
-          if (["identity", "reviews", "analytics", "vehicles"].includes(tab)) $scope.profileTab = tab;
+          if (!["identity", "reviews", "analytics", "vehicles", "shifts"].includes(tab)) return;
+          $scope.profileTab = tab;
+          if (tab === "reviews") {
+            const content = appRoot.querySelector(".taxi-profile__content");
+            if (content) content.scrollTop = 0;
+            scheduleReviewPagination();
+          }
         };
         this.selectAvatar = (avatar) => {
           if ($scope.avatarOptions.includes(avatar)) $scope.profileDraft.avatar = avatar;
@@ -1717,6 +1838,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           applyGameUiVolume();
           updateClock();
           scheduleMinimapUpdate();
+          scheduleReviewPagination();
           queueSettingsSave();
         };
         this.selectExternalMapQuality = (quality) => {
@@ -1909,9 +2031,18 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           const value = $scope.settings.unitSystem === "imperial"
             ? distance / 1609.344 : distance / 1000;
           const fixed = value.toFixed(1).split(".");
-          const decimalSeparator = $scope.language === "en" ? "." : ",";
+          const decimalSeparator = $scope.language === "en" || $scope.language === "zh-CN" ? "." : ",";
           const unit = $scope.t($scope.settings.unitSystem === "imperial" ? "unitMile" : "unitKm");
           return `${fixed[0].padStart(4, "0")}${decimalSeparator}${fixed[1]} ${unit}`;
+        };
+        $scope.formatShiftDate = (timestamp) => {
+          const value = Math.max(0, Number(timestamp || 0));
+          if (!value) return "";
+          return new Date(value * 1000).toLocaleString($scope.language || "en", {
+            year: "numeric", month: "short", day: "numeric",
+            hour: "2-digit", minute: "2-digit",
+            hour12: $scope.settings.timeFormat !== "24h",
+          });
         };
         $scope.formatDistance = (meters) => {
           const value = Math.max(0, Number(meters || 0));
@@ -2263,6 +2394,10 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           );
           data.fuelStation = normalizeFuelStation(data.fuelStation);
           data.fuelDetour = normalizeFuelDetour(data.fuelDetour);
+          data.autopilot = Object.assign(
+            { available: false, enabled: false, suspended: false, status: "off", reason: "", stuckSeconds: 0, recoveryAttempt: 0 },
+            data.autopilot || {}
+          );
           const refuelingJustCompleted = hudStateReceived &&
             data.fuelStation.refueling.completionId >
               Number($scope.state.fuelStation.refueling.completionId || 0);
@@ -2384,6 +2519,15 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           data.stopProgressMarkers = Array.isArray(data.stopProgressMarkers)
             ? data.stopProgressMarkers
             : [];
+          const shiftHistory = data.shiftHistory && typeof data.shiftHistory === "object"
+            ? data.shiftHistory
+            : {};
+          data.shiftHistory = Object.assign(
+            { items: [], restoring: false, restoringId: 0 },
+            shiftHistory,
+            { items: Array.isArray(shiftHistory.items) ? shiftHistory.items : [] }
+          );
+          if (data.active) $scope.shiftHistoryOpen = false;
           const penaltyPhase = ["toPickup", "toStop", "toDestination", "passengerStopDemand"].includes(data.phase);
           if (!penaltyPhase) {
             penaltyTrackingReady = false;
@@ -2491,11 +2635,12 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           progress.reviews = Array.isArray(progress.reviews) ? progress.reviews : [];
           progress.ratingHistory = Array.isArray(progress.ratingHistory) ? progress.ratingHistory : [];
           progress.balanceHistory = Array.isArray(progress.balanceHistory) ? progress.balanceHistory : [];
+          progress.aiRideHistory = Array.isArray(progress.aiRideHistory) ? progress.aiRideHistory : [];
           $scope.driverProfile = profile;
           $scope.profileDraft = Object.assign({}, profile);
           $scope.profileProgress = Object.assign({
-            balance: 0, rating: 5, completedRides: 0,
-            reviews: [], ratingHistory: [], balanceHistory: [],
+            balance: 0, rating: 5, completedRides: 0, aiRideCount: 0,
+            reviews: [], ratingHistory: [], balanceHistory: [], aiRideHistory: [],
           }, progress);
           $scope.profileReviews = progress.reviews.slice().reverse();
           $scope.profileVehicles = vehicles.map((vehicle) => ({
@@ -2504,6 +2649,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             preview: String(vehicle.preview || ""),
             distanceMeters: Math.max(0, Number(vehicle.distanceMeters || 0)),
             completedRides: Math.max(0, Math.floor(Number(vehicle.completedRides || 0))),
+            aiRides: Math.max(0, Math.floor(Number(vehicle.aiRides || 0))),
             income: Math.max(0, Number(vehicle.income || 0)),
             passengerRides: Math.max(0, Math.floor(Number(vehicle.passengerRides || 0))),
             deliveryRides: Math.max(0, Math.floor(Number(vehicle.deliveryRides || 0))),
@@ -2518,6 +2664,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             lastSeen: Math.max(0, Number(vehicle.lastSeen || 0)),
           })).filter((vehicle) => vehicle.key && vehicle.name);
           $scope.reviewPage = Math.min($scope.reviewPage, $scope.getReviewPageCount());
+          scheduleReviewPagination();
         });
         $scope.$on("TaxiDriverMinimapInvalidated", () => {
           lastMinimapRect = "";
@@ -2562,7 +2709,10 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         }
         const clockTimer = setInterval(() => $scope.$evalAsync(updateClock), 30000);
         const minimapTimer = externalPhoneMode ? null : setInterval(updateMinimap, 500);
-        const resizeMap = scheduleMinimapUpdate;
+        const resizeMap = () => {
+          scheduleMinimapUpdate();
+          scheduleReviewPagination();
+        };
         window.addEventListener("resize", resizeMap);
         let externalHeartbeatTimer = null;
         let nativeHudHeartbeatTimer = null;
@@ -2642,6 +2792,9 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             }
           }
           window.removeEventListener("resize", resizeMap);
+          if (reviewPaginationFrame) cancelAnimationFrame(reviewPaginationFrame);
+          stopReviewPaginationWatch();
+          if (reviewResizeObserver) reviewResizeObserver.disconnect();
           if (!externalPhoneMode) {
             hideMinimap();
             bngApi.engineLua(

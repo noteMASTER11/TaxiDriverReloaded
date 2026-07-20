@@ -10,6 +10,7 @@ local function snapshot(source)
     startedAt = math.max(0, math.floor(tonumber(source.startedAt) or 0)),
     endedAt = math.max(0, math.floor(tonumber(source.endedAt) or 0)),
     rides = math.max(0, math.floor(tonumber(source.rides) or 0)),
+    aiRides = math.max(0, math.floor(tonumber(source.aiRides) or 0)),
     grossIncome = money(source.grossIncome),
     fuelCost = money(source.fuelCost),
     penaltyLoss = money(source.penaltyLoss),
@@ -26,9 +27,10 @@ function M.new(lastShift)
     self.active = snapshot({startedAt = os.time()})
   end
 
-  function service:recordRide(fare, rating, penaltyLoss)
+  function service:recordRide(fare, rating, penaltyLoss, usedAutopilot)
     if not self.active then return end
     self.active.rides = self.active.rides + 1
+    if usedAutopilot == true then self.active.aiRides = self.active.aiRides + 1 end
     self.active.grossIncome = money(self.active.grossIncome + math.max(0, tonumber(fare) or 0))
     self.active.penaltyLoss = money(self.active.penaltyLoss + math.max(0, tonumber(penaltyLoss) or 0))
     self.active.ratingTotal = self.active.ratingTotal + math.max(0, math.min(5, tonumber(rating) or 0))

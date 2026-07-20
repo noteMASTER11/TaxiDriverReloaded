@@ -4,7 +4,8 @@ local M = {}
 
 M.supportedLanguages = {
   en = true, de = true, fr = true, es = true,
-  it = true, pl = true, uk = true, ru = true
+  it = true, pl = true, uk = true, ru = true,
+  ["zh-CN"] = true
 }
 
 local function clamp(value, minimum, maximum)
@@ -99,6 +100,59 @@ M.runtime = {
   forcedExitDuration = 5
 }
 
+M.autopilot = {
+  normalAggression = 0.3,
+  recoveryAggression = 1,
+  stuckDelay = 15,
+  recoveryRetryInterval = 8,
+  recoverySuccessDistance = 8,
+  signalHoldDistance = 120,
+  approachDistance = 45,
+  finalApproachDistance = 20,
+  stopDistance = 8,
+  approachSpeed = 8,
+  finalApproachSpeed = 3.5,
+  stoppedSpeedKmh = 1.5,
+  movingSpeedKmh = 4,
+  bypassSpeed = 12,
+  bypassDistance = 32,
+  bypassOffset = 5,
+  oncomingScanAhead = 200,
+  oncomingScanBehind = 25,
+  oncomingRetryInterval = 2,
+  oncomingMaxWait = 20,
+  bypassControllerSpeed = 7,
+  bypassControllerTimeout = 14,
+  followTimeGap = 2.2,
+  followMinimumGap = 7,
+  followEmergencyGap = 3.5,
+  followComfortableDeceleration = 2.8,
+  followGapResponseTime = 4,
+  followScanDistance = 160,
+  followScanInterval = 0.2,
+  followLaneMargin = 0.9,
+  signalLookAhead = 160,
+  signalLaneHalfWidth = 12,
+  signalStopBuffer = 5,
+  signalComfortableDeceleration = 3,
+  yellowDecisionDeceleration = 3.5,
+  intersectionClearDistance = 30,
+  directApproachDistance = 48,
+  directApproachDelay = 0.4,
+  directApproachSpeed = 3.5,
+  directApproachTimeout = 20,
+  laneChangeLeadDistance = 35,
+  laneChangeLeadHold = 2,
+  laneChangeRoadAlignment = 0.96,
+  laneChangeIntersectionDistance = 65,
+  laneChangeWidth = 3.6,
+  laneChangeDistance = 35,
+  laneChangeDuration = 5,
+  laneChangeCooldown = 20,
+  laneChangeFreeAhead = 55,
+  laneChangeFreeBehind = 22
+}
+
 M.offer = {
   initialDelay = 1.5,
   intervalMin = 1.2,
@@ -107,6 +161,7 @@ M.offer = {
   semanticScanBatchSize = 6,
   semanticCandidateAttempts = 40,
   randomRouteAttempts = 24,
+  unboundedRouteAttempts = 48,
   semanticLongitudinalJitterMax = 70,
   randomDistanceExponent = 1.15,
   recentStopLimit = 48,
@@ -212,6 +267,8 @@ M.driverAbandonmentExtraLoss = {
 M.realisticFuel = {
   fuelInitialLevel = 0.05,
   electricInitialLevel = 0.30,
+  automaticFuelStopPercent = 5,
+  automaticElectricStopPercent = 15,
   fallbackPricePerUnit = 1,
   fuelRatePerSecond = 2,
   electricPercentRatePerSecond = 4,
@@ -227,6 +284,13 @@ M.realisticFuel = {
     electricEnergy = 0.50
   }
 }
+
+function M.isCriticalEnergy(energy)
+  if type(energy) ~= "table" or energy.available ~= true then return false end
+  local threshold = energy.energyType == "electricEnergy" and
+    M.realisticFuel.automaticElectricStopPercent or M.realisticFuel.automaticFuelStopPercent
+  return (tonumber(energy.percent) or 100) <= threshold
+end
 
 M.delivery = {
   visibleMin = 5,
