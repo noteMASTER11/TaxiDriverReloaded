@@ -24,7 +24,7 @@ local tripEvents = require("taxiDriver/tripEvents")
 local hudPublisher = require("taxiDriver/hudPublisher")
 local logger = require("taxiDriver/logger")
 local logTag = "taxiDriver"
-local modVersion = "3.1.0-beta"
+local modVersion = "3.1.1-rc"
 local supportedLanguages = taxiConfig.supportedLanguages
 local minRideDistance = taxiConfig.runtime.minRideDistance
 local maxRideDistance = taxiConfig.runtime.maxRideDistance
@@ -73,8 +73,6 @@ local realisticFuel = {
   dataPending = false,
   dataTimer = 0,
   routeRequestPending = false,
-  automaticStopDeferred = false,
-  resumeAutopilotAtStation = false,
   dashboardEnergyPending = false,
   dashboardEnergyTimer = 0,
   dashboardEnergyRequestGeneration = 0,
@@ -1146,7 +1144,6 @@ end
 
 function realisticFuel.resetDetour()
   realisticFuel.routeRequestPending = false
-  realisticFuel.resumeAutopilotAtStation = false
   realisticFuel.detour = {
     active = false,
     previousPhase = nil,
@@ -2929,6 +2926,9 @@ function realisticFuel.beginDetour(facility, position, routeDistance, arrived)
     arrived = arrived == true
   }
   local activeVehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  if activeVehicle and autopilot:isEnabled() then
+    autopilot:disable(activeVehicle, "fuelStopRequested")
+  end
   if arrived and passengerOnboard and activeVehicle and getVehicleSpeedKmh(activeVehicle) <= 2 then
     realisticFuel.applyPassengerWaitPenalty(
       facility.id,
@@ -3116,19 +3116,6 @@ local function updateActiveMode(dtSim)
   if updateRandomTripEvent(vehicle, dtSim) then return end
   realisticFuel.updateStation(dtSim)
   realisticFuel.updatePassengerMood(dtSim)
-  local criticalEnergy = state.realisticMode and taxiConfig.isCriticalEnergy(realisticFuel.dashboardEnergy)
-  if not realisticFuel.detour.active then
-    if criticalEnergy and autopilot:isEnabled() then
-      if state.phase == phases.searching or state.phase == phases.toPickup then realisticFuel.requestRoute()
-      elseif state.phase == phases.toStop or state.phase == phases.toDestination then realisticFuel.automaticStopDeferred = true end
-    elseif not criticalEnergy then realisticFuel.automaticStopDeferred = false end
-    if criticalEnergy and realisticFuel.automaticStopDeferred and state.phase == phases.searching then
-      realisticFuel.automaticStopDeferred = false; realisticFuel.resumeAutopilotAtStation = true; realisticFuel.requestRoute()
-    end
-  end
-  if realisticFuel.resumeAutopilotAtStation and realisticFuel.detour.active then
-    realisticFuel.resumeAutopilotAtStation = false; autopilot:enable(vehicle, state.phase, getAutopilotTarget())
-  end
   autopilot:suspend(vehicle, state.phase == phases.toFuelStation and realisticFuel.detour.arrived == true)
   autopilot:update(vehicle, state.phase, getAutopilotTarget(), dtSim)
   if trip and autopilot:isEnabled() then trip.usedAutopilot = true end
@@ -3286,7 +3273,6 @@ function M.toggleAutopilot()
   local wasEnabled = autopilot:isEnabled()
   local enabled = autopilot:toggle(vehicle, state.phase, getAutopilotTarget())
   if enabled and trip then trip.usedAutopilot = true end
-  if wasEnabled and not enabled then realisticFuel.automaticStopDeferred = false; realisticFuel.resumeAutopilotAtStation = false end
   if not wasEnabled and not enabled then
     showPhoneNotification("notify_autopilotUnavailable", {}, "warning")
   end

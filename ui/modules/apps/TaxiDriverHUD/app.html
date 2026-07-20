@@ -1,6 +1,6 @@
 <style>
-  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=310-beta");
-  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=310-beta");
+  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=311-rc");
+  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=311-rc");
 </style>
 
 <div class="taxi-shell" ng-if="externalPhoneMode || !vehicleConfigSuspended" ng-class="{'taxi-shell--minimized': phoneMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
@@ -210,6 +210,17 @@
         </button>
         <div class="taxi-settings__group-body" ng-if="settingsSections.aiDriver">
           <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('aiPreset') }}</div>
+            <div class="taxi-settings__help">{{ t('aiPresetHelp') }}</div>
+            <div class="taxi-settings__difficulty taxi-settings__difficulty--ai">
+              <button type="button" class="taxi-settings__preset" ng-repeat="preset in aiDriverPresets" ng-class="{'taxi-settings__preset--active': settings.aiDriver.preset === preset, 'taxi-settings__preset--custom': preset === 'custom'}" ng-click="hud.selectAiDriverPreset(preset)">
+                <strong>{{ t('aiPreset_' + preset) }}</strong><span>{{ t('aiPresetDesc_' + preset) }}</span>
+              </button>
+            </div>
+          </div>
+          <div class="taxi-settings__custom" ng-if="settings.aiDriver.preset === 'custom'">
+            <p>{{ t('aiCustomHelp') }}</p>
+          <div class="taxi-settings__section">
             <div class="taxi-settings__label"><span>{{ t('aiAggression') }}</span><span>{{ settings.aiDriver.aggressionPercent | number:0 }}%</span></div>
             <div class="taxi-settings__help">{{ t('aiAggressionHelp') }}</div>
             <input class="taxi-settings__range" type="range" min="10" max="80" step="5" ng-model="settings.aiDriver.aggressionPercent" ng-change="hud.settingsChanged()">
@@ -234,17 +245,50 @@
           </div>
           <div class="taxi-settings__section taxi-settings__section--stacked-switches">
             <label class="taxi-settings__switch-row">
-              <span class="taxi-settings__switch-copy"><strong>{{ t('aiObeyRules') }}</strong><span>{{ t('aiObeyRulesHelp') }}</span></span>
-              <input type="checkbox" ng-model="settings.aiDriver.obeyTrafficRules" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+              <span class="taxi-settings__switch-copy"><strong>{{ t('aiObeySpeedLimits') }}</strong><span>{{ t('aiObeySpeedLimitsHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.aiDriver.obeySpeedLimits" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
             </label>
             <label class="taxi-settings__switch-row">
-              <span class="taxi-settings__switch-copy"><strong>{{ t('aiOvertaking') }}</strong><span>{{ t('aiOvertakingHelp') }}</span></span>
-              <input type="checkbox" ng-model="settings.aiDriver.allowOvertaking" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+              <span class="taxi-settings__switch-copy"><strong>{{ t('aiObeyTrafficSignals') }}</strong><span>{{ t('aiObeyTrafficSignalsHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.aiDriver.obeyTrafficSignals" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
             </label>
-            <label class="taxi-settings__switch-row taxi-settings__switch-row--warning">
-              <span class="taxi-settings__switch-copy"><strong>{{ t('aiEmergencyBypass') }}</strong><span>{{ t('aiEmergencyBypassHelp') }}</span></span>
-              <input type="checkbox" ng-model="settings.aiDriver.allowOncomingRecovery" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
-            </label>
+          </div>
+          <section class="taxi-settings__subgroup" ng-class="{'taxi-settings__subgroup--open': aiManeuversOpen}">
+            <button type="button" class="taxi-settings__subgroup-head" ng-click="hud.toggleAiManeuvers()">
+              <strong>{{ t('aiManeuversRecovery') }}</strong><i>{{ aiManeuversOpen ? '-' : '+' }}</i>
+            </button>
+            <div class="taxi-settings__subgroup-body" ng-if="aiManeuversOpen">
+              <div class="taxi-settings__section taxi-settings__section--stacked-switches">
+                <label class="taxi-settings__switch-row">
+                  <span class="taxi-settings__switch-copy"><strong>{{ t('aiOvertaking') }}</strong><span>{{ t('aiOvertakingHelp') }}</span></span>
+                  <input type="checkbox" ng-model="settings.aiDriver.allowOvertaking" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+                </label>
+                <label class="taxi-settings__switch-row taxi-settings__switch-row--warning">
+                  <span class="taxi-settings__switch-copy"><strong>{{ t('aiEmergencyBypass') }}</strong><span>{{ t('aiEmergencyBypassHelp') }}</span></span>
+                  <input type="checkbox" ng-model="settings.aiDriver.allowOncomingRecovery" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+                </label>
+                <label class="taxi-settings__switch-row">
+                  <span class="taxi-settings__switch-copy"><strong>{{ t('aiReverseRecovery') }}</strong><span>{{ t('aiReverseRecoveryHelp') }}</span></span>
+                  <input type="checkbox" ng-model="settings.aiDriver.allowReverseRecovery" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+                </label>
+              </div>
+              <div class="taxi-settings__section">
+                <div class="taxi-settings__label"><span>{{ t('aiLaneChangeClearance') }}</span><span>{{ settings.aiDriver.laneChangeClearancePercent | number:0 }}%</span></div>
+                <div class="taxi-settings__help">{{ t('aiLaneChangeClearanceHelp') }}</div>
+                <input class="taxi-settings__range" type="range" min="50" max="175" step="5" ng-model="settings.aiDriver.laneChangeClearancePercent" ng-change="hud.settingsChanged()">
+              </div>
+              <div class="taxi-settings__section">
+                <div class="taxi-settings__label"><span>{{ t('aiRecoveryAttempts') }}</span><span>{{ settings.aiDriver.recoveryMaxAttempts | number:0 }}</span></div>
+                <div class="taxi-settings__help">{{ t('aiRecoveryAttemptsHelp') }}</div>
+                <input class="taxi-settings__range" type="range" min="1" max="5" step="1" ng-model="settings.aiDriver.recoveryMaxAttempts" ng-change="hud.settingsChanged()">
+              </div>
+              <div class="taxi-settings__section">
+                <div class="taxi-settings__label"><span>{{ t('aiFinalApproachSpeed') }}</span><span>{{ formatSpeed(settings.aiDriver.finalApproachSpeedKmh) }}</span></div>
+                <div class="taxi-settings__help">{{ t('aiFinalApproachSpeedHelp') }}</div>
+                <input class="taxi-settings__range" type="range" min="5" max="20" step="1" ng-model="settings.aiDriver.finalApproachSpeedKmh" ng-change="hud.settingsChanged()">
+              </div>
+            </div>
+          </section>
           </div>
         </div>
       </section>

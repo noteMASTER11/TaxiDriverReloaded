@@ -42,6 +42,38 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           { code: "zh-CN", label: "简体中文" },
         ];
         const difficulties = ["elementary", "easy", "standard", "professional", "custom"];
+        const aiDriverPresetNames = ["novice", "cautious", "balanced", "assertive", "racer", "custom"];
+        const aiDriverDefaults = {
+          aggressionPercent: 30, followingTimeGap: 2.2, brakingDeceleration: 2.8,
+          stuckDelaySeconds: 15, obeySpeedLimits: true, obeyTrafficSignals: true,
+          allowOvertaking: true, laneChangeClearancePercent: 100,
+          allowOncomingRecovery: true, allowReverseRecovery: true,
+          recoveryMaxAttempts: 3, finalApproachSpeedKmh: 12,
+        };
+        const aiDriverPresetValues = {
+          novice: Object.assign({}, aiDriverDefaults, {
+            aggressionPercent: 15, followingTimeGap: 3.5, brakingDeceleration: 2,
+            stuckDelaySeconds: 25, allowOvertaking: false, laneChangeClearancePercent: 160,
+            allowOncomingRecovery: false, recoveryMaxAttempts: 2, finalApproachSpeedKmh: 7,
+          }),
+          cautious: Object.assign({}, aiDriverDefaults, {
+            aggressionPercent: 25, followingTimeGap: 3, brakingDeceleration: 2.4,
+            stuckDelaySeconds: 20, allowOvertaking: false, laneChangeClearancePercent: 140,
+            allowOncomingRecovery: false, finalApproachSpeedKmh: 9,
+          }),
+          balanced: Object.assign({}, aiDriverDefaults),
+          assertive: Object.assign({}, aiDriverDefaults, {
+            aggressionPercent: 50, followingTimeGap: 1.7, brakingDeceleration: 3.4,
+            stuckDelaySeconds: 12, obeySpeedLimits: false, laneChangeClearancePercent: 75,
+            recoveryMaxAttempts: 4, finalApproachSpeedKmh: 16,
+          }),
+          racer: Object.assign({}, aiDriverDefaults, {
+            aggressionPercent: 80, followingTimeGap: 1.2, brakingDeceleration: 4.5,
+            stuckDelaySeconds: 8, obeySpeedLimits: false, obeyTrafficSignals: false,
+            laneChangeClearancePercent: 50, recoveryMaxAttempts: 5,
+            finalApproachSpeedKmh: 20,
+          }),
+        };
         const customDifficultyDefaults = {
           speedToleranceKmh: 10,
           speedGraceSeconds: 4,
@@ -101,19 +133,36 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           };
         };
         const normalizeAiDriver = (source) => {
-          const value = source && typeof source === "object" ? source : {};
+          const hasSource = source && typeof source === "object";
+          const value = hasSource ? source : {};
           const clampNumber = (input, fallback, minimum, maximum) => {
             const numeric = Number(input);
             return Math.max(minimum, Math.min(maximum, Number.isFinite(numeric) ? numeric : fallback));
           };
+          const preset = aiDriverPresetNames.includes(value.preset)
+            ? value.preset : (hasSource && Object.keys(value).length ? "custom" : "balanced");
+          const base = preset === "custom" ? aiDriverDefaults : aiDriverPresetValues[preset];
+          const settings = preset === "custom" ? value : base;
+          const legacyRules = settings.obeyTrafficRules;
           return {
-            obeyTrafficRules: value.obeyTrafficRules !== false,
-            allowOvertaking: value.allowOvertaking !== false,
-            allowOncomingRecovery: value.allowOncomingRecovery !== false,
-            aggressionPercent: clampNumber(value.aggressionPercent, 30, 10, 80),
-            followingTimeGap: clampNumber(value.followingTimeGap, 2.2, 1.2, 3.5),
-            brakingDeceleration: clampNumber(value.brakingDeceleration, 2.8, 1.5, 4.5),
-            stuckDelaySeconds: clampNumber(value.stuckDelaySeconds, 15, 8, 30),
+            preset,
+            obeySpeedLimits: settings.obeySpeedLimits === undefined
+              ? legacyRules !== false : settings.obeySpeedLimits !== false,
+            obeyTrafficSignals: settings.obeyTrafficSignals === undefined
+              ? legacyRules !== false : settings.obeyTrafficSignals !== false,
+            allowOvertaking: settings.allowOvertaking !== false,
+            allowOncomingRecovery: settings.allowOncomingRecovery !== false,
+            allowReverseRecovery: settings.allowReverseRecovery !== false,
+            aggressionPercent: clampNumber(settings.aggressionPercent, base.aggressionPercent, 10, 80),
+            followingTimeGap: clampNumber(settings.followingTimeGap, base.followingTimeGap, 1.2, 3.5),
+            brakingDeceleration: clampNumber(settings.brakingDeceleration, base.brakingDeceleration, 1.5, 4.5),
+            stuckDelaySeconds: clampNumber(settings.stuckDelaySeconds, base.stuckDelaySeconds, 8, 30),
+            laneChangeClearancePercent: clampNumber(settings.laneChangeClearancePercent,
+              base.laneChangeClearancePercent, 50, 175),
+            recoveryMaxAttempts: Math.round(clampNumber(settings.recoveryMaxAttempts,
+              base.recoveryMaxAttempts, 1, 5)),
+            finalApproachSpeedKmh: clampNumber(settings.finalApproachSpeedKmh,
+              base.finalApproachSpeedKmh, 5, 20),
           };
         };
         let persisted = {};
@@ -169,6 +218,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
 
         $scope.languages = languages;
         $scope.difficulties = difficulties;
+        $scope.aiDriverPresets = aiDriverPresetNames;
+        $scope.aiManeuversOpen = false;
         $scope.language = initialLanguage;
         $scope.settingsOpen = false;
         $scope.settingsSaved = false;
@@ -1822,6 +1873,17 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         this.selectDifficulty = (preset) => {
           if (difficulties.includes(preset)) $scope.settings.difficulty = preset;
           queueSettingsSave();
+        };
+        this.selectAiDriverPreset = (preset) => {
+          if (!aiDriverPresetNames.includes(preset)) return;
+          const source = preset === "custom"
+            ? Object.assign({}, $scope.settings.aiDriver, { preset: "custom" })
+            : Object.assign({}, aiDriverPresetValues[preset], { preset });
+          $scope.settings.aiDriver = normalizeAiDriver(source);
+          queueSettingsSave();
+        };
+        this.toggleAiManeuvers = () => {
+          $scope.aiManeuversOpen = !$scope.aiManeuversOpen;
         };
         this.toggleSettingsSection = (section) => {
           if (!Object.prototype.hasOwnProperty.call($scope.settingsSections, section)) return;

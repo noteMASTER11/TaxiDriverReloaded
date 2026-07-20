@@ -10,15 +10,20 @@ local stopAtEnd = false
 local completionRadius = 4
 local routeWatchActive = false
 local gearboxOverrideActive = false
-local previousGearboxMode = nil
-local stationaryTimer = 0
-local stationaryHold = false
+local stationaryDriveHold = false
 local safetyConfig = {timeGap = 2.2, comfortableDeceleration = 2.8}
 local safetyTimer = 0
 local safetyBrake = 0
 local safetyHolding = false
 local engineStartTimer = 0
 local driveReady = false
+local recoveryMode = "path"
+local reverseStartPosition = nil
+local reverseTargetDistance = 0
+local reverseSteering = 0
+local reverseRescanTimer = 0
+local reverseStopReason = nil
+local reverseStopSuccess = false
 
 local function number(value, fallback)
   value = tonumber(value)
@@ -107,18 +112,20 @@ local function castTrajectoryRay(originX, originY, directionX, directionY, dista
   return closest, hit, blocked
 end
 
-local function scanPredictedTrajectory(speed, travelDirection)
+local function scanPredictedTrajectory(speed, travelDirection, steeringOverride, horizonOverride)
   local position = obj:getPosition()
   local forwardX, forwardY = planarUnit(obj:getDirectionVector(), 1, 0)
   travelDirection = travelDirection < 0 and -1 or 1
   forwardX, forwardY = forwardX * travelDirection, forwardY * travelDirection
   local steeringState = input.state and input.state.steering
-  local steering = clamp(number(steeringState and steeringState.val, 0), -1, 1)
+  local steering = clamp(number(steeringOverride,
+    number(steeringState and steeringState.val, 0)), -1, 1)
   local ownLength = math.max(3, number(type(obj.getInitialLength) == "function" and
     obj:getInitialLength(), 4.5))
   local ownWidth = math.max(1.2, number(type(obj.getInitialWidth) == "function" and
     obj:getInitialWidth(), 2))
-  local horizon = clamp(speed * 1.8 + 7, 10, 48)
+  local horizon = horizonOverride and clamp(number(horizonOverride, 10), 2, 48) or
+    clamp(speed * 1.8 + 7, 10, 48)
   local boxes = nearbyBoxes(horizon + 10)
   local centerX = number(position.x, 0) + forwardX * ownLength * 0.42
   local centerY = number(position.y, 0) + forwardY * ownLength * 0.42
@@ -146,6 +153,67 @@ local function scanPredictedTrajectory(speed, travelDirection)
   local obstacleSpeed = 0
   if closestBox then obstacleSpeed = closestBox.speedX * forwardX + closestBox.speedY * forwardY end
   return closest, math.max(0, speed - obstacleSpeed), closestBox and closestBox.id or nil
+end
+
+local function scanDirectionalFan(travelDirection, maximumDistance)
+  local position = obj:getPosition()
+  local forwardX, forwardY = planarUnit(obj:getDirectionVector(), 1, 0)
+  travelDirection = travelDirection < 0 and -1 or 1
+  forwardX, forwardY = forwardX * travelDirection, forwardY * travelDirection
+  local ownLength = math.max(3, number(type(obj.getInitialLength) == "function" and
+    obj:getInitialLength(), 4.5))
+  local ownWidth = math.max(1.2, number(type(obj.getInitialWidth) == "function" and
+    obj:getInitialWidth(), 2))
+  maximumDistance = clamp(number(maximumDistance, 7), 2, 12)
+  local boxes = nearbyBoxes(maximumDistance + ownLength + 4)
+  local bumperX = number(position.x, 0) + forwardX * ownLength * 0.42
+  local bumperY = number(position.y, 0) + forwardY * ownLength * 0.42
+  local leftX, leftY = -forwardY, forwardX
+  local result = {}
+  for _, angle in ipairs({-0.56, -0.28, 0, 0.28, 0.56}) do
+    local cosine, sine = math.cos(angle), math.sin(angle)
+    local rayX = forwardX * cosine + leftX * sine
+    local rayY = forwardY * cosine + leftY * sine
+    local clearance = maximumDistance
+    for _, lateral in ipairs({-ownWidth * 0.38, 0, ownWidth * 0.38}) do
+      local distance = castTrajectoryRay(bumperX + leftX * lateral,
+        bumperY + leftY * lateral, rayX, rayY, maximumDistance, boxes)
+      clearance = math.min(clearance, distance)
+    end
+    result[#result + 1] = {angle = angle, clearance = clearance}
+  end
+  return result
+end
+
+local function maximumFanClearance(fan)
+  local result = 0
+  for _, ray in ipairs(fan or {}) do result = math.max(result, number(ray.clearance, 0)) end
+  return result
+end
+
+local function findReverseEscapePlan(data)
+  data = type(data) == "table" and data or {}
+  local minimumDistance = clamp(number(data.minDistance, 3), 3, 6)
+  local maximumDistance = clamp(number(data.maxDistance, 6), minimumDistance, 6)
+  local frontFan = scanDirectionalFan(1, 4.5)
+  if data.requireFrontBlocked == true and maximumFanClearance(frontFan) > 2.75 then
+    return nil, "frontEscapeAvailable"
+  end
+
+  local best = nil
+  for _, ray in ipairs(scanDirectionalFan(-1, maximumDistance + 1.5)) do
+    local steering = clamp(-ray.angle / 0.56 * 0.72, -0.72, 0.72)
+    local trajectoryClearance = scanPredictedTrajectory(0, -1, steering, maximumDistance + 1.5)
+    local clearance = math.min(ray.clearance, trajectoryClearance)
+    local distance = clamp(clearance - 1.15, 0, maximumDistance)
+    local score = distance - math.abs(steering) * 0.45
+    if distance >= minimumDistance and (not best or score > best.score) then
+      best = {distance = distance, steering = steering, score = score,
+        clearance = clearance, angle = ray.angle}
+    end
+  end
+  if not best then return nil, "rearBlocked" end
+  return best
 end
 
 local function releaseSafetyInputs()
@@ -254,68 +322,76 @@ local function ensureDriveReady(dt)
   if type(log) == "function" then log("I", "taxiDriverAutopilotRecovery", "[TaxiDriver] AI powertrain start requested") end
 end
 
-local function setGearboxOverride(enabled)
-  enabled = enabled == true
+local function ensureArcadeMode()
   local main = controller and controller.mainController or nil
-  if enabled and not gearboxOverrideActive then
-    previousGearboxMode = main and tostring(main.gearboxBehavior or "") or ""
-  end
-  gearboxOverrideActive = enabled
-  stationaryTimer = 0
-  stationaryHold = false
-  engineStartTimer = 0
-  driveReady = false
-  if main and type(main.setGearboxMode) == "function" then
-    if enabled then main.setGearboxMode("arcade")
-    elseif previousGearboxMode == "arcade" or previousGearboxMode == "realistic" then
-      main.setGearboxMode(previousGearboxMode)
+  if main and main.gearboxBehavior ~= "arcade" and type(main.setGearboxMode) == "function" then
+    main.setGearboxMode("arcade")
+    if type(log) == "function" then
+      log("I", "taxiDriverAutopilotRecovery", "[TaxiDriver] AI gearbox mode set to Arcade")
     end
   end
-  if not enabled then
+end
+
+local function setGearboxOverride(enabled)
+  enabled = enabled == true
+  if enabled == gearboxOverrideActive then return end
+  gearboxOverrideActive = enabled
+  engineStartTimer = 0
+  driveReady = false
+  if enabled then
+    ensureArcadeMode()
+  else
+    local main = controller and controller.mainController or nil
     if main and type(main.setStarter) == "function" then main.setStarter(false) end
     if number(electrics.values.ignitionLevel, 0) == 3 and
       type(electrics.setIgnitionLevel) == "function" then electrics.setIgnitionLevel(2) end
     input.event("throttle", 0, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
     input.event("brake", 0, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
     input.event("parkingbrake", 0, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
-    previousGearboxMode = nil
+    stationaryDriveHold = false
   end
 end
 
-local function updateGearboxOverride(dt)
-  if not gearboxOverrideActive then return end
-  local main = controller and controller.mainController or nil
-  if not main then return end
-  if main.gearboxBehavior ~= "arcade" and type(main.setGearboxMode) == "function" then
-    main.setGearboxMode("arcade")
+local function releaseStationaryDriveHold()
+  if not stationaryDriveHold then return end
+  input.event("throttle", 0, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
+  input.event("brake", 0, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
+  input.event("parkingbrake", 0, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
+  stationaryDriveHold = false
+end
+
+local function updateStationaryDriveHold()
+  if not gearboxOverrideActive or active or recoveryMode == "reverse" then
+    releaseStationaryDriveHold()
+    return
   end
-  local speed = math.abs(tonumber(electrics.values.wheelspeed) or 0)
-  local inputState = input.state or {}
-  local throttle = inputState.throttle and tonumber(inputState.throttle.val) or 0
-  local brake = inputState.brake and tonumber(inputState.brake.val) or 0
-  local parking = inputState.parkingbrake and tonumber(inputState.parkingbrake.val) or 0
-  local hold = not active and speed < 0.15 and throttle < 0.05 and
-    (stationaryHold or brake > 0.2 or parking > 0.2)
-  if hold then
-    stationaryTimer = stationaryTimer + math.max(0, tonumber(dt) or 0)
-    stationaryHold = true
+  local speed = math.abs(number(electrics.values.wheelspeed, 0))
+  local gearIndex = number(electrics.values.gearIndex, 0)
+  local state = input.state or {}
+  local throttle = number(state.throttle and state.throttle.val, 0)
+  local brake = number(state.brake and state.brake.val, 0)
+  local parkingbrake = number(state.parkingbrake and state.parkingbrake.val, 0)
+  local stopped = speed < 0.2
+  local braking = brake > 0.2 or parkingbrake > 0.2
+  local departing = gearIndex > 0 and throttle > 0.08 and brake < 0.1
+  if not stopped or departing or (not stationaryDriveHold and not braking) then
+    releaseStationaryDriveHold()
+    return
+  end
+
+  stationaryDriveHold = true
+  if gearIndex > 0 then
+    -- A tiny throttle value prevents Arcade from selecting N. The service
+    -- brake still holds the car in D and BeamNG remains responsible for the clutch.
+    input.event("throttle", 0.03, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
+    input.event("brake", 1, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
     input.event("parkingbrake", 0, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
-    if stationaryTimer >= 10 then
-      if type(main.shiftToGearIndex) == "function" then main.shiftToGearIndex(1) end
-      input.event("throttle", 0, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
-      input.event("brake", 1, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
-    else
-      if type(main.shiftToGearIndex) == "function" then main.shiftToGearIndex(2) end
-      input.event("throttle", 0.02, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
-      input.event("brake", 1, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
-    end
   else
-    stationaryTimer = 0
-    if stationaryHold and type(main.shiftToGearIndex) == "function" then main.shiftToGearIndex(2) end
-    stationaryHold = false
-    input.event("throttle", 0, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
+    -- Arcade selects a forward gear from N/R through forward pedal input.
+    -- Hold the parking brake during that short hand-off to prevent rollback.
+    input.event("throttle", 0.12, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
     input.event("brake", 0, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
-    input.event("parkingbrake", 0, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
+    input.event("parkingbrake", 1, "FILTER_AI", nil, nil, nil, "taxiDriverGearbox")
   end
 end
 
@@ -361,19 +437,30 @@ local function unwatchRouteDone()
   if guihooks then guihooks._taxiDriverRouteDoneSink = nil end
 end
 
-local function finish(success, reason)
-  if not active then return end
-  active = false
-  releaseInputs()
-  setSignal(0)
+local function notifyCompletion(success, reason)
   obj:queueGameEngineLua(string.format(
     "if taxiDriver_taxiDriver then taxiDriver_taxiDriver.onAutopilotBypassComplete(%d,%s,%q) end",
     obj:getID(), success and "true" or "false", tostring(reason or "")
   ))
 end
 
+local function finish(success, reason)
+  if not active then return end
+  active = false
+  releaseInputs()
+  setSignal(0)
+  notifyCompletion(success, reason)
+end
+
 local function stop()
   active = false
+  recoveryMode = "path"
+  reverseStartPosition = nil
+  reverseTargetDistance = 0
+  reverseSteering = 0
+  reverseRescanTimer = 0
+  reverseStopReason = nil
+  reverseStopSuccess = false
   releaseInputs()
   setSignal(0)
 end
@@ -389,30 +476,109 @@ local function start(data)
   timeout = clamp(tonumber(data.timeout) or 14, 5, 30)
   stopAtEnd = data.stopAtEnd == true
   completionRadius = clamp(tonumber(data.completionRadius) or 4, 2, 10)
-  if controller and controller.mainController then
-    if type(controller.mainController.setGearboxMode) == "function" then
-      controller.mainController.setGearboxMode("arcade")
-    end
-    if type(controller.mainController.shiftToGearIndex) == "function" then
-      controller.mainController.shiftToGearIndex(2)
-    end
-  end
+  recoveryMode = "path"
+  ensureArcadeMode()
   active = true
   setSignal(tonumber(data.signal) or 0)
   return true
 end
 
+local function startReverseEscape(data)
+  stop()
+  data = type(data) == "table" and data or {}
+  local plan, reason = findReverseEscapePlan(data)
+  if not plan then
+    notifyCompletion(false, reason)
+    return false
+  end
+  elapsed = 0
+  timeout = clamp(number(data.timeout, 10), 5, 15)
+  targetSpeed = clamp(number(data.targetSpeed, 2.2), 1.2, 3)
+  recoveryMode = "reverse"
+  reverseStartPosition = obj:getPosition()
+  reverseStartPosition = {x = number(reverseStartPosition.x, 0),
+    y = number(reverseStartPosition.y, 0), z = number(reverseStartPosition.z, 0)}
+  reverseTargetDistance = plan.distance
+  reverseSteering = plan.steering
+  reverseRescanTimer = 0
+  reverseStopReason = nil
+  reverseStopSuccess = false
+  ensureArcadeMode()
+  active = true
+  setSignal(0)
+  if type(log) == "function" then
+    log("I", "taxiDriverAutopilotRecovery", string.format(
+      "[TaxiDriver] AI reverse escape started distance=%.2f steering=%.2f clearance=%.2f",
+      plan.distance, plan.steering, plan.clearance))
+  end
+  return true
+end
+
+local function updateReverseEscape(dt)
+  local position = obj:getPosition()
+  local dx = number(position.x, 0) - reverseStartPosition.x
+  local dy = number(position.y, 0) - reverseStartPosition.y
+  local traveled = math.sqrt(dx * dx + dy * dy)
+  local remaining = reverseTargetDistance - traveled
+  local speed = math.abs(number(electrics.values.wheelspeed, 0))
+  if elapsed >= timeout and not reverseStopReason then
+    reverseStopReason, reverseStopSuccess = "timeout", false
+  elseif remaining <= 0.15 and not reverseStopReason then
+    reverseStopReason, reverseStopSuccess = "reverseComplete", true
+  end
+  if reverseStopReason then
+    input.event("steering", 0, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
+    input.event("throttle", speed > 0.35 and 0.75 or 0, "FILTER_AI", nil, nil, nil,
+      "taxiDriverRecovery")
+    input.event("brake", 0, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
+    if speed <= 0.35 then finish(reverseStopSuccess, reverseStopReason) end
+    return
+  end
+
+  reverseRescanTimer = reverseRescanTimer - math.max(0, number(dt, 0))
+  if reverseRescanTimer <= 0 then
+    reverseRescanTimer = 0.08
+    local rearClearance = scanPredictedTrajectory(speed, -1, reverseSteering,
+      math.min(remaining + 1.25, 7.25))
+    if rearClearance <= math.min(1.15, remaining + 0.25) then
+      reverseStopReason, reverseStopSuccess = "rearBecameBlocked", false
+      input.event("steering", 0, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
+      input.event("throttle", 0.75, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
+      input.event("brake", 0, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
+      return
+    end
+  end
+
+  local desiredSpeed = math.min(targetSpeed, math.max(0.45, remaining * 0.7))
+  local reverseDrive = clamp(0.22 + (desiredSpeed - speed) * 0.22, 0.14, 0.58)
+  local reverseStop = speed > desiredSpeed + 0.35 and
+    clamp((speed - desiredSpeed) * 0.28, 0, 0.5) or 0
+  input.event("steering", reverseSteering, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
+  input.event("throttle", reverseStop, "FILTER_AI", nil, nil, nil,
+    "taxiDriverRecovery")
+  input.event("brake", reverseStop > 0 and 0 or reverseDrive, "FILTER_AI", nil, nil, nil,
+    "taxiDriverRecovery")
+  input.event("parkingbrake", 0, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
+end
+
 local function updateGFX(dt)
   ensureDriveReady(dt)
-  updateGearboxOverride(dt)
-  updateCollisionSafety(dt)
+  if recoveryMode ~= "reverse" then
+    updateCollisionSafety(dt)
+    updateStationaryDriveHold()
+  end
   if not active then return end
   if not driveReady then
     input.event("throttle", 0, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
-    input.event("brake", 1, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
+    input.event("brake", 0, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
+    input.event("parkingbrake", 1, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
     return
   end
   elapsed = elapsed + math.max(0, tonumber(dt) or 0)
+  if recoveryMode == "reverse" then
+    updateReverseEscape(dt)
+    return
+  end
   if elapsed >= timeout then finish(false, "timeout"); return end
 
   local position = obj:getPosition()
@@ -497,6 +663,7 @@ local function setSafetyConfig(data)
 end
 
 M.start = start
+M.startReverseEscape = startReverseEscape
 M.stop = stop
 M.updateGFX = updateGFX
 M.onReset = onReset
@@ -504,5 +671,6 @@ M.watchRouteDone = watchRouteDone
 M.unwatchRouteDone = unwatchRouteDone
 M.setGearboxOverride = setGearboxOverride
 M.setSafetyConfig = setSafetyConfig
+M.findReverseEscapePlan = findReverseEscapePlan
 
 return M

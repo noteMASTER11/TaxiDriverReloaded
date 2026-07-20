@@ -1484,6 +1484,13 @@
   .taxi-settings__custom-control strong { color: #e3e6e9; font-size: 10px; font-weight: 800; }
   .taxi-settings__custom-control b { color: var(--yellow); font-size: 10px; white-space: nowrap; }
   .taxi-settings__custom-control .taxi-settings__range { margin-top: 5px; }
+  .taxi-settings__subgroup { margin-top: 12px; overflow: hidden; background: rgba(0,0,0,.18); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; }
+  .taxi-settings__subgroup-head { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 11px 12px; color: #edf0f3; background: transparent; border: 0; cursor: pointer; }
+  .taxi-settings__subgroup-head strong { font-size: 14px; }
+  .taxi-settings__subgroup-head i { color: var(--yellow); font-size: 15px; font-style: normal; }
+  .taxi-settings__subgroup--open .taxi-settings__subgroup-head { background: rgba(255,209,26,.055); border-bottom: 1px solid rgba(255,255,255,.07); }
+  .taxi-settings__subgroup-body { padding: 0 10px 10px; }
+  .taxi-settings__subgroup-body > .taxi-settings__section { margin-top: 10px; }
   .taxi-settings__mix-labels, .taxi-settings__range-ends { display: flex; justify-content: space-between; gap: 8px; margin-top: 5px; color: var(--muted); font-size: var(--taxi-f8, 8px); font-weight: 800; }
   .taxi-settings__penalty-toggles { margin-top: 9px; overflow: hidden; background: rgba(0,0,0,.16); border: 1px solid rgba(255,255,255,.07); border-radius: 9px; }
   .taxi-settings__switch-row--compact { padding: 9px 10px; border-top: 1px solid rgba(255,255,255,.065); }

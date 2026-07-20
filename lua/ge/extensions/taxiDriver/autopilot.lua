@@ -3,9 +3,12 @@ local logger = require("taxiDriver/logger")
 local perceptionModule = require("taxiDriver/autopilotPerception")
 
 local defaults = {
-  obeyTrafficRules = true,
+  obeySpeedLimits = true,
+  obeyTrafficSignals = true,
   allowOvertaking = true,
   allowOncomingRecovery = true,
+  allowReverseRecovery = true,
+  maxRecoveryAttempts = 3,
   normalAggression = 0.3,
   stuckDelay = 15,
   recoveryRetryInterval = 8,
@@ -21,6 +24,10 @@ local defaults = {
   oncomingRetryInterval = 2,
   signalQueueReleaseDelay = 4,
   signalQueueDistanceMargin = 35,
+  reverseEscapeMinDistance = 3,
+  reverseEscapeMaxDistance = 6,
+  reverseEscapeSpeed = 2.2,
+  reverseEscapeTimeout = 10,
   bypassControllerSpeed = 7,
   bypassControllerTimeout = 14,
   bypassClearance = 0.7,
@@ -105,6 +112,8 @@ end
 function M.new(options)
   options = options or {}
   local config = copyConfig(options.config)
+  local baseLaneChangeFreeAhead = config.laneChangeFreeAhead
+  local baseLaneChangeFreeBehind = config.laneChangeFreeBehind
   local perception = perceptionModule.new(config)
   local phases = options.phases or {}
   local service = {}
@@ -121,6 +130,7 @@ function M.new(options)
     approachStage = 0,
     stuckSeconds = 0,
     recoveryAttempt = 0,
+    recoveryExhausted = false,
     recoverySeconds = 0,
     recoveryStartPos = nil,
     recoveryStartDir = nil,
@@ -129,6 +139,7 @@ function M.new(options)
     controllerMode = nil,
     recoveryTrafficWait = 0,
     recoveryClearTimer = 0,
+    reverseSourceReason = nil,
     followScanTimer = 0,
     followSpeedCap = nil,
     followLeadId = nil,
@@ -353,7 +364,7 @@ function M.new(options)
     if cap ~= nil and previous ~= nil and math.abs(cap - previous) < 0.35 then return end
     runtime.appliedSpeedCap = cap
     if cap == nil then queue(vehicle, 'ai.setSpeed(nil); ai.setSpeedMode("' ..
-      (config.obeyTrafficRules and 'legal' or 'off') .. '")')
+      (config.obeySpeedLimits and 'legal' or 'off') .. '")')
     else queue(vehicle, 'ai.setSpeed(' .. string.format("%.3f", cap) .. '); ai.setSpeedMode("limit")') end
   end
 
@@ -485,7 +496,7 @@ function M.new(options)
       "ai.driveUsingPath({path=", serializePath(nodes),
       ",noOfLaps=1,aggression=", tostring(config.normalAggression),
       ",avoidCars=\"on\",driveInLane=\"on\",routeSpeedMode=\"",
-      config.obeyTrafficRules and "legal" or "off", "\"})"
+      config.obeySpeedLimits and "legal" or "off", "\"})"
     })
   end
 
@@ -519,7 +530,7 @@ function M.new(options)
   end
 
   findUpcomingSignal = function(vehicle)
-    if not config.obeyTrafficRules or not core_trafficSignals or type(core_trafficSignals.getMapNodeSignals) ~= "function" or
+    if not config.obeyTrafficSignals or not core_trafficSignals or type(core_trafficSignals.getMapNodeSignals) ~= "function" or
       not vehicle or runtime.intersectionActive then return nil end
     local signals = core_trafficSignals.getMapNodeSignals()
     local vehiclePos = vehicle:getPosition()
@@ -640,12 +651,66 @@ function M.new(options)
 
   local restoreNormal
 
+  local function beginReverseEscape(vehicle, reason)
+    runtime.recoveryAttempt = runtime.recoveryAttempt + 1
+    runtime.recoverySeconds = 0
+    runtime.recoveryController = true
+    runtime.controllerMode = "reverse"
+    runtime.reverseSourceReason = tostring(reason or "unknown")
+    runtime.status = "recovering"
+    runtime.stuckSeconds = 0
+    applySpeedCap(vehicle, 0)
+    local obstacleConfirmed = reason == "tooClose" or reason == "insufficientClearance" or
+      reason == "trafficConflict" or reason == "roadBoundary" or reason == "noSafeCorridor"
+    local requireFrontBlocked = not obstacleConfirmed
+    local command = string.format(
+      "ai.setMode('disabled'); extensions.load('taxiDriverAutopilotRecovery'); " ..
+      "if extensions.taxiDriverAutopilotRecovery then extensions.taxiDriverAutopilotRecovery.startReverseEscape(" ..
+      "{minDistance=%.2f,maxDistance=%.2f,targetSpeed=%.2f,timeout=%.2f,requireFrontBlocked=%s}) end",
+      config.reverseEscapeMinDistance, config.reverseEscapeMaxDistance,
+      config.reverseEscapeSpeed, config.reverseEscapeTimeout,
+      requireFrontBlocked and "true" or "false"
+    )
+    queue(vehicle, command)
+    logger.warn("autopilot", "reverse_escape_requested", {
+      attempt = runtime.recoveryAttempt, reason = runtime.reverseSourceReason,
+      minimum = config.reverseEscapeMinDistance, maximum = config.reverseEscapeMaxDistance
+    })
+  end
+
   local function beginRecovery(vehicle, target, distance)
+    if runtime.recoveryAttempt >= config.maxRecoveryAttempts then
+      runtime.recoveryExhausted = true
+      runtime.status = "waitingTraffic"
+      runtime.recoveryController = false
+      runtime.controllerMode = nil
+      runtime.stuckSeconds = 0
+      applySpeedCap(vehicle, 0)
+      stopAi(vehicle)
+      logger.warn("autopilot", "recovery_attempts_exhausted", {
+        attempts = runtime.recoveryAttempt, maximum = config.maxRecoveryAttempts
+      })
+      return
+    end
     runtime.recoverySeconds = 0
     runtime.recoveryStartPos = copyPosition(vehicle:getPosition())
     runtime.recoveryStartDir = type(vehicle.getDirectionVector) == "function" and
       copyPosition(vehicle:getDirectionVector()) or nil
     runtime.recoveryStartDistance = distance
+    local bypass, reason = perception:planLocalBypass(vehicle, runtime.followLeadId)
+    if not bypass then
+      if config.allowReverseRecovery then
+        beginReverseEscape(vehicle, reason)
+      else
+        runtime.status = "waitingTraffic"
+        runtime.recoveryController = false
+        runtime.controllerMode = nil
+        runtime.stuckSeconds = 0
+        applySpeedCap(vehicle, 0)
+        logger.info("autopilot", "reverse_recovery_disabled", {reason = reason})
+      end
+      return
+    end
     if not config.allowOncomingRecovery then
       runtime.status = "driving"
       runtime.stuckSeconds = 0
@@ -653,22 +718,6 @@ function M.new(options)
       runtime.recoveryClearTimer = 0
       queue(vehicle, 'ai.setAvoidCars("on"); ai.driveInLane("on")')
       logger.info("autopilot", "unsafe_recovery_disabled")
-      return
-    end
-    local bypass, reason = perception:planLocalBypass(vehicle, runtime.followLeadId)
-    if not bypass and reason == "noStationaryObstacle" then
-      logger.info("autopilot", "adaptive_bypass_road_cleared", {distance = distance})
-      restoreNormal(vehicle, target, distance)
-      return
-    end
-    if not bypass then
-      runtime.status = "waitingTraffic"
-      runtime.recoveryController = false
-      runtime.controllerMode = nil
-      applySpeedCap(vehicle, 0)
-      logger.info("autopilot", "adaptive_bypass_waiting", {
-        waited = runtime.recoveryTrafficWait, reason = reason
-      })
       return
     end
 
@@ -722,6 +771,7 @@ function M.new(options)
 
   restoreNormal = function(vehicle, target, distance)
     runtime.recoveryAttempt = 0
+    runtime.recoveryExhausted = false
     runtime.recoverySeconds = 0
     runtime.recoveryStartPos = nil
     runtime.recoveryStartDir = nil
@@ -730,6 +780,7 @@ function M.new(options)
     runtime.controllerMode = nil
     runtime.recoveryTrafficWait = 0
     runtime.recoveryClearTimer = 0
+    runtime.reverseSourceReason = nil
     runtime.routePending = true
     runtime.status = "planning"
     resetProgress(distance)
@@ -752,9 +803,21 @@ function M.new(options)
 
   function service:configure(settings)
     settings = type(settings) == "table" and settings or {}
-    config.obeyTrafficRules = settings.obeyTrafficRules ~= false
+    if settings.obeySpeedLimits == nil then
+      config.obeySpeedLimits = settings.obeyTrafficRules ~= false
+    else
+      config.obeySpeedLimits = settings.obeySpeedLimits ~= false
+    end
+    if settings.obeyTrafficSignals == nil then
+      config.obeyTrafficSignals = settings.obeyTrafficRules ~= false
+    else
+      config.obeyTrafficSignals = settings.obeyTrafficSignals ~= false
+    end
     config.allowOvertaking = settings.allowOvertaking ~= false
     config.allowOncomingRecovery = settings.allowOncomingRecovery ~= false
+    config.allowReverseRecovery = settings.allowReverseRecovery ~= false
+    config.maxRecoveryAttempts = math.max(1, math.min(5,
+      math.floor((tonumber(settings.recoveryMaxAttempts) or 3) + 0.5)))
     config.normalAggression = math.max(0.1, math.min(0.8,
       (tonumber(settings.aggressionPercent) or 30) / 100))
     config.followTimeGap = math.max(1.2, math.min(3.5,
@@ -763,6 +826,14 @@ function M.new(options)
       tonumber(settings.brakingDeceleration) or 2.8))
     config.stuckDelay = math.max(8, math.min(30,
       tonumber(settings.stuckDelaySeconds) or 15))
+    local clearanceScale = math.max(0.5, math.min(1.75,
+      (tonumber(settings.laneChangeClearancePercent) or 100) / 100))
+    config.laneChangeFreeAhead = baseLaneChangeFreeAhead * clearanceScale
+    config.laneChangeFreeBehind = baseLaneChangeFreeBehind * clearanceScale
+    local approachSpeed = math.max(5, math.min(20,
+      tonumber(settings.finalApproachSpeedKmh) or 12)) / 3.6
+    config.finalApproachSpeed = approachSpeed
+    config.directApproachSpeed = approachSpeed
   end
 
   function service:isEnabled()
@@ -785,10 +856,12 @@ function M.new(options)
     runtime.stopIssued = false
     runtime.approachStage = 0
     runtime.recoveryAttempt = 0
+    runtime.recoveryExhausted = false
     runtime.recoveryController = false
     runtime.controllerMode = nil
     runtime.recoveryTrafficWait = 0
     runtime.recoveryClearTimer = 0
+    runtime.reverseSourceReason = nil
     runtime.intersectionActive = false
     runtime.intersectionTravel = 0
     runtime.intersectionLastPos = nil
@@ -818,11 +891,13 @@ function M.new(options)
     runtime.stopIssued = false
     runtime.approachStage = 0
     runtime.recoveryAttempt = 0
+    runtime.recoveryExhausted = false
     runtime.recoverySeconds = 0
     runtime.recoveryController = false
     runtime.controllerMode = nil
     runtime.recoveryTrafficWait = 0
     runtime.recoveryClearTimer = 0
+    runtime.reverseSourceReason = nil
     runtime.intersectionActive = false
     runtime.intersectionTravel = 0
     runtime.intersectionLastPos = nil
@@ -914,6 +989,7 @@ function M.new(options)
         queue(vehicle, 'if extensions.taxiDriverAutopilotRecovery then extensions.taxiDriverAutopilotRecovery.stop() end')
         runtime.recoveryController = false
         runtime.controllerMode = nil
+        runtime.reverseSourceReason = nil
       end
       runtime.targetKey = key
       runtime.routePending = true
@@ -921,6 +997,7 @@ function M.new(options)
       runtime.stopIssued = false
       runtime.approachStage = 0
       runtime.recoveryAttempt = 0
+      runtime.recoveryExhausted = false
       resetProgress(vectorDistance(vehicle:getPosition(), target.pos))
     end
 
@@ -985,7 +1062,9 @@ function M.new(options)
       local currentSignal = findUpcomingSignal(vehicle)
       runtime.followLeadId = currentLead and currentLead.id or nil
       runtime.upcomingSignal = currentSignal
-      if speed >= config.movingSpeedKmh or not currentLead or currentLead.rawSpeed > 2 then
+      if runtime.recoveryExhausted then
+        applySpeedCap(vehicle, 0)
+      elseif speed >= config.movingSpeedKmh or not currentLead or currentLead.rawSpeed > 2 then
         logger.info("autopilot", "waiting_traffic_cleared", {
           lead = currentLead and currentLead.id or nil, leadSpeed = currentLead and currentLead.rawSpeed or nil
         })
@@ -1110,10 +1189,36 @@ function M.new(options)
   function service:onBypassComplete(vehicle, succeeded, target, reason)
     if not runtime.enabled or not runtime.recoveryController then return false end
     local controllerMode = runtime.controllerMode
+    local reverseSourceReason = runtime.reverseSourceReason
     runtime.recoveryController = false
     runtime.controllerMode = nil
+    runtime.reverseSourceReason = nil
     local distance = target and target.pos and vectorDistance(vehicle:getPosition(), target.pos) or math.huge
-    if controllerMode == "approach" then
+    if controllerMode == "reverse" then
+      if succeeded then
+        logger.info("autopilot", "reverse_escape_completed", {
+          source = reverseSourceReason, distance = distance
+        })
+        if reverseSourceReason == "noStationaryObstacle" or reverseSourceReason == "mapUnavailable" or
+          reverseSourceReason == "roadUnavailable" or reverseSourceReason == "directionUnavailable" then
+          restoreNormal(vehicle, target, distance)
+        else
+          beginRecovery(vehicle, target, distance)
+        end
+      elseif reason == "frontEscapeAvailable" then
+        logger.info("autopilot", "reverse_escape_not_required", {reason = reason})
+        restoreNormal(vehicle, target, distance)
+      else
+        runtime.status = "waitingTraffic"
+        runtime.recoverySeconds = 0
+        runtime.recoveryTrafficWait = 0
+        runtime.stuckSeconds = 0
+        applySpeedCap(vehicle, 0)
+        logger.warn("autopilot", "reverse_escape_blocked", {
+          source = reverseSourceReason, reason = reason
+        })
+      end
+    elseif controllerMode == "approach" then
       if succeeded then
         runtime.status = "stopping"
         runtime.stopIssued = true

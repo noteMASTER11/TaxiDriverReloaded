@@ -1,7 +1,7 @@
 {
   "name": "TaxiDriver — Universal Taxi Mode",
   "author": "TaxiDriver modernization project",
-  "version": "3.1.0-beta",
+  "version": "3.1.1-rc",
   "description": "Universal free-roam taxi mode with dynamic passenger/cargo orders, restorable shifts, optional AI driving, realistic refueling, navigation and persistent progression.",
   "type": "Lua",
   "tags": ["lua", "taxi", "freeroam", "ui", "gameplay"]

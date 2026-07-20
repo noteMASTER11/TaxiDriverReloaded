@@ -83,6 +83,97 @@ function M.buildCustomDifficulty(source)
   }
 end
 
+M.aiDriverPresetOrder = {"novice", "cautious", "balanced", "assertive", "racer", "custom"}
+
+M.aiDriverDefaults = {
+  aggressionPercent = 30,
+  followingTimeGap = 2.2,
+  brakingDeceleration = 2.8,
+  stuckDelaySeconds = 15,
+  obeySpeedLimits = true,
+  obeyTrafficSignals = true,
+  allowOvertaking = true,
+  laneChangeClearancePercent = 100,
+  allowOncomingRecovery = true,
+  allowReverseRecovery = true,
+  recoveryMaxAttempts = 3,
+  finalApproachSpeedKmh = 12
+}
+
+M.aiDriverPresets = {
+  novice = {
+    aggressionPercent = 15, followingTimeGap = 3.5, brakingDeceleration = 2.0,
+    stuckDelaySeconds = 25, obeySpeedLimits = true, obeyTrafficSignals = true,
+    allowOvertaking = false, laneChangeClearancePercent = 160,
+    allowOncomingRecovery = false, allowReverseRecovery = true,
+    recoveryMaxAttempts = 2, finalApproachSpeedKmh = 7
+  },
+  cautious = {
+    aggressionPercent = 25, followingTimeGap = 3.0, brakingDeceleration = 2.4,
+    stuckDelaySeconds = 20, obeySpeedLimits = true, obeyTrafficSignals = true,
+    allowOvertaking = false, laneChangeClearancePercent = 140,
+    allowOncomingRecovery = false, allowReverseRecovery = true,
+    recoveryMaxAttempts = 3, finalApproachSpeedKmh = 9
+  },
+  balanced = {
+    aggressionPercent = 30, followingTimeGap = 2.2, brakingDeceleration = 2.8,
+    stuckDelaySeconds = 15, obeySpeedLimits = true, obeyTrafficSignals = true,
+    allowOvertaking = true, laneChangeClearancePercent = 100,
+    allowOncomingRecovery = true, allowReverseRecovery = true,
+    recoveryMaxAttempts = 3, finalApproachSpeedKmh = 12
+  },
+  assertive = {
+    aggressionPercent = 50, followingTimeGap = 1.7, brakingDeceleration = 3.4,
+    stuckDelaySeconds = 12, obeySpeedLimits = false, obeyTrafficSignals = true,
+    allowOvertaking = true, laneChangeClearancePercent = 75,
+    allowOncomingRecovery = true, allowReverseRecovery = true,
+    recoveryMaxAttempts = 4, finalApproachSpeedKmh = 16
+  },
+  racer = {
+    aggressionPercent = 80, followingTimeGap = 1.2, brakingDeceleration = 4.5,
+    stuckDelaySeconds = 8, obeySpeedLimits = false, obeyTrafficSignals = false,
+    allowOvertaking = true, laneChangeClearancePercent = 50,
+    allowOncomingRecovery = true, allowReverseRecovery = true,
+    recoveryMaxAttempts = 5, finalApproachSpeedKmh = 20
+  }
+}
+
+function M.sanitizeAiDriver(source)
+  local hasSource = type(source) == "table"
+  source = hasSource and source or {}
+  local requestedPreset = tostring(source.preset or "")
+  local preset = M.aiDriverPresets[requestedPreset] and requestedPreset or
+    (requestedPreset == "custom" and "custom" or nil)
+  if not preset then preset = hasSource and next(source) ~= nil and "custom" or "balanced" end
+  local base = preset == "custom" and M.aiDriverDefaults or M.aiDriverPresets[preset]
+  local values = preset == "custom" and source or base
+  local legacyRules = values.obeyTrafficRules
+  local obeySpeedLimits = values.obeySpeedLimits ~= nil and values.obeySpeedLimits ~= false or nil
+  local obeyTrafficSignals = values.obeyTrafficSignals ~= nil and values.obeyTrafficSignals ~= false or nil
+  if values.obeySpeedLimits == false then obeySpeedLimits = false end
+  if values.obeyTrafficSignals == false then obeyTrafficSignals = false end
+  if obeySpeedLimits == nil then obeySpeedLimits = legacyRules ~= false end
+  if obeyTrafficSignals == nil then obeyTrafficSignals = legacyRules ~= false end
+  return {
+    preset = preset,
+    aggressionPercent = clamp(tonumber(values.aggressionPercent) or base.aggressionPercent, 10, 80),
+    followingTimeGap = clamp(tonumber(values.followingTimeGap) or base.followingTimeGap, 1.2, 3.5),
+    brakingDeceleration = clamp(tonumber(values.brakingDeceleration) or base.brakingDeceleration, 1.5, 4.5),
+    stuckDelaySeconds = clamp(tonumber(values.stuckDelaySeconds) or base.stuckDelaySeconds, 8, 30),
+    obeySpeedLimits = obeySpeedLimits,
+    obeyTrafficSignals = obeyTrafficSignals,
+    allowOvertaking = values.allowOvertaking ~= false,
+    laneChangeClearancePercent = clamp(tonumber(values.laneChangeClearancePercent) or
+      base.laneChangeClearancePercent, 50, 175),
+    allowOncomingRecovery = values.allowOncomingRecovery ~= false,
+    allowReverseRecovery = values.allowReverseRecovery ~= false,
+    recoveryMaxAttempts = math.floor(clamp(tonumber(values.recoveryMaxAttempts) or
+      base.recoveryMaxAttempts, 1, 5) + 0.5),
+    finalApproachSpeedKmh = clamp(tonumber(values.finalApproachSpeedKmh) or
+      base.finalApproachSpeedKmh, 5, 20)
+  }
+end
+
 M.runtime = {
   minRideDistance = 1000,
   maxRideDistance = 25000,
@@ -267,8 +358,6 @@ M.driverAbandonmentExtraLoss = {
 M.realisticFuel = {
   fuelInitialLevel = 0.05,
   electricInitialLevel = 0.30,
-  automaticFuelStopPercent = 5,
-  automaticElectricStopPercent = 15,
   fallbackPricePerUnit = 1,
   fuelRatePerSecond = 2,
   electricPercentRatePerSecond = 4,
@@ -284,13 +373,6 @@ M.realisticFuel = {
     electricEnergy = 0.50
   }
 }
-
-function M.isCriticalEnergy(energy)
-  if type(energy) ~= "table" or energy.available ~= true then return false end
-  local threshold = energy.energyType == "electricEnergy" and
-    M.realisticFuel.automaticElectricStopPercent or M.realisticFuel.automaticFuelStopPercent
-  return (tonumber(energy.percent) or 100) <= threshold
-end
 
 M.delivery = {
   visibleMin = 5,

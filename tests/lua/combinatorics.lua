@@ -16,10 +16,30 @@ local routePlanner = dofile("lua/ge/extensions/taxiDriver/routePlanner.lua")
 local autopilotModule = dofile("lua/ge/extensions/taxiDriver/autopilot.lua")
 local taxiConfig = dofile("lua/ge/extensions/taxiDriver/config.lua")
 
-assert(taxiConfig.isCriticalEnergy({available = true, energyType = "gasoline", percent = 5}))
-assert(not taxiConfig.isCriticalEnergy({available = true, energyType = "gasoline", percent = 5.1}))
-assert(taxiConfig.isCriticalEnergy({available = true, energyType = "electricEnergy", percent = 15}))
-assert(not taxiConfig.isCriticalEnergy({available = true, energyType = "electricEnergy", percent = 15.1}))
+local defaultAiDriver = taxiConfig.sanitizeAiDriver(nil)
+assert(defaultAiDriver.preset == "balanced")
+assert(defaultAiDriver.obeySpeedLimits == true and defaultAiDriver.obeyTrafficSignals == true)
+local legacyAiDriver = taxiConfig.sanitizeAiDriver({
+  aggressionPercent = 42, obeyTrafficRules = false, allowOvertaking = false
+})
+assert(legacyAiDriver.preset == "custom")
+assert(legacyAiDriver.aggressionPercent == 42)
+assert(legacyAiDriver.obeySpeedLimits == false and legacyAiDriver.obeyTrafficSignals == false)
+local independentAiDriver = taxiConfig.sanitizeAiDriver({
+  preset = "custom", obeySpeedLimits = false, obeyTrafficSignals = true,
+  laneChangeClearancePercent = 999, recoveryMaxAttempts = 0, finalApproachSpeedKmh = 99
+})
+assert(independentAiDriver.obeySpeedLimits == false and independentAiDriver.obeyTrafficSignals == true)
+assert(independentAiDriver.laneChangeClearancePercent == 175)
+assert(independentAiDriver.recoveryMaxAttempts == 1)
+assert(independentAiDriver.finalApproachSpeedKmh == 20)
+for _, preset in ipairs(taxiConfig.aiDriverPresetOrder) do
+  local configured = taxiConfig.sanitizeAiDriver({preset = preset})
+  assert(configured.preset == preset)
+  if preset ~= "custom" then
+    assert(configured.aggressionPercent == taxiConfig.aiDriverPresets[preset].aggressionPercent)
+  end
+end
 
 assert(routePlanner.isDistanceAllowed(25000, 1000, 25000))
 assert(not routePlanner.isDistanceAllowed(25001, 1000, 25000))
@@ -216,8 +236,12 @@ local blockedAutopilot = autopilotModule.new({
 })
 assert(blockedAutopilot:enable(blockedVehicle, "toDestination", autopilotTarget))
 blockedAutopilot:update(blockedVehicle, "toDestination", autopilotTarget, 1)
+assert(blockedAutopilot:getHud(true).status == "recovering")
+assert(blockedCommands[#blockedCommands]:find("startReverseEscape", 1, true))
+assert(blockedCommands[#blockedCommands]:find("minDistance=3.00", 1, true))
+assert(blockedCommands[#blockedCommands]:find("maxDistance=6.00", 1, true))
+assert(blockedAutopilot:onBypassComplete(blockedVehicle, false, autopilotTarget, "rearBlocked"))
 assert(blockedAutopilot:getHud(true).status == "waitingTraffic")
-assert(not blockedCommands[#blockedCommands]:find("taxiDriverAutopilotRecovery.start", 1, true))
 core_trafficSignals = {
   getMapNodeSignals = function()
     return {road0 = {road1 = {{action = 2, state = "redTrafficLight",
@@ -252,6 +276,9 @@ local clearVehicle = {
 }
 assert(clearAutopilot:enable(clearVehicle, "toDestination", autopilotTarget))
 clearAutopilot:update(clearVehicle, "toDestination", autopilotTarget, 1)
+assert(clearAutopilot:getHud(true).status == "recovering")
+assert(clearCommands[#clearCommands]:find("startReverseEscape", 1, true))
+assert(clearAutopilot:onBypassComplete(clearVehicle, false, autopilotTarget, "rearBlocked"))
 assert(clearAutopilot:getHud(true).status == "waitingTraffic")
 map.objects[2] = nil
 clearAutopilot:update(clearVehicle, "toDestination", autopilotTarget, 0.2)
@@ -349,7 +376,8 @@ local configuredAutopilot = autopilotModule.new({
 configuredAutopilot:configure({
   obeyTrafficRules = false, allowOvertaking = false, allowOncomingRecovery = false,
   aggressionPercent = 55, followingTimeGap = 3.1, brakingDeceleration = 2.1,
-  stuckDelaySeconds = 24
+  stuckDelaySeconds = 24, laneChangeClearancePercent = 150,
+  recoveryMaxAttempts = 2, finalApproachSpeedKmh = 9
 })
 assert(configuredAutopilot:enable(configuredVehicle, "toDestination", autopilotTarget))
 assert(configuredCommands[1]:find('aggression=0.55', 1, true))
@@ -358,34 +386,41 @@ assert(configuredCommands[1]:find('setSafetyConfig({timeGap=3.1,comfortableDecel
 for _ = 1, 15 do configuredAutopilot:update(configuredVehicle, "toDestination", autopilotTarget, 0.2) end
 for _, command in ipairs(configuredCommands) do assert(not command:find("ai.laneChange", 1, true)) end
 
-for _, obeyRules in ipairs({false, true}) do
-  for _, allowOvertaking in ipairs({false, true}) do
-    for _, allowRecovery in ipairs({false, true}) do
-      for _, profile in ipairs({
-        {aggressionPercent = 10, followingTimeGap = 1.2, brakingDeceleration = 1.5, stuckDelaySeconds = 8},
-        {aggressionPercent = 80, followingTimeGap = 3.5, brakingDeceleration = 4.5, stuckDelaySeconds = 30}
-      }) do
-        local commands = {}
-        local matrixVehicle = {
-          getID = overtakeVehicle.getID,
-          getPosition = function() return {x = 0, y = -5.4, z = 0} end,
-          getDirectionVector = overtakeVehicle.getDirectionVector,
-          getInitialLength = overtakeVehicle.getInitialLength,
-          getInitialWidth = overtakeVehicle.getInitialWidth,
-          queueLuaCommand = function(_, command) commands[#commands + 1] = command end
-        }
-        local matrixAutopilot = autopilotModule.new({
-          phases = autopilotPhases,
-          getSpeedKmh = function() return 36 end,
-          getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}} end
-        })
-        profile.obeyTrafficRules = obeyRules
-        profile.allowOvertaking = allowOvertaking
-        profile.allowOncomingRecovery = allowRecovery
-        matrixAutopilot:configure(profile)
-        assert(matrixAutopilot:enable(matrixVehicle, "toDestination", autopilotTarget))
-        assert(commands[1]:find('routeSpeedMode="' .. (obeyRules and "legal" or "off") .. '"', 1, true))
-        for _ = 1, 5 do matrixAutopilot:update(matrixVehicle, "toDestination", autopilotTarget, 0.2) end
+for _, obeySpeedLimits in ipairs({false, true}) do
+  for _, obeyTrafficSignals in ipairs({false, true}) do
+    for _, allowOvertaking in ipairs({false, true}) do
+      for _, allowRecovery in ipairs({false, true}) do
+        for _, profile in ipairs({
+          {aggressionPercent = 10, followingTimeGap = 1.2, brakingDeceleration = 1.5, stuckDelaySeconds = 8},
+          {aggressionPercent = 80, followingTimeGap = 3.5, brakingDeceleration = 4.5, stuckDelaySeconds = 30}
+        }) do
+          local commands = {}
+          local matrixVehicle = {
+            getID = overtakeVehicle.getID,
+            getPosition = function() return {x = 0, y = -5.4, z = 0} end,
+            getDirectionVector = overtakeVehicle.getDirectionVector,
+            getInitialLength = overtakeVehicle.getInitialLength,
+            getInitialWidth = overtakeVehicle.getInitialWidth,
+            queueLuaCommand = function(_, command) commands[#commands + 1] = command end
+          }
+          local matrixAutopilot = autopilotModule.new({
+            phases = autopilotPhases,
+            getSpeedKmh = function() return 36 end,
+            getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}} end
+          })
+          profile.obeySpeedLimits = obeySpeedLimits
+          profile.obeyTrafficSignals = obeyTrafficSignals
+          profile.allowOvertaking = allowOvertaking
+          profile.allowOncomingRecovery = allowRecovery
+          profile.allowReverseRecovery = allowRecovery
+          profile.laneChangeClearancePercent = obeySpeedLimits and 175 or 50
+          profile.recoveryMaxAttempts = allowRecovery and 5 or 1
+          profile.finalApproachSpeedKmh = obeyTrafficSignals and 5 or 20
+          matrixAutopilot:configure(profile)
+          assert(matrixAutopilot:enable(matrixVehicle, "toDestination", autopilotTarget))
+          assert(commands[1]:find('routeSpeedMode="' .. (obeySpeedLimits and "legal" or "off") .. '"', 1, true))
+          for _ = 1, 5 do matrixAutopilot:update(matrixVehicle, "toDestination", autopilotTarget, 0.2) end
+        end
       end
     end
   end
@@ -621,7 +656,7 @@ input = {state = {steering = {val = 0}}, event = function(name, value, _, _, _, 
   recoveryInputs[name], recoveryInputs[name .. "Source"] = value, source
 end}
 electrics = {
-  values = {wheelspeed = 0, ignitionLevel = 2},
+  values = {wheelspeed = 0, ignitionLevel = 2, gearIndex = 1},
   setIgnitionLevel = function(value) electrics.values.ignitionLevel = value end,
   set_left_signal = function(value) recoveryInputs.leftSignal = value end,
   set_right_signal = function(value) recoveryInputs.rightSignal = value end
@@ -643,15 +678,22 @@ local gearboxCalls = {}
 local mainController = {gearboxBehavior = "realistic"}
 mainController.setGearboxMode = function(mode)
   gearboxCalls.mode = mode
+  gearboxCalls.modeCount = (gearboxCalls.modeCount or 0) + 1
   mainController.gearboxBehavior = mode
 end
-mainController.shiftToGearIndex = function(index) gearboxCalls.gear = index end
+mainController.shiftToGearIndex = function(index)
+  gearboxCalls.gear = index
+  gearboxCalls.directShifts = (gearboxCalls.directShifts or 0) + 1
+  mainController.gearboxBehavior = "realistic"
+end
 controller = {mainController = mainController}
 guihooks = {trigger = function() end}
 local recoveryController = dofile("lua/vehicle/extensions/taxiDriverAutopilotRecovery.lua")
 assert(recoveryController.watchRouteDone())
 recoveryController.setGearboxOverride(true)
-assert(gearboxCalls.mode == "arcade")
+assert(gearboxCalls.mode == "arcade" and gearboxCalls.modeCount == 1)
+recoveryController.setGearboxOverride(true)
+assert(gearboxCalls.modeCount == 1)
 guihooks.trigger("AIStatusChange", {status = "route done", category = "route"})
 assert(recoveryCallbacks[#recoveryCallbacks]:find("onAutopilotRouteDone(42)", 1, true))
 local recoveryPoints = {
@@ -659,7 +701,7 @@ local recoveryPoints = {
   {x = 36, y = 2, z = 0}, {x = 44, y = 0, z = 0}
 }
 assert(recoveryController.start({points = recoveryPoints, targetSpeed = 7, timeout = 14, signal = -1}))
-assert(gearboxCalls.mode == "arcade" and gearboxCalls.gear == 2)
+assert(gearboxCalls.mode == "arcade" and not gearboxCalls.directShifts)
 recoveryController.updateGFX(0.1)
 assert(recoveryInputs.leftSignal and recoveryInputs.steering > 0 and recoveryInputs.throttle > 0)
 for _, point in ipairs(recoveryPoints) do
@@ -691,18 +733,63 @@ safetyObjects[77].pos = {x = 8, y = 2.2, z = 0}
 input.state.steering.val = 1
 recoveryController.updateGFX(0.1)
 assert(recoveryInputs.brake > 0)
+
+safetyObjects = {}
+electrics.values.wheelspeed = 2
+input.state = {steering = {val = 0}, throttle = {val = 0.5}, brake = {val = 0},
+  parkingbrake = {val = 0}}
+recoveryController.updateGFX(0.1)
+electrics.values.wheelspeed = 0
+electrics.values.gearIndex = 1
+input.state.throttle.val = 0
+input.state.brake.val = 1
+recoveryController.updateGFX(0.1)
+assert(recoveryInputs.throttle == 0.03 and recoveryInputs.brake == 1 and
+  recoveryInputs.parkingbrake == 0)
+assert(not gearboxCalls.directShifts and mainController.gearboxBehavior == "arcade")
+electrics.values.gearIndex = 0
+recoveryController.updateGFX(0.1)
+assert(recoveryInputs.throttle == 0.12 and recoveryInputs.brake == 0 and
+  recoveryInputs.parkingbrake == 1)
+electrics.values.gearIndex = 1
+electrics.values.wheelspeed = 0.3
+input.state.throttle.val = 0.5
+input.state.brake.val = 0
+recoveryController.updateGFX(0.1)
+assert(recoveryInputs.throttle == 0 and recoveryInputs.brake == 0 and
+  recoveryInputs.parkingbrake == 0)
+
+safetyObjects = {
+  [88] = {pos = {x = 3, y = 0, z = 0}, vel = {x = 0, y = 0, z = 0}}
+}
+recoveryCallbacks = {}
+recoveryPosition = {x = 0, y = 0, z = 0}
+electrics.values.wheelspeed = 0
+electrics.values.gearIndex = 1
+input.state.steering.val = 0
+assert(recoveryController.startReverseEscape({
+  minDistance = 3, maxDistance = 6, targetSpeed = 2.2, requireFrontBlocked = true
+}))
+assert(not gearboxCalls.directShifts and mainController.gearboxBehavior == "arcade")
+recoveryController.updateGFX(0.1)
+assert(not gearboxCalls.directShifts and mainController.gearboxBehavior == "arcade")
+assert(recoveryInputs.throttle == 0 and recoveryInputs.brake > 0)
+recoveryPosition = {x = -6, y = 0, z = 0}
+recoveryController.updateGFX(0.1)
+assert(recoveryCallbacks[#recoveryCallbacks]:find(
+  'onAutopilotBypassComplete(42,true,"reverseComplete")', 1, true))
+
+recoveryCallbacks = {}
+recoveryPosition = {x = 0, y = 0, z = 0}
+safetyObjects[89] = {pos = {x = -3, y = 0, z = 0}, vel = {x = 0, y = 0, z = 0}}
+assert(not recoveryController.startReverseEscape({
+  minDistance = 3, maxDistance = 6, requireFrontBlocked = true
+}))
+assert(recoveryCallbacks[#recoveryCallbacks]:find(
+  'onAutopilotBypassComplete(42,false,"rearBlocked")', 1, true))
 safetyObjects = {}
 input.state.steering.val = 0
 electrics.values.wheelspeed = 0
-electrics.values.wheelspeed = 0
-input.state = {throttle = {val = 0}, brake = {val = 1}, parkingbrake = {val = 0}}
-recoveryController.updateGFX(5)
-assert(gearboxCalls.gear == 2)
-recoveryController.updateGFX(5.1)
-assert(gearboxCalls.gear == 1)
-input.state.throttle.val = 0.5
-recoveryController.updateGFX(0.1)
-assert(gearboxCalls.gear == 2)
 local starterRequests = 0
 local engine = {starterMaxAV = 10, outputAV1 = 0}
 powertrain = {getDevicesByType = function() return {engine} end}
@@ -711,12 +798,14 @@ mainController.setStarter = function(value) if value then starterRequests = star
 electrics.values.ignitionLevel = 0
 recoveryController.setGearboxOverride(false)
 recoveryController.setGearboxOverride(true)
+assert(gearboxCalls.modeCount == 1 and mainController.gearboxBehavior == "arcade")
 recoveryController.updateGFX(0.1)
 assert(electrics.values.ignitionLevel == 3 and gearboxCalls.ignition and starterRequests == 1)
 engine.outputAV1 = 9
 recoveryController.updateGFX(0.1)
 assert(electrics.values.ignitionLevel == 2)
 recoveryController.setGearboxOverride(false)
-assert(gearboxCalls.mode == "realistic")
+assert(gearboxCalls.mode == "arcade" and gearboxCalls.modeCount == 1)
+assert(not gearboxCalls.directShifts)
 
 print("TaxiDriver Lua combinatorics: adaptive bypass, trajectory rays, powertrain handshake, gameplay modes, and 500 deferred respawns passed")

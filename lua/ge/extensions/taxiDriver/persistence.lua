@@ -119,15 +119,7 @@ function M.new(options)
       showRouteGuidance = true,
       realisticMode = false,
       randomEventsEnabled = false,
-      aiDriver = {
-        obeyTrafficRules = true,
-        allowOvertaking = true,
-        allowOncomingRecovery = true,
-        aggressionPercent = 30,
-        followingTimeGap = 2.2,
-        brakingDeceleration = 2.8,
-        stuckDelaySeconds = 15
-      },
+      aiDriver = taxiConfig.sanitizeAiDriver(nil),
       godMode = false,
       debugLogging = true
     }
@@ -187,14 +179,7 @@ function M.new(options)
     result.showRouteGuidance = source.showRouteGuidance ~= false
     result.realisticMode = source.realisticMode == true
     result.randomEventsEnabled = source.randomEventsEnabled == true
-    local aiSource = type(source.aiDriver) == "table" and source.aiDriver or {}
-    result.aiDriver.obeyTrafficRules = aiSource.obeyTrafficRules ~= false
-    result.aiDriver.allowOvertaking = aiSource.allowOvertaking ~= false
-    result.aiDriver.allowOncomingRecovery = aiSource.allowOncomingRecovery ~= false
-    result.aiDriver.aggressionPercent = clamp(tonumber(aiSource.aggressionPercent) or 30, 10, 80)
-    result.aiDriver.followingTimeGap = clamp(tonumber(aiSource.followingTimeGap) or 2.2, 1.2, 3.5)
-    result.aiDriver.brakingDeceleration = clamp(tonumber(aiSource.brakingDeceleration) or 2.8, 1.5, 4.5)
-    result.aiDriver.stuckDelaySeconds = clamp(tonumber(aiSource.stuckDelaySeconds) or 15, 8, 30)
+    result.aiDriver = taxiConfig.sanitizeAiDriver(source.aiDriver)
     result.godMode = source.godMode == true
     result.debugLogging = source.debugLogging ~= false
     return result, true

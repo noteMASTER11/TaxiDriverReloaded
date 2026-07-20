@@ -247,22 +247,40 @@ assert.match(autopilotLuaSource, /target\.exactApproach == true and 1\.25/,
 assert.match(autopilotRecoveryLuaSource, /onAutopilotRouteDone[\s\S]*?AIStatusChange[\s\S]*?route done/,
   "The vehicle observer must report native Route Done immediately instead of waiting for a stuck timeout");
 assert.match(autopilotRecoveryLuaSource,
-  /setGearboxOverride[\s\S]*?setGearboxMode\("arcade"\)[\s\S]*?stationaryTimer >= 10[\s\S]*?shiftToGearIndex\(1\)[\s\S]*?shiftToGearIndex\(2\)/,
-  "AI control must stay in Arcade, hold D with the brake, and use P only after a long stop");
+  /ensureArcadeMode[\s\S]*?gearboxBehavior ~= "arcade"[\s\S]*?setGearboxMode\("arcade"\)[\s\S]*?enabled == gearboxOverrideActive/,
+  "AI control must apply Arcade idempotently and leave it enabled after releasing control");
+assert.doesNotMatch(autopilotRecoveryLuaSource, /shiftToGearIndex/,
+  "AI control must not use direct gear selection because BeamNG switches Arcade manuals back to Realistic");
+assert.match(autopilotRecoveryLuaSource,
+  /updateStationaryDriveHold[\s\S]*?gearIndex > 0[\s\S]*?input\.event\("throttle", 0\.03[\s\S]*?input\.event\("brake", 1/,
+  "Stopped native AI must remain in D under the service brake instead of cycling through N");
+assert.match(autopilotRecoveryLuaSource,
+  /local reverseDrive[\s\S]*?input\.event\("throttle", reverseStop[\s\S]*?input\.event\("brake", reverseStop > 0 and 0 or reverseDrive/,
+  "Reverse recovery must use Arcade pedal semantics so BeamNG operates the clutch itself");
 assert.match(autopilotLuaSource, /intersectionClearDistance[\s\S]*?intersection_committed/,
   "Signal enforcement must end after the stop line while an intersection maneuver is being cleared");
 assert.match(autopilotLuaSource, /forwardLanes < 2[\s\S]*?laneChangeFreeBehind[\s\S]*?overtake_lane_change_started/,
   "Congestion overtakes must use only a verified free lane in the same direction");
-assert.match(persistenceLuaSource, /aiDriver\s*=\s*\{[\s\S]*?obeyTrafficRules[\s\S]*?stuckDelaySeconds/,
-  "AI driver controls must have persistent defaults");
+assert.match(persistenceLuaSource, /aiDriver\s*=\s*taxiConfig\.sanitizeAiDriver\(nil\)/,
+  "AI driver controls must use the centralized preset defaults");
+assert.match(configLuaSource,
+  /aiDriverPresets\s*=\s*\{[\s\S]*?novice[\s\S]*?cautious[\s\S]*?balanced[\s\S]*?assertive[\s\S]*?racer/,
+  "AI driver settings must provide a progression of ready-made presets");
+assert.match(configLuaSource,
+  /sanitizeAiDriver[\s\S]*?obeySpeedLimits[\s\S]*?obeyTrafficSignals[\s\S]*?allowReverseRecovery[\s\S]*?recoveryMaxAttempts[\s\S]*?finalApproachSpeedKmh/,
+  "AI driver settings must sanitize independent rules and recovery controls");
 assert.match(autopilotLuaSource, /function service:configure\(settings\)[\s\S]*?config\.stuckDelay/,
   "Saved AI driver controls must configure the active autopilot service");
-assert.match(appHtmlSource, /settingsSections\.aiDriver[\s\S]*?aiAggression[\s\S]*?aiEmergencyBypass/,
-  "Settings must expose understandable AI driving and emergency behavior controls");
-assert.match(configLuaSource, /automaticFuelStopPercent\s*=\s*5[\s\S]*?automaticElectricStopPercent\s*=\s*15/,
-  "Automatic fuel detours must use separate combustion and EV thresholds");
-assert.match(taxiDriverLuaSource, /automaticStopDeferred[\s\S]*?state\.phase == phases\.toPickup[\s\S]*?resumeAutopilotAtStation/,
-  "Critical energy must schedule a fuel stop before pickup or defer it until the active ride is complete");
+assert.match(appHtmlSource,
+  /settingsSections\.aiDriver[\s\S]*?aiPreset_[\s\S]*?settings\.aiDriver\.preset === 'custom'[\s\S]*?aiObeySpeedLimits[\s\S]*?aiObeyTrafficSignals[\s\S]*?aiManeuversRecovery[\s\S]*?aiReverseRecovery[\s\S]*?aiFinalApproachSpeed/,
+  "Settings must expose presets and show the complete AI tuning panel only in Custom mode");
+assert.doesNotMatch(configLuaSource, /automaticFuelStopPercent|automaticElectricStopPercent|isCriticalEnergy/,
+  "Low energy must not create an automatic fuel detour");
+assert.doesNotMatch(taxiDriverLuaSource, /automaticStopDeferred|resumeAutopilotAtStation|isCriticalEnergy/,
+  "Autopilot must never redirect itself to fuel or resume there without an explicit driver action");
+assert.match(taxiDriverLuaSource,
+  /function realisticFuel\.beginDetour[\s\S]*?autopilot:isEnabled\(\)[\s\S]*?autopilot:disable\(activeVehicle, "fuelStopRequested"\)/,
+  "Refuel must release an active AI driver so the player explicitly enables it on the fuel screen");
 assert.match(autopilotRecoveryLuaSource, /input\.event\("steering"[\s\S]*?input\.event\("throttle"[\s\S]*?onAutopilotBypassComplete/,
   "The opposing-lane bypass must steer independently and hand control back to route AI");
 assert.match(autopilotLuaSource, /restoreNormal[\s\S]*?issueRoute\(vehicle, target\)/,
@@ -438,6 +456,48 @@ try {
   const collapsedIndicator = functionalPage.locator(".taxi-settings__group-head i").filter({ hasText: "+" }).last();
   assert.equal((await collapsedIndicator.textContent()).trim(), "+", "A collapsed Settings group must show '+'");
   await collapsedIndicator.locator("..").click();
+
+  const aiPresetAudit = await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    scope.$apply(() => {
+      Object.keys(scope.settingsSections).forEach((key) => { scope.settingsSections[key] = false; });
+      scope.settingsSections.aiDriver = true;
+      scope.hud.selectAiDriverPreset("balanced");
+    });
+    const balanced = {
+      preset: scope.settings.aiDriver.preset,
+      customPanels: document.querySelectorAll(".taxi-settings__custom").length,
+      obeySpeedLimits: scope.settings.aiDriver.obeySpeedLimits,
+      obeyTrafficSignals: scope.settings.aiDriver.obeyTrafficSignals,
+    };
+    scope.$apply(() => scope.hud.selectAiDriverPreset("custom"));
+    const customPanels = document.querySelectorAll(".taxi-settings__custom").length;
+    scope.$apply(() => scope.hud.toggleAiManeuvers());
+    return {
+      balanced,
+      customPreset: scope.settings.aiDriver.preset,
+      customPanels,
+      maneuverPanel: document.querySelectorAll(".taxi-settings__subgroup-body").length,
+      ruleToggles: document.querySelectorAll(
+        'input[ng-model="settings.aiDriver.obeySpeedLimits"], input[ng-model="settings.aiDriver.obeyTrafficSignals"]'
+      ).length,
+      recoveryControls: document.querySelectorAll(
+        'input[ng-model="settings.aiDriver.allowReverseRecovery"], input[ng-model="settings.aiDriver.recoveryMaxAttempts"], input[ng-model="settings.aiDriver.finalApproachSpeedKmh"]'
+      ).length,
+    };
+  });
+  assert.deepEqual(aiPresetAudit.balanced, {
+    preset: "balanced", customPanels: 0, obeySpeedLimits: true, obeyTrafficSignals: true,
+  }, "A ready-made AI preset must apply atomically without exposing manual controls");
+  assert.equal(aiPresetAudit.customPreset, "custom");
+  assert.equal(aiPresetAudit.customPanels, 1,
+    "Manual AI controls must appear only after selecting Custom");
+  assert.equal(aiPresetAudit.maneuverPanel, 1,
+    "The nested maneuver and recovery expander must open independently");
+  assert.equal(aiPresetAudit.ruleToggles, 2,
+    "Speed-limit and traffic-signal compliance must be separate switches");
+  assert.equal(aiPresetAudit.recoveryControls, 3,
+    "Custom recovery settings must expose reverse escape, attempt count and exact approach speed");
 
   const settingsRaceAudit = await functionalPage.evaluate(async () => {
     const root = angular.element(document).injector().get("$rootScope");

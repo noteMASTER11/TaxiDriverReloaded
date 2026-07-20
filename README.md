@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.1.0-beta"><img src="https://img.shields.io/github/v/release/noteMASTER11/TaxiDriverReloaded?include_prereleases&display_name=tag&style=flat-square&color=ffd11a" alt="Latest release"></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.1.1-rc"><img src="https://img.shields.io/github/v/release/noteMASTER11/TaxiDriverReloaded?include_prereleases&display_name=tag&style=flat-square&color=ffd11a" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/BeamNG.drive-0.38.6-f28c28?style=flat-square" alt="BeamNG.drive 0.38.6">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.1.0-beta"><strong>Download 3.1.0 Beta</strong></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.1.1-rc"><strong>Download 3.1.1 RC</strong></a>
 </p>
 
 ---
 
-> **3.1.0 Beta:** this prerelease adds restorable shift history, a configurable route-aware AI driver, critical-energy refueling detours, AI trip accounting, Simplified Chinese, and adaptive review pagination. Existing 3.0.0 Beta settings and progress remain compatible.
+> **3.1.1 RC:** this prerelease expands the experimental AI driver with driving presets, separate speed-limit and traffic-light rules, configurable maneuver/recovery behavior, rear-ray escape planning, steadier Arcade gearbox control, and explicit player-requested refueling. Existing 3.1.0 Beta settings and progress remain compatible.
 
 TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
@@ -101,14 +101,18 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 
 ### Optional AI driver
 
+- **Experimental:** the AI driver is intentionally a little clumsy. It is primarily a playful demonstration of BeamNG's built-in vehicle AI, with TaxiDriver trying to make that AI more predictable in a clear passenger/cargo route scenario rather than promising a production-grade autonomous driver.
 - Hand an active passenger, delivery, or refueling route to BeamNG's vehicle AI from the map overlay and take control back at any time.
-- Configure aggression, following gap, braking strength, stuck detection, traffic-rule obedience, overtaking, and oncoming-lane recovery.
+- Choose a complete driving preset from Modest Novice through Mad Racer, or select Custom to tune every available parameter.
+- Configure aggression, following gap, braking strength and stuck detection; independently control speed-limit and traffic-signal compliance.
+- Expand Maneuvers and Recovery to tune overtaking, lane-change clearance, oncoming-lane and reverse recovery, recovery attempt count, and exact-approach speed.
 - The supervisor follows red/yellow signals, commits through intersections after the stop line, signals lane changes, maintains a speed-dependent lead gap, and can overtake a slow queue on a free same-direction lane.
 - A local recovery planner measures road and obstacle geometry, checks both bypass sides, predicts nearby traffic, and generates the smallest safe smooth corridor around a stationary obstruction.
 - Vehicle-side trajectory rays follow straight and curved motion to apply progressive or emergency braking before a collision.
 - Native AI `Route Done` is verified against the physical target. If BeamNG stops early, a low-speed exact-approach controller completes the final metres.
-- AI temporarily uses Arcade gearbox behavior, starts the powertrain when necessary, holds a stopped vehicle in drive, and restores the previous gearbox mode when released.
-- Before pickup/loading, critically low energy adds a fuel-station detour (5% for combustion, 15% for EV). An occupied passenger/cargo trip is never interrupted; maps without a station use Magic Fuel.
+- When blocked with no usable forward angle, the recovery controller scans a rear collision fan and may reverse 3–6 metres before replanning a local bypass.
+- AI switches supported controllers to Arcade once, lets BeamNG manage the clutch, starts the powertrain when necessary, and holds stopped vehicles in Drive instead of cycling through Neutral.
+- Refueling is never started automatically. Open **Refuel** first and enable AI on the refueling route when you want the vehicle to drive there.
 - Reviews, shifts, vehicle history, and profile analytics record whether AI was used during a completed trip.
 
 ### Persistent driver profile
@@ -231,7 +235,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Installation
 
-1. Download `taxidriver.zip` from the [3.1.0 Beta release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.1.0-beta).
+1. Download `taxidriver.zip` from the [3.1.1 RC release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.1.1-rc).
 2. Place the archive directly in:
 
    ```text

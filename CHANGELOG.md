@@ -1,5 +1,53 @@
 # Changelog
 
+## 3.1.1 RC — Experimental AI Driver Tuning
+
+This release candidate contains every change made after `3.1.0-beta`.
+
+> **Experimental AI notice:** the AI driver remains a little clumsy and is provided mainly for fun. It is an experiment built around BeamNG's native vehicle AI, with an additional TaxiDriver supervisor that tries to make the built-in behavior more sensible in a visible passenger, delivery, and refueling scenario. It is not intended to behave like a production autonomous-driving system on every map, vehicle, junction, or traffic layout.
+
+### Driving presets and custom controls
+
+- Added complete AI driving presets: **Modest Novice**, **Cautious Driver**, **Balanced**, **Assertive**, **Mad Racer**, and **Custom**.
+- Ready-made presets atomically configure aggression, following gap, braking, stuck timeout, road-rule behavior, overtaking, clearance, recovery limits, and final-approach speed.
+- Manual controls are now shown only for the **Custom** preset, matching the existing custom-difficulty interaction.
+- Split the former traffic-rule switch into independent **Obey speed limits** and **Obey traffic signals** settings.
+- Added a nested **Maneuvers and recovery** section for overtaking, lane-change clearance, oncoming-lane recovery, reverse recovery, maximum recovery attempts, and exact final-approach speed.
+- Existing 3.1.0 Beta AI settings migrate to **Custom** and retain their values. New installations start with **Balanced**.
+- Added complete preset and recovery text for all nine supported interface languages.
+
+### Reverse recovery and obstacle handling
+
+- Added a rear-facing collision fan that evaluates several reverse steering angles against static geometry and nearby vehicles.
+- A vehicle boxed against a wall, obstacle, or stopped car can now select the safest available rear corridor, reverse approximately 3–6 metres, stop, and replan its forward bypass.
+- Rear clearance is rescanned throughout the maneuver; newly occupied space aborts the escape instead of blindly reversing into traffic.
+- Added a configurable recovery-attempt limit. Once exhausted, AI stops and waits for player intervention instead of repeating aggressive recovery indefinitely.
+- Lane-change clearance now scales the required free space both ahead and behind, while exact-approach speed controls the final physical trigger handoff.
+
+### Gearbox and stationary behavior
+
+- Reworked the Arcade gearbox handoff to be idempotent: supported vehicles switch once instead of repeatedly changing behavior during the same session.
+- Removed direct gear-index commands that could push manual transmissions back toward Realistic behavior or damage a reverse gear without clutch control.
+- AI now leaves clutch and direction selection to BeamNG's Arcade controller.
+- Stopped vehicles remain in Drive under the service brake and no longer cycle continuously between Drive and Neutral at signals or in slow queues.
+- A short forward-pedal/parking-brake handoff recovers from Neutral or Reverse without rolling backward.
+- Improved drive-readiness handling so the parking brake holds the vehicle while ignition, starter, and powertrain state settle.
+
+### Refueling behavior
+
+- Removed automatic low-fuel and low-charge detours from AI mode.
+- TaxiDriver no longer interrupts or redirects an accepted route solely because energy reaches a threshold.
+- Refueling is now explicit: open **Refuel**, then enable AI on that fuel route if automatic driving is desired.
+- Starting a fuel detour releases any currently active AI route so the player explicitly chooses whether to hand the new route back to AI.
+
+### Validation and compatibility
+
+- Expanded Lua combinatorics for rear-fan planning, blocked reverse paths, Arcade idempotence, Drive holding, legacy-setting migration, all AI presets, independent road-rule combinations, clearance bounds, recovery limits, and final-approach speeds.
+- Expanded functional UI checks for atomic preset application, Custom-only controls, the nested maneuver expander, and independent rule switches.
+- Verified **301 responsive UI states** across the in-game UI App, Connected Phone, all nine locales, compact/full layouts, and DPR 2 HiDPI rendering.
+- The deterministic archive still contains 44 verified entries and rejects accidental automatic loading of TaxiDriver Vehicle Lua extensions.
+- Existing settings and progress remain compatible; the release uses cache revision `311-rc` so the in-game and external UIs do not mix assets with 3.1.0 Beta.
+
 ## 3.1.0 Beta — Shift Memory and AI Driver
 
 This prerelease contains every change made after `3.0.0-beta`.
