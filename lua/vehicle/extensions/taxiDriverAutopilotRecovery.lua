@@ -15,6 +15,12 @@ local safetyConfig = {timeGap = 2.2, comfortableDeceleration = 2.8}
 local safetyTimer = 0
 local safetyBrake = 0
 local safetyHolding = false
+local safetyObstacleDistance = math.huge
+local safetyObstacleClosingSpeed = 0
+local safetyObstacleId = nil
+local safetyObstacleDetected = false
+local preflightFrontClearance = nil
+local preflightRearClearance = nil
 local engineStartTimer = 0
 local driveReady = false
 local recoveryMode = "path"
@@ -131,7 +137,7 @@ local function scanPredictedTrajectory(speed, travelDirection, steeringOverride,
   local centerY = number(position.y, 0) + forwardY * ownLength * 0.42
   local heading = angleBetween(forwardY, forwardX)
   local curvature = steering * 0.105 * travelDirection
-  local traveled, closest, closestBox = 0, horizon, nil
+  local traveled, closest, closestBox, closestBlocked = 0, horizon, nil, false
   local segmentLength = 2.25
   while traveled < horizon do
     local currentLength = math.min(segmentLength, horizon - traveled)
@@ -141,7 +147,7 @@ local function scanPredictedTrajectory(speed, travelDirection, steeringOverride,
       local rayDistance, box, blocked = castTrajectoryRay(centerX + leftX * lateral,
         centerY + leftY * lateral, directionX, directionY, currentLength, boxes)
       if blocked and traveled + rayDistance < closest then
-        closest, closestBox = traveled + rayDistance, box
+        closest, closestBox, closestBlocked = traveled + rayDistance, box, true
       end
     end
     centerX = centerX + directionX * currentLength
@@ -152,7 +158,8 @@ local function scanPredictedTrajectory(speed, travelDirection, steeringOverride,
   end
   local obstacleSpeed = 0
   if closestBox then obstacleSpeed = closestBox.speedX * forwardX + closestBox.speedY * forwardY end
-  return closest, math.max(0, speed - obstacleSpeed), closestBox and closestBox.id or nil
+  return closest, math.max(0, speed - obstacleSpeed), closestBox and closestBox.id or nil,
+    closestBlocked
 end
 
 local function scanDirectionalFan(travelDirection, maximumDistance)
@@ -226,6 +233,10 @@ end
 local function updateCollisionSafety(dt)
   if not gearboxOverrideActive then
     safetyBrake = 0
+    safetyObstacleDistance = math.huge
+    safetyObstacleClosingSpeed = 0
+    safetyObstacleId = nil
+    safetyObstacleDetected = false
     releaseSafetyInputs()
     return
   end
@@ -234,12 +245,28 @@ local function updateCollisionSafety(dt)
   safetyTimer = 0.05
   local signedSpeed = number(electrics.values.wheelspeed, 0)
   local speed = math.abs(signedSpeed)
+  local gearIndex = number(electrics.values.gearIndex, 0)
+  local travelDirection = (signedSpeed < -0.05 or (speed < 0.35 and gearIndex < 0)) and -1 or 1
+  local distance, closingSpeed, obstacleId, obstacleDetected =
+    scanPredictedTrajectory(speed, travelDirection)
+  safetyObstacleDistance = distance
+  safetyObstacleClosingSpeed = closingSpeed
+  safetyObstacleId = obstacleId
+  safetyObstacleDetected = obstacleDetected == true
   if speed < 0.35 then
-    safetyBrake = math.max(0, safetyBrake - math.max(0, number(dt, 0)) * 2)
-    if safetyBrake <= 0 then releaseSafetyInputs() end
-    return
+    preflightFrontClearance = scanPredictedTrajectory(0, 1, 0, 8)
+    preflightRearClearance = scanPredictedTrajectory(0, -1, 0, 8)
+    local state = input.state or {}
+    local throttle = number(state.throttle and state.throttle.val, 0)
+    local brake = number(state.brake and state.brake.val, 0)
+    local movingIntent = travelDirection < 0 and brake > 0.08 or travelDirection > 0 and throttle > 0.08
+    local blockedAtBumper = obstacleDetected and distance <= 1.5
+    if not movingIntent or not blockedAtBumper then
+      safetyBrake = math.max(0, safetyBrake - math.max(0, number(dt, 0)) * 2)
+      if safetyBrake <= 0 then releaseSafetyInputs() end
+      return
+    end
   end
-  local distance, closingSpeed = scanPredictedTrajectory(speed, signedSpeed < 0 and -1 or 1)
   local deceleration = clamp(number(safetyConfig.comfortableDeceleration, 2.8), 1.5, 4.5)
   local comfortableDistance = 2.5 + speed * math.min(1.1, number(safetyConfig.timeGap, 2.2) * 0.32) +
     closingSpeed * closingSpeed / (2 * deceleration)
@@ -257,8 +284,13 @@ local function updateCollisionSafety(dt)
   else safetyBrake = math.max(rawBrake, safetyBrake - frame * 0.9) end
   if safetyBrake > 0.01 then
     safetyHolding = true
-    input.event("throttle", 0, "FILTER_AI", nil, nil, nil, "taxiDriverSafety")
-    input.event("brake", safetyBrake, "FILTER_AI", nil, nil, nil, "taxiDriverSafety")
+    if travelDirection < 0 then
+      input.event("throttle", safetyBrake, "FILTER_AI", nil, nil, nil, "taxiDriverSafety")
+      input.event("brake", 0, "FILTER_AI", nil, nil, nil, "taxiDriverSafety")
+    else
+      input.event("throttle", 0, "FILTER_AI", nil, nil, nil, "taxiDriverSafety")
+      input.event("brake", safetyBrake, "FILTER_AI", nil, nil, nil, "taxiDriverSafety")
+    end
   else
     safetyBrake = 0
     releaseSafetyInputs()
@@ -662,6 +694,53 @@ local function setSafetyConfig(data)
     safetyConfig.comfortableDeceleration), 1.5, 4.5)
 end
 
+local function getDebugState()
+  local pointDistance = nil
+  local target = points[pointIndex]
+  if active and target then
+    local current = obj:getPosition()
+    local dx = number(target.x, 0) - number(current.x, 0)
+    local dy = number(target.y, 0) - number(current.y, 0)
+    local dz = number(target.z, 0) - number(current.z, 0)
+    pointDistance = math.sqrt(dx * dx + dy * dy + dz * dz)
+  end
+  local reverseRemaining = nil
+  if active and recoveryMode == "reverse" and reverseStartPosition then
+    local current = obj:getPosition()
+    local dx = number(current.x, 0) - reverseStartPosition.x
+    local dy = number(current.y, 0) - reverseStartPosition.y
+    reverseRemaining = math.max(0, reverseTargetDistance - math.sqrt(dx * dx + dy * dy))
+  end
+  local state = input.state or {}
+  return {
+    active = active,
+    mode = active and recoveryMode or (gearboxOverrideActive and "native" or "inactive"),
+    elapsed = elapsed,
+    timeout = timeout,
+    pointIndex = pointIndex,
+    pointCount = #points,
+    pointDistance = pointDistance,
+    targetSpeed = targetSpeed,
+    reversing = active and recoveryMode == "reverse",
+    reverseRemaining = reverseRemaining,
+    reverseSteering = reverseSteering,
+    gearboxOverrideActive = gearboxOverrideActive,
+    stationaryDriveHold = stationaryDriveHold,
+    driveReady = driveReady,
+    safetyBrake = safetyBrake,
+    safetyHolding = safetyHolding,
+    obstacleDistance = safetyObstacleDistance ~= math.huge and safetyObstacleDistance or nil,
+    obstacleClosingSpeed = safetyObstacleClosingSpeed,
+    obstacleId = safetyObstacleId,
+    obstacleDetected = safetyObstacleDetected,
+    preflightFrontClearance = preflightFrontClearance,
+    preflightRearClearance = preflightRearClearance,
+    steering = number(state.steering and state.steering.val, 0),
+    throttle = number(state.throttle and state.throttle.val, 0),
+    brake = number(state.brake and state.brake.val, 0)
+  }
+end
+
 M.start = start
 M.startReverseEscape = startReverseEscape
 M.stop = stop
@@ -672,5 +751,6 @@ M.unwatchRouteDone = unwatchRouteDone
 M.setGearboxOverride = setGearboxOverride
 M.setSafetyConfig = setSafetyConfig
 M.findReverseEscapePlan = findReverseEscapePlan
+M.getDebugState = getDebugState
 
 return M

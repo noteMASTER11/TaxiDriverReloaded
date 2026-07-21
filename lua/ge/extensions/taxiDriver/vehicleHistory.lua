@@ -390,6 +390,27 @@ function M.buildHud()
   return result
 end
 
+function M.buildFleetGarage()
+  M.refreshCurrentVehicle()
+  local result, seen = {}, {}
+  local function add(entry)
+    if not entry or seen[entry.key] or trimText(entry.modelKey) == "" or trimText(entry.configKey) == "" then return end
+    seen[entry.key] = true
+    result[#result + 1] = {
+      key = entry.key, modelKey = entry.modelKey, configKey = entry.configKey,
+      name = entry.name, preview = entry.preview or "", completedRides = entry.completedRides or 0,
+      lastSeen = entry.lastSeen or os.time()
+    }
+  end
+  add(tracking.entry)
+  for _, entry in ipairs(history and history.vehicles or {}) do add(entry) end
+  table.sort(result, function(a, b)
+    if a.lastSeen == b.lastSeen then return a.name < b.name end
+    return a.lastSeen > b.lastSeen
+  end)
+  return result
+end
+
 function M.recordRide(details)
   if type(details) ~= "table" then details = {fare = details} end
   local current = M.getCurrentHud()

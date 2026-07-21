@@ -165,6 +165,30 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
               base.finalApproachSpeedKmh, 5, 20),
           };
         };
+        const normalizeFleet = (source) => {
+          const value = source && typeof source === "object" ? source : {};
+          const number = (key, fallback, minimum, maximum) => {
+            const numeric = Number(value[key]);
+            return Math.max(minimum, Math.min(maximum, Number.isFinite(numeric) ? numeric : fallback));
+          };
+          const minimumJobDistanceKm = number("minimumJobDistanceKm", 1.5, 0.5, 20);
+          let passengerJobs = value.passengerJobs !== false;
+          let deliveryJobs = value.deliveryJobs !== false;
+          if (!passengerJobs && !deliveryJobs) passengerJobs = true;
+          return {
+            enabled: value.enabled !== false,
+            aiPreset: ["careful", "standard", "fast"].includes(value.aiPreset) ? value.aiPreset : "standard",
+            ownerSharePercent: Math.round(number("ownerSharePercent", 35, 10, 90)),
+            hiringFee: Math.round(number("hiringFee", 75, 0, 1000)),
+            wagePerTenMinutes: Math.round(number("wagePerTenMinutes", 12, 0, 250)),
+            maxDrivers: Math.round(number("maxDrivers", 6, 1, 12)),
+            worldLabelDistance: Math.round(number("worldLabelDistance", 400, 50, 1000)),
+            incomeMultiplier: number("incomeMultiplier", 1, 0.25, 3),
+            minimumJobDistanceKm,
+            maximumJobDistanceKm: number("maximumJobDistanceKm", 8, minimumJobDistanceKm, 50),
+            passengerJobs, deliveryJobs,
+          };
+        };
         let persisted = {};
         let legacySettingsFound = false;
         try {
@@ -222,9 +246,10 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         $scope.aiManeuversOpen = false;
         $scope.language = initialLanguage;
         $scope.settingsOpen = false;
+        $scope.fleetOpen = false;
         $scope.settingsSaved = false;
         $scope.settingsSections = {
-          general: true, gameplay: false, aiDriver: false, navigation: false, audio: false, connectivity: false, cheats: false,
+          general: true, gameplay: false, aiDriver: false, fleet: false, navigation: false, audio: false, connectivity: false, cheats: false,
         };
         $scope.customDifficultyGroups = [
           { title: "customSpeed", controls: [
@@ -308,7 +333,9 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           showRouteGuidance: initialShowRouteGuidance,
           realisticMode: initialRealisticMode,
           randomEventsEnabled: initialRandomEventsEnabled,
+          aiDebugLogging: persisted.aiDebugLogging === true,
           aiDriver: normalizeAiDriver(persisted.aiDriver),
+          fleet: normalizeFleet(persisted.fleet),
           godMode: persisted.godMode === true,
           debugLogging: persisted.debugLogging !== false,
         };
@@ -372,6 +399,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           realisticMode: false,
           shift: { active: false, current: {}, last: {} },
           shiftHistory: { items: [], restoring: false, restoringId: 0 },
+          fleet: { enabled: true, activeDrivers: 0, maxDrivers: 6, hiringFee: 75, wagePerTenMinutes: 12, ownerSharePercent: 35, stats: {}, drivers: [], markers: [], trafficCandidates: [], garage: [] },
           vehicleEnergy: { available: false, energyType: "", quantity: 0, maxQuantity: 0, percent: 0, unit: "", estimatedRangeKm: 0 },
           fuelStation: {
             available: false, id: "", name: "", magic: false, vehicleStopped: false, options: [], balance: 0,
@@ -1055,7 +1083,9 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             showRouteGuidance: value.showRouteGuidance !== false,
             realisticMode: value.realisticMode === true,
             randomEventsEnabled: value.randomEventsEnabled === true,
+            aiDebugLogging: value.aiDebugLogging === true,
             aiDriver: normalizeAiDriver(value.aiDriver),
+            fleet: normalizeFleet(value.fleet),
             godMode: value.godMode === true,
             debugLogging: value.debugLogging !== false,
           };
@@ -1439,7 +1469,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
         const minimapPhases = new Set(["toPickup", "toStop", "toDestination", "toFuelStation"]);
         const externalMapVisible = () => externalPhoneMode && !document.hidden &&
-          $scope.settings.externalMapEnabled !== false && minimapPhases.has($scope.state.phase) &&
+          $scope.settings.externalMapEnabled !== false && ($scope.fleetOpen || minimapPhases.has($scope.state.phase)) &&
           !$scope.settingsOpen && !$scope.profileOpen && !$scope.offlineConfirmOpen &&
           !$scope.fuelStationOpen;
         const getExternalView = () => {
@@ -1447,6 +1477,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           if ($scope.settingsOpen) return "settings";
           if ($scope.profileOpen) return "profile";
           if ($scope.fuelStationOpen) return "fuel";
+          if ($scope.fleetOpen) return "fleet";
           if (!$scope.settings.externalMapEnabled && minimapPhases.has($scope.state.phase)) return "status";
           if ($scope.phoneMinimized && minimapPhases.has($scope.state.phase)) return "compact";
           if ($scope.state.phase === "toFuelStation") return "fuelRoute";
@@ -1467,7 +1498,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
         const canRenderMinimap = (hudState) => !externalPhoneMode && uiVisible && hudState &&
           (!(hudState.lan && Number(hudState.lan.connected || 0) > 0) || $scope.localPhoneOpen) &&
-          hudState.active === true && minimapPhases.has(hudState.phase) &&
+          ($scope.fleetOpen || (hudState.active === true && minimapPhases.has(hudState.phase))) &&
           ($scope.phoneMinimized || (
             !$scope.settingsOpen && !$scope.profileOpen && !$scope.offlineConfirmOpen &&
             !$scope.fuelStationOpen
@@ -1488,9 +1519,11 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           }
 
           const surface = $element[0].querySelector(
-            $scope.phoneMinimized
+            $scope.fleetOpen
+              ? ".taxi-fleet .taxi-minimap-surface"
+              : ($scope.phoneMinimized
               ? ".taxi-compact .taxi-minimap-surface"
-              : ".taxi-phone .taxi-minimap-surface"
+              : ".taxi-phone .taxi-minimap-surface")
           );
           if (!surface) {
             hideMinimap();
@@ -1528,8 +1561,11 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           const notificationValues = $scope.phoneMinimized
             ? [0, 0, 0, 0]
             : normalizeRect($element[0].querySelector(".taxi-phone-toast"));
+          const fleetStatusValues = $scope.fleetOpen
+            ? normalizeRect($element[0].querySelector(".taxi-fleet__map-status"))
+            : [0, 0, 0, 0];
           const layoutKey = values
-            .concat(routeInfoValues, speedLimitValues, notificationValues, autopilotValues)
+            .concat(routeInfoValues, speedLimitValues, notificationValues, autopilotValues, fleetStatusValues)
             .map((value) => value.toFixed(5))
             .join(",");
           if (layoutKey === lastMinimapRect) return;
@@ -1538,12 +1574,13 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
 
           const rectKey = values.map((value) => value.toFixed(5)).join(",");
           const occlusionKey = routeInfoValues
-            .concat(speedLimitValues, notificationValues, autopilotValues)
+            .concat(speedLimitValues, notificationValues, autopilotValues, fleetStatusValues)
             .map((value) => value.toFixed(5))
             .join(",");
 
+          const allowFleetMap = $scope.fleetOpen ? "true" : "false";
           bngApi.engineLua(
-            `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.setMinimapTransform(${rectKey}); taxiDriver_taxiDriver.setMinimapOcclusions(${occlusionKey}) end`
+            `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.setMinimapTransform(${rectKey}, ${allowFleetMap}); taxiDriver_taxiDriver.setMinimapOcclusions(${occlusionKey}, ${allowFleetMap}) end`
           );
         };
 
@@ -1574,7 +1611,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
 
         const drawExternalMap = () => {
           if (!externalMapVisible() || !externalVehicleState ||
-              !externalVehicleState.position || !minimapPhases.has($scope.state.phase)) {
+              !externalVehicleState.position || (!$scope.fleetOpen && !minimapPhases.has($scope.state.phase))) {
             externalCameraCenter = null;
             externalCameraHeading = null;
             externalCameraRadius = null;
@@ -1716,6 +1753,15 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
               ctx.fillStyle = "#ffd21c";
               ctx.beginPath(); ctx.arc(target[0], target[1], 7, 0, Math.PI * 2); ctx.fill();
             }
+            const fleetMarkers = $scope.state.fleet && Array.isArray($scope.state.fleet.markers)
+              ? $scope.state.fleet.markers : [];
+            fleetMarkers.forEach((marker) => {
+              if (!Array.isArray(marker.position)) return;
+              const point = project(marker.position);
+              if (point[0] < -12 || point[0] > w + 12 || point[1] < -12 || point[1] > h + 12) return;
+              ctx.fillStyle = "#211432"; ctx.beginPath(); ctx.arc(point[0], point[1], 8, 0, Math.PI * 2); ctx.fill();
+              ctx.fillStyle = "#9a4aff"; ctx.beginPath(); ctx.arc(point[0], point[1], 5, 0, Math.PI * 2); ctx.fill();
+            });
             const pointerScale = Math.max(0.72, Math.min(1, Math.min(w, h) / 300));
             ctx.save(); ctx.translate(w / 2, vehicleScreenY); ctx.scale(pointerScale, pointerScale);
             ctx.fillStyle = "#ff791a"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
@@ -1739,6 +1785,19 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
 
         this.startMode = () => callTaxiDriver("startMode");
+        this.toggleFleet = () => {
+          $scope.fleetOpen = !$scope.fleetOpen;
+          $scope.shiftHistoryOpen = false;
+          lastMinimapRect = "";
+          if ($scope.fleetOpen) dismissPassengerChat();
+          scheduleMinimapUpdate();
+          syncExternalView();
+        };
+        this.fleetCommand = (action, args) => {
+          const luaAction = bngApi.serializeToLua(String(action || ""));
+          const luaArgs = bngApi.serializeToLua(args || {});
+          bngApi.engineLua(`if taxiDriver_taxiDriver then taxiDriver_taxiDriver.fleetCommand(${luaAction}, ${luaArgs}) end`);
+        };
         this.toggleShiftHistory = () => {
           if ($scope.state.shiftHistory && $scope.state.shiftHistory.restoring) return;
           $scope.shiftHistoryOpen = !$scope.shiftHistoryOpen;
@@ -1746,6 +1805,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         this.resumeShift = (shiftId) => {
           const id = Math.max(1, Math.floor(Number(shiftId) || 0));
           $scope.profileOpen = false;
+          $scope.fleetOpen = false;
           bngApi.engineLua(
             `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.resumeShift(${id}) end`
           );
@@ -1808,6 +1868,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           if ($scope.settingsOpen && settingsSaveTimer) persistSettingsNow();
           $scope.settingsOpen = !$scope.settingsOpen;
           $scope.profileOpen = false;
+          $scope.fleetOpen = false;
           $scope.fuelStationOpen = false;
           $scope.offlineConfirmOpen = false;
           $scope.settingsSaved = $scope.settingsOpen;
@@ -1827,6 +1888,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         this.toggleProfile = () => {
           $scope.profileOpen = !$scope.profileOpen;
           $scope.settingsOpen = false;
+          $scope.fleetOpen = false;
           $scope.fuelStationOpen = false;
           $scope.offlineConfirmOpen = false;
           $scope.profileSaved = false;
@@ -2589,6 +2651,17 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             shiftHistory,
             { items: Array.isArray(shiftHistory.items) ? shiftHistory.items : [] }
           );
+          const fleet = data.fleet && typeof data.fleet === "object" ? data.fleet : {};
+          data.fleet = Object.assign(
+            { enabled: true, activeDrivers: 0, maxDrivers: 6, hiringFee: 75, wagePerTenMinutes: 12, ownerSharePercent: 35, stats: {}, drivers: [], markers: [], trafficCandidates: [], garage: [] },
+            fleet,
+            {
+              drivers: Array.isArray(fleet.drivers) ? fleet.drivers : [],
+              markers: Array.isArray(fleet.markers) ? fleet.markers : [],
+              trafficCandidates: Array.isArray(fleet.trafficCandidates) ? fleet.trafficCandidates : [],
+              garage: Array.isArray(fleet.garage) ? fleet.garage : [],
+            }
+          );
           if (data.active) $scope.shiftHistoryOpen = false;
           const penaltyPhase = ["toPickup", "toStop", "toDestination", "passengerStopDemand"].includes(data.phase);
           if (!penaltyPhase) {
@@ -2796,7 +2869,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         const stopExternalViewWatch = externalPhoneMode
           ? $scope.$watchGroup([
               "settingsOpen", "profileOpen", "fuelStationOpen", "offlineConfirmOpen",
-              "phoneMinimized", "state.phase", "state.active", "settings.externalMapEnabled",
+              "fleetOpen", "phoneMinimized", "state.phase", "state.active", "settings.externalMapEnabled",
             ], syncExternalView)
           : null;
         if (externalPhoneMode) {

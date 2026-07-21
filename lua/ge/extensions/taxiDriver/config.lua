@@ -174,6 +174,68 @@ function M.sanitizeAiDriver(source)
   }
 end
 
+M.fleetDefaults = {
+  enabled = true,
+  aiPreset = "standard",
+  ownerSharePercent = 35,
+  hiringFee = 75,
+  wagePerTenMinutes = 12,
+  maxDrivers = 6,
+  worldLabelDistance = 400,
+  incomeMultiplier = 1,
+  minimumJobDistanceKm = 1.5,
+  maximumJobDistanceKm = 8,
+  passengerJobs = true,
+  deliveryJobs = true
+}
+
+M.fleetAiPresets = {
+  careful = {
+    aggressionPercent = 20, followingTimeGap = 3.1, brakingDeceleration = 2.3,
+    stuckDelaySeconds = 20, obeySpeedLimits = true, obeyTrafficSignals = true,
+    allowOvertaking = false, laneChangeClearancePercent = 145,
+    allowOncomingRecovery = false, allowReverseRecovery = true,
+    recoveryMaxAttempts = 3, finalApproachSpeedKmh = 8
+  },
+  standard = {
+    aggressionPercent = 30, followingTimeGap = 2.4, brakingDeceleration = 2.8,
+    stuckDelaySeconds = 15, obeySpeedLimits = true, obeyTrafficSignals = true,
+    allowOvertaking = true, laneChangeClearancePercent = 110,
+    allowOncomingRecovery = true, allowReverseRecovery = true,
+    recoveryMaxAttempts = 3, finalApproachSpeedKmh = 11
+  },
+  fast = {
+    aggressionPercent = 52, followingTimeGap = 1.8, brakingDeceleration = 3.5,
+    stuckDelaySeconds = 11, obeySpeedLimits = false, obeyTrafficSignals = true,
+    allowOvertaking = true, laneChangeClearancePercent = 75,
+    allowOncomingRecovery = true, allowReverseRecovery = true,
+    recoveryMaxAttempts = 4, finalApproachSpeedKmh = 15
+  }
+}
+
+function M.sanitizeFleet(source)
+  source = type(source) == "table" and source or {}
+  local defaults = M.fleetDefaults
+  local minimum = clamp(tonumber(source.minimumJobDistanceKm) or defaults.minimumJobDistanceKm, 0.5, 20)
+  local passengerJobs = source.passengerJobs ~= false
+  local deliveryJobs = source.deliveryJobs ~= false
+  if not passengerJobs and not deliveryJobs then passengerJobs = true end
+  return {
+    enabled = source.enabled ~= false,
+    aiPreset = M.fleetAiPresets[tostring(source.aiPreset or "")] and tostring(source.aiPreset) or defaults.aiPreset,
+    ownerSharePercent = math.floor(clamp(tonumber(source.ownerSharePercent) or defaults.ownerSharePercent, 10, 90) + 0.5),
+    hiringFee = math.floor(clamp(tonumber(source.hiringFee) or defaults.hiringFee, 0, 1000) + 0.5),
+    wagePerTenMinutes = math.floor(clamp(tonumber(source.wagePerTenMinutes) or defaults.wagePerTenMinutes, 0, 250) + 0.5),
+    maxDrivers = math.floor(clamp(tonumber(source.maxDrivers) or defaults.maxDrivers, 1, 12) + 0.5),
+    worldLabelDistance = math.floor(clamp(tonumber(source.worldLabelDistance) or defaults.worldLabelDistance, 50, 1000) + 0.5),
+    incomeMultiplier = clamp(tonumber(source.incomeMultiplier) or defaults.incomeMultiplier, 0.25, 3),
+    minimumJobDistanceKm = minimum,
+    maximumJobDistanceKm = clamp(tonumber(source.maximumJobDistanceKm) or defaults.maximumJobDistanceKm, minimum, 50),
+    passengerJobs = passengerJobs,
+    deliveryJobs = deliveryJobs
+  }
+end
+
 M.runtime = {
   minRideDistance = 1000,
   maxRideDistance = 25000,

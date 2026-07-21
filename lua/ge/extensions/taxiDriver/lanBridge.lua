@@ -7,7 +7,7 @@ local logger = require("taxiDriver/logger")
 local port = 8085
 local protocolName = "bng-ext-app-v1"
 local externalEntryPoint = "/ui/modules/apps/TaxiDriverHUD/external/index.html"
-local externalUiRevision = "311-rc"
+local externalUiRevision = "320-beta"
 local connectionFilePath = "/settings/TaxiDriver/lan.json"
 local heartbeatTimeout = 8.0
 local mapRefreshInterval = 1.5
@@ -55,7 +55,8 @@ local isPrivateIPv4
 local navigationViews = {
   trip = true,
   compact = true,
-  fuelRoute = true
+  fuelRoute = true,
+  fleet = true
 }
 
 local navigationPhases = {
@@ -69,8 +70,9 @@ local function canPublishNavigation()
   -- The game state is authoritative. A browser tab may miss a view-change
   -- event or be backgrounded, but that must never stop live vehicle telemetry
   -- for an active route.
-  return connected and externalMapEnabled and authoritativeActive and
-    navigationPhases[authoritativePhase] == true
+  return connected and externalMapEnabled and ((authoritativeActive and
+    navigationPhases[authoritativePhase] == true) or
+    (externalVisible and externalView == "fleet"))
 end
 
 local function closeSocket(socket)
@@ -496,7 +498,7 @@ local function normalizeExternalView(view)
   local normalizedView = tostring(view or "home")
   if not navigationViews[normalizedView] and normalizedView ~= "home" and
     normalizedView ~= "orders" and normalizedView ~= "settings" and
-    normalizedView ~= "profile" and normalizedView ~= "fuel" and
+    normalizedView ~= "profile" and normalizedView ~= "fleet" and normalizedView ~= "fuel" and
     normalizedView ~= "status" and normalizedView ~= "hidden" then
     normalizedView = "home"
   end

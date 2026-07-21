@@ -2,6 +2,7 @@ local M = {}
 
 local prefix = "[TaxiDriver]"
 local enabledProvider = function() return true end
+local eventSink = nil
 local unpackValues = unpack or table.unpack
 local defaultOperations = {
   "startMode", "openVehicleSelector", "toggleAutopilot", "acceptOrder", "acceptNextOffer", "expireNextOffer",
@@ -41,6 +42,9 @@ local function fieldsToText(fields)
 end
 
 local function emit(level, area, event, fields, always)
+  if type(eventSink) == "function" then
+    pcall(eventSink, level, area, event, fields)
+  end
   if not always and not isEnabled() then return end
   log(level, "taxiDriver", string.format(
     "%s area=%s event=%s%s",
@@ -53,6 +57,10 @@ end
 
 function M.setEnabledProvider(provider)
   enabledProvider = type(provider) == "function" and provider or enabledProvider
+end
+
+function M.setEventSink(sink)
+  eventSink = type(sink) == "function" and sink or nil
 end
 
 function M.debug(area, event, fields) emit("D", area, event, fields, false) end

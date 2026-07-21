@@ -78,6 +78,10 @@ const loggerLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/logger.lua"),
   "utf8"
 );
+const aiLoggerLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/aiLogger.lua"),
+  "utf8"
+);
 const autopilotLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/autopilot.lua"),
   "utf8"
@@ -117,8 +121,8 @@ assert.match(taxiDriverLuaSource, /function M\.onClientStartMission\(\)[\s\S]*?v
   "Loading a level must refresh and publish the selected vehicle independently of taxi mode");
 assert.match(taxiDriverLuaSource, /function M\.openVehicleSelector\(\)[\s\S]*?hideNativeMinimap\(\)[\s\S]*?guihooks\.trigger\(["']ChangeState["'],\s*\{state\s*=\s*["']menu\.vehicles["']\}\)/,
   "Vehicle card must hide the native map before opening BeamNG's vehicle selector");
-assert.match(taxiDriverLuaSource, /local function canShowNativeMinimap\(\)[\s\S]*?minimapAppVisible and not minimapUiBlocked and state\.active/,
-  "Native map updates must require a visible app and an unobstructed BeamNG UI");
+assert.match(taxiDriverLuaSource, /local function canShowNativeMinimap\(allowFleet\)[\s\S]*?minimapAppVisible and not minimapUiBlocked[\s\S]*?state\.active[\s\S]*?allowFleet == true/,
+  "Native map updates must require a visible unobstructed UI, an active route, or the explicit Fleet map mode");
 assert.match(taxiDriverLuaSource, /function M\.setMinimapAppVisibility\(visible\)[\s\S]*?minimapAppVisible\s*=\s*visible\s*==\s*true[\s\S]*?TaxiDriverMinimapInvalidated/,
   "Native map visibility must follow the actual CEF UI App visibility");
 assert.match(taxiDriverLuaSource, /function M\.onUiChangedState\(to, from\)[\s\S]*?menu\.vehiclesnew[\s\S]*?menu\.appedit[\s\S]*?if isBlocking\(to\)[\s\S]*?hideNativeMinimap\(\)[\s\S]*?elseif isBlocking\(from\)[\s\S]*?TaxiDriverMinimapInvalidated/,
@@ -192,10 +196,22 @@ assert.match(taxiDriverLuaSource, /if userSettings\.godMode == true[\s\S]*?notif
   "God Mode must preserve an active ride across vehicle resets");
 assert.match(persistenceLuaSource, /debugLogging\s*=\s*true/,
   "Debug logging must default to enabled");
+assert.match(persistenceLuaSource, /aiDebugLogging\s*=\s*false[\s\S]*?source\.aiDebugLogging\s*==\s*true/,
+  "The dedicated AI trip logger must be persisted separately and disabled by default");
+assert.match(appHtmlSource, /aiDebugLogger[\s\S]*?ng-model="settings\.aiDebugLogging"/,
+  "AI driver settings must expose a dedicated trip-debug toggle");
 assert.match(loggerLuaSource, /\[TaxiDriver\]/,
   "The structured logger must prefix every diagnostic record");
 assert.match(loggerLuaSource, /function M\.observeRuntime[\s\S]*?function M\.attachOperations/,
   "The structured logger must track runtime transitions and public operations");
+assert.match(loggerLuaSource, /pcall\(eventSink[\s\S]*?function M\.setEventSink/,
+  "Structured events must remain available to the dedicated AI log when BeamNG debug logging is disabled");
+assert.match(aiLoggerLuaSource, /taxidriver_ailog_[\s\S]*?\.jsonl[\s\S]*?navigation_snapshot/,
+  "AI sessions must be written to a timestamped JSON Lines log in the BeamNG user root");
+assert.match(aiLoggerLuaSource, /vehicle_damage_increased[\s\S]*?gear_hunting_detected[\s\S]*?collision_safety_engaged/,
+  "AI logging must retain damage, drivetrain, and collision-safety anomalies");
+assert.match(taxiDriverLuaSource, /aiLogger:update[\s\S]*?autopilot:getDiagnostics/,
+  "The gameplay loop must publish authoritative route diagnostics to the AI logger");
 assert.match(taxiDriverLuaSource, /require\(["']taxiDriver\/autopilot["']\)\.new/,
   "The gameplay orchestrator must delegate autonomous driving to a focused module");
 assert.match(appJsSource, /autopilotValues[\s\S]*?setMinimapOcclusions/,
@@ -321,8 +337,8 @@ const { server, port } = await startHarnessServer(41735);
 const browser = await chromium.launch({ headless: true });
 
 const scenarios = [
-  "home", "shiftHistory", "orders", "trip", "delivery", "overspeed", "boarding", "forcedExit",
-  "settings", "settingsAi", "settingsConnection", "profile", "profileVehicles", "profileShifts", "compact", "nextOffer", "fuelRoute", "fuel", "magicFuel",
+  "home", "shiftHistory", "fleet", "fleetTrip", "orders", "trip", "delivery", "overspeed", "boarding", "forcedExit",
+  "settings", "settingsAi", "settingsFleet", "settingsConnection", "profile", "profileVehicles", "profileShifts", "compact", "nextOffer", "fuelRoute", "fuel", "magicFuel",
 ];
 const viewports = [
   { width: 320, height: 568 },
@@ -342,6 +358,11 @@ const baselineScreenshots = new Set([
   "game-compact-320x568.png",
   "web-settingsConnection-1024x768.png",
   "web-settingsAi-390x844.png",
+  "web-settingsFleet-390x844.png",
+  "web-fleet-390x844.png",
+  "game-fleet-520x900.png",
+  "game-fleetTrip-520x900.png",
+  "web-fleetTrip-390x844.png",
   "web-profile-768x1024.png",
   "web-profileVehicles-768x1024.png",
   "web-profileShifts-768x1024.png",
@@ -695,16 +716,43 @@ try {
     (window.__taxiEngineLuaCommands || []).find((value) => value.includes("setMinimapOcclusions")) || ""
   );
   const minimapOcclusionArgs = /setMinimapOcclusions\(([^)]*)\)/.exec(minimapOcclusionCommand)?.[1]
-    .split(",").map(Number) || [];
-  assert.equal(minimapOcclusionArgs.length, 16,
-    "Native minimap must receive four complete overlay occlusion rectangles");
-  assert.ok(minimapOcclusionArgs.slice(12).every((value) => Number.isFinite(value) && value > 0),
+    .split(",") || [];
+  assert.equal(minimapOcclusionArgs.length, 21,
+    "Native minimap must receive five complete overlay occlusion rectangles and an explicit Fleet-mode flag");
+  assert.ok(minimapOcclusionArgs.slice(12, 16).map(Number).every((value) => Number.isFinite(value) && value > 0),
     "Autopilot control must reserve a visible native-minimap occlusion rectangle");
+  assert.ok(minimapOcclusionArgs.slice(16, 20).map(Number).every((value) => value === 0),
+    "A normal trip map must not reserve the Fleet status overlay");
+  assert.equal(minimapOcclusionArgs[20].trim(), "false",
+    "A normal trip map must not request inactive Fleet-map privileges");
   await functionalPage.evaluate(() => { window.__taxiEngineLuaCommands = []; });
   await functionalPage.locator("button.taxi-map__autopilot").click();
   assert.ok((await functionalPage.evaluate(() => window.__taxiEngineLuaCommands || []))
     .some((value) => value.includes("toggleAutopilot")),
   "Autopilot control must call the authoritative Lua controller");
+  assert.equal(await functionalPage.locator("button.taxi-map__fleet").count(), 1,
+    "An active trip with hired drivers must expose the Fleet monitor button");
+  await functionalPage.locator("button.taxi-map__fleet").click();
+  assert.equal(await functionalPage.locator(".taxi-fleet .taxi-minimap-surface").count(), 1,
+    "Fleet monitoring must retain a player-centered map during an active trip");
+  await functionalPage.waitForFunction(() =>
+    (window.__taxiEngineLuaCommands || []).some((value) =>
+      /setMinimapTransform\([^)]*,\s*true\)/.test(value)
+    )
+  );
+  const fleetOcclusionArgs = await functionalPage.evaluate(() => {
+    const command = (window.__taxiEngineLuaCommands || []).findLast((value) =>
+      value.includes("setMinimapOcclusions") && value.trim().includes(", true) end")
+    ) || "";
+    return /setMinimapOcclusions\(([^)]*)\)/.exec(command)?.[1].split(",") || [];
+  });
+  assert.ok(fleetOcclusionArgs.slice(16, 20).map(Number).every((value) => Number.isFinite(value) && value > 0),
+    "Fleet status must reserve its own native-map occlusion and remain above the map texture");
+  assert.equal(await functionalPage.locator(".taxi-trip-layout").count(), 0,
+    "The Fleet monitor must replace, rather than collide with, the trip sheet");
+  await functionalPage.locator(".taxi-fleet__head > button").click();
+  assert.equal(await functionalPage.locator(".taxi-trip-layout").count(), 1,
+    "Closing Fleet monitoring must return to the still-active trip");
   assert.equal(await functionalPage.locator(".taxi-penalty-log__events").count(), 0,
     "Penalty details must start collapsed");
   await functionalPage.locator("button.taxi-penalty-log__header").click();
@@ -790,7 +838,7 @@ try {
   const compactMapCommand = await functionalPage.evaluate(() =>
     (window.__taxiEngineLuaCommands || []).findLast((value) => value.includes("setMinimapTransform")) || ""
   );
-  assert.match(compactMapCommand, /setMinimapTransform\([^)]*[1-9][0-9]*\)/,
+  assert.match(compactMapCommand, /setMinimapTransform\([^)]*[1-9][0-9]*,\s*false\)/,
     "Minimized native UI must publish a non-empty map rectangle");
 
   await functionalPage.goto(harnessUrl("magicFuel", { width: 390, height: 844 }));

@@ -4,6 +4,7 @@ local enabled = false
 local forcedStop = false
 local updateTimer = 0
 local updateInterval = 0.2
+local lastDamageSnapshot = nil
 
 local function setEnabled(value)
   enabled = value == true
@@ -32,6 +33,18 @@ local function getGForces()
   return sensors.gy2 / -gravity, sensors.gx2 / -gravity
 end
 
+local function inputValue(name)
+  local state = input.state and input.state[name]
+  return tonumber(state and state.val) or 0
+end
+
+local function getAutopilotControllerState()
+  local extension = extensions and extensions.taxiDriverAutopilotRecovery or nil
+  if not extension or type(extension.getDebugState) ~= "function" then return nil end
+  local ok, result = pcall(extension.getDebugState)
+  return ok and type(result) == "table" and result or nil
+end
+
 local function updateGFX(dt)
   if forcedStop then
     input.event("throttle", 0, FILTER_DIRECT)
@@ -46,11 +59,35 @@ local function updateGFX(dt)
   updateTimer = updateTimer - updateInterval
 
   local longitudinalG, lateralG = getGForces()
+  local mainController = controller and controller.mainController or nil
+  local rpm = tonumber(electrics.values.rpm) or tonumber(electrics.values.engineRPM) or 0
+  local ignitionLevel = tonumber(electrics.values.ignitionLevel) or 0
   local data = {
     damage = beamstate.damage or 0,
     longitudinalG = longitudinalG,
-    lateralG = lateralG
+    lateralG = lateralG,
+    wheelSpeed = tonumber(electrics.values.wheelspeed) or 0,
+    gearIndex = tonumber(electrics.values.gearIndex),
+    gear = tostring(electrics.values.gear or electrics.values.gearName or ""),
+    gearboxBehavior = mainController and tostring(mainController.gearboxBehavior or "") or "",
+    engineRpm = rpm,
+    ignitionLevel = ignitionLevel,
+    engineRunning = electrics.values.engineRunning == 1 or rpm > 100 or ignitionLevel >= 2,
+    throttle = inputValue("throttle"),
+    brake = inputValue("brake"),
+    clutch = inputValue("clutch"),
+    parkingBrake = inputValue("parkingbrake"),
+    leftSignal = electrics.values.signal_left_input == 1 or electrics.values.signal_L == 1,
+    rightSignal = electrics.values.signal_right_input == 1 or electrics.values.signal_R == 1,
+    autopilotController = getAutopilotControllerState()
   }
+  if lastDamageSnapshot == nil or math.abs(data.damage - lastDamageSnapshot) > 0.01 then
+    if type(beamstate.getPartDamageData) == "function" then
+      local ok, partDamage = pcall(beamstate.getPartDamageData)
+      if ok and type(partDamage) == "table" then data.partDamage = partDamage end
+    end
+    lastDamageSnapshot = data.damage
+  end
 
   obj:queueGameEngineLua(string.format(
     "if taxiDriver_taxiDriver then taxiDriver_taxiDriver.onTelemetry(%d, %s) end",
@@ -61,6 +98,7 @@ end
 
 local function onReset()
   updateTimer = 0
+  lastDamageSnapshot = nil
   enabled = false
   if forcedStop then releaseForcedStopInputs() end
   forcedStop = false

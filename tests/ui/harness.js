@@ -58,6 +58,10 @@
         scope.settingsOpen = true;
         scope.settingsSections = { general: false, gameplay: false, aiDriver: true, navigation: false, audio: false, connectivity: false, cheats: false };
       }
+      if (scenarioName === "settingsFleet") {
+        scope.settingsOpen = true;
+        scope.settingsSections = { general: false, gameplay: false, aiDriver: false, fleet: true, navigation: false, audio: false, connectivity: false, cheats: false };
+      }
       if (scenarioName === "settingsConnection") {
         scope.settingsOpen = true;
         scope.settingsSections = { general: false, gameplay: false, aiDriver: false, navigation: false, audio: false, connectivity: true, cheats: false };
@@ -77,6 +81,7 @@
       if (scenarioName === "compact") scope.phoneMinimized = true;
       if (scenarioName === "fuel" || scenarioName === "magicFuel") scope.fuelStationOpen = true;
       if (scenarioName === "shiftHistory") scope.shiftHistoryOpen = true;
+      if (scenarioName === "fleet" || scenarioName === "fleetTrip") scope.fleetOpen = true;
     });
     rootScope.$broadcast("TaxiDriverProfileData", {
       profile: { fullName: "Alex Morgan", birthDate: "1991-05-17", avatar: "🙂" },

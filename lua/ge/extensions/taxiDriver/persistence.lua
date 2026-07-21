@@ -119,7 +119,9 @@ function M.new(options)
       showRouteGuidance = true,
       realisticMode = false,
       randomEventsEnabled = false,
+      aiDebugLogging = false,
       aiDriver = taxiConfig.sanitizeAiDriver(nil),
+      fleet = taxiConfig.sanitizeFleet(nil),
       godMode = false,
       debugLogging = true
     }
@@ -179,7 +181,9 @@ function M.new(options)
     result.showRouteGuidance = source.showRouteGuidance ~= false
     result.realisticMode = source.realisticMode == true
     result.randomEventsEnabled = source.randomEventsEnabled == true
+    result.aiDebugLogging = source.aiDebugLogging == true
     result.aiDriver = taxiConfig.sanitizeAiDriver(source.aiDriver)
+    result.fleet = taxiConfig.sanitizeFleet(source.fleet)
     result.godMode = source.godMode == true
     result.debugLogging = source.debugLogging ~= false
     return result, true

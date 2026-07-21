@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.1.1-rc"><img src="https://img.shields.io/github/v/release/noteMASTER11/TaxiDriverReloaded?include_prereleases&display_name=tag&style=flat-square&color=ffd11a" alt="Latest release"></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.2.0-beta"><img src="https://img.shields.io/github/v/release/noteMASTER11/TaxiDriverReloaded?include_prereleases&display_name=tag&style=flat-square&color=ffd11a" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/BeamNG.drive-0.38.6-f28c28?style=flat-square" alt="BeamNG.drive 0.38.6">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.1.1-rc"><strong>Download 3.1.1 RC</strong></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.2.0-beta"><strong>Download 3.2.0 Beta</strong></a>
 </p>
 
 ---
 
-> **3.1.1 RC:** this prerelease expands the experimental AI driver with driving presets, separate speed-limit and traffic-light rules, configurable maneuver/recovery behavior, rear-ray escape planning, steadier Arcade gearbox control, and explicit player-requested refueling. Existing 3.1.0 Beta settings and progress remain compatible.
+> **3.2.0 Beta:** this prerelease adds a player-owned taxi fleet with autonomous workers, fleet economy and live monitoring, plus a detailed opt-in AI journal and another reliability pass for the experimental AI driver. Existing 3.1.1 RC settings and progress remain compatible.
 
 TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
@@ -56,6 +56,16 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Rush requests offer additional pay but impose a tighter arrival target.
 - Multi-stop requests create longer routes and require a **10-second stationary wait** at every intermediate stop.
 - Sparse maps automatically avoid multi-stop orders when there are not enough safe route points.
+
+### Your own working taxi fleet
+
+- Open **My Fleet** from the start screen and hire separate vehicles without leaving your own taxi shift.
+- Spawn a garage vehicle or recruit a suitable traffic car already driving on the current map.
+- Each hired taxi runs an independent supervised worker, accepts passenger or cargo work, and contributes a configurable share of its fare to the player.
+- Balance a one-time hiring fee and wages charged every ten minutes against fleet revenue; drivers pause if their salary cannot be paid.
+- Follow owned taxis as purple markers on the in-game or Connected Phone map, inspect their current job, and use localized world labels within a configurable distance.
+- Monitor the fleet while personally driving an active order and return to the unchanged trip screen at any time.
+- Persistent statistics track jobs, gross income, wages, hiring costs, and net owner profit.
 
 ### Long-distance cargo deliveries
 
@@ -114,6 +124,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - AI switches supported controllers to Arcade once, lets BeamNG manage the clutch, starts the powertrain when necessary, and holds stopped vehicles in Drive instead of cycling through Neutral.
 - Refueling is never started automatically. Open **Refuel** first and enable AI on the refueling route when you want the vehicle to drive there.
 - Reviews, shifts, vehicle history, and profile analytics record whether AI was used during a completed trip.
+- An opt-in AI journal can continuously record route progress, targets, traffic signals, obstacles, recovery, gearbox behavior, and damage to a dedicated JSON Lines file for diagnosis.
 
 ### Persistent driver profile
 
@@ -222,6 +233,9 @@ All application sounds—including clicks, online/offline cues, passenger messag
 - `routePlanner.lua` owns road-graph routing, semantic stop discovery, level caches, and recently used stops;
 - `autopilot.lua` supervises BeamNG vehicle AI, exact target approach, signal/intersection rules, following, overtaking, and recovery state;
 - `autopilotPerception.lua` measures road/vehicle geometry and builds collision-checked local bypass corridors;
+- `aiLogger.lua` writes opt-in, crash-readable AI navigation and vehicle telemetry journals;
+- `fleetManager.lua` owns hiring, fleet economy, persistence, map/world markers, and worker lifecycle;
+- `fleetWorker.lua` runs one isolated assignment and supervised AI state machine per hired vehicle;
 - `taxiDriverAutopilotRecovery.lua` runs vehicle-side exact approach, powertrain/gearbox control, indicators, and trajectory-ray collision braking;
 - `vehicleControl.lua` owns telemetry commands, forced-stop/freeze control, and passenger/cargo access triggers;
 - `vehicleHistory.lua` owns current-vehicle detection, per-configuration odometers, previews, ride counts, and income;
@@ -235,7 +249,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Installation
 
-1. Download `taxidriver.zip` from the [3.1.1 RC release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.1.1-rc).
+1. Download `taxidriver.zip` from the [3.2.0 Beta release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.2.0-beta).
 2. Place the archive directly in:
 
    ```text

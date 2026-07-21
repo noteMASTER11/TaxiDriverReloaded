@@ -14,6 +14,7 @@ local vehicleControl = dofile("lua/ge/extensions/taxiDriver/vehicleControl.lua")
 local delivery = dofile("lua/ge/extensions/taxiDriver/delivery.lua")
 local routePlanner = dofile("lua/ge/extensions/taxiDriver/routePlanner.lua")
 local autopilotModule = dofile("lua/ge/extensions/taxiDriver/autopilot.lua")
+local aiLoggerModule = dofile("lua/ge/extensions/taxiDriver/aiLogger.lua")
 local taxiConfig = dofile("lua/ge/extensions/taxiDriver/config.lua")
 
 local defaultAiDriver = taxiConfig.sanitizeAiDriver(nil)
@@ -302,11 +303,110 @@ local followingAutopilot = autopilotModule.new({
 })
 assert(followingAutopilot:enable(followingVehicle, "toDestination", autopilotTarget))
 followingAutopilot:update(followingVehicle, "toDestination", autopilotTarget, 0.2)
+followingAutopilot:update(followingVehicle, "toDestination", autopilotTarget, 0.2)
 local followingLimit = tonumber(followingCommands[#followingCommands]:match("ai.setSpeed%(([%d%.]+)%)"))
 assert(followingLimit and followingLimit > 10 and followingLimit < 20)
 map.objects[3] = nil
-followingAutopilot:update(followingVehicle, "toDestination", autopilotTarget, 0.2)
+for _ = 1, 5 do followingAutopilot:update(followingVehicle, "toDestination", autopilotTarget, 0.2) end
 assert(followingCommands[#followingCommands]:find('ai.setSpeedMode("legal")', 1, true))
+
+map.objects[3] = {pos = {x = 15, y = 0, z = 0}, vel = {x = 0, y = 0, z = 0}}
+local rayObservation = {obstacleDetected = false, obstacleDistance = 10, driveReady = true}
+local rayCommands = {}
+local rayValidatedAutopilot = autopilotModule.new({
+  phases = autopilotPhases,
+  getSpeedKmh = function() return 36 end,
+  getSafetyObservation = function() return rayObservation end,
+  getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}} end
+})
+local rayVehicle = {
+  getID = followingVehicle.getID,
+  getPosition = followingVehicle.getPosition,
+  getDirectionVector = followingVehicle.getDirectionVector,
+  getInitialLength = followingVehicle.getInitialLength,
+  getInitialWidth = followingVehicle.getInitialWidth,
+  queueLuaCommand = function(_, command) rayCommands[#rayCommands + 1] = command end
+}
+assert(rayValidatedAutopilot:enable(rayVehicle, "toDestination", autopilotTarget))
+assert(rayCommands[1]:find("ai.setMode('disabled')", 1, true))
+assert(not rayCommands[1]:find("ai.driveUsingPath", 1, true))
+rayValidatedAutopilot:update(rayVehicle, "toDestination", autopilotTarget, 0.1)
+assert(rayValidatedAutopilot:getHud(true).status == "driving")
+for _ = 1, 3 do rayValidatedAutopilot:update(rayVehicle, "toDestination", autopilotTarget, 0.2) end
+assert(rayValidatedAutopilot:getDiagnostics(rayVehicle, autopilotTarget, "toDestination").leadVehicleId == nil)
+rayObservation = {obstacleDetected = true, obstacleDistance = 12.75, obstacleId = 3, driveReady = true}
+rayValidatedAutopilot:update(rayVehicle, "toDestination", autopilotTarget, 0.2)
+local rayDiagnostics = rayValidatedAutopilot:getDiagnostics(rayVehicle, autopilotTarget, "toDestination")
+assert(rayDiagnostics.leadVehicleId == 3 and rayDiagnostics.leadRayConfirmed == true)
+
+local escalationCommands = {}
+local escalationGetMap = map.getMap
+map.getMap = function()
+  local narrowLink = {oneWay = false}
+  return {nodes = {
+    road0 = {pos = {x = 0, y = 0, z = 0}, radius = 2.5, links = {road1 = narrowLink}},
+    road1 = {pos = {x = 200, y = 0, z = 0}, radius = 2.5, links = {road0 = narrowLink}}
+  }}
+end
+local escalationAutopilot = autopilotModule.new({
+  phases = autopilotPhases,
+  config = {stuckDelay = 1, recoveryRepeatProgress = 2.5},
+  getSpeedKmh = function() return 0 end,
+  getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}, {wp = "road2"}} end
+})
+local escalationVehicle = {
+  getID = followingVehicle.getID,
+  getPosition = function() return {x = 0, y = 0, z = 0} end,
+  getDirectionVector = followingVehicle.getDirectionVector,
+  queueLuaCommand = function(_, command) escalationCommands[#escalationCommands + 1] = command end
+}
+assert(escalationAutopilot:enable(escalationVehicle, "toDestination", autopilotTarget))
+escalationAutopilot:update(escalationVehicle, "toDestination", autopilotTarget, 1)
+assert(escalationCommands[#escalationCommands]:find("startReverseEscape", 1, true))
+assert(escalationAutopilot:onBypassComplete(escalationVehicle, false, autopilotTarget,
+  "frontEscapeAvailable"))
+assert(escalationAutopilot:getDiagnostics(escalationVehicle, autopilotTarget,
+  "toDestination").controllerMode == "creep")
+assert(escalationCommands[#escalationCommands]:find("completionRadius=0.8", 1, true))
+assert(escalationAutopilot:onBypassComplete(escalationVehicle, false, autopilotTarget, "timeout"))
+assert(escalationCommands[#escalationCommands]:find("requireFrontBlocked=false", 1, true))
+assert(escalationAutopilot:onBypassComplete(escalationVehicle, true, autopilotTarget,
+  "reverseComplete"))
+assert(escalationAutopilot:getHud(true).status == "driving")
+map.getMap = escalationGetMap
+
+local straightMap = map
+local curveLink = {}
+map = {
+  objects = {},
+  findClosestRoad = function() return "curve0", "curve1" end,
+  getMap = function() return {nodes = {
+    curve0 = {pos = {x = 0, y = 0, z = 0}, radius = 8, links = {curve1 = curveLink}},
+    curve1 = {pos = {x = 100, y = 0, z = 0}, radius = 8,
+      links = {curve0 = curveLink, curve2 = curveLink, branch = curveLink}},
+    curve2 = {pos = {x = 100, y = 100, z = 0}, radius = 8, links = {curve1 = curveLink}},
+    branch = {pos = {x = 150, y = -50, z = 0}, radius = 8, links = {curve1 = curveLink}}
+  }} end
+}
+local curveCommands = {}
+local curveAutopilot = autopilotModule.new({
+  phases = autopilotPhases,
+  getSpeedKmh = function() return 100 end,
+  getRoutePath = function() return {{wp = "curve0"}, {wp = "curve1"}, {wp = "curve2"}} end
+})
+local curveVehicle = {
+  getID = function() return 1 end,
+  getPosition = function() return {x = 0, y = 0, z = 0} end,
+  getDirectionVector = function() return {x = 1, y = 0, z = 0} end,
+  queueLuaCommand = function(_, command) curveCommands[#curveCommands + 1] = command end
+}
+local curveTarget = {pos = {x = 100, y = 100, z = 0}, nodeA = "curve1", nodeB = "curve2"}
+assert(curveAutopilot:enable(curveVehicle, "toDestination", curveTarget))
+curveAutopilot:update(curveVehicle, "toDestination", curveTarget, 0.2)
+local curveDiagnostics = curveAutopilot:getDiagnostics(curveVehicle, curveTarget, "toDestination")
+assert(curveDiagnostics.routeRemainingDistance and curveDiagnostics.routeRemainingDistance >= 190)
+assert(curveDiagnostics.routeSpeedCap and curveDiagnostics.routeSpeedCap < 28)
+map = straightMap
 
 roadLink.lanes, roadLink.inNode = "--++", "road0"
 map.getMap = function()
@@ -437,10 +537,93 @@ debugLogger.setEnabledProvider(function() return debugLogging end)
 debugLogger.info("test", "enabled", {value = 1})
 assert(#logLines == 1 and logLines[1].message:find("[TaxiDriver]", 1, true))
 debugLogging = false
+local sinkEvents = {}
+debugLogger.setEventSink(function(level, area, event)
+  sinkEvents[#sinkEvents + 1] = {level = level, area = area, event = event}
+end)
 debugLogger.info("test", "disabled")
 assert(#logLines == 1)
+assert(#sinkEvents == 1 and sinkEvents[1].event == "disabled")
 debugLogger.warn("test", "warning_visible")
 assert(#logLines == 2 and logLines[2].level == "W")
+
+local aiLogRecords = {}
+local aiLogWrites = {}
+local aiLogFlushes = 0
+local aiLogClosed = false
+local aiLogNow = 100
+local aiLog = aiLoggerModule.new({
+  clock = function() return aiLogNow end,
+  sessionStamp = "20260721_120000",
+  encode = function(record)
+    aiLogRecords[#aiLogRecords + 1] = record
+    return "{}"
+  end,
+  openFile = function(path, mode)
+    assert(path == "/taxidriver_ailog_20260721_120000.jsonl")
+    assert(mode == "a")
+    return {
+      write = function(_, value) aiLogWrites[#aiLogWrites + 1] = value end,
+      flush = function() aiLogFlushes = aiLogFlushes + 1 end,
+      close = function() aiLogClosed = true end
+    }
+  end,
+  getContext = function() return {tripId = 7, vehicleName = "Test Car"} end
+})
+local aiLogVehicle = {
+  getID = function() return 42 end,
+  getPosition = function() return {x = 0, y = 0, z = 0} end
+}
+local aiLogTarget = {pos = {x = 100, y = 0, z = 0}, exactApproach = true}
+assert(not aiLog:isEnabled())
+assert(aiLog:start(aiLogVehicle, "toPickup", aiLogTarget) == false and #aiLogRecords == 0)
+aiLog:setEnabled(true)
+assert(aiLog:start(aiLogVehicle, "toPickup", aiLogTarget) and aiLog:isActive())
+aiLog:onStructuredEvent("I", "autopilot", "route_started", {nodes = 12})
+aiLog:onVehicleTelemetry({damage = 10, wheelSpeed = 3, gear = "D", gearIndex = 1,
+  gearboxBehavior = "arcade", ignitionLevel = 2, engineRunning = true})
+aiLogNow = 101
+aiLog:update(aiLogVehicle, "toPickup", aiLogTarget, {
+  status = "driving", targetKey = "pickup", targetDistance = 100,
+  speedKmh = 10.8, routeNodeCount = 12, routePending = false,
+  approachStage = 0, stuckSeconds = 0, recoveryAttempt = 0
+}, 1)
+aiLogNow = 102
+aiLog:onVehicleTelemetry({damage = 25, wheelSpeed = 2, gear = "R", gearIndex = -1,
+  gearboxBehavior = "realistic", ignitionLevel = 2, engineRunning = true,
+  autopilotController = {mode = "reverse", safetyHolding = true, safetyBrake = 1,
+    obstacleDistance = 1.2, obstacleClosingSpeed = 2, obstacleId = 88,
+    obstacleDetected = true, preflightFrontClearance = 1.2, preflightRearClearance = 6}})
+aiLog:update(aiLogVehicle, "toPickup", aiLogTarget, {
+  status = "recovering", targetKey = "pickup", targetDistance = 120,
+  speedKmh = 7.2, routeNodeCount = 12, routePending = false,
+  approachStage = 0, stuckSeconds = 0, recoveryAttempt = 1, controllerMode = "reverse",
+  routeRemainingDistance = 82, routeSegmentIndex = 4, routeCrossTrack = 0.4,
+  leadVehicleId = 88, leadGap = 1.2, leadSpeed = 0, leadClosingSpeed = 2,
+  leadTtc = 0.6, leadConfirmed = true, leadRayConfirmed = true,
+  signalAction = 0, signalGreenSeconds = 3.2, recoveryRepeatCount = 2,
+  recoveryEscalation = 1
+}, 1)
+aiLog:setEnabled(false)
+assert(not aiLog:isEnabled() and not aiLog:isActive())
+aiLog:close()
+local aiEvents = {}
+local richNavigationRecord = nil
+for _, record in ipairs(aiLogRecords) do
+  aiEvents[record.event] = true
+  if record.event == "navigation_snapshot" and record.routeRemainingDistance then
+    richNavigationRecord = record
+  end
+end
+assert(aiEvents.ai_session_started and aiEvents.autopilot_route_started)
+assert(aiEvents.navigation_snapshot and aiEvents.vehicle_damage_increased)
+assert(aiEvents.gear_changed and aiEvents.gearbox_mode_drift)
+assert(aiEvents.collision_safety_engaged and aiEvents.target_distance_increased)
+assert(richNavigationRecord and richNavigationRecord.leadRayConfirmed == true and
+  richNavigationRecord.routeSegmentIndex == 4 and richNavigationRecord.signalAction == 0 and
+  richNavigationRecord.obstacleDetected == true)
+assert(aiEvents.ai_session_finished and #aiLogWrites == #aiLogRecords and
+  aiLogFlushes >= #aiLogRecords and aiLogClosed)
 
 math.randomseed(240717)
 
@@ -807,5 +990,159 @@ assert(electrics.values.ignitionLevel == 2)
 recoveryController.setGearboxOverride(false)
 assert(gearboxCalls.mode == "arcade" and gearboxCalls.modeCount == 1)
 assert(not gearboxCalls.directShifts)
+local recoveryDebug = recoveryController.getDebugState()
+assert(type(recoveryDebug) == "table" and type(recoveryDebug.obstacleDetected) == "boolean")
 
-print("TaxiDriver Lua combinatorics: adaptive bypass, trajectory rays, powertrain handshake, gameplay modes, and 500 deferred respawns passed")
+local defaultFleet = taxiConfig.sanitizeFleet(nil)
+assert(defaultFleet.aiPreset == "standard" and defaultFleet.passengerJobs and defaultFleet.deliveryJobs)
+local disabledFleetJobs = taxiConfig.sanitizeFleet({passengerJobs = false, deliveryJobs = false})
+assert(disabledFleetJobs.passengerJobs and not disabledFleetJobs.deliveryJobs)
+assert(taxiConfig.sanitizeFleet({worldLabelDistance = 1}).worldLabelDistance == 50)
+assert(taxiConfig.sanitizeFleet({worldLabelDistance = 5000}).worldLabelDistance == 1000)
+for _, preset in ipairs({"careful", "standard", "fast"}) do
+  for _, passengerJobs in ipairs({false, true}) do
+    for _, deliveryJobs in ipairs({false, true}) do
+      local fleetSettings = taxiConfig.sanitizeFleet({
+        aiPreset = preset, passengerJobs = passengerJobs, deliveryJobs = deliveryJobs,
+        ownerSharePercent = 999, maxDrivers = 99
+      })
+      assert(fleetSettings.aiPreset == preset and fleetSettings.ownerSharePercent == 90 and fleetSettings.maxDrivers == 12)
+      assert(fleetSettings.passengerJobs or fleetSettings.deliveryJobs)
+    end
+  end
+end
+
+local function fleetVector(x, y, z)
+  if type(x) == "table" then x, y, z = x.x, x.y, x.z end
+  local value = {x = tonumber(x) or 0, y = tonumber(y) or 0, z = tonumber(z) or 0}
+  local methods = {}
+  function methods:distance(other)
+    local dx, dy, dz = self.x - other.x, self.y - other.y, self.z - other.z
+    return math.sqrt(dx * dx + dy * dy + dz * dz)
+  end
+  function methods:dot(other) return self.x * other.x + self.y * other.y + self.z * other.z end
+  return setmetatable(value, {
+    __index = methods,
+    __add = function(a, b) return fleetVector(a.x + b.x, a.y + b.y, a.z + b.z) end,
+    __sub = function(a, b) return fleetVector(a.x - b.x, a.y - b.y, a.z - b.z) end
+  })
+end
+
+vec3 = fleetVector
+quatFromDir = function() return {} end
+local fleetVehicles, deletedVehicles = {}, {}
+local function mockFleetVehicle(id, modelKey, configKey, position)
+  local vehicle = {jbeam = modelKey, partConfig = "/vehicles/" .. modelKey .. "/" .. configKey .. ".pc", position = position}
+  function vehicle:getID() return id end
+  function vehicle:getPosition() return self.position end
+  function vehicle:getDirectionVector() return fleetVector(1, 0, 0) end
+  function vehicle:getInitialHeight() return 1.6 end
+  function vehicle:setDynDataFieldbyName() end
+  function vehicle:queueLuaCommand() end
+  function vehicle:delete() deletedVehicles[id], fleetVehicles[id] = true, nil end
+  fleetVehicles[id] = vehicle
+  return vehicle
+end
+
+local fleetPlayer = mockFleetVehicle(42, "etk800", "base", fleetVector(0, 0, 0))
+local spawnedFleetVehicle = mockFleetVehicle(101, "etk800", "base", fleetVector(0, 0, 0))
+local trafficFleetVehicle = mockFleetVehicle(202, "pickup", "base", fleetVector(30, 0, 0))
+be = {
+  getPlayerVehicle = function() return fleetPlayer end,
+  getPlayerVehicleID = function() return 42 end
+}
+getObjectByID = function(id) return fleetVehicles[id] end
+local trafficData = {[202] = {isAi = true, modelName = "Gavril Pickup"}}
+local trafficRemoved, trafficInserted = false, false
+gameplay_traffic = {
+  getTrafficData = function() return trafficData end,
+  removeTraffic = function(id) trafficData[id], trafficRemoved = nil, true end,
+  insertTraffic = function(id) trafficData[id], trafficInserted = {isAi = true, modelName = "Gavril Pickup"}, true end
+}
+map = {
+  objects = {},
+  findClosestRoad = function() return "n1", "n2" end,
+  getGraphpath = function()
+    return {getRandomPathG = function() return {"n1", "n2", "n3"} end}
+  end,
+  getMap = function()
+    return {nodes = {
+      n1 = {pos = fleetVector(0, 0, 0)},
+      n2 = {pos = fleetVector(1500, 0, 0)},
+      n3 = {pos = fleetVector(3500, 0, 0)}
+    }}
+  end
+}
+core_vehicles = {
+  getModel = function() return {model = {Brand = "ETK", Name = "800 Series"}} end,
+  spawnNewVehicle = function() return spawnedFleetVehicle end
+}
+FS = {
+  fileExists = function() return false end,
+  directoryExists = function() return true end,
+  directoryCreate = function() end
+}
+jsonWriteFile = function() end
+ui_apps_minimap_vehicles = nil
+ui_apps_minimap_utils = nil
+extensions = nil
+
+local workerInstances = {}
+local workerFactory = {new = function()
+  local worker = {arrived = false, enabled = false, configured = nil, suspended = false}
+  function worker:configure(value) self.configured = value end
+  function worker:start(_, _, _, value) self.enabled, self.configured = true, value; return true end
+  function worker:update() end
+  function worker:hasArrived() return self.arrived end
+  function worker:stop() self.enabled = false end
+  function worker:suspend(_, value) self.suspended = value end
+  function worker:onRouteDone() return true end
+  function worker:onBypassComplete() return true end
+  function worker:getHud() return {status = self.suspended and "suspended" or "driving"} end
+  workerInstances[#workerInstances + 1] = worker
+  return worker
+end}
+local fleetManager = dofile("lua/ge/extensions/taxiDriver/fleetManager.lua")
+local fleetService = fleetManager.new({modVersion = "test", workerFactory = workerFactory})
+fleetService:configure({
+  aiPreset = "careful", ownerSharePercent = 40, hiringFee = 75,
+  wagePerTenMinutes = 12, maxDrivers = 2, passengerJobs = true, deliveryJobs = true
+}, "ru")
+fleetService:load()
+local hiredGarage, garageReason, garageDelta = fleetService:command("hireGarage", {
+  modelKey = "etk800", configKey = "base", key = "etk800|base", name = "ETK 800"
+}, 1000)
+assert(hiredGarage and not garageReason and garageDelta == -75)
+local hiredTraffic, trafficReason, trafficDelta = fleetService:command("hireTraffic", {vehicleId = 202}, 925)
+assert(hiredTraffic and not trafficReason and trafficDelta == -75 and trafficRemoved)
+assert(#workerInstances == 2 and workerInstances[1] ~= workerInstances[2])
+assert(workerInstances[2].configured.aggressionPercent == taxiConfig.fleetAiPresets.careful.aggressionPercent)
+local fleetHud = fleetService:getHud(850, {{key = "etk800|base", modelKey = "etk800", configKey = "base", name = "ETK 800"}})
+assert(fleetHud.activeDrivers == 2 and #fleetHud.drivers == 2 and #fleetHud.markers == 2)
+local fleetWorldLabels = {}
+ColorF, ColorI = function(...) return {...} end, function(...) return {...} end
+debugDrawer = {drawTextAdvanced = function(_, _, value) fleetWorldLabels[#fleetWorldLabels + 1] = value end}
+fleetService:drawWorldLabels()
+assert(#fleetWorldLabels == 2 and fleetWorldLabels[1]:find("Мой водитель такси", 1, true))
+trafficFleetVehicle.position = fleetVector(500, 0, 0)
+fleetService:drawWorldLabels()
+assert(#fleetWorldLabels == 3)
+trafficFleetVehicle.position = fleetVector(30, 0, 0)
+local fullResult, fullReason = fleetService:command("hireTraffic", {vehicleId = 202}, 850)
+assert(not fullResult and fullReason == "fleet_full")
+local wageDelta = 0
+for _ = 1, 600 do
+  local tickDelta = fleetService:update(0, 1, 850 + wageDelta)
+  wageDelta = wageDelta + tickDelta
+end
+assert(wageDelta <= 0 and fleetService:getStats().wages > 0)
+workerInstances[1].arrived, workerInstances[2].arrived = true, true
+local incomeDelta = fleetService:update(0.1, 1, 850 + wageDelta)
+assert(incomeDelta > 0 and fleetService:getStats().rides == 2 and fleetService:getStats().ownerRevenue > 0)
+assert(fleetService:onRouteDone(101) and fleetService:onBypassComplete(202, true, "test"))
+local dismissed = fleetService:command("dismiss", {id = 2}, 850)
+assert(dismissed and trafficInserted)
+fleetService:shutdown()
+assert(deletedVehicles[101])
+
+print("TaxiDriver Lua combinatorics: fleet worker presets/economy/lifecycle, AI logging, adaptive bypass, trajectory rays, powertrain handshake, gameplay modes, and 500 deferred respawns passed")

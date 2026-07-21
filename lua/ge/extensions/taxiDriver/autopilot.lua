@@ -58,7 +58,20 @@ local defaults = {
   laneChangeDuration = 5,
   laneChangeCooldown = 20,
   laneChangeFreeAhead = 55,
-  laneChangeFreeBehind = 22
+  laneChangeFreeBehind = 22,
+  leadConfirmationTime = 0.4,
+  leadReleaseTime = 0.8,
+  leadRayValidationDistance = 24,
+  leadRayDistanceMargin = 4,
+  startupTimeout = 8,
+  recoveryRepeatProgress = 2.5,
+  recoveryCreepDistance = 3.5,
+  recoveryCreepSpeed = 1.5,
+  recoveryCreepTimeout = 6,
+  routeCurveLookAhead = 120,
+  routeCurveDeceleration = 2.8,
+  routeCurveMinimumSpeed = 7,
+  routeJunctionSpeed = 16.7
 }
 
 local function copyConfig(source)
@@ -112,6 +125,7 @@ end
 function M.new(options)
   options = options or {}
   local config = copyConfig(options.config)
+  local trace = options.trace
   local baseLaneChangeFreeAhead = config.laneChangeFreeAhead
   local baseLaneChangeFreeBehind = config.laneChangeFreeBehind
   local perception = perceptionModule.new(config)
@@ -143,9 +157,19 @@ function M.new(options)
     followScanTimer = 0,
     followSpeedCap = nil,
     followLeadId = nil,
+    followLead = nil,
+    leadCandidateId = nil,
+    leadCandidateSeconds = 0,
+    leadMissingSeconds = 0,
+    leadRayConfirmed = false,
     signalSpeedCap = nil,
+    routeSpeedCap = nil,
     activeSignalId = nil,
+    activeSignalAction = nil,
+    activeSignalState = nil,
     upcomingSignal = nil,
+    signalGreenSeconds = 0,
+    signalMissingSeconds = 0,
     intersectionActive = false,
     intersectionTravel = 0,
     intersectionLastPos = nil,
@@ -155,7 +179,19 @@ function M.new(options)
     routeDonePending = false,
     routeDoneRetryTimer = 0,
     appliedSpeedCap = nil,
-    bestDistance = math.huge
+    bestDistance = math.huge,
+    bestRouteRemaining = math.huge,
+    routeRemaining = nil,
+    routeSegmentIndex = nil,
+    routeCrossTrack = nil,
+    preflightPending = false,
+    preflightSeconds = 0,
+    recoverySignature = nil,
+    recoverySignatureCount = 0,
+    recoverySignaturePos = nil,
+    recoveryEscalation = 0,
+    recoveryStartProgress = math.huge,
+    skipRouteNodes = 0
   }
 
   local function isDrivingPhase(phase)
@@ -196,11 +232,87 @@ function M.new(options)
     return fallback
   end
 
+  local function routeProgressAt(position, target)
+    if not position or #runtime.routeNodes < 2 or not map or type(map.getMap) ~= "function" then
+      return nil
+    end
+    local mapData = map.getMap()
+    local nodes = mapData and mapData.nodes
+    if not nodes then return nil end
+    local function nodePosition(nodeId)
+      local node = nodes[nodeId]
+      return node and node.pos or nil
+    end
+    local best, lengths = nil, {}
+    for index = #runtime.routeNodes - 1, 1, -1 do
+      local first = nodePosition(runtime.routeNodes[index])
+      local second = nodePosition(runtime.routeNodes[index + 1])
+      local length = first and second and vectorDistance(first, second) or 0
+      lengths[index] = length
+    end
+    local targetTail = 0
+    local last = nodePosition(runtime.routeNodes[#runtime.routeNodes])
+    if last and target and target.pos then targetTail = vectorDistance(last, target.pos) end
+    local remainingAfter = targetTail
+    local suffixAfter = {}
+    for index = #runtime.routeNodes - 1, 1, -1 do
+      suffixAfter[index] = remainingAfter
+      remainingAfter = remainingAfter + (lengths[index] or 0)
+    end
+    local firstIndex = runtime.routeSegmentIndex and math.max(1, runtime.routeSegmentIndex - 1) or 1
+    local lastIndex = runtime.routeSegmentIndex and
+      math.min(#runtime.routeNodes - 1, runtime.routeSegmentIndex + 10) or #runtime.routeNodes - 1
+    for index = firstIndex, lastIndex do
+      local first = nodePosition(runtime.routeNodes[index])
+      local second = nodePosition(runtime.routeNodes[index + 1])
+      local length = lengths[index] or 0
+      if first and second and length > 0.1 then
+        local dx = (tonumber(second.x) or 0) - (tonumber(first.x) or 0)
+        local dy = (tonumber(second.y) or 0) - (tonumber(first.y) or 0)
+        local dz = (tonumber(second.z) or 0) - (tonumber(first.z) or 0)
+        local px = (tonumber(position.x) or 0) - (tonumber(first.x) or 0)
+        local py = (tonumber(position.y) or 0) - (tonumber(first.y) or 0)
+        local pz = (tonumber(position.z) or 0) - (tonumber(first.z) or 0)
+        local along = math.max(0, math.min(1, (px * dx + py * dy + pz * dz) / (length * length)))
+        local projected = {
+          x = (tonumber(first.x) or 0) + dx * along,
+          y = (tonumber(first.y) or 0) + dy * along,
+          z = (tonumber(first.z) or 0) + dz * along
+        }
+        local crossTrack = vectorDistance(position, projected)
+        local candidate = {
+          index = index,
+          along = along,
+          crossTrack = crossTrack,
+          remaining = (1 - along) * length + (suffixAfter[index] or 0),
+          forwardX = dx / length,
+          forwardY = dy / length,
+          segmentLength = length
+        }
+        if not best or crossTrack < best.crossTrack - 0.25 or
+          (math.abs(crossTrack - best.crossTrack) <= 0.25 and candidate.remaining < best.remaining) then
+          best = candidate
+        end
+      end
+    end
+    return best
+  end
+
+  local function safetyObservation()
+    if type(options.getSafetyObservation) ~= "function" then return nil end
+    local ok, value = pcall(options.getSafetyObservation)
+    return ok and type(value) == "table" and value or nil
+  end
+
   local function findLeadVehicle(vehicle)
     if not map or type(map.objects) ~= "table" or not vehicle then return nil end
     local position = vehicle:getPosition()
     local direction = type(vehicle.getDirectionVector) == "function" and vehicle:getDirectionVector() or nil
     if not position or not direction then return nil end
+    local routeProgress = runtime.routeProgress or routeProgressAt(position)
+    if routeProgress and routeProgress.crossTrack <= config.signalLaneHalfWidth then
+      direction = {x = routeProgress.forwardX, y = routeProgress.forwardY, z = 0}
+    end
     local planarLength = math.sqrt((tonumber(direction.x) or 0) ^ 2 + (tonumber(direction.y) or 0) ^ 2)
     if planarLength < 0.1 then return nil end
     local forwardX, forwardY = (tonumber(direction.x) or 0) / planarLength,
@@ -235,7 +347,10 @@ function M.new(options)
                 local velocity = data.vel
                 local leadSpeed = velocity and math.max(0,
                   (tonumber(velocity.x) or 0) * forwardX + (tonumber(velocity.y) or 0) * forwardY) or 0
-                best = {gap = gap, speed = leadSpeed, rawSpeed = vectorLength(velocity), id = id}
+                best = {
+                  gap = gap, speed = leadSpeed, rawSpeed = vectorLength(velocity), id = id,
+                  longitudinal = longitudinal, lateral = lateral
+                }
               end
             end
           end
@@ -370,17 +485,92 @@ function M.new(options)
 
   local findUpcomingSignal
 
-  local function updateFollowing(vehicle, distance, speedKmh, dt)
-    runtime.followScanTimer = runtime.followScanTimer - dt
-    if runtime.followScanTimer <= 0 then
-      runtime.followScanTimer = config.followScanInterval
-      local lead = findLeadVehicle(vehicle)
-      if lead and lead.id ~= runtime.followLeadId then
-        logger.info("autopilot", "lead_vehicle_acquired", {id = lead.id, gap = lead.gap})
-      elseif not lead and runtime.followLeadId ~= nil then
-        logger.info("autopilot", "lead_vehicle_released", {id = runtime.followLeadId})
+  local function routeCurveSpeedCap(vehicle, target)
+    local position = vehicle and vehicle:getPosition() or nil
+    local progress = routeProgressAt(position, target)
+    if not progress then return nil, nil end
+    local mapData = map and type(map.getMap) == "function" and map.getMap() or nil
+    local nodes = mapData and mapData.nodes or nil
+    if not nodes then return nil, progress end
+    local distanceToNode = math.max(0, (1 - progress.along) * progress.segmentLength)
+    local bestCap = nil
+    for junctionIndex = progress.index + 1, math.min(#runtime.routeNodes - 1, progress.index + 4) do
+      if distanceToNode > config.routeCurveLookAhead then break end
+      local previous = nodes[runtime.routeNodes[junctionIndex - 1]]
+      local junction = nodes[runtime.routeNodes[junctionIndex]]
+      local following = nodes[runtime.routeNodes[junctionIndex + 1]]
+      if previous and junction and following and previous.pos and junction.pos and following.pos then
+        local ax = (tonumber(junction.pos.x) or 0) - (tonumber(previous.pos.x) or 0)
+        local ay = (tonumber(junction.pos.y) or 0) - (tonumber(previous.pos.y) or 0)
+        local bx = (tonumber(following.pos.x) or 0) - (tonumber(junction.pos.x) or 0)
+        local by = (tonumber(following.pos.y) or 0) - (tonumber(junction.pos.y) or 0)
+        local aLength, bLength = math.sqrt(ax * ax + ay * ay), math.sqrt(bx * bx + by * by)
+        local targetSpeed = nil
+        if aLength > 0.1 and bLength > 0.1 then
+          local cosine = math.max(-1, math.min(1, (ax * bx + ay * by) / (aLength * bLength)))
+          local angle = math.acos(cosine)
+          if angle >= 0.28 then
+            targetSpeed = math.max(config.routeCurveMinimumSpeed, 21 - angle * 7.5)
+          end
+        end
+        local degree = 0
+        for _ in pairs(junction.links or {}) do degree = degree + 1 end
+        if degree >= 3 then targetSpeed = math.min(targetSpeed or math.huge, config.routeJunctionSpeed) end
+        if targetSpeed and targetSpeed < math.huge then
+          local cap = math.sqrt(math.max(0, targetSpeed * targetSpeed +
+            2 * config.routeCurveDeceleration * math.max(0, distanceToNode)))
+          bestCap = bestCap and math.min(bestCap, cap) or cap
+        end
+        distanceToNode = distanceToNode + bLength
       end
+    end
+    return bestCap, progress
+  end
+
+  local function updateFollowing(vehicle, distance, speedKmh, dt, target)
+    runtime.followScanTimer = runtime.followScanTimer - dt
+    if runtime.followScanTimer <= 0.0001 then
+      runtime.followScanTimer = config.followScanInterval
+      local rawLead = findLeadVehicle(vehicle)
+      local observation = safetyObservation()
+      local rayConfirmed = false
+      if rawLead and observation and observation.obstacleDetected == true then
+        rayConfirmed = observation.obstacleId == rawLead.id or
+          (tonumber(observation.obstacleDistance) and
+            math.abs(tonumber(observation.obstacleDistance) - rawLead.gap) <= config.leadRayDistanceMargin)
+      end
+      if rawLead and rawLead.id == runtime.leadCandidateId then
+        runtime.leadCandidateSeconds = runtime.leadCandidateSeconds + config.followScanInterval
+      else
+        runtime.leadCandidateId = rawLead and rawLead.id or nil
+        runtime.leadCandidateSeconds = rawLead and config.followScanInterval or 0
+      end
+      local closeNeedsRay = rawLead and rawLead.gap <= config.leadRayValidationDistance and
+        observation and observation.obstacleDetected ~= nil
+      local confirmed = rawLead and (rayConfirmed or
+        (not closeNeedsRay and runtime.leadCandidateSeconds >= config.leadConfirmationTime))
+      if confirmed then
+        runtime.leadMissingSeconds = 0
+        runtime.followLead = rawLead
+        runtime.leadRayConfirmed = rayConfirmed
+      else
+        runtime.leadMissingSeconds = runtime.leadMissingSeconds + config.followScanInterval
+        if runtime.leadMissingSeconds >= config.leadReleaseTime or
+          (closeNeedsRay and observation.obstacleDetected == false) then
+          runtime.followLead = nil
+          runtime.leadRayConfirmed = false
+        end
+      end
+      local lead = runtime.followLead
+      local previousLeadId = runtime.followLeadId
       runtime.followLeadId = lead and lead.id or nil
+      if lead and lead.id ~= previousLeadId then
+        logger.info("autopilot", "lead_vehicle_acquired", {
+          id = lead.id, gap = lead.gap, rayConfirmed = runtime.leadRayConfirmed
+        })
+      elseif not lead and previousLeadId ~= nil then
+        logger.info("autopilot", "lead_vehicle_released", {id = previousLeadId})
+      end
       if lead and lead.gap <= config.laneChangeLeadDistance then
         runtime.laneChangeLeadTimer = runtime.laneChangeLeadTimer + config.followScanInterval
       else
@@ -392,6 +582,7 @@ function M.new(options)
         local desiredGap = config.followMinimumGap + egoSpeed * config.followTimeGap
         local closingSpeed = math.max(0, egoSpeed - lead.speed)
         local ttc = lead.gap / math.max(0.01, closingSpeed)
+        lead.closingSpeed, lead.ttc, lead.desiredGap = closingSpeed, ttc, desiredGap
         local cap
         if lead.gap <= config.followEmergencyGap or (closingSpeed > 2 and ttc < 1.25) then
           cap = 0
@@ -406,7 +597,14 @@ function M.new(options)
       end
 
       local signal = findUpcomingSignal(vehicle)
-      if signal and signal.id ~= runtime.activeSignalId then
+      if signal and signal.id == runtime.activeSignalId and
+        (signal.action ~= runtime.activeSignalAction or signal.state ~= runtime.activeSignalState) then
+        logger.info("autopilot", "traffic_signal_changed", {
+          id = signal.id, fromAction = runtime.activeSignalAction,
+          action = signal.action, fromState = runtime.activeSignalState,
+          state = signal.state, distance = signal.distance
+        })
+      elseif signal and signal.id ~= runtime.activeSignalId then
         logger.info("autopilot", "traffic_signal_acquired", {
           id = signal.id, state = signal.state, action = signal.action, distance = signal.distance
         })
@@ -414,6 +612,8 @@ function M.new(options)
         logger.info("autopilot", "traffic_signal_released", {id = runtime.activeSignalId})
       end
       runtime.activeSignalId = signal and signal.id or nil
+      runtime.activeSignalAction = signal and signal.action or nil
+      runtime.activeSignalState = signal and signal.state or nil
       runtime.upcomingSignal = signal
       runtime.signalSpeedCap = nil
       if signal and (signal.action == 1 or signal.action == 2) then
@@ -428,10 +628,24 @@ function M.new(options)
           if cap < egoSpeed + 0.5 then runtime.signalSpeedCap = cap end
         end
       end
-      if runtime.laneChangeTimer > 0 or tryLaneChange(vehicle, lead, speedKmh, signal) then
+      if not runtime.recoveryController and
+        (runtime.laneChangeTimer > 0 or tryLaneChange(vehicle, lead, speedKmh, signal)) then
         runtime.laneChangeLeadTimer = 0
       end
+      runtime.routeSpeedCap, runtime.routeProgress = routeCurveSpeedCap(vehicle, target)
+      runtime.routeRemaining = runtime.routeProgress and runtime.routeProgress.remaining or nil
+      runtime.routeSegmentIndex = runtime.routeProgress and runtime.routeProgress.index or nil
+      runtime.routeCrossTrack = runtime.routeProgress and runtime.routeProgress.crossTrack or nil
     end
+
+    local signal = runtime.upcomingSignal
+    if signal and signal.action == 0 then
+      runtime.signalGreenSeconds = runtime.signalGreenSeconds + dt
+    else
+      runtime.signalGreenSeconds = 0
+    end
+    if signal then runtime.signalMissingSeconds = 0
+    else runtime.signalMissingSeconds = runtime.signalMissingSeconds + dt end
 
     local approachCap = nil
     if distance <= config.finalApproachDistance then approachCap = config.finalApproachSpeed
@@ -441,8 +655,9 @@ function M.new(options)
       cap = cap and math.min(cap, runtime.signalSpeedCap) or runtime.signalSpeedCap
     end
     if approachCap ~= nil then cap = cap and math.min(cap, approachCap) or approachCap end
-    applySpeedCap(vehicle, cap)
-    return runtime.followLeadId, runtime.upcomingSignal
+    if runtime.routeSpeedCap ~= nil then cap = cap and math.min(cap, runtime.routeSpeedCap) or runtime.routeSpeedCap end
+    if not runtime.recoveryController then applySpeedCap(vehicle, cap) end
+    return runtime.followLeadId, runtime.upcomingSignal, runtime.followLead
   end
 
   local function getRoutePath()
@@ -482,6 +697,11 @@ function M.new(options)
       if #nodes == 0 then appendUnique(nodes, target.nodeA) end
       appendUnique(nodes, target.nodeB)
     end
+    local skip = math.max(0, math.floor(tonumber(runtime.skipRouteNodes) or 0))
+    while skip > 0 and #nodes > 2 do
+      table.remove(nodes, 1)
+      skip = skip - 1
+    end
     return nodes
   end
 
@@ -500,11 +720,29 @@ function M.new(options)
     })
   end
 
+  local function prepareVehicle(vehicle)
+    return queue(vehicle, table.concat({
+      "ai.setMode('disabled'); extensions.load('taxiDriverAutopilotRecovery');",
+      "if extensions.taxiDriverAutopilotRecovery then extensions.taxiDriverAutopilotRecovery.setSafetyConfig({timeGap=",
+      tostring(config.followTimeGap), ",comfortableDeceleration=",
+      tostring(config.followComfortableDeceleration),
+      "}); extensions.taxiDriverAutopilotRecovery.setGearboxOverride(true) end"
+    }))
+  end
+
   local function issueRoute(vehicle, target)
     local nodes = buildRouteNodes(vehicle, target)
     if #nodes < 2 then return false end
     if not queue(vehicle, normalCommand(nodes)) then return false end
+    runtime.skipRouteNodes = 0
     runtime.routeNodes = nodes
+    runtime.routeSegmentIndex = nil
+    local progress = routeProgressAt(vehicle:getPosition(), target)
+    runtime.routeProgress = progress
+    runtime.routeRemaining = progress and progress.remaining or nil
+    runtime.routeSegmentIndex = progress and progress.index or nil
+    runtime.routeCrossTrack = progress and progress.crossTrack or nil
+    runtime.bestRouteRemaining = progress and progress.remaining or runtime.bestDistance
     runtime.routePending = false
     runtime.routeRetryTimer = 0
     runtime.stopIssued = false
@@ -512,15 +750,27 @@ function M.new(options)
     runtime.followScanTimer = 0
     runtime.followSpeedCap = nil
     runtime.followLeadId = nil
+    runtime.followLead = nil
+    runtime.leadCandidateId = nil
+    runtime.leadCandidateSeconds = 0
+    runtime.leadMissingSeconds = 0
+    runtime.leadRayConfirmed = false
     runtime.signalSpeedCap = nil
+    runtime.routeSpeedCap = nil
     runtime.activeSignalId = nil
+    runtime.activeSignalAction = nil
+    runtime.activeSignalState = nil
     runtime.upcomingSignal = nil
+    runtime.signalGreenSeconds = 0
+    runtime.signalMissingSeconds = 0
     runtime.appliedSpeedCap = nil
     runtime.recoveryController = false
     runtime.controllerMode = nil
+    runtime.preflightPending = false
+    runtime.preflightSeconds = 0
     runtime.status = "driving"
     runtime.reason = ""
-    logger.info("autopilot", "route_started", {nodes = #nodes})
+    logger.info("autopilot", "route_started", {nodes = #nodes, path = nodes})
     return true
   end
 
@@ -544,7 +794,7 @@ function M.new(options)
     for index = 1, #runtime.routeNodes - 1 do
       routeEdges[tostring(runtime.routeNodes[index]) .. "\0" .. tostring(runtime.routeNodes[index + 1])] = true
     end
-    local best = nil
+    local routeBest, directionBest = nil, nil
     for fromNode, outbound in pairs(signals) do
       for toNode, entries in pairs(type(outbound) == "table" and outbound or {}) do
         local routeMatch = routeEdges[tostring(fromNode) .. "\0" .. tostring(toNode)] == true
@@ -572,9 +822,8 @@ function M.new(options)
               end
             end
             if projection >= -2 and projection <= config.signalLookAhead and
-              lateral <= config.signalLaneHalfWidth and (routeMatch or directionMatch) and
-              (not best or projection < best.distance) then
-              best = {
+              lateral <= config.signalLaneHalfWidth and (routeMatch or directionMatch) then
+              local candidate = {
                 id = tostring(signal.instance or fromNode) .. ":" .. tostring(toNode),
                 action = tonumber(signal.action) or 0,
                 state = tostring(signal.state or ""),
@@ -583,12 +832,17 @@ function M.new(options)
                 dirX = signalFlowX,
                 dirY = signalFlowY
               }
+              if routeMatch then
+                if not routeBest or projection < routeBest.distance then routeBest = candidate end
+              elseif not directionBest or projection < directionBest.distance then
+                directionBest = candidate
+              end
             end
           end
         end
       end
     end
-    return best
+    return routeBest or directionBest
   end
 
   local function updateIntersectionState(vehicle, speedKmh)
@@ -619,13 +873,16 @@ function M.new(options)
       runtime.intersectionLastPos = copyPosition(position)
       runtime.signalSpeedCap = nil
       runtime.activeSignalId = nil
+      runtime.activeSignalAction = nil
+      runtime.activeSignalState = nil
       runtime.upcomingSignal = nil
+      runtime.signalGreenSeconds = 0
+      runtime.signalMissingSeconds = 0
       logger.info("autopilot", "intersection_committed", {signal = signal.id})
     end
   end
 
-  local function signalRequiresStop(vehicle)
-    local signal = findUpcomingSignal(vehicle)
+  local function signalRequiresStop(signal)
     return signal ~= nil and (signal.action == 1 or signal.action == 2) and
       signal.distance <= config.signalHoldDistance
   end
@@ -634,7 +891,8 @@ function M.new(options)
     if not lead or not signal or signal.distance < 0 or signal.distance > config.signalHoldDistance then
       return false
     end
-    if signal.action ~= 1 and signal.action ~= 2 and not (includeGreen and signal.action == 0) then
+    if signal.action ~= 1 and signal.action ~= 2 and not (includeGreen and signal.action == 0 and
+      runtime.signalGreenSeconds < config.signalQueueReleaseDelay) then
       return false
     end
     return lead.gap <= signal.distance + 12 and
@@ -651,7 +909,7 @@ function M.new(options)
 
   local restoreNormal
 
-  local function beginReverseEscape(vehicle, reason)
+  local function beginReverseEscape(vehicle, reason, force)
     runtime.recoveryAttempt = runtime.recoveryAttempt + 1
     runtime.recoverySeconds = 0
     runtime.recoveryController = true
@@ -662,7 +920,7 @@ function M.new(options)
     applySpeedCap(vehicle, 0)
     local obstacleConfirmed = reason == "tooClose" or reason == "insufficientClearance" or
       reason == "trafficConflict" or reason == "roadBoundary" or reason == "noSafeCorridor"
-    local requireFrontBlocked = not obstacleConfirmed
+    local requireFrontBlocked = not obstacleConfirmed and force ~= true
     local command = string.format(
       "ai.setMode('disabled'); extensions.load('taxiDriverAutopilotRecovery'); " ..
       "if extensions.taxiDriverAutopilotRecovery then extensions.taxiDriverAutopilotRecovery.startReverseEscape(" ..
@@ -674,7 +932,63 @@ function M.new(options)
     queue(vehicle, command)
     logger.warn("autopilot", "reverse_escape_requested", {
       attempt = runtime.recoveryAttempt, reason = runtime.reverseSourceReason,
-      minimum = config.reverseEscapeMinDistance, maximum = config.reverseEscapeMaxDistance
+      minimum = config.reverseEscapeMinDistance, maximum = config.reverseEscapeMaxDistance,
+      forced = force == true, escalation = runtime.recoveryEscalation
+    })
+  end
+
+  local function recoverySignature(vehicle, reason)
+    local nodeA, nodeB = nil, nil
+    if map and type(map.findClosestRoad) == "function" and vehicle then
+      nodeA, nodeB = map.findClosestRoad(vehicle:getPosition())
+    end
+    return table.concat({tostring(reason or "unknown"), tostring(nodeA or ""),
+      tostring(nodeB or ""), tostring(runtime.followLeadId or "")}, "|")
+  end
+
+  local function recordRecoveryCycle(vehicle, reason)
+    local signature = recoverySignature(vehicle, reason)
+    local position = vehicle and copyPosition(vehicle:getPosition()) or nil
+    local moved = runtime.recoverySignaturePos and position and
+      vectorDistance(runtime.recoverySignaturePos, position) or nil
+    if signature == runtime.recoverySignature and moved and moved < config.recoveryRepeatProgress then
+      runtime.recoverySignatureCount = runtime.recoverySignatureCount + 1
+    else
+      runtime.recoverySignature = signature
+      runtime.recoverySignatureCount = 1
+    end
+    runtime.recoverySignaturePos = position
+    logger.info("autopilot", "recovery_cycle_observed", {
+      signature = signature, repeatCount = runtime.recoverySignatureCount, moved = moved
+    })
+    return runtime.recoverySignatureCount
+  end
+
+  local function beginForwardCreep(vehicle, reason)
+    local position = vehicle:getPosition()
+    local direction = vehicle:getDirectionVector()
+    local length = math.sqrt((tonumber(direction.x) or 0) ^ 2 + (tonumber(direction.y) or 0) ^ 2)
+    if length < 0.1 then beginReverseEscape(vehicle, reason, true); return end
+    local point = {
+      x = (tonumber(position.x) or 0) + (tonumber(direction.x) or 0) / length * config.recoveryCreepDistance,
+      y = (tonumber(position.y) or 0) + (tonumber(direction.y) or 0) / length * config.recoveryCreepDistance,
+      z = tonumber(position.z) or 0
+    }
+    runtime.recoveryStartPos = copyPosition(position)
+    runtime.recoverySeconds = 0
+    runtime.recoveryController = true
+    runtime.controllerMode = "creep"
+    runtime.reverseSourceReason = tostring(reason or "unknown")
+    runtime.status = "recovering"
+    runtime.recoveryEscalation = math.max(runtime.recoveryEscalation, 1)
+    queue(vehicle, string.format(
+      "ai.setMode('disabled'); extensions.load('taxiDriverAutopilotRecovery'); " ..
+      "if extensions.taxiDriverAutopilotRecovery then extensions.taxiDriverAutopilotRecovery.start(" ..
+      "{points=%s,targetSpeed=%.3f,timeout=%.3f,signal=0,stopAtEnd=true,completionRadius=0.8}) end",
+      serializeBypassPoints({point}), config.recoveryCreepSpeed, config.recoveryCreepTimeout))
+    logger.warn("autopilot", "recovery_forward_creep_started", {
+      reason = reason, distance = config.recoveryCreepDistance,
+      repeatCount = runtime.recoverySignatureCount
     })
   end
 
@@ -697,8 +1011,11 @@ function M.new(options)
     runtime.recoveryStartDir = type(vehicle.getDirectionVector) == "function" and
       copyPosition(vehicle:getDirectionVector()) or nil
     runtime.recoveryStartDistance = distance
+    runtime.recoveryStartProgress = distance <= config.directApproachDistance and distance or
+      (runtime.routeRemaining or distance)
     local bypass, reason = perception:planLocalBypass(vehicle, runtime.followLeadId)
     if not bypass then
+      recordRecoveryCycle(vehicle, reason)
       if config.allowReverseRecovery then
         beginReverseEscape(vehicle, reason)
       else
@@ -722,6 +1039,7 @@ function M.new(options)
     end
 
     runtime.recoveryAttempt = runtime.recoveryAttempt + 1
+    recordRecoveryCycle(vehicle, "bypass")
     runtime.recoveryController = true
     runtime.controllerMode = "bypass"
     runtime.status = "recovering"
@@ -767,6 +1085,10 @@ function M.new(options)
   local function resetProgress(distance)
     runtime.stuckSeconds = 0
     runtime.bestDistance = distance or math.huge
+    runtime.bestRouteRemaining = math.huge
+    runtime.routeRemaining = nil
+    runtime.routeSegmentIndex = nil
+    runtime.routeCrossTrack = nil
   end
 
   restoreNormal = function(vehicle, target, distance)
@@ -781,6 +1103,10 @@ function M.new(options)
     runtime.recoveryTrafficWait = 0
     runtime.recoveryClearTimer = 0
     runtime.reverseSourceReason = nil
+    runtime.recoverySignature = nil
+    runtime.recoverySignatureCount = 0
+    runtime.recoverySignaturePos = nil
+    runtime.recoveryEscalation = 0
     runtime.routePending = true
     runtime.status = "planning"
     resetProgress(distance)
@@ -840,6 +1166,51 @@ function M.new(options)
     return runtime.enabled == true
   end
 
+  function service:getDiagnostics(vehicle, target, phase)
+    local signal = runtime.upcomingSignal
+    return {
+      status = runtime.status,
+      reason = runtime.reason,
+      targetKey = targetKey(phase, target),
+      targetDistance = vehicle and target and target.pos and
+        vectorDistance(vehicle:getPosition(), target.pos) or nil,
+      speedKmh = type(options.getSpeedKmh) == "function" and
+        math.max(0, tonumber(options.getSpeedKmh(vehicle)) or 0) or 0,
+      routeNodeCount = #runtime.routeNodes,
+      routePending = runtime.routePending == true,
+      approachStage = runtime.approachStage,
+      stuckSeconds = runtime.stuckSeconds,
+      recoveryAttempt = runtime.recoveryAttempt,
+      controllerMode = runtime.controllerMode,
+      leadVehicleId = runtime.followLeadId,
+      leadGap = runtime.followLead and runtime.followLead.gap or nil,
+      leadSpeed = runtime.followLead and runtime.followLead.speed or nil,
+      leadClosingSpeed = runtime.followLead and runtime.followLead.closingSpeed or nil,
+      leadTtc = runtime.followLead and runtime.followLead.ttc or nil,
+      leadConfirmed = runtime.followLead ~= nil,
+      leadRayConfirmed = runtime.leadRayConfirmed,
+      leadCandidateSeconds = runtime.leadCandidateSeconds,
+      followSpeedCap = runtime.followSpeedCap,
+      signalId = signal and signal.id or nil,
+      signalState = signal and signal.state or nil,
+      signalAction = signal and signal.action or nil,
+      signalDistance = signal and signal.distance or nil,
+      signalGreenSeconds = runtime.signalGreenSeconds,
+      signalMissingSeconds = runtime.signalMissingSeconds,
+      signalSpeedCap = runtime.signalSpeedCap,
+      routeSpeedCap = runtime.routeSpeedCap,
+      appliedSpeedCap = runtime.appliedSpeedCap,
+      routeRemainingDistance = runtime.routeRemaining,
+      routeSegmentIndex = runtime.routeSegmentIndex,
+      routeCrossTrack = runtime.routeCrossTrack,
+      recoverySignature = runtime.recoverySignature,
+      recoveryRepeatCount = runtime.recoverySignatureCount,
+      recoveryEscalation = runtime.recoveryEscalation,
+      preflightPending = runtime.preflightPending,
+      preflightSeconds = runtime.preflightSeconds
+    }
+  end
+
   function service:enable(vehicle, phase, target)
     if runtime.enabled then return true end
     if not vehicleSupported(vehicle) or not isDrivingPhase(phase) or not target or not target.pos then
@@ -869,8 +1240,23 @@ function M.new(options)
     runtime.laneChangeTimer = 0
     runtime.laneChangeCooldown = 0
     runtime.laneChangeLeadTimer = 0
+    runtime.preflightPending = false
+    runtime.preflightSeconds = 0
+    runtime.recoverySignature = nil
+    runtime.recoverySignatureCount = 0
+    runtime.recoverySignaturePos = nil
+    runtime.recoveryEscalation = 0
+    runtime.skipRouteNodes = 0
     resetProgress(vectorDistance(vehicle:getPosition(), target.pos))
-    issueRoute(vehicle, target)
+    if trace and type(trace.start) == "function" then trace:start(vehicle, phase, target) end
+    if type(options.getSafetyObservation) == "function" then
+      runtime.preflightPending = true
+      runtime.status = "preparing"
+      prepareVehicle(vehicle)
+      logger.info("autopilot", "preflight_started")
+    else
+      issueRoute(vehicle, target)
+    end
     logger.info("autopilot", "enabled", {phase = phase})
     return true
   end
@@ -905,8 +1291,18 @@ function M.new(options)
     runtime.laneChangeTimer = 0
     runtime.laneChangeCooldown = 0
     runtime.laneChangeLeadTimer = 0
+    runtime.preflightPending = false
+    runtime.preflightSeconds = 0
+    runtime.recoverySignature = nil
+    runtime.recoverySignatureCount = 0
+    runtime.recoverySignaturePos = nil
+    runtime.recoveryEscalation = 0
+    runtime.skipRouteNodes = 0
     resetProgress()
-    if wasEnabled then logger.info("autopilot", "disabled", {reason = runtime.reason}) end
+    if wasEnabled then
+      logger.info("autopilot", "disabled", {reason = runtime.reason})
+      if trace and type(trace.stop) == "function" then trace:stop(runtime.reason) end
+    end
   end
 
   function service:toggle(vehicle, phase, target)
@@ -983,6 +1379,25 @@ function M.new(options)
       return false
     end
 
+    if runtime.preflightPending then
+      runtime.preflightSeconds = runtime.preflightSeconds + dt
+      local observation = safetyObservation()
+      local ready = observation and observation.driveReady == true
+      if ready or runtime.preflightSeconds >= config.startupTimeout then
+        runtime.preflightPending = false
+        logger.info("autopilot", ready and "preflight_completed" or "preflight_timed_out", {
+          elapsed = runtime.preflightSeconds,
+          frontClearance = observation and observation.preflightFrontClearance or nil,
+          rearClearance = observation and observation.preflightRearClearance or nil
+        })
+        if not issueRoute(vehicle, target) then
+          runtime.routePending = true
+          runtime.routeRetryTimer = 0.35
+        end
+      end
+      if runtime.preflightPending then return false end
+    end
+
     local key = targetKey(phase, target)
     if runtime.targetKey ~= key then
       if runtime.recoveryController then
@@ -1021,7 +1436,18 @@ function M.new(options)
     local distance = vectorDistance(vehiclePos, target.pos)
     local speed = type(options.getSpeedKmh) == "function" and
       math.max(0, tonumber(options.getSpeedKmh(vehicle)) or 0) or 0
+    local leadId, upcomingSignal, currentLead = updateFollowing(vehicle, distance, speed, dt, target)
     updateIntersectionState(vehicle, speed)
+    if runtime.intersectionActive then
+      upcomingSignal = nil
+      if runtime.status == "waitingSignal" then
+        runtime.followLead = nil
+        runtime.followLeadId = nil
+        runtime.leadCandidateId = nil
+        runtime.leadRayConfirmed = false
+        currentLead, leadId = nil, nil
+      end
+    end
     updateLaneChange(vehicle, dt)
 
     local stopDistance = target.exactApproach == true and 1.25 or config.stopDistance
@@ -1044,8 +1470,7 @@ function M.new(options)
 
     if runtime.routeDonePending then
       runtime.routeDoneRetryTimer = math.max(0, runtime.routeDoneRetryTimer - dt)
-      local signal = findUpcomingSignal(vehicle)
-      if signal and (signal.action == 1 or signal.action == 2) then
+      if upcomingSignal and (upcomingSignal.action == 1 or upcomingSignal.action == 2) then
         runtime.status = "waitingSignal"
         stopAi(vehicle)
       elseif runtime.routeDoneRetryTimer <= 0 then
@@ -1058,10 +1483,9 @@ function M.new(options)
     if runtime.status == "waitingTraffic" then
       runtime.recoverySeconds = runtime.recoverySeconds + dt
       runtime.recoveryTrafficWait = runtime.recoveryTrafficWait + dt
-      local currentLead = findLeadVehicle(vehicle)
-      local currentSignal = findUpcomingSignal(vehicle)
+      currentLead = runtime.followLead
+      local currentSignal = runtime.upcomingSignal
       runtime.followLeadId = currentLead and currentLead.id or nil
-      runtime.upcomingSignal = currentSignal
       if runtime.recoveryExhausted then
         applySpeedCap(vehicle, 0)
       elseif speed >= config.movingSpeedKmh or not currentLead or currentLead.rawSpeed > 2 then
@@ -1098,7 +1522,9 @@ function M.new(options)
         return false
       end
       local moved = vectorDistance(runtime.recoveryStartPos, vehiclePos)
-      local progressed = runtime.recoveryStartDistance - distance
+      local currentProgress = distance <= config.directApproachDistance and distance or
+        (runtime.routeRemaining or distance)
+      local progressed = runtime.recoveryStartProgress - currentProgress
       local forwardMovement = 0
       if runtime.recoveryStartPos and runtime.recoveryStartDir then
         forwardMovement = ((tonumber(vehiclePos.x) or 0) - runtime.recoveryStartPos.x) * runtime.recoveryStartDir.x +
@@ -1116,7 +1542,7 @@ function M.new(options)
 
     if runtime.status == "approaching" then
       runtime.recoverySeconds = runtime.recoverySeconds + dt
-      local signal = findUpcomingSignal(vehicle)
+      local signal = runtime.upcomingSignal
       if signal and (signal.action == 1 or signal.action == 2) and
         signal.distance <= config.directApproachDistance then
         queue(vehicle, 'if extensions.taxiDriverAutopilotRecovery then extensions.taxiDriverAutopilotRecovery.stop() end')
@@ -1141,18 +1567,55 @@ function M.new(options)
       return false
     end
 
-    local leadId, upcomingSignal = updateFollowing(vehicle, distance, speed, dt)
+    if runtime.status == "waitingSignal" and
+      (not upcomingSignal or upcomingSignal.action == 0) then
+      if currentLead and runtime.leadCandidateId == nil then
+        runtime.followLead = nil
+        runtime.followLeadId = nil
+        runtime.leadRayConfirmed = false
+        currentLead, leadId = nil, nil
+      end
+      if not currentLead or currentLead.rawSpeed > 2 then
+        logger.info("autopilot", "green_signal_released_route", {
+          signal = upcomingSignal and upcomingSignal.id or nil,
+          greenSeconds = runtime.signalGreenSeconds
+        })
+        if not issueRoute(vehicle, target) then
+          runtime.routePending = true
+          runtime.routeRetryTimer = 0
+          runtime.status = "planning"
+        end
+        return false
+      end
+      if (upcomingSignal and runtime.signalGreenSeconds < config.signalQueueReleaseDelay) or
+        (not upcomingSignal and runtime.signalMissingSeconds < config.signalQueueReleaseDelay) then
+        return false
+      end
+      runtime.status = "waitingTraffic"
+      runtime.recoverySeconds = 0
+      runtime.recoveryTrafficWait = 0
+      runtime.recoveryClearTimer = 0
+      logger.info("autopilot", "green_signal_queue_remains", {
+        signal = upcomingSignal and upcomingSignal.id or nil, lead = currentLead.id,
+        gap = currentLead.gap, rayConfirmed = runtime.leadRayConfirmed
+      })
+      return false
+    end
 
-    if distance + 2 < runtime.bestDistance then
+    local progressMetric = distance <= config.directApproachDistance and distance or
+      (runtime.routeRemaining or distance)
+    if progressMetric + 2 < runtime.bestRouteRemaining then
+      runtime.bestRouteRemaining = progressMetric
       runtime.bestDistance = distance
       runtime.stuckSeconds = 0
       runtime.status = "driving"
     elseif speed >= config.movingSpeedKmh then
       runtime.stuckSeconds = math.max(0, runtime.stuckSeconds - dt * 2)
       runtime.bestDistance = math.min(runtime.bestDistance, distance)
+      runtime.bestRouteRemaining = math.min(runtime.bestRouteRemaining, progressMetric)
       runtime.status = "driving"
     elseif speed <= config.stoppedSpeedKmh and distance > config.stopDistance + 2 then
-      if signalRequiresStop(vehicle) then
+      if signalRequiresStop(upcomingSignal) then
         runtime.status = "waitingSignal"
         runtime.stuckSeconds = 0
       else
@@ -1166,7 +1629,7 @@ function M.new(options)
           return false
         end
         if runtime.stuckSeconds >= config.stuckDelay then
-          local queueLead = leadId and findLeadVehicle(vehicle) or nil
+          local queueLead = leadId and runtime.followLead or nil
           if isSignalQueue(queueLead, upcomingSignal, true) then
             runtime.status = "waitingSignal"
             runtime.stuckSeconds = 0
@@ -1199,15 +1662,29 @@ function M.new(options)
         logger.info("autopilot", "reverse_escape_completed", {
           source = reverseSourceReason, distance = distance
         })
-        if reverseSourceReason == "noStationaryObstacle" or reverseSourceReason == "mapUnavailable" or
+        if runtime.recoveryEscalation >= 2 then
+          runtime.skipRouteNodes = math.max(runtime.skipRouteNodes, 1)
+          logger.warn("autopilot", "recovery_route_node_skipped", {
+            source = reverseSourceReason, escalation = runtime.recoveryEscalation
+          })
+          restoreNormal(vehicle, target, distance)
+        elseif reverseSourceReason == "noStationaryObstacle" or reverseSourceReason == "mapUnavailable" or
           reverseSourceReason == "roadUnavailable" or reverseSourceReason == "directionUnavailable" then
           restoreNormal(vehicle, target, distance)
         else
           beginRecovery(vehicle, target, distance)
         end
       elseif reason == "frontEscapeAvailable" then
-        logger.info("autopilot", "reverse_escape_not_required", {reason = reason})
-        restoreNormal(vehicle, target, distance)
+        logger.info("autopilot", "reverse_escape_not_required", {
+          reason = reason, repeatCount = runtime.recoverySignatureCount,
+          escalation = runtime.recoveryEscalation
+        })
+        if runtime.recoveryEscalation == 0 then
+          beginForwardCreep(vehicle, reverseSourceReason)
+        else
+          runtime.recoveryEscalation = 2
+          beginReverseEscape(vehicle, reverseSourceReason, true)
+        end
       else
         runtime.status = "waitingTraffic"
         runtime.recoverySeconds = 0
@@ -1217,6 +1694,19 @@ function M.new(options)
         logger.warn("autopilot", "reverse_escape_blocked", {
           source = reverseSourceReason, reason = reason
         })
+      end
+    elseif controllerMode == "creep" then
+      local moved = runtime.recoveryStartPos and vectorDistance(runtime.recoveryStartPos,
+        vehicle:getPosition()) or 0
+      if succeeded and moved >= config.recoveryRepeatProgress then
+        logger.info("autopilot", "recovery_forward_creep_completed", {moved = moved})
+        restoreNormal(vehicle, target, distance)
+      else
+        runtime.recoveryEscalation = 2
+        logger.warn("autopilot", "recovery_forward_creep_failed", {
+          moved = moved, reason = reason
+        })
+        beginReverseEscape(vehicle, reverseSourceReason, true)
       end
     elseif controllerMode == "approach" then
       if succeeded then

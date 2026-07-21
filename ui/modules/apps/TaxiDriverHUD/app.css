@@ -665,6 +665,24 @@
   }
   .taxi-map__autopilot--recovering strong { background: #ff8b2b; }
   .taxi-map__autopilot:disabled { opacity: .46; }
+  .taxi-map__fleet {
+    position: absolute;
+    z-index: 3;
+    bottom: 10px;
+    left: 10px;
+    display: flex;
+    min-height: 40px;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px 6px 7px;
+    color: #eadcff;
+    background: rgba(32, 18, 49, .94);
+    border: 1px solid rgba(174,116,255,.5);
+    border-radius: 11px;
+    box-shadow: 0 7px 18px rgba(0,0,0,.28);
+  }
+  .taxi-map__fleet strong { display: grid; width: 27px; height: 27px; place-items: center; color: #fff; background: #9254e8; border-radius: 50%; }
+  .taxi-map__fleet span { min-width: 14px; font-size: 14px; font-weight: 1000; }
   @keyframes taxi-autopilot-recovery {
     from { box-shadow: 0 5px 14px rgba(0,0,0,.24); }
     to { box-shadow: 0 0 0 4px rgba(255,139,43,.2), 0 5px 18px rgba(255,99,24,.38); }
@@ -2059,8 +2077,9 @@
     cursor: pointer;
   }
   .taxi-start:hover { filter: brightness(1.06); transform: translateY(-1px); }
-  .taxi-home__actions { display: grid; width: 100%; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 8px; }
-  .taxi-shift-history-button {
+  .taxi-home__actions { display: grid; width: 100%; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .taxi-home__actions .taxi-start { grid-column: 1 / -1; }
+  .taxi-shift-history-button, .taxi-fleet-button {
     display: flex;
     min-width: 0;
     align-items: center;
@@ -2075,8 +2094,61 @@
     border-radius: 11px;
     cursor: pointer;
   }
+  .taxi-fleet-button span { display: grid; min-width: 20px; height: 20px; place-items: center; color: #fff; background: #9254e8; border-radius: 99px; }
   .taxi-shift-history-button span { display: grid; min-width: 20px; height: 20px; place-items: center; color: #17140a; background: var(--yellow); border-radius: 99px; }
   .taxi-shift-history-button:disabled { opacity: .42; cursor: default; }
+  .taxi-fleet {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    padding: 0;
+    background: radial-gradient(circle at 80% 0, rgba(146,84,232,.13), transparent 35%), linear-gradient(165deg, #24282e, #111317 72%);
+  }
+  .taxi-fleet__map { flex: 0 0 clamp(180px, 34vh, 290px); border-bottom: 1px solid rgba(174,116,255,.2); }
+  .taxi-fleet__panel { display: flex; min-height: 0; flex: 1; flex-direction: column; padding: 14px; background: linear-gradient(165deg, rgba(36,40,46,.98), rgba(17,19,23,.99) 72%); }
+  .taxi-fleet__map-status { position: absolute; z-index: 3; bottom: 10px; left: 10px; display: flex; min-height: 34px; align-items: center; gap: 6px; padding: 6px 9px; color: #e7d8ff; background: rgba(29,16,46,.93); border: 1px solid rgba(174,116,255,.42); border-radius: 9px; box-shadow: 0 5px 14px rgba(0,0,0,.25); }
+  .taxi-fleet__map-status i { width: 9px; height: 9px; background: #9a4aff; border: 2px solid #d1b3ff; border-radius: 50%; box-shadow: 0 0 8px #9a4aff; }
+  .taxi-fleet__map-status strong { font-size: 13px; }
+  .taxi-fleet__map-status span { color: #c9b9df; font-size: 9px; }
+  .taxi-fleet__head { display: flex; align-items: flex-start; gap: 10px; }
+  .taxi-fleet__head > button { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; padding: 0 0 3px; color: #fff; font-size: 29px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.13); border-radius: 10px; cursor: pointer; }
+  .taxi-fleet__head > div { min-width: 0; flex: 1; }
+  .taxi-fleet__head h2 { margin: 0; font-size: 21px; }
+  .taxi-fleet__head p { margin: 4px 0 0; color: var(--muted); font-size: 10px; line-height: 1.35; }
+  .taxi-fleet__head > span { padding: 5px 8px; color: #d4b8ff; font-size: 10px; font-weight: 1000; background: rgba(146,84,232,.13); border: 1px solid rgba(174,116,255,.25); border-radius: 99px; }
+  .taxi-fleet__scroll { min-height: 0; flex: 1; margin-top: 12px; padding-right: 3px; overflow-y: auto; }
+  .taxi-fleet__scroll::-webkit-scrollbar { width: 4px; }
+  .taxi-fleet__scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius: 9px; }
+  .taxi-fleet__stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+  .taxi-fleet__stats span { min-width: 0; padding: 9px; background: rgba(255,255,255,.055); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; }
+  .taxi-fleet__stats small { display: block; color: var(--muted); font-size: 8px; font-weight: 800; line-height: 1.25; }
+  .taxi-fleet__stats strong { display: block; margin-top: 4px; color: var(--green); font-size: 13px; overflow-wrap: anywhere; }
+  .taxi-fleet__negative { color: var(--red) !important; }
+  .taxi-fleet__economy { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+  .taxi-fleet__economy span { padding: 5px 7px; color: var(--muted); font-size: 8px; background: rgba(0,0,0,.18); border-radius: 7px; }
+  .taxi-fleet__economy b { color: #eef1f4; }
+  .taxi-fleet__section { margin-top: 13px; }
+  .taxi-fleet__section h3 { margin: 0 0 7px; color: #f4f6f8; font-size: 12px; }
+  .taxi-fleet__hint { margin: -2px 0 8px; color: var(--muted); font-size: 9px; line-height: 1.35; }
+  .taxi-fleet__empty { padding: 13px; color: var(--muted); font-size: 10px; text-align: center; background: rgba(255,255,255,.025); border: 1px dashed rgba(255,255,255,.1); border-radius: 9px; }
+  .taxi-fleet__driver { padding: 9px; background: rgba(255,255,255,.05); border: 1px solid rgba(174,116,255,.18); border-radius: 11px; }
+  .taxi-fleet__driver + .taxi-fleet__driver { margin-top: 7px; }
+  .taxi-fleet__vehicle { display: flex; align-items: center; gap: 8px; }
+  .taxi-fleet__vehicle > div, .taxi-fleet__candidate > div { position: relative; display: grid; width: 54px; height: 38px; flex: 0 0 54px; place-items: center; overflow: hidden; color: #aa7cff; background: rgba(146,84,232,.1); border-radius: 8px; }
+  .taxi-fleet__vehicle img, .taxi-fleet__candidate img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .taxi-fleet__vehicle p, .taxi-fleet__candidate p { min-width: 0; flex: 1; margin: 0; }
+  .taxi-fleet__vehicle strong, .taxi-fleet__candidate strong { display: block; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+  .taxi-fleet__vehicle small, .taxi-fleet__candidate small { display: block; margin-top: 3px; color: var(--muted); font-size: 8px; }
+  .taxi-fleet__vehicle i { width: 9px; height: 9px; flex: 0 0 9px; background: #9254e8; border: 2px solid #c8a5ff; border-radius: 50%; box-shadow: 0 0 8px #9254e8; }
+  .taxi-fleet__progress { height: 4px; margin-top: 8px; overflow: hidden; background: rgba(255,255,255,.08); border-radius: 99px; }
+  .taxi-fleet__progress span { display: block; height: 100%; background: linear-gradient(90deg, #7540c6, #b77bff); border-radius: inherit; }
+  .taxi-fleet__driver-stats { display: flex; justify-content: space-between; margin-top: 6px; color: var(--muted); font-size: 8px; }
+  .taxi-fleet__dismiss { width: 100%; margin-top: 7px; padding: 6px; color: #ff969d; font-size: 8px; font-weight: 900; background: rgba(255,104,104,.06); border: 1px solid rgba(255,104,104,.18); border-radius: 7px; cursor: pointer; }
+  .taxi-fleet__candidate { display: flex; width: 100%; align-items: center; gap: 8px; margin-top: 6px; padding: 7px; color: #eef1f4; text-align: left; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; cursor: pointer; }
+  .taxi-fleet__candidate > b { color: var(--yellow); font-size: 9px; white-space: nowrap; }
+  .taxi-fleet__candidate--traffic > div { width: 38px; flex-basis: 38px; color: #9254e8; font-size: 20px; }
+  .taxi-fleet__candidate:disabled { opacity: .38; cursor: default; }
   .taxi-shift-history { align-items: stretch; justify-content: flex-start; padding-top: 18px; text-align: left; }
   .taxi-shift-history__head { display: flex; width: 100%; align-items: flex-start; gap: 11px; }
   .taxi-shift-history__head > button { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; padding: 0 0 3px; color: #fff; font-size: 29px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.13); border-radius: 10px; cursor: pointer; }
@@ -2545,15 +2617,18 @@
     .taxi-home__stats { display: none; }
     .taxi-home__last-shift { display: none; }
     .taxi-trip-layout,
-    .taxi-fuel-route {
+    .taxi-fuel-route,
+    .taxi-fleet {
       display: grid;
       grid-template-columns: minmax(240px, 44%) minmax(0, 1fr);
       grid-template-rows: minmax(0, 1fr);
     }
     .taxi-trip-layout > .taxi-map,
-    .taxi-fuel-route > .taxi-map { width: 100%; height: 100%; min-height: 0; }
+    .taxi-fuel-route > .taxi-map,
+    .taxi-fleet > .taxi-map { width: 100%; height: 100%; min-height: 0; }
     .taxi-sheet,
-    .taxi-fuel-route__sheet { height: 100%; margin-top: 0; border-radius: 0; }
+    .taxi-fuel-route__sheet,
+    .taxi-fleet__panel { height: 100%; margin-top: 0; border-radius: 0; }
     .taxi-compact {
       top: 46px;
       height: calc(100% - 46px);
@@ -2714,7 +2789,26 @@
   .taxi-shell:not(.taxi-shell--external) .taxi-home__realistic { min-height: 52px; padding: 9px 10px; }
   .taxi-shell:not(.taxi-shell--external) .taxi-home__last-shift { padding: 11px; }
   .taxi-shell:not(.taxi-shell--external) .taxi-start { min-height: 52px; font-size: var(--taxi-label); }
-  .taxi-shell:not(.taxi-shell--external) .taxi-shift-history-button { min-height: 52px; font-size: var(--taxi-caption); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-shift-history-button,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet-button { min-height: 52px; font-size: var(--taxi-caption); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__head h2 { font-size: var(--taxi-heading); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__head > span { font-size: var(--taxi-caption); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__head p,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__hint,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__empty,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__vehicle strong,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__candidate strong { font-size: var(--taxi-caption); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__vehicle small,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__candidate small,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__driver-stats,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__economy span,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__stats small { font-size: var(--taxi-caption); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__map-status strong,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__map-status span { font-size: var(--taxi-caption); }
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__stats strong,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__section h3,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__candidate > b,
+  .taxi-shell:not(.taxi-shell--external) .taxi-fleet__dismiss { font-size: var(--taxi-caption); }
   .taxi-shell:not(.taxi-shell--external) .taxi-shift-card__copy strong { font-size: var(--taxi-body-small); }
   .taxi-shell:not(.taxi-shell--external) .taxi-shift-card__copy small,
   .taxi-shell:not(.taxi-shell--external) .taxi-shift-card__copy span { font-size: var(--taxi-caption); }

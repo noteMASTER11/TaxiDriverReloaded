@@ -1,6 +1,6 @@
 <style>
-  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=311-rc");
-  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=311-rc");
+  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=320-beta");
+  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=320-beta");
 </style>
 
 <div class="taxi-shell" ng-if="externalPhoneMode || !vehicleConfigSuspended" ng-class="{'taxi-shell--minimized': phoneMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
@@ -72,8 +72,8 @@
     <div class="taxi-appbar">
       <div class="taxi-appbar__logo">T</div>
       <div class="taxi-appbar__title">
-        <strong>{{ profileOpen ? (profileDraft.fullName || 'John Doe') : 'TaxiDriver' }}</strong>
-        <span>{{ fuelStationOpen ? (state.fuelStation.magic ? t('magicFuelTitle') : (state.fuelStation.name || t('refuelTitle'))) : (settingsOpen ? t('settingsTitle') : (profileOpen ? t('profileTitle') : (state.active ? getPhaseLabel() : t('appSubtitle')))) }}</span>
+        <strong>{{ profileOpen ? (profileDraft.fullName || 'John Doe') : (fleetOpen ? t('fleetTitle') : 'TaxiDriver') }}</strong>
+        <span>{{ fuelStationOpen ? (state.fuelStation.magic ? t('magicFuelTitle') : (state.fuelStation.name || t('refuelTitle'))) : (settingsOpen ? t('settingsTitle') : (profileOpen ? t('profileTitle') : (fleetOpen ? (state.fleet.activeDrivers + ' ' + t('fleetActiveDrivers')) : (state.active ? getPhaseLabel() : t('appSubtitle'))))) }}</span>
       </div>
       <div class="taxi-appbar__live" ng-if="state.active && !settingsOpen && !profileOpen && !fuelStationOpen">{{ t('online') }}</div>
       <button type="button" class="taxi-appbar__fuel" ng-if="state.active && state.realisticMode && !settingsOpen && !profileOpen && !fuelStationOpen" ng-click="hud.handleFuelAction()" aria-label="{{ t('refuelAction') }}">{{ t('refuelAction') }}</button>
@@ -218,6 +218,12 @@
               </button>
             </div>
           </div>
+          <div class="taxi-settings__section taxi-settings__section--stacked-switches">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('aiDebugLogger') }}</strong><span>{{ t('aiDebugLoggerHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.aiDebugLogging" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+            </label>
+          </div>
           <div class="taxi-settings__custom" ng-if="settings.aiDriver.preset === 'custom'">
             <p>{{ t('aiCustomHelp') }}</p>
           <div class="taxi-settings__section">
@@ -289,6 +295,53 @@
               </div>
             </div>
           </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.fleet}">
+        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('fleet')">
+          <span class="taxi-settings__group-icon">F</span><strong>{{ t('settingsFleet') }}</strong><i>{{ settingsSections.fleet ? '-' : '+' }}</i>
+        </button>
+        <div class="taxi-settings__group-body" ng-if="settingsSections.fleet">
+          <div class="taxi-settings__section">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('fleetEnabled') }}</strong><span>{{ t('fleetEnabledHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.fleet.enabled" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('fleetAiPreset') }}</div>
+            <div class="taxi-settings__help">{{ t('fleetAiPresetHelp') }}</div>
+            <div class="taxi-settings__segmented taxi-settings__segmented--three">
+              <button type="button" ng-class="{'taxi-settings__segmented-active': settings.fleet.aiPreset === 'careful'}" ng-click="settings.fleet.aiPreset='careful'; hud.settingsChanged()">{{ t('fleetAiCareful') }}</button>
+              <button type="button" ng-class="{'taxi-settings__segmented-active': settings.fleet.aiPreset === 'standard'}" ng-click="settings.fleet.aiPreset='standard'; hud.settingsChanged()">{{ t('fleetAiStandard') }}</button>
+              <button type="button" ng-class="{'taxi-settings__segmented-active': settings.fleet.aiPreset === 'fast'}" ng-click="settings.fleet.aiPreset='fast'; hud.settingsChanged()">{{ t('fleetAiFast') }}</button>
+            </div>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('fleetOwnerShare') }}</span><span>{{ settings.fleet.ownerSharePercent | number:0 }}%</span></div>
+            <input class="taxi-settings__range" type="range" min="10" max="90" step="5" ng-model="settings.fleet.ownerSharePercent" ng-change="hud.settingsChanged()">
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('fleetHiringFee') }}</span><span>{{ formatMoney(settings.fleet.hiringFee) }}</span></div>
+            <input class="taxi-settings__range" type="range" min="0" max="1000" step="5" ng-model="settings.fleet.hiringFee" ng-change="hud.settingsChanged()">
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('fleetWage') }}</span><span>{{ formatMoney(settings.fleet.wagePerTenMinutes) }}</span></div>
+            <input class="taxi-settings__range" type="range" min="0" max="250" step="1" ng-model="settings.fleet.wagePerTenMinutes" ng-change="hud.settingsChanged()">
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('fleetMaxDrivers') }}</span><span>{{ settings.fleet.maxDrivers | number:0 }}</span></div>
+            <input class="taxi-settings__range" type="range" min="1" max="12" step="1" ng-model="settings.fleet.maxDrivers" ng-change="hud.settingsChanged()">
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('fleetWorldLabelDistance') }}</span><span>{{ settings.fleet.worldLabelDistance | number:0 }} m</span></div>
+            <input class="taxi-settings__range" type="range" min="50" max="1000" step="50" ng-model="settings.fleet.worldLabelDistance" ng-change="hud.settingsChanged()">
+          </div>
+          <div class="taxi-settings__section taxi-settings__section--stacked-switches">
+            <label class="taxi-settings__switch-row"><span class="taxi-settings__switch-copy"><strong>{{ t('fleetPassengerJobs') }}</strong></span><input type="checkbox" ng-model="settings.fleet.passengerJobs" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span></label>
+            <label class="taxi-settings__switch-row"><span class="taxi-settings__switch-copy"><strong>{{ t('fleetDeliveryJobs') }}</strong></span><input type="checkbox" ng-model="settings.fleet.deliveryJobs" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span></label>
           </div>
         </div>
       </section>
@@ -583,7 +636,62 @@
       </div>
     </div>
 
-    <div class="taxi-home" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && !state.active">
+    <div class="taxi-fleet" ng-if="fleetOpen && !settingsOpen && !profileOpen && !fuelStationOpen">
+      <div class="taxi-map taxi-fleet__map">
+        <div class="taxi-minimap-surface"></div>
+        <canvas class="taxi-external-minimap" ng-if="externalPhoneMode"></canvas>
+        <div class="taxi-map__route-info" ng-if="state.active && (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination' || state.phase === 'toFuelStation')">
+          <span>{{ t('arrival') }}</span><strong>{{ getArrivalTime(state.etaMinutes) }}</strong><small>{{ formatEta(state.etaMinutes) }} · {{ formatDistance(state.distanceToTarget) }}</small>
+        </div>
+        <div class="taxi-map__speed" ng-class="{'taxi-map__speed--warning': overspeedWarningActive}" ng-if="state.active && state.speedLimit > 0">{{ formatSpeedValue(state.speedLimit) }}</div>
+        <button type="button" class="taxi-map__autopilot" ng-if="state.active && (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination' || state.phase === 'toFuelStation')" ng-class="{'taxi-map__autopilot--active': state.autopilot.enabled, 'taxi-map__autopilot--recovering': state.autopilot.status === 'recovering'}" ng-click="hud.toggleAutopilot()" ng-disabled="!state.autopilot.available">
+          <strong>AI</strong><span>{{ t(state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable') }}</span>
+        </button>
+        <div class="taxi-fleet__map-status"><i></i><strong>{{ state.fleet.activeDrivers }}</strong><span>{{ t('fleetActiveDrivers') }}</span></div>
+      </div>
+      <div class="taxi-fleet__panel">
+       <div class="taxi-fleet__head">
+        <button type="button" ng-click="hud.toggleFleet()" aria-label="{{ t('back') }}">&#8249;</button>
+        <div><h2>{{ t('fleetTitle') }}</h2><p>{{ t('fleetSubtitle') }}</p></div>
+        <span>{{ state.fleet.activeDrivers }}/{{ state.fleet.maxDrivers }}</span>
+      </div>
+      <div class="taxi-fleet__scroll">
+        <div class="taxi-fleet__stats">
+          <span><small>{{ t('fleetTrips') }}</small><strong>{{ state.fleet.stats.rides || 0 }}</strong></span>
+          <span><small>{{ t('fleetGross') }}</small><strong>{{ formatMoney(state.fleet.stats.grossRevenue) }}</strong></span>
+          <span><small>{{ t('fleetProfit') }}</small><strong ng-class="{'taxi-fleet__negative': state.fleet.stats.netProfit < 0}">{{ formatMoney(state.fleet.stats.netProfit) }}</strong></span>
+        </div>
+        <div class="taxi-fleet__economy"><span>{{ t('fleetOwnerShare') }} <b>{{ state.fleet.ownerSharePercent }}%</b></span><span>{{ t('fleetHiringFee') }} <b>{{ formatMoney(state.fleet.hiringFee) }}</b></span><span>{{ t('fleetWageShort') }} <b>{{ formatMoney(state.fleet.wagePerTenMinutes) }}</b></span></div>
+        <section class="taxi-fleet__section" ng-if="state.fleet.drivers.length">
+          <h3>{{ t('fleetActiveDrivers') }}</h3>
+          <article class="taxi-fleet__driver" ng-repeat="driver in state.fleet.drivers track by driver.id">
+            <div class="taxi-fleet__vehicle"><div><span>&#128663;</span><img ng-if="driver.preview" ng-src="{{ driver.preview }}" alt="{{ driver.name }}"></div><p><strong>{{ driver.name }}</strong><small>{{ driver.status === 'unpaid' ? t('fleetUnpaid') : (driver.jobType === 'delivery' ? t('fleetDelivery') : t('fleetPassenger')) }}</small></p><i></i></div>
+            <div class="taxi-fleet__progress"><span ng-style="{'width': (driver.progress * 100) + '%'}"></span></div>
+            <div class="taxi-fleet__driver-stats"><span>{{ driver.stats.rides || 0 }} {{ t('rides') }}</span><span>{{ formatDistance(driver.remainingMeters) }}</span><span>{{ formatMoney(driver.stats.ownerRevenue) }}</span></div>
+            <button type="button" class="taxi-fleet__dismiss" ng-click="hud.fleetCommand('dismiss', {id: driver.id})">{{ t('fleetDismiss') }}</button>
+          </article>
+        </section>
+        <section class="taxi-fleet__section">
+          <h3>{{ t('fleetSpawnVehicle') }}</h3>
+          <p class="taxi-fleet__hint">{{ t('fleetSpawnHelp') }}</p>
+          <div class="taxi-fleet__empty" ng-if="!state.fleet.garage.length">{{ t('fleetNoGarageCars') }}</div>
+          <button type="button" class="taxi-fleet__candidate" ng-repeat="vehicle in state.fleet.garage track by vehicle.key" ng-disabled="!state.fleet.canAffordHire || state.fleet.activeDrivers >= state.fleet.maxDrivers || !state.fleet.enabled" ng-click="hud.fleetCommand('hireGarage', vehicle)">
+            <div><span>&#128663;</span><img ng-if="vehicle.preview" ng-src="{{ vehicle.preview }}" alt="{{ vehicle.name }}"></div><p><strong>{{ vehicle.name }}</strong><small>{{ vehicle.completedRides || 0 }} {{ t('rides') }}</small></p><b>{{ formatMoney(state.fleet.hiringFee) }}</b>
+          </button>
+        </section>
+        <section class="taxi-fleet__section">
+          <h3>{{ t('fleetRecruitTraffic') }}</h3>
+          <p class="taxi-fleet__hint">{{ t('fleetRecruitHelp') }}</p>
+          <div class="taxi-fleet__empty" ng-if="!state.fleet.trafficCandidates.length">{{ t('fleetNoTrafficCars') }}</div>
+          <button type="button" class="taxi-fleet__candidate taxi-fleet__candidate--traffic" ng-repeat="vehicle in state.fleet.trafficCandidates track by vehicle.vehicleId" ng-disabled="!state.fleet.canAffordHire || state.fleet.activeDrivers >= state.fleet.maxDrivers || !state.fleet.enabled" ng-click="hud.fleetCommand('hireTraffic', {vehicleId: vehicle.vehicleId})">
+            <div><span>&#9679;</span></div><p><strong>{{ vehicle.name }}</strong><small>{{ formatDistance(vehicle.distance) }}</small></p><b>{{ t('fleetHire') }}</b>
+          </button>
+        </section>
+      </div>
+      </div>
+    </div>
+
+    <div class="taxi-home" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && !fleetOpen && !state.active">
       <div class="taxi-home__shade"></div>
       <div class="taxi-home__content" ng-if="!shiftHistoryOpen">
         <div class="taxi-home__pin"><span>T</span></div>
@@ -624,6 +732,7 @@
         </div>
         <div class="taxi-home__actions">
           <button class="taxi-start" ng-click="hud.startMode()">{{ t('newShift') }}</button>
+          <button class="taxi-fleet-button" ng-click="hud.toggleFleet()">{{ t('fleetTitle') }} <span ng-if="state.fleet.activeDrivers">{{ state.fleet.activeDrivers }}</span></button>
           <button class="taxi-shift-history-button" ng-click="hud.toggleShiftHistory()" ng-disabled="!state.shiftHistory.items.length || state.shiftHistory.restoring">
             {{ t('previousShift') }}
             <span ng-if="state.shiftHistory.items.length">{{ state.shiftHistory.items.length }}</span>
@@ -658,7 +767,7 @@
       </div>
     </div>
 
-    <div class="taxi-orders" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && state.phase === 'searching'">
+    <div class="taxi-orders" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && !fleetOpen && state.active && state.phase === 'searching'">
       <div class="taxi-orders__sheet">
         <div class="taxi-orders__search">
           <div class="taxi-orders__spinner" ng-if="state.offers.length < state.offerTargetCount"></div>
@@ -726,7 +835,7 @@
       </div>
     </div>
 
-    <div class="taxi-transfer" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && (state.phase === 'boarding' || state.phase === 'alighting')">
+    <div class="taxi-transfer" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && !fleetOpen && state.active && (state.phase === 'boarding' || state.phase === 'alighting')">
       <div class="taxi-transfer__loader"><div ng-class="state.isDelivery ? 'taxi-transfer__cargo' : 'taxi-transfer__door'"></div></div>
       <h2>{{ getPhaseLabel() }}</h2>
       <div class="taxi-transfer__passenger">{{ state.isDelivery ? formatCargoWeight(state.cargoWeightKg) : state.passengerName }}</div>
@@ -738,7 +847,7 @@
       <div class="taxi-transfer__progress"></div>
     </div>
 
-    <div class="taxi-transfer taxi-transfer--critical" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && state.phase === 'passengerStopDemand'">
+    <div class="taxi-transfer taxi-transfer--critical" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && !fleetOpen && state.active && state.phase === 'passengerStopDemand'">
       <div class="taxi-transfer__alert">!</div>
       <h2>{{ t('stopDemandTitle') }}</h2>
       <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
@@ -746,7 +855,7 @@
       <div class="taxi-transfer__progress"></div>
     </div>
 
-    <div class="taxi-transfer taxi-transfer--critical" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && state.phase === 'passengerForcedExit'">
+    <div class="taxi-transfer taxi-transfer--critical" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && !fleetOpen && state.active && state.phase === 'passengerForcedExit'">
       <div class="taxi-transfer__loader"><div class="taxi-transfer__door"></div></div>
       <h2>{{ t('forcedExitTitle') }}</h2>
       <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
@@ -755,7 +864,7 @@
       <div class="taxi-transfer__progress taxi-transfer__progress--determinate"><div class="taxi-transfer__progress-fill" ng-style="{'width': ((state.forcedExitDuration - state.forcedExitRemaining) / state.forcedExitDuration * 100) + '%'}"></div></div>
     </div>
 
-    <div class="taxi-transfer taxi-transfer--critical" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && state.phase === 'driverAbandoning'">
+    <div class="taxi-transfer taxi-transfer--critical" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && !fleetOpen && state.active && state.phase === 'driverAbandoning'">
       <div class="taxi-transfer__loader"><div class="taxi-transfer__door"></div></div>
       <h2>{{ t('driverAbandoningTitle') }}</h2>
       <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
@@ -764,7 +873,7 @@
       <div class="taxi-transfer__progress taxi-transfer__progress--determinate"><div class="taxi-transfer__progress-fill" ng-style="{'width': ((state.forcedExitDuration - state.forcedExitRemaining) / state.forcedExitDuration * 100) + '%'}"></div></div>
     </div>
 
-    <div class="taxi-transfer" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && state.phase === 'stopWaiting'">
+    <div class="taxi-transfer" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && !fleetOpen && state.active && state.phase === 'stopWaiting'">
       <div class="taxi-transfer__stop">{{ state.currentStopIndex }}</div>
       <h2>{{ getPhaseLabel() }}</h2>
       <div class="taxi-transfer__passenger">{{ t('stopProgress', {current: state.currentStopIndex, total: state.stopCount}) }}</div>
@@ -773,7 +882,7 @@
       <div class="taxi-transfer__progress taxi-transfer__progress--determinate"><div class="taxi-transfer__progress-fill" ng-style="{'width': ((state.stopWaitDuration - state.stopWaitRemaining) / state.stopWaitDuration * 100) + '%'}"></div></div>
     </div>
 
-    <div class="taxi-transfer" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && state.phase === 'complete'">
+    <div class="taxi-transfer" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && !fleetOpen && state.active && state.phase === 'complete'">
       <div class="taxi-transfer__check">✓</div>
       <h2>{{ state.isDelivery ? t('deliveryComplete') : t('complete') }}</h2>
       <div class="taxi-transfer__passenger">{{ t('payout') }} {{ formatMoney(state.adjustedFare) }}</div>
@@ -782,7 +891,7 @@
       <div class="taxi-transfer__progress"></div>
     </div>
 
-    <div class="taxi-fuel-route" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && state.phase === 'toFuelStation'">
+    <div class="taxi-fuel-route" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && !fleetOpen && state.active && state.phase === 'toFuelStation'">
       <div class="taxi-map">
         <div class="taxi-minimap-surface"></div>
         <canvas class="taxi-external-minimap" ng-if="externalPhoneMode"></canvas>
@@ -796,6 +905,7 @@
           <strong>AI</strong>
           <span>{{ t(state.autopilot.status === 'recovering' ? 'autopilotRecovering' : (state.autopilot.status === 'waitingTraffic' ? 'autopilotWaitingTraffic' : (state.autopilot.status === 'waitingSignal' ? 'autopilotWaiting' : (state.autopilot.status === 'planning' ? 'autopilotPlanning' : (state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable'))))) }}</span>
         </button>
+        <button type="button" class="taxi-map__fleet" ng-if="state.fleet.activeDrivers > 0" ng-click="hud.toggleFleet()"><strong>F</strong><span>{{ state.fleet.activeDrivers }}</span></button>
       </div>
       <div class="taxi-fuel-route__sheet">
         <div class="taxi-fuel-route__head">
@@ -825,7 +935,7 @@
       </div>
     </div>
 
-    <div class="taxi-trip-layout" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && state.active && (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination')">
+    <div class="taxi-trip-layout" ng-if="!settingsOpen && !profileOpen && !fuelStationOpen && !fleetOpen && state.active && (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination')">
       <div class="taxi-map">
         <div class="taxi-minimap-surface"></div>
         <canvas class="taxi-external-minimap" ng-if="externalPhoneMode"></canvas>
@@ -839,6 +949,7 @@
           <strong>AI</strong>
           <span>{{ t(state.autopilot.status === 'recovering' ? 'autopilotRecovering' : (state.autopilot.status === 'waitingTraffic' ? 'autopilotWaitingTraffic' : (state.autopilot.status === 'waitingSignal' ? 'autopilotWaiting' : (state.autopilot.status === 'planning' ? 'autopilotPlanning' : (state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable'))))) }}</span>
         </button>
+        <button type="button" class="taxi-map__fleet" ng-if="state.fleet.activeDrivers > 0" ng-click="hud.toggleFleet()"><strong>F</strong><span>{{ state.fleet.activeDrivers }}</span></button>
       </div>
 
       <div class="taxi-sheet">

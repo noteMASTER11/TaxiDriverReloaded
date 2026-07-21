@@ -1,5 +1,63 @@
 # Changelog
 
+## 3.2.0 Beta — Fleet Operations
+
+This prerelease contains every change made after `3.1.1-rc`.
+
+> **Experimental systems notice:** fleet workers reuse TaxiDriver's experimental AI-driver supervisor rather than BeamNG's stock traffic behavior. This makes their work visible and configurable, but they can still hesitate, choose imperfect paths, or require intervention on unusual maps, junctions, vehicles, and traffic layouts.
+
+### Player-owned taxi fleet
+
+- Added **My Fleet** to the start screen, allowing the player to operate as both a driver and a fleet owner.
+- Added two hiring paths: spawn a separate vehicle from the garage or recruit an existing traffic vehicle from the current map.
+- Recruited traffic vehicles are removed from the ordinary traffic despawn pool for the duration of employment and restored when dismissed where possible.
+- Every hired vehicle receives an independent worker service and the same supervised route-following foundation used by the player's AI Driver; workers do not fall back to unsupervised stock traffic AI.
+- Fleet drivers independently choose passenger or cargo work, navigate through pickup and destination phases, complete jobs, rest, and request a new assignment.
+- Added session hiring fees, wages charged every ten minutes, configurable owner revenue share, insufficient-funds suspension, and a maximum active-driver limit.
+- Added persistent fleet totals for jobs, gross revenue, wages, hiring costs, and the player's net fleet profit in `/settings/TaxiDriver/fleet.json`.
+- Added separate **Careful**, **Standard**, and **Fast** worker presets. Fleet AI settings remain intentionally simpler and independent from the player's detailed AI Driver configuration.
+- Added toggles for passenger and cargo assignments plus configurable fleet economics in a dedicated **Fleet** settings section.
+- Hired workers are safely released when the gameplay session ends; persistent statistics remain available between sessions.
+
+### Fleet monitoring and map integration
+
+- Added a dedicated fleet screen with a player-centered live map, aggregate statistics, active-driver cards, route phase, speed and remaining-distance information, employment source, and per-driver controls.
+- The fleet screen remains available during an active passenger, cargo, or refueling route through a purple map overlay button. Closing it returns to the exact previous trip state.
+- Added purple fleet markers to both the native in-game minimap and the Connected Phone canvas map.
+- Added localized in-world labels for owned taxis showing the driver identity and current activity when they are near the player.
+- Added a **World label distance** slider from 50 to 1,000 metres, with a 400-metre default, so players can balance visibility and rendering cost.
+- Added translations for fleet screens, settings, statuses, actions, validation messages, and world labels in all nine supported languages.
+- Added a dedicated native-map occlusion region for the **Active drivers** overlay so road rendering can no longer cover its status label.
+- Kept fleet map publishing active on Connected Phone even when the player has no personal route, without enabling the native minimap outside an explicitly opened fleet view.
+
+### AI diagnostics
+
+- Added an independent **AI trip logger** switch to AI Driver settings; it remains disabled by default.
+- While enabled, every manual AI-control session writes a crash-readable JSON Lines journal named `taxidriver_ailog_<timestamp>.jsonl` in the BeamNG user `current` directory.
+- Logs are written continuously from AI activation until manual deactivation or session shutdown instead of being generated only at the end.
+- Added one-second navigation snapshots with route progress, physical target distance, cross-track error, controller mode, lead vehicle, traffic signal, speed caps, recovery state, powertrain inputs, gearbox state, and damage.
+- Added structured events for route changes, target changes, lead acquisition and release, traffic-signal transitions, recovery attempts, collision-safety braking, ignition changes, gearbox drift, gear hunting, and damage increases.
+- Added a final session summary with duration, route starts, recoveries, safety interventions, gear changes, damage delta, and minimum route/target distances.
+
+### AI Driver reliability pass
+
+- Added route-segment progress tracking so completion and recovery decisions can use remaining graph distance instead of relying only on straight-line distance to the trigger.
+- Added curve and junction look-ahead speed caps for earlier, smoother braking before sharp route changes.
+- Hardened lead-vehicle detection with temporal confirmation and collision-ray validation, reducing false following targets and premature lane changes.
+- Improved signal tracking and queue release diagnostics, including explicit acquisition, phase changes, disappearance, and green-release timing.
+- Added a preflight readiness phase that waits for ignition, gearbox, and controller state before handing the route to native AI.
+- Improved recovery from repeated failure loops: equivalent stuck states are detected, escalated, and can use a short controlled forward creep or a rescanned reverse escape before replanning.
+- Expanded reverse recovery telemetry with rear-clearance planning, steering choice, travelled distance, timeout, and obstruction reasons.
+- Preserved collision-safety braking during curved trajectories and exposed its live observation to the GE supervisor for better lead validation.
+
+### Validation and compatibility
+
+- Expanded Lua combinatorics for fleet presets, passenger/cargo combinations, garage and traffic hiring, wages, owner share, insufficient funds, worker lifecycle, persistence sanitization, world-label distance boundaries, and revised AI recovery states.
+- Expanded responsive UI coverage with fleet screens during idle and active trips, Fleet settings, native/Web maps, all nine locales, compact/full layouts, and DPR 2 HiDPI rendering.
+- Verified **343 responsive UI states**, the LAN bridge self-test, Lua gameplay combinatorics, and deterministic package validation.
+- The release archive contains **47 verified entries** and includes the new fleet manager, fleet worker, and AI journal modules.
+- Existing settings, progression, vehicle history, and shift history remain compatible. The release uses cache revision `320-beta` so in-game and external clients cannot mix older UI assets with this build.
+
 ## 3.1.1 RC — Experimental AI Driver Tuning
 
 This release candidate contains every change made after `3.1.0-beta`.

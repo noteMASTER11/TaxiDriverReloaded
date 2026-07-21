@@ -93,6 +93,9 @@
       obeyTrafficRules: true, allowOvertaking: true, allowOncomingRecovery: true,
       aggressionPercent: 30, followingTimeGap: 2.2, brakingDeceleration: 2.8, stuckDelaySeconds: 15,
     },
+    fleet: { enabled: true, aiPreset: "standard", ownerSharePercent: 35, hiringFee: 75,
+      wagePerTenMinutes: 12, maxDrivers: 6, worldLabelDistance: 400, incomeMultiplier: 1,
+      minimumJobDistanceKm: 1.5, maximumJobDistanceKm: 8, passengerJobs: true, deliveryJobs: true },
   };
 
   const offer = (id, delivery = false) => ({
@@ -115,6 +118,23 @@
       { id: 3, startedAt: 1784500000, lastSavedAt: 1784503600, vehicleName: "ETK 854t", preview: "", energyType: "gasoline", energyPercent: 24.4, rides: 6, aiRides: 4, netIncome: 82.40, averageRating: 4.73 },
       { id: 2, startedAt: 1784400000, lastSavedAt: 1784405400, vehicleName: "Gavril D35 V8 4WD", preview: "", energyType: "gasoline", energyPercent: 61.8, rides: 9, aiRides: 2, netIncome: 146.20, averageRating: 4.51 },
     ] },
+    fleet: {
+      enabled: true, activeDrivers: 2, maxDrivers: 6, hiringFee: 75, wagePerTenMinutes: 12,
+      ownerSharePercent: 35, canAffordHire: true,
+      stats: { rides: 14, passengerRides: 9, deliveryRides: 5, grossRevenue: 236.4,
+        ownerRevenue: 82.74, hiringFees: 150, wages: 24, netProfit: -91.26 },
+      drivers: [
+        { id: 1, vehicleId: 42, name: "ETK 854t", preview: "", source: "spawned",
+          status: "working", jobType: "passenger", progress: 0.63, remainingMeters: 1800,
+          stats: { rides: 8, ownerRevenue: 48.2 } },
+        { id: 2, vehicleId: 43, name: "Gavril Grand Marshal", preview: "", source: "traffic",
+          status: "working", jobType: "delivery", progress: 0.28, remainingMeters: 4200,
+          stats: { rides: 6, ownerRevenue: 34.54 } },
+      ],
+      markers: [{ id: 1, position: [120, 340, 0] }, { id: 2, position: [-180, 80, 0] }],
+      garage: [{ key: "etk800|854t", modelKey: "etk800", configKey: "854t", name: "ETK 854t", preview: "", completedRides: 7 }],
+      trafficCandidates: [{ vehicleId: 55, name: "Ibishu Pessima", distance: 145 }, { vehicleId: 56, name: "Gavril D-Series", distance: 360 }],
+    },
     vehicleEnergy: { available: true, energyType: "gasoline", quantity: 13.42, maxQuantity: 55, percent: 24.4, unit: "L", estimatedRangeKm: 128 },
     fuelStation: { available: false, id: "", name: "Gas Station", magic: false, vehicleStopped: true, options: [], balance: 75.15,
       refueling: { active: false, completing: false, energyType: "", quantity: 0, cost: 0, duration: 0, elapsed: 0, progress: 0, remainingSeconds: 0, completionId: 0 } },
@@ -161,6 +181,8 @@
 
   window.__taxiScenarios = {
     home: base(),
+    fleet: base(),
+    fleetTrip: tripState(false),
     orders: Object.assign(base(), { active: true, phase: "searching", offers: Array.from({ length: 12 }, (_, index) => offer(index + 1, index % 3 === 0)) }),
     trip: tripState(false),
     delivery: tripState(true),
