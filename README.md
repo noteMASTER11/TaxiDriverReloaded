@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.2.1-beta"><img src="https://img.shields.io/github/v/release/noteMASTER11/TaxiDriverReloaded?include_prereleases&display_name=tag&style=flat-square&color=ffd11a" alt="Latest release"></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.2.1-beta"><img src="https://img.shields.io/badge/release-v3.2.1--beta-ffd11a?style=flat-square" alt="Release v3.2.1-beta"></a>
   <img src="https://img.shields.io/badge/BeamNG.drive-0.38.6-f28c28?style=flat-square" alt="BeamNG.drive 0.38.6">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
