@@ -243,7 +243,10 @@ function M.new(options)
       id = id, vehicleId = vehicle:getID(), source = source, vehicle = identity,
       hiredAt = os.time(), lastPosition = pos and vec3(pos) or nil, activeSeconds = 0,
       wageSeconds = 0, stoppedSeconds = 0, stats = emptyStats(),
-      worker = workerFactory.new({config = taxiConfig.autopilot})
+      worker = workerFactory.new({
+        config = taxiConfig.autopilot,
+        updateOffset = ((id - 1) % 4) * 0.0625
+      })
     }
     drivers[id] = driver
     activateVehicle(vehicle)
@@ -478,6 +481,14 @@ function M.new(options)
           if driver.worker:hasArrived(vehicle) then
             driver.worker:stop(vehicle, "fleetJobComplete")
             walletDelta = walletDelta + completeJob(driver)
+          elseif type(driver.worker.hasFailed) == "function" and driver.worker:hasFailed(vehicle) then
+            driver.worker:stop(vehicle, "fleetJobAbandoned")
+            driver.status, driver.restSeconds = "resting", 2
+            driver.target, driver.route = nil, nil
+            log("W", logTag, string.format(
+              "Fleet driver %d abandoned an unreachable job; a new route will be assigned",
+              driver.id))
+            hudDirty = true
           end
           if driver.wageSeconds >= 600 then
             driver.wageSeconds = driver.wageSeconds - 600

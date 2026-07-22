@@ -1,5 +1,32 @@
 # Changelog
 
+## 3.3.1 Beta — Lightweight Fleet Routing
+
+This focused prerelease separates hired Fleet drivers from the experimental predictive AI Driver used by the player's vehicle.
+
+### Fleet worker architecture
+
+- Replaced the full predictive/spatial AI supervisor in every hired Fleet vehicle with a lightweight worker built on BeamNG's native `ai.driveUsingPath` route following.
+- Kept the player's optional AI Driver unchanged: its predictive target approach, spatial sensing, collision supervisor, visualization, and recovery logic remain available only to the actively controlled vehicle.
+- Removed per-worker scene-wide vehicle scans, surface ray fans, spatial-graph searches, gearbox overrides, and predictive recovery passes. The player's position is no longer used when selecting or repairing a Fleet route.
+- Preserved hired vehicles as persistent world objects, including purple map markers, nearby world labels, Fleet monitoring, job accounting, wages, and owner-profit statistics.
+- Fleet driving presets now configure the native driver's aggression and speed-limit behavior without instantiating the heavier player-AI stack.
+
+### Route progress and recovery
+
+- Fleet workers monitor progress every 250 ms, staggered across four 62.5 ms phases to avoid updating every hired vehicle on the same simulation tick.
+- A failed route is rebuilt from the worker's current road segment. Already passed road nodes are removed so a vehicle does not turn around to revisit the beginning of its old path.
+- Native `Route Done` is accepted as arrival only inside a 22-metre target radius; otherwise the worker immediately requests a corrected path from its current position.
+- Recovery is deliberately bounded to three replans and a minimum 45-second no-progress window. An unreachable job is abandoned safely after the retry budget and replaced after a short rest instead of leaving the vehicle permanently blocked or consuming CPU indefinitely.
+- Vehicle speed is read directly from the worker's own tracked map object; the manager no longer performs broad traffic-state work on behalf of every Fleet driver.
+
+### Validation and compatibility
+
+- Added Lua combinatorics for native Fleet route dispatch, current-segment replanning, passed-node trimming, bounded stuck recovery, and clean failure hand-off.
+- Re-ran the Fleet economy/lifecycle, AI logging, adaptive bypass, trajectory-ray, powertrain, gameplay-mode, and 500 deferred-respawn regression suites.
+- Existing `3.3.0-beta` settings, progression, Fleet records, vehicle history, and shift history remain compatible.
+- UI cache revision: `331-beta`.
+
 ## 3.3.0 Beta — Predictive Routing and Spatial AI
 
 This cumulative prerelease contains every change made after `3.2.0-beta`, including the Connected Phone reliability work first published as `3.2.1-beta`.

@@ -1368,6 +1368,7 @@ local function fleetVector(x, y, z)
     local dx, dy, dz = self.x - other.x, self.y - other.y, self.z - other.z
     return math.sqrt(dx * dx + dy * dy + dz * dz)
   end
+  function methods:length() return math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z) end
   function methods:dot(other) return self.x * other.x + self.y * other.y + self.z * other.z end
   return setmetatable(value, {
     __index = methods,
@@ -1380,13 +1381,15 @@ vec3 = fleetVector
 quatFromDir = function() return {} end
 local fleetVehicles, deletedVehicles = {}, {}
 local function mockFleetVehicle(id, modelKey, configKey, position)
-  local vehicle = {jbeam = modelKey, partConfig = "/vehicles/" .. modelKey .. "/" .. configKey .. ".pc", position = position}
+  local vehicle = {jbeam = modelKey, partConfig = "/vehicles/" .. modelKey .. "/" .. configKey .. ".pc",
+    position = position, velocity = fleetVector(0, 0, 0), commands = {}}
   function vehicle:getID() return id end
   function vehicle:getPosition() return self.position end
   function vehicle:getDirectionVector() return fleetVector(1, 0, 0) end
+  function vehicle:getVelocity() return self.velocity end
   function vehicle:getInitialHeight() return 1.6 end
   function vehicle:setDynDataFieldbyName() end
-  function vehicle:queueLuaCommand() end
+  function vehicle:queueLuaCommand(command) self.commands[#self.commands + 1] = command end
   function vehicle:delete() deletedVehicles[id], fleetVehicles[id] = true, nil end
   fleetVehicles[id] = vehicle
   return vehicle
@@ -1411,7 +1414,10 @@ map = {
   objects = {},
   findClosestRoad = function() return "n1", "n2" end,
   getGraphpath = function()
-    return {getRandomPathG = function() return {"n1", "n2", "n3"} end}
+    return {
+      getRandomPathG = function() return {"n1", "n2", "n3"} end,
+      getPath = function(_, startNode, destination) return {startNode, destination} end
+    }
   end,
   getMap = function()
     return {nodes = {
@@ -1421,6 +1427,43 @@ map = {
     }}
   end
 }
+
+do
+local nativeFleetWorker = dofile("lua/ge/extensions/taxiDriver/fleetWorker.lua")
+local nativeVehicle = mockFleetVehicle(303, "etk800", "base", fleetVector(0, 0, 0))
+local nativeTarget = {pos = fleetVector(3500, 0, 0), nodeA = "n2", nodeB = "n3"}
+local nativeRoute = {
+  {wp = "n1", pos = fleetVector(0, 0, 0)},
+  {wp = "n2", pos = fleetVector(1500, 0, 0)},
+  {wp = "n3", pos = fleetVector(3500, 0, 0)}
+}
+local nativeWorker = nativeFleetWorker.new({updateOffset = 0})
+assert(nativeWorker:start(nativeVehicle, nativeTarget, nativeRoute, taxiConfig.fleetAiPresets.standard))
+local nativeStartCommand = nativeVehicle.commands[#nativeVehicle.commands]
+assert(nativeStartCommand:find("ai.driveUsingPath", 1, true))
+assert(not nativeStartCommand:find("taxiDriverAutopilotRecovery.start", 1, true))
+assert(not nativeStartCommand:find("setGearboxOverride(true)", 1, true))
+nativeVehicle.position = fleetVector(1600, 0, 0)
+assert(nativeWorker:onRouteDone(nativeVehicle))
+nativeWorker:update(nativeVehicle, 1.1)
+local nativeReplanCommand = nativeVehicle.commands[#nativeVehicle.commands]
+assert(nativeReplanCommand:find('path={"n2","n3"}', 1, true))
+assert(not nativeReplanCommand:find('"n1"', 1, true))
+nativeVehicle.position = fleetVector(3500, 0, 0)
+assert(nativeWorker:onRouteDone(nativeVehicle) and nativeWorker:hasArrived(nativeVehicle))
+nativeWorker:stop(nativeVehicle, "testComplete")
+
+local stalledVehicle = mockFleetVehicle(304, "pickup", "base", fleetVector(0, 0, 0))
+local stalledWorker = nativeFleetWorker.new({updateOffset = 0})
+local stalledSettings = {}
+for key, value in pairs(taxiConfig.fleetAiPresets.standard) do stalledSettings[key] = value end
+stalledSettings.recoveryMaxAttempts = 1
+assert(stalledWorker:start(stalledVehicle, nativeTarget, nativeRoute, stalledSettings))
+for _ = 1, 100 do stalledWorker:update(stalledVehicle, 1) end
+assert(stalledWorker:hasFailed(stalledVehicle))
+stalledWorker:stop(stalledVehicle, "testComplete")
+end
+
 core_vehicles = {
   getModel = function() return {model = {Brand = "ETK", Name = "800 Series"}} end,
   spawnNewVehicle = function() return spawnedFleetVehicle end
@@ -1493,4 +1536,4 @@ assert(dismissed and trafficInserted)
 fleetService:shutdown()
 assert(deletedVehicles[101])
 
-print("TaxiDriver Lua combinatorics: fleet worker presets/economy/lifecycle, AI logging, adaptive bypass, trajectory rays, powertrain handshake, gameplay modes, and 500 deferred respawns passed")
+print("TaxiDriver Lua combinatorics: lightweight fleet routing/replans, fleet presets/economy/lifecycle, AI logging, adaptive bypass, trajectory rays, powertrain handshake, gameplay modes, and 500 deferred respawns passed")

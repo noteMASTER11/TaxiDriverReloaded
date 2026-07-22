@@ -1,7 +1,7 @@
 {
   "name": "taxidriver-reloaded",
   "private": true,
-  "version": "3.3.0-beta",
+  "version": "3.3.1-beta",
   "type": "module",
   "scripts": {
     "build:external-sounds": "node scripts/generate-external-sounds.mjs",

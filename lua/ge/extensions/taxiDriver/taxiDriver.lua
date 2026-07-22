@@ -25,7 +25,7 @@ local tripEvents = require("taxiDriver/tripEvents")
 local hudPublisher = require("taxiDriver/hudPublisher")
 local logger = require("taxiDriver/logger")
 local aiLoggerModule = require("taxiDriver/aiLogger")
-local modVersion = "3.3.0-beta"
+local modVersion = "3.3.1-beta"
 local fleet = require("taxiDriver/fleetManager").new({modVersion = modVersion})
 local logTag = "taxiDriver"
 local supportedLanguages = taxiConfig.supportedLanguages
