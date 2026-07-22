@@ -334,6 +334,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           realisticMode: initialRealisticMode,
           randomEventsEnabled: initialRandomEventsEnabled,
           aiDebugLogging: persisted.aiDebugLogging === true,
+          aiDecisionVisualization: persisted.aiDecisionVisualization === true,
           aiDriver: normalizeAiDriver(persisted.aiDriver),
           fleet: normalizeFleet(persisted.fleet),
           godMode: persisted.godMode === true,
@@ -559,6 +560,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         let phoneToastTimer = null;
         let acceptedOfferTimer = null;
         let trackedNextOfferId = null;
+        let trackedNextOfferDeadline = 0;
         const expiredNextOfferIds = new Set();
         $scope.nextOfferUiRemaining = 0;
         let settingsInitializedFromBackend = false;
@@ -1005,6 +1007,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
 
         const clearNextOfferCountdown = () => {
           trackedNextOfferId = null;
+          trackedNextOfferDeadline = 0;
           $scope.nextOfferUiRemaining = 0;
         };
 
@@ -1018,7 +1021,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             $scope.state = Object.assign({}, $scope.state, { nextOffer: null });
           }
           bngApi.engineLua(
-            `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.expireNextOffer(${id}) end`
+            `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.dismissNextOffer(${id}) end`
           );
         };
 
@@ -1028,13 +1031,24 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             return;
           }
           const id = Math.floor(Number(offer.id || 0));
-          if (id <= 0 || expiredNextOfferIds.has(id)) return;
-          trackedNextOfferId = id;
+          if (id <= 0 || expiredNextOfferIds.has(id)) {
+            clearNextOfferCountdown();
+            return;
+          }
           const reportedRemaining = Number(offer.timeRemaining);
           const remaining = Math.max(0, Number.isFinite(reportedRemaining)
             ? reportedRemaining
             : Number(offer.duration || 5));
-          $scope.nextOfferUiRemaining = remaining;
+          const candidateDeadline = Date.now() + remaining * 1000;
+          if (trackedNextOfferId !== id || trackedNextOfferDeadline <= 0) {
+            trackedNextOfferId = id;
+            trackedNextOfferDeadline = candidateDeadline;
+          } else {
+            // Never extend a local deadline from a repeated stale HUD packet.
+            trackedNextOfferDeadline = Math.min(trackedNextOfferDeadline, candidateDeadline);
+          }
+          $scope.nextOfferUiRemaining = Math.max(0,
+            (trackedNextOfferDeadline - Date.now()) / 1000);
         };
 
         const normalizeSettings = (source) => {
@@ -1084,6 +1098,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             realisticMode: value.realisticMode === true,
             randomEventsEnabled: value.randomEventsEnabled === true,
             aiDebugLogging: value.aiDebugLogging === true,
+            aiDecisionVisualization: value.aiDecisionVisualization === true,
             aiDriver: normalizeAiDriver(value.aiDriver),
             fleet: normalizeFleet(value.fleet),
             godMode: value.godMode === true,
@@ -2148,6 +2163,10 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.acceptNextOffer(${id}) end`
           );
         };
+        this.dismissNextOffer = (offerId) => {
+          const id = Math.floor(Number(offerId || 0));
+          if (id > 0) expireNextOfferLocally(id);
+        };
 
         $scope.formatMoney = (value) => `$${Number(value || 0).toFixed(2)}`;
         $scope.formatOdometer = (meters) => {
@@ -2843,6 +2862,12 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           );
         }
         const clockTimer = setInterval(() => $scope.$evalAsync(updateClock), 30000);
+        const nextOfferCountdownTimer = setInterval(() => $scope.$evalAsync(() => {
+          if (!trackedNextOfferId || trackedNextOfferDeadline <= 0) return;
+          $scope.nextOfferUiRemaining = Math.max(0,
+            (trackedNextOfferDeadline - Date.now()) / 1000);
+          if ($scope.nextOfferUiRemaining <= 0) expireNextOfferLocally(trackedNextOfferId);
+        }), 100);
         const minimapTimer = externalPhoneMode ? null : setInterval(updateMinimap, 500);
         const resizeMap = () => {
           scheduleMinimapUpdate();
@@ -2897,6 +2922,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         $scope.$on("$destroy", () => {
           if (settingsSaveTimer) persistSettingsNow();
           clearInterval(clockTimer);
+          clearInterval(nextOfferCountdownTimer);
           if (minimapTimer) clearInterval(minimapTimer);
           if (externalHeartbeatTimer) clearInterval(externalHeartbeatTimer);
           if (nativeHudHeartbeatTimer) clearInterval(nativeHudHeartbeatTimer);

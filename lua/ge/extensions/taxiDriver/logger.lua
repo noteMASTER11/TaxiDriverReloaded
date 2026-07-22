@@ -5,7 +5,7 @@ local enabledProvider = function() return true end
 local eventSink = nil
 local unpackValues = unpack or table.unpack
 local defaultOperations = {
-  "startMode", "openVehicleSelector", "toggleAutopilot", "acceptOrder", "acceptNextOffer", "expireNextOffer",
+  "startMode", "openVehicleSelector", "toggleAutopilot", "acceptOrder", "acceptNextOffer", "dismissNextOffer", "expireNextOffer",
   "stopMode", "confirmDriverAbandonment", "purchaseRealisticFuel", "requestFuelStop",
   "completeFuelStop", "cancelFuelStop", "saveDriverProfile", "setDifficulty", "saveSettings",
   "disableExternalPhone", "setExternalPhoneView", "cheatSetRating", "cheatSetEnergyPercent",

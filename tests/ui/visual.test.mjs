@@ -86,6 +86,10 @@ const aiLoggerLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/aiLogger.lua"),
   "utf8"
 );
+const nextOfferGuardLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/nextOfferGuard.lua"),
+  "utf8"
+);
 const autopilotLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/autopilot.lua"),
   "utf8"
@@ -167,6 +171,18 @@ assert.match(taxiDriverLuaSource, /local function updateNextOfferOpportunitySafe
   "Late next-offer generation must not propagate Lua errors into the main update loop");
 assert.match(taxiDriverLuaSource, /updateNextOfferOpportunitySafely\(dtSim\)[\s\S]*?beginAlighting\(\)/,
   "A failed optional next-offer update must not prevent destination arrival handling");
+assert.match(nextOfferGuardLuaSource,
+  /phaseChanged[\s\S]*?invalidTimer[\s\S]*?value\s*=\s*math\.min\(value, duration\)[\s\S]*?dtReal/,
+  "Next offers must have a phase-independent real-time expiry guard for corrupt and stale timers");
+assert.match(taxiDriverLuaSource,
+  /updateNextOfferLifetime\(dtReal\)[\s\S]*?vehicleScanGuard\.isConfigurationOpen/,
+  "The offer expiry guard must run while vehicle configuration suspends normal gameplay updates");
+assert.match(appHtmlSource,
+  /taxi-next-offer__close[\s\S]*?dismissNextOffer\(state\.nextOffer\.id\)/,
+  "The proposed-order modal must expose an explicit per-order dismiss button");
+assert.match(appJsSource,
+  /trackedNextOfferDeadline[\s\S]*?Math\.min\(trackedNextOfferDeadline, candidateDeadline\)[\s\S]*?nextOfferCountdownTimer/,
+  "The UI countdown must use a monotonic local deadline that stale HUD packets cannot extend");
 assert.match(routePlannerLuaSource, /function service\.getNearestRoadSpeedLimit\(pos\)/,
   "Road speed-limit lookup must remain in the route planner module");
 assert.match(taxiDriverLuaSource, /routePlanning\.getNearestRoadSpeedLimit\(vehicle:getPosition\(\)\)/,
@@ -189,8 +205,8 @@ assert.doesNotMatch(lanBridgeLuaSource,
 assert.match(lanBridgeLuaSource, /heartbeatTimeout\s*=\s*8\.0/,
   "Battery-friendly heartbeats must tolerate browser timer throttling");
 assert.match(lanBridgeLuaSource,
-  /wsUtils\.createOrGetWS\([\s\S]*?"any"[\s\S]*?selectLanAddress\(nativeAddress\)[\s\S]*?transport = "native_any"/,
-  "Connected Phone must let BeamNG initialize and own its all-interface LAN listener before selecting the published address");
+  /wsUtils\.createOrGetWS\([\s\S]*?"any"[\s\S]*?selectLanAddress\(nativeAddress\)[\s\S]*?probeNativeLanListener[\s\S]*?startLanProxy/,
+  "Connected Phone must prefer BeamNG's native LAN listener and restore a loopback proxy when the native server exposes only localhost");
 assert.match(lanBridgeLuaSource,
   /routedLanAddress[\s\S]*?setpeername[\s\S]*?getsockname[\s\S]*?canBindAddress[\s\S]*?socketLib\.bind/,
   "LAN discovery must combine the Windows route-selected address with an ownership bind probe");
@@ -219,6 +235,12 @@ assert.match(persistenceLuaSource, /aiDebugLogging\s*=\s*false[\s\S]*?source\.ai
   "The dedicated AI trip logger must be persisted separately and disabled by default");
 assert.match(appHtmlSource, /aiDebugLogger[\s\S]*?ng-model="settings\.aiDebugLogging"/,
   "AI driver settings must expose a dedicated trip-debug toggle");
+assert.match(persistenceLuaSource,
+  /aiDecisionVisualization\s*=\s*false[\s\S]*?source\.aiDecisionVisualization\s*==\s*true/,
+  "AI world visualization must be persisted separately and disabled by default");
+assert.match(appHtmlSource,
+  /aiDecisionVisualization[\s\S]*?ng-model="settings\.aiDecisionVisualization"/,
+  "AI driver settings must expose a world decision-visualization toggle");
 assert.match(loggerLuaSource, /\[TaxiDriver\]/,
   "The structured logger must prefix every diagnostic record");
 assert.match(loggerLuaSource, /function M\.observeRuntime[\s\S]*?function M\.attachOperations/,
@@ -257,8 +279,19 @@ assert.match(autopilotLuaSource,
   /perception:planLocalBypass\(vehicle, runtime\.followLeadId\)[\s\S]*?taxiDriverAutopilotRecovery\.start/,
   "Recovery must use the independent adaptive corridor planner");
 assert.match(autopilotPerceptionLuaSource,
-  /combinedHalfWidth[\s\S]*?localLateralAt[\s\S]*?corridorIsClear[\s\S]*?buildCandidate/,
-  "Adaptive bypasses must account for vehicle dimensions and use a smooth minimum-offset path");
+  /scanSpaceFan[\s\S]*?evaluateSurface[\s\S]*?evaluateCandidate[\s\S]*?buildCandidate/,
+  "Adaptive bypasses must evaluate free-space rays, traversable surfaces, vehicle dimensions and smooth recovery paths");
+assert.match(autopilotPerceptionLuaSource,
+  /climbableStep[\s\S]*?stepTooHigh[\s\S]*?slopeTooSteep[\s\S]*?crossSlopeTooSteep/,
+  "Free-space planning must accept climbable pavements while rejecting steps and slopes unsafe for the vehicle");
+assert.match(autopilotPerceptionLuaSource,
+  /drawDebug[\s\S]*?drawLine[\s\S]*?drawSphere[\s\S]*?drawTextAdvanced/,
+  "AI perception must render its sensor fan, candidate paths, waypoints, and decision label in world space");
+assert.match(autopilotPerceptionLuaSource,
+  /getDirectionVectorUp[\s\S]*?sensorForwardZ[\s\S]*?sensorLeftZ[\s\S]*?directionZ \* distance/,
+  "AI world rays must follow the vehicle's three-dimensional pitch and roll instead of the world horizon");
+assert.match(autopilotPerceptionLuaSource, /debugTimer\s*=\s*0\.33/,
+  "Strategic free-space rays must refresh at the requested human-reaction interval");
 assert.match(autopilotRecoveryLuaSource,
   /rayOrientedBox[\s\S]*?castTrajectoryRay[\s\S]*?scanPredictedTrajectory[\s\S]*?comfortableDistance[\s\S]*?emergencyDistance/,
   "Vehicle safety must ray-test straight and curved trajectories with smooth and emergency braking");
@@ -914,6 +947,27 @@ try {
     window.__taxiPlayedSounds.filter((source) => source.includes("taxidriver_overspeed.mp3")).length
   );
   assert.equal(secondCount, 2, "Overspeed alert must play again after returning below the threshold");
+
+  await functionalPage.goto(harnessUrl("nextOffer", { width: 520, height: 900 }));
+  await waitForHarness(functionalPage);
+  await functionalPage.evaluate(() => { window.__taxiEngineLuaCommands = []; });
+  await functionalPage.locator(".taxi-next-offer__close").click();
+  await functionalPage.waitForFunction(() => !document.querySelector(".taxi-next-offer"));
+  assert.ok((await functionalPage.evaluate(() => window.__taxiEngineLuaCommands || []))
+    .some((value) => value.includes("dismissNextOffer(9)")),
+    "The close button must dismiss exactly the displayed queued offer");
+  await functionalPage.evaluate(() => {
+    window.__taxiEngineLuaCommands = [];
+    window.__taxiSetState({ phase: "toDestination", nextOffer: {
+      id: 901, passengerName: "Watchdog", accepted: false,
+      duration: 5, timeRemaining: 0.15, rideDistance: 1000, estimatedFare: 5,
+    } });
+  });
+  await functionalPage.waitForFunction(() => document.querySelector(".taxi-next-offer"));
+  await functionalPage.waitForFunction(() => !document.querySelector(".taxi-next-offer"), null, { timeout: 1500 });
+  assert.ok((await functionalPage.evaluate(() => window.__taxiEngineLuaCommands || []))
+    .some((value) => value.includes("dismissNextOffer(901)")),
+    "The local monotonic watchdog must close an offer even when no newer HUD tick arrives");
   await functionalPage.close();
 
   const iphoneAudioPage = await browser.newPage({ viewport: { width: 390, height: 844 } });

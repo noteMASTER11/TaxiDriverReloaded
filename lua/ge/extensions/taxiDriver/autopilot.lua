@@ -45,6 +45,9 @@ local defaults = {
   signalComfortableDeceleration = 3,
   yellowDecisionDeceleration = 3.5,
   intersectionClearDistance = 30,
+  proactiveApproachDistance = 75,
+  proactiveApproachRetryInterval = 2,
+  proactiveApproachFailureCooldown = 10,
   directApproachDistance = 48,
   directApproachDelay = 0.4,
   directApproachSpeed = 3.5,
@@ -71,7 +74,11 @@ local defaults = {
   routeCurveLookAhead = 120,
   routeCurveDeceleration = 2.8,
   routeCurveMinimumSpeed = 7,
-  routeJunctionSpeed = 16.7
+  routeJunctionSpeed = 16.7,
+  parkedObstacleTrackingRange = 180,
+  parkedObstacleTrackingInterval = 0.5,
+  staticContactRecoveryDelay = 1.5,
+  staticContactDistance = 1.65
 }
 
 local function copyConfig(source)
@@ -178,6 +185,8 @@ function M.new(options)
     laneChangeLeadTimer = 0,
     routeDonePending = false,
     routeDoneRetryTimer = 0,
+    proactiveApproachTimer = 0,
+    approachTimeout = 0,
     appliedSpeedCap = nil,
     bestDistance = math.huge,
     bestRouteRemaining = math.huge,
@@ -191,7 +200,10 @@ function M.new(options)
     recoverySignaturePos = nil,
     recoveryEscalation = 0,
     recoveryStartProgress = math.huge,
-    skipRouteNodes = 0
+    skipRouteNodes = 0,
+    parkedTrackingTimer = 0,
+    trackedParkedVehicles = {},
+    staticContactSeconds = 0
   }
 
   local function isDrivingPhase(phase)
@@ -207,6 +219,77 @@ function M.new(options)
     if not vehicle or type(vehicle.queueLuaCommand) ~= "function" then return false end
     vehicle:queueLuaCommand(command)
     return true
+  end
+
+  local function geVehicleId(vehicle)
+    if not vehicle then return nil end
+    for _, method in ipairs({"getID", "getId"}) do
+      if type(vehicle[method]) == "function" then
+        local ok, value = pcall(vehicle[method], vehicle)
+        if ok and value ~= nil then return value end
+      end
+    end
+    return nil
+  end
+
+  local function isParkedVehicle(vehicle)
+    if not vehicle then return false end
+    local ok, value = pcall(function() return vehicle.isParked end)
+    return ok and (value == true or tostring(value) == "true")
+  end
+
+  local function refreshParkedObstacleTracking(vehicle, dt, force)
+    runtime.parkedTrackingTimer = runtime.parkedTrackingTimer - math.max(0, tonumber(dt) or 0)
+    if not force and runtime.parkedTrackingTimer > 0 then return end
+    runtime.parkedTrackingTimer = math.max(0.1,
+      tonumber(config.parkedObstacleTrackingInterval) or 0.5)
+    if type(getAllVehicles) ~= "function" or not vehicle then return end
+    local ok, vehicles = pcall(getAllVehicles)
+    if not ok or type(vehicles) ~= "table" then return end
+    local ownId = geVehicleId(vehicle)
+    local ownPosition = type(vehicle.getPosition) == "function" and vehicle:getPosition() or nil
+    if not ownPosition then return end
+    local range = math.max(40, tonumber(config.parkedObstacleTrackingRange) or 180)
+    local rangeSquared = range * range
+    local newlyTracked = 0
+    for _, other in ipairs(vehicles) do
+      local id = geVehicleId(other)
+      if id ~= nil and tostring(id) ~= tostring(ownId) and isParkedVehicle(other) and
+        type(other.getPosition) == "function" and type(other.queueLuaCommand) == "function" then
+        local position = other:getPosition()
+        local dx = (tonumber(position and position.x) or 0) - (tonumber(ownPosition.x) or 0)
+        local dy = (tonumber(position and position.y) or 0) - (tonumber(ownPosition.y) or 0)
+        if dx * dx + dy * dy <= rangeSquared then
+          local visible = map and type(map.objects) == "table" and map.objects[id] ~= nil
+          if not visible then
+            other:queueLuaCommand("mapmgr.enableTracking()")
+            if runtime.trackedParkedVehicles[id] ~= true then
+              runtime.trackedParkedVehicles[id] = true
+              newlyTracked = newlyTracked + 1
+            end
+          end
+        end
+      end
+    end
+    if newlyTracked > 0 then
+      logger.info("autopilot", "parked_obstacle_tracking_enabled", {count = newlyTracked})
+    end
+  end
+
+  local function releaseParkedObstacleTracking()
+    local released = 0
+    for id in pairs(runtime.trackedParkedVehicles) do
+      local other = type(getObjectByID) == "function" and getObjectByID(id) or nil
+      if other and isParkedVehicle(other) and type(other.queueLuaCommand) == "function" then
+        other:queueLuaCommand("mapmgr.disableTracking()")
+        released = released + 1
+      end
+    end
+    runtime.trackedParkedVehicles = {}
+    runtime.parkedTrackingTimer = 0
+    if released > 0 then
+      logger.info("autopilot", "parked_obstacle_tracking_released", {count = released})
+    end
   end
 
   local function vehicleSupported(vehicle)
@@ -735,6 +818,7 @@ function M.new(options)
     if #nodes < 2 then return false end
     if not queue(vehicle, normalCommand(nodes)) then return false end
     runtime.skipRouteNodes = 0
+    runtime.staticContactSeconds = 0
     runtime.routeNodes = nodes
     runtime.routeSegmentIndex = nil
     local progress = routeProgressAt(vehicle:getPosition(), target)
@@ -747,6 +831,7 @@ function M.new(options)
     runtime.routeRetryTimer = 0
     runtime.stopIssued = false
     runtime.approachStage = 0
+    runtime.approachTimeout = 0
     runtime.followScanTimer = 0
     runtime.followSpeedCap = nil
     runtime.followLeadId = nil
@@ -907,6 +992,34 @@ function M.new(options)
     return "{" .. table.concat(result, ",") .. "}"
   end
 
+  local function remainingRouteReference(vehicle)
+    if not vehicle or #runtime.routeNodes < 2 or not map or type(map.getMap) ~= "function" then
+      return nil
+    end
+    local mapData = map.getMap()
+    local nodes = mapData and mapData.nodes
+    if not nodes then return nil end
+    local position = vehicle:getPosition()
+    local direction = type(vehicle.getDirectionVector) == "function" and
+      vehicle:getDirectionVector() or {x = 1, y = 0, z = 0}
+    local result = {copyPosition(position)}
+    local firstIndex = math.max(1, tonumber(runtime.routeSegmentIndex) or 1) + 1
+    for index = firstIndex, #runtime.routeNodes do
+      local node = nodes[runtime.routeNodes[index]]
+      if node and node.pos then
+        local point = copyPosition(node.pos)
+        local dx = point.x - result[1].x
+        local dy = point.y - result[1].y
+        local forward = dx * (tonumber(direction.x) or 0) + dy * (tonumber(direction.y) or 0)
+        if #result > 1 or forward >= -2 then
+          local previous = result[#result]
+          if vectorDistance(previous, point) > 0.5 then result[#result + 1] = point end
+        end
+      end
+    end
+    return #result >= 2 and result or nil
+  end
+
   local restoreNormal
 
   local function beginReverseEscape(vehicle, reason, force)
@@ -1053,32 +1166,68 @@ function M.new(options)
     queue(vehicle, command)
     logger.warn("autopilot", "adaptive_bypass_started", {
       attempt = runtime.recoveryAttempt, signal = bypass.signal,
-      obstacle = bypass.obstacleId, offset = bypass.offset, distance = bypass.distance
+      obstacle = bypass.obstacleId, offset = bypass.offset, distance = bypass.distance,
+      strategy = bypass.strategy, score = bypass.score,
+      minimumClearance = bypass.minimumClearance, roadOutside = bypass.roadOutside,
+      graphCost = bypass.graphCost, graphNodeCount = bypass.graphNodeCount
     })
   end
 
-  local function beginDirectApproach(vehicle, target, distance)
+  local function beginDirectApproach(vehicle, target, distance, options)
     if not target or not target.pos then return false end
+    options = type(options) == "table" and options or {}
+    if options.preferGraph == true and options.referencePoints == nil then
+      options.referencePoints = remainingRouteReference(vehicle)
+    end
+    local approach, approachReason = perception:planPointApproach(vehicle, target.pos, options)
+    if not approach or type(approach.points) ~= "table" or #approach.points < 2 then
+      logger.warn("autopilot", "point_approach_unavailable", {
+        distance = distance, reason = approachReason
+      })
+      return false
+    end
+    if options and options.requireGraph == true and approach.graphAssisted ~= true then
+      perception:clearPointApproach()
+      return false
+    end
     runtime.recoverySeconds = 0
     runtime.recoveryStartDistance = distance
     runtime.recoveryController = true
     runtime.controllerMode = "approach"
     runtime.status = "approaching"
     runtime.stuckSeconds = 0
-    local completionRadius = target.exactApproach == true and 1.25 or 2.5
+    local completionRadius = tonumber(approach.completionRadius) or 0.8
+    local approachSpeed = approach.graphAssisted and
+      math.min(5.5, config.directApproachSpeed + 1.5) or config.directApproachSpeed
+    local approachTimeout = math.max(config.directApproachTimeout,
+      (tonumber(approach.pathLength) or distance) / math.max(1, approachSpeed) * 1.8 + 10)
+    runtime.approachTimeout = approachTimeout
     local command = string.format(
       "ai.setMode('disabled'); extensions.load('taxiDriverAutopilotRecovery'); " ..
       "if extensions.taxiDriverAutopilotRecovery then extensions.taxiDriverAutopilotRecovery.start(" ..
-      "{points=%s,targetSpeed=%.3f,timeout=%.3f,signal=0,stopAtEnd=true,completionRadius=%.2f}) end",
-      serializeBypassPoints({target.pos}), config.directApproachSpeed,
-      config.directApproachTimeout, completionRadius
+      "{points=%s,targetSpeed=%.3f,timeout=%.3f,signal=0,stopAtEnd=true,completionRadius=%.2f," ..
+      "allowReverse=false}) end",
+      serializeBypassPoints(approach.points), approachSpeed,
+      approachTimeout, completionRadius
     )
     if not queue(vehicle, command) then
       runtime.recoveryController = false
       runtime.controllerMode = nil
+      runtime.approachTimeout = 0
       return false
     end
-    logger.info("autopilot", "direct_approach_started", {distance = distance})
+    logger.info("autopilot", "direct_approach_started", {distance = distance,
+      strategy = approach.strategy, targetError = approach.targetError,
+      minimumClearance = approach.minimumClearance, score = approach.score,
+      points = #approach.points, graphLength = approach.graphLength,
+      pathLength = approach.pathLength, routeCost = approach.routeCost,
+      startNode = approach.startNode, endNode = approach.endNode,
+      accessNodeA = approach.accessNodeA, accessNodeB = approach.accessNodeB,
+      graphEdgeCount = approach.graphEdgeCount,
+      graphRouteCount = approach.graphRouteCount,
+      graphFeasibleCount = approach.graphFeasibleCount,
+      firstPoint = approach.points[1], nextPoint = approach.points[2],
+      timeout = approachTimeout})
     return true
   end
 
@@ -1092,6 +1241,7 @@ function M.new(options)
   end
 
   restoreNormal = function(vehicle, target, distance)
+    perception:clearPointApproach()
     runtime.recoveryAttempt = 0
     runtime.recoveryExhausted = false
     runtime.recoverySeconds = 0
@@ -1100,6 +1250,7 @@ function M.new(options)
     runtime.recoveryStartDistance = math.huge
     runtime.recoveryController = false
     runtime.controllerMode = nil
+    runtime.approachTimeout = 0
     runtime.recoveryTrafficWait = 0
     runtime.recoveryClearTimer = 0
     runtime.reverseSourceReason = nil
@@ -1162,6 +1313,14 @@ function M.new(options)
     config.directApproachSpeed = approachSpeed
   end
 
+  function service:setDebugVisualization(value)
+    perception:setDebugEnabled(value == true)
+  end
+
+  function service:drawDebug()
+    if runtime.enabled and not runtime.suspended then perception:drawDebug() end
+  end
+
   function service:isEnabled()
     return runtime.enabled == true
   end
@@ -1207,7 +1366,8 @@ function M.new(options)
       recoveryRepeatCount = runtime.recoverySignatureCount,
       recoveryEscalation = runtime.recoveryEscalation,
       preflightPending = runtime.preflightPending,
-      preflightSeconds = runtime.preflightSeconds
+      preflightSeconds = runtime.preflightSeconds,
+      freeSpaceReason = perception:getDebugSnapshot().reason
     }
   end
 
@@ -1237,6 +1397,7 @@ function M.new(options)
     runtime.intersectionTravel = 0
     runtime.intersectionLastPos = nil
     runtime.routeDonePending = false
+    runtime.approachTimeout = 0
     runtime.laneChangeTimer = 0
     runtime.laneChangeCooldown = 0
     runtime.laneChangeLeadTimer = 0
@@ -1247,6 +1408,10 @@ function M.new(options)
     runtime.recoverySignaturePos = nil
     runtime.recoveryEscalation = 0
     runtime.skipRouteNodes = 0
+    runtime.staticContactSeconds = 0
+    runtime.parkedTrackingTimer = 0
+    runtime.trackedParkedVehicles = {}
+    refreshParkedObstacleTracking(vehicle, 0, true)
     resetProgress(vectorDistance(vehicle:getPosition(), target.pos))
     if trace and type(trace.start) == "function" then trace:start(vehicle, phase, target) end
     if type(options.getSafetyObservation) == "function" then
@@ -1267,7 +1432,9 @@ function M.new(options)
       queue(vehicle,
         'if extensions.taxiDriverAutopilotRecovery then extensions.taxiDriverAutopilotRecovery.stop(); extensions.taxiDriverAutopilotRecovery.unwatchRouteDone() end; electrics.set_left_signal(false,false); electrics.set_right_signal(false,false); ai.setRecoverOnCrash(false); ai.setParameters({awarenessForceCoef=0.25,trafficWaitTime=2,edgeDist=0,enableElectrics=true}); ai.setAvoidCars("on"); ai.driveInLane("on"); ai.setAggression(0.3); ai.setSpeed(nil); ai.setSpeedMode("off"); ai.setMode("disabled"); if extensions.taxiDriverAutopilotRecovery then extensions.taxiDriverAutopilotRecovery.setGearboxOverride(false) end')
     end
+    if wasEnabled then releaseParkedObstacleTracking() end
     runtime.enabled = false
+    perception:clearPointApproach()
     runtime.suspended = false
     runtime.status = "off"
     runtime.reason = tostring(reason or "")
@@ -1288,6 +1455,8 @@ function M.new(options)
     runtime.intersectionTravel = 0
     runtime.intersectionLastPos = nil
     runtime.routeDonePending = false
+    runtime.proactiveApproachTimer = 0
+    runtime.approachTimeout = 0
     runtime.laneChangeTimer = 0
     runtime.laneChangeCooldown = 0
     runtime.laneChangeLeadTimer = 0
@@ -1298,6 +1467,7 @@ function M.new(options)
     runtime.recoverySignaturePos = nil
     runtime.recoveryEscalation = 0
     runtime.skipRouteNodes = 0
+    runtime.staticContactSeconds = 0
     resetProgress()
     if wasEnabled then
       logger.info("autopilot", "disabled", {reason = runtime.reason})
@@ -1336,6 +1506,8 @@ function M.new(options)
     runtime.routeRetryTimer = 0
     runtime.stopIssued = false
     runtime.approachStage = 0
+    runtime.proactiveApproachTimer = 0
+    runtime.approachTimeout = 0
     runtime.status = runtime.suspended and "paused" or "planning"
   end
 
@@ -1362,6 +1534,10 @@ function M.new(options)
     if not runtime.enabled then return false end
     dt = math.max(0, tonumber(dt) or 0)
     if not vehicle then self:disable(nil, "vehicle"); return true end
+    refreshParkedObstacleTracking(vehicle, dt, false)
+    perception:updateDebug(vehicle, runtime.followLeadId, dt,
+      runtime.controllerMode == "reverse" and -1 or 1,
+      runtime.status == "waitingSignal")
     if runtime.suspended then return false end
 
     if not isDrivingPhase(phase) then
@@ -1411,6 +1587,8 @@ function M.new(options)
       runtime.routeRetryTimer = 0
       runtime.stopIssued = false
       runtime.approachStage = 0
+      runtime.proactiveApproachTimer = 0
+      runtime.approachTimeout = 0
       runtime.recoveryAttempt = 0
       runtime.recoveryExhausted = false
       resetProgress(vectorDistance(vehicle:getPosition(), target.pos))
@@ -1466,6 +1644,27 @@ function M.new(options)
       runtime.approachStage = 2
     elseif distance <= config.approachDistance and runtime.approachStage < 1 then
       runtime.approachStage = 1
+    end
+
+    -- Resolve the target's road-graph access before the native AI can pass the
+    -- last usable entrance. At this range only a graph-assisted route is
+    -- accepted; ordinary roadside targets stay under the native route driver.
+    if not runtime.recoveryController and distance <= config.proactiveApproachDistance and
+      distance > math.max(stopDistance, config.stopDistance) + 2 and
+      not runtime.intersectionActive then
+      runtime.proactiveApproachTimer = math.max(0, runtime.proactiveApproachTimer - dt)
+      local signalBlocksPlanning = upcomingSignal and
+        (upcomingSignal.action == 1 or upcomingSignal.action == 2) and
+        upcomingSignal.distance <= config.proactiveApproachDistance
+      if runtime.proactiveApproachTimer <= 0 and not signalBlocksPlanning then
+        runtime.proactiveApproachTimer = config.proactiveApproachRetryInterval
+        if beginDirectApproach(vehicle, target, distance,
+          {preferGraph = true, requireGraph = true}) then
+          runtime.approachStage = 3
+          logger.info("autopilot", "proactive_graph_approach_started", {distance = distance})
+          return false
+        end
+      end
     end
 
     if runtime.routeDonePending then
@@ -1555,10 +1754,12 @@ function M.new(options)
         logger.info("autopilot", "direct_approach_paused_for_signal", {
           action = signal.action, distance = signal.distance
         })
-      elseif runtime.recoverySeconds >= config.directApproachTimeout + 1 then
+      elseif runtime.recoverySeconds >= math.max(config.directApproachTimeout,
+        runtime.approachTimeout or 0) + 1 then
         queue(vehicle, 'if extensions.taxiDriverAutopilotRecovery then extensions.taxiDriverAutopilotRecovery.stop() end')
         runtime.recoveryController = false
         runtime.controllerMode = nil
+        runtime.approachTimeout = 0
         runtime.routePending = true
         runtime.routeRetryTimer = 0
         runtime.status = "planning"
@@ -1600,6 +1801,27 @@ function M.new(options)
         gap = currentLead.gap, rayConfirmed = runtime.leadRayConfirmed
       })
       return false
+    end
+
+    local contactObservation = safetyObservation()
+    local staticContact = contactObservation and contactObservation.obstacleDetected == true and
+      contactObservation.obstacleId == nil and
+      tonumber(contactObservation.obstacleDistance) and
+      tonumber(contactObservation.obstacleDistance) <= config.staticContactDistance and
+      speed <= 6 and not signalRequiresStop(upcomingSignal)
+    if staticContact then
+      runtime.staticContactSeconds = runtime.staticContactSeconds + dt
+      if runtime.staticContactSeconds >= config.staticContactRecoveryDelay then
+        logger.warn("autopilot", "static_contact_recovery_started", {
+          distance = contactObservation.obstacleDistance,
+          seconds = runtime.staticContactSeconds
+        })
+        runtime.staticContactSeconds = 0
+        beginRecovery(vehicle, target, distance)
+        return false
+      end
+    else
+      runtime.staticContactSeconds = math.max(0, runtime.staticContactSeconds - dt * 2)
     end
 
     local progressMetric = distance <= config.directApproachDistance and distance or
@@ -1709,6 +1931,7 @@ function M.new(options)
         beginReverseEscape(vehicle, reverseSourceReason, true)
       end
     elseif controllerMode == "approach" then
+      perception:clearPointApproach()
       if succeeded then
         runtime.status = "stopping"
         runtime.stopIssued = true
@@ -1716,6 +1939,8 @@ function M.new(options)
         stopAi(vehicle)
         logger.info("autopilot", "direct_approach_completed", {distance = distance})
       else
+        runtime.proactiveApproachTimer = math.max(runtime.proactiveApproachTimer,
+          config.proactiveApproachFailureCooldown)
         runtime.routeDonePending = distance <= config.directApproachDistance
         runtime.routeDoneRetryTimer = 1
         runtime.status = runtime.routeDonePending and "routeDone" or "planning"

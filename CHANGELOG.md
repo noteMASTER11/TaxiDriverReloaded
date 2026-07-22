@@ -1,5 +1,74 @@
 # Changelog
 
+## 3.3.0 Beta — Predictive Routing and Spatial AI
+
+This cumulative prerelease contains every change made after `3.2.0-beta`, including the Connected Phone reliability work first published as `3.2.1-beta`.
+
+> **Experimental AI notice:** AI Driver remains a gameplay experiment around BeamNG's built-in vehicle AI. The predictive planner and spatial supervisor make target approaches and recovery more deliberate, but unusual map graphs, vehicle controllers, traffic layouts, and community content can still produce imperfect decisions. The player can take control at any time.
+
+### Predictive target routing
+
+- Added a predictive access-route model for passenger, cargo, stop, and refueling triggers. It begins planning before the final entrance instead of waiting for native AI to report `Route Done` beside the target.
+- Samples every drivable road edge near the physical target, projects the target onto each edge, and asks BeamNG's graph for candidate paths from both nearby start nodes to both access-edge endpoints.
+- Rejects graph prefixes that initially move backwards along the active route, jump to an unrelated parallel road, or exceed the early cross-track envelope.
+- Ranks complete routes by graph-prefix length plus the collision-checked local suffix. Clearance and local-path quality break only near-equal route costs, preventing a visually attractive detour from beating the shortest feasible entrance.
+- Densifies selected graph polylines to at most four metres between controller waypoints and removes the first graph-centre point when it would demand an immediate full-lock lateral turn.
+- Verifies final arrival against the physical trigger, uses a sub-metre completion radius, and gives the exact-approach controller a path-length-derived timeout instead of a fixed final-approach window.
+- Added early graph planning at 75 metres with retry and failure cooldowns so entrances are selected while the vehicle can still turn into them.
+
+### Vehicle-aligned spatial perception
+
+- Replaced narrow road-lane-only recovery sensing with complete 180° forward and reverse sensor fans sampled every 10 degrees.
+- Aligns every ray with the vehicle's forward/left/up basis, including pitch and roll, so slopes, descents, banked roads, and serpentine sections are measured relative to the car instead of the world horizon.
+- Evaluates the full vehicle width with five parallel static probes, including both body edges plus a safety margin. Thin chargers, bollards, fences, barriers, and other edge contacts can no longer pass through a single centre ray.
+- Merges BeamNG map objects with all live scene vehicles and temporarily enables tracking for nearby parked vehicles that BeamNG normally removes from `map.objects`.
+- Uses oriented vehicle dimensions and projected traffic motion when validating a candidate corridor.
+- Samples surface height, longitudinal slope, cross-slope, and step height. Traversable kerbs and pavements can participate in a recovery path when the vehicle geometry can climb them; unsafe ledges and inclines are rejected.
+- Reassesses the strategic space model every 330 ms, approximately a human reaction interval, while drawing the cached result every render frame.
+
+### Local planning, reverse escape, and collision safety
+
+- Added a local spatial graph with seven distance rings and 24 angular samples. A bounded A* search can construct a multi-segment route around geometry when a single smooth left/right corridor is insufficient.
+- Preserved the smooth minimum-offset bypass as the preferred simple solution and falls back to the spatial graph only when it produces the better feasible path.
+- Expanded rear-space evaluation and reverse telemetry. A blocked vehicle can select a collision-checked 3–6 metre escape, rescan the rear trajectory while moving, stop, and replan forward.
+- Centralized conversion between geometric travel angle and BeamNG steering input. This fixes forward and reverse recovery turning to the opposite side from the selected green path.
+- Curved safety trajectories now cover steering arcs as well as straight motion and apply progressive comfortable braking before the emergency threshold.
+- Added rapid static-contact recovery: repeated contact with nearby untracked geometry starts replanning after 1.5 seconds instead of waiting for the normal 15-second stuck timer.
+- Fixed the safety brake releasing itself through TaxiDriver's own input override.
+
+### AI decision visualization and diagnostics
+
+- Added an independent **Visualize AI decisions** toggle to AI Driver settings; it is persisted and disabled by default.
+- World rendering distinguishes free/blocked sensor rays, evaluated candidates, surface samples, spatial-graph nodes, selected waypoints, and the current planner reason.
+- Expanded streaming AI journals with waypoint best-distance/no-progress fields and reverse remaining distance, steering, fan clearance, trajectory clearance, and ray count.
+- Added structured planner records for strategy, route/access nodes, graph and local lengths, candidate counts, score, clearance, target error, and timeout.
+
+### Queued-order fail-safe
+
+- Added an explicit close button to a proposed next-order modal. It dismisses that exact order and removes it from the active queue.
+- Moved next-offer expiry into a dedicated Lua guard driven by real time and independent of the trip-update phase.
+- Invalid, stale, negative, or overlong timers are clamped and closed safely, including while Vehicle Config temporarily suspends normal gameplay work.
+- Added a browser-side monotonic deadline that stale HUD packets cannot extend. The modal closes locally and notifies Lua even if no newer state packet arrives.
+- Added localized dismissal text in all nine interface languages.
+
+### Connected Phone reliability since 3.2.0
+
+- Added ranked private-IPv4 discovery across BeamNG adapter data, native-server results, Windows route-selected sockets, Winsock hostname resolution, and a previously confirmed address.
+- Added bind validation, physical-adapter preference, virtual/VPN adapter penalties, structured selection diagnostics, and clean `lan.json` creation only after a usable endpoint is confirmed.
+- Replaced an empty QR placeholder with an actionable localized server-unavailable state.
+- Restored a bounded non-blocking LAN-to-loopback byte proxy when BeamNG creates its External UI listener only on `127.0.0.1`; native all-interface listening remains preferred when reachable.
+- The transparent fallback carries both static HTTP assets and the `bng-ext-app-v1` WebSocket without creating a second gameplay state.
+- Added a live phone simulator that reads a fresh `lan.json`, loads every external asset over the selected LAN address, performs the WebSocket handshake, sends a real heartbeat, and waits for `TaxiDriverHUDState`.
+- Incorporated 156 native-speaker Simplified Chinese corrections while preserving newer keys.
+
+### Validation and compatibility
+
+- Expanded Lua combinatorics for route-reference alignment, graph candidate ordering, 180° sensor coverage, slope-aware rays, vehicle-footprint probes, parked vehicles, steering direction, reverse escape, static-contact recovery, next-offer expiry, and 500 deferred vehicle respawns.
+- Verified **343 responsive UI states** across the in-game UI App, Connected Phone, all nine locales, compact/full layouts, and DPR 2 HiDPI rendering.
+- Passed LAN HTTP/WebSocket transport tests and deterministic **49-entry** package validation.
+- Existing 3.2.0/3.2.1 Beta settings, profile, progression, fleet, vehicle history, and shift history remain compatible.
+- UI cache revision: `330-beta`.
+
 ## 3.2.1 Beta — Connected Phone Reliability
 
 This patch contains every change made after `3.2.0-beta`.

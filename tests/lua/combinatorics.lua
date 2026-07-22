@@ -16,7 +16,22 @@ local routePlanner = dofile("lua/ge/extensions/taxiDriver/routePlanner.lua")
 local autopilotModule = dofile("lua/ge/extensions/taxiDriver/autopilot.lua")
 local aiLoggerModule = dofile("lua/ge/extensions/taxiDriver/aiLogger.lua")
 local networkAddress = dofile("lua/ge/extensions/taxiDriver/networkAddress.lua")
+local nextOfferGuard = dofile("lua/ge/extensions/taxiDriver/nextOfferGuard.lua")
 local taxiConfig = dofile("lua/ge/extensions/taxiDriver/config.lua")
+
+local guardedOffer = {id = 71}
+local guarded = nextOfferGuard.update(guardedOffer, 0.2, false, 0.25,
+  {active = true, hasTrip = true, phase = "toDestination", duration = 5})
+assert(guarded.expired and guarded.reason == "timeout" and guarded.remaining == 0)
+guarded = nextOfferGuard.update(guardedOffer, 5, false, 0,
+  {active = true, hasTrip = true, phase = "complete", duration = 5})
+assert(guarded.expired and guarded.reason == "phaseChanged")
+guarded = nextOfferGuard.update(guardedOffer, 999999, false, 1,
+  {active = true, hasTrip = true, phase = "toDestination", duration = 5})
+assert(not guarded.expired and guarded.remaining == 4)
+guarded = nextOfferGuard.update(guardedOffer, 0, true, 10,
+  {active = true, hasTrip = true, phase = "complete", duration = 5})
+assert(not guarded.expired)
 
 assert(networkAddress.normalizeIPv4("IPv4 192.168.1.209 preferred") == "192.168.1.209")
 assert(networkAddress.normalizeIPv4("999.168.1.1") == nil)
@@ -183,7 +198,9 @@ assert(exactApproach:onRouteDone(exactApproachVehicle, exactApproachTarget))
 exactApproach:update(exactApproachVehicle, "toDestination", exactApproachTarget, 0.01)
 assert(exactApproach:getHud(true).status == "approaching")
 assert(exactApproachCommands[#exactApproachCommands]:find("stopAtEnd=true", 1, true))
-assert(exactApproachCommands[#exactApproachCommands]:find("completionRadius=1.25", 1, true))
+assert(exactApproachCommands[#exactApproachCommands]:find("completionRadius=0.80", 1, true))
+assert(exactApproachCommands[#exactApproachCommands]:find("allowReverse=false", 1, true))
+assert(select(2, exactApproachCommands[#exactApproachCommands]:gsub("{x=", "")) > 3)
 assert(exactApproach:onBypassComplete(exactApproachVehicle, true, exactApproachTarget))
 assert(exactApproachCommands[#exactApproachCommands]:find('ai.setMode("stop")', 1, true))
 
@@ -261,6 +278,24 @@ assert(corridorAutopilot:onBypassComplete(corridorVehicle, true, autopilotTarget
 assert(corridorCommands[#corridorCommands]:find("ai.driveUsingPath", 1, true))
 
 map.objects[2] = {pos = {x = 5, y = 0, z = 0}, dirVec = {x = 1, y = 0, z = 0}}
+local spatialCommands = {}
+local spatialAutopilot = autopilotModule.new({phases = autopilotPhases,
+  config = {stuckDelay = 1}, getSpeedKmh = function() return 0 end,
+  getRoutePath = function() return {{wp = "road0"}, {wp = "road1"}} end})
+local spatialVehicle = {getID = corridorVehicle.getID, getPosition = corridorVehicle.getPosition,
+  getDirectionVector = corridorVehicle.getDirectionVector,
+  queueLuaCommand = function(_, command) spatialCommands[#spatialCommands + 1] = command end}
+assert(spatialAutopilot:enable(spatialVehicle, "toDestination", autopilotTarget))
+spatialAutopilot:update(spatialVehicle, "toDestination", autopilotTarget, 1)
+assert(spatialAutopilot:getHud(true).status == "recovering" and
+  spatialCommands[#spatialCommands]:find("taxiDriverAutopilotRecovery.start", 1, true) and
+  not spatialCommands[#spatialCommands]:find("startReverseEscape", 1, true))
+assert(spatialAutopilot:onBypassComplete(spatialVehicle, true, autopilotTarget))
+for index = 0, 23 do
+  local angle = index * math.pi * 2 / 24
+  map.objects[100 + index] = {pos = {x = math.cos(angle) * 4.5,
+    y = math.sin(angle) * 4.5, z = 0}, vel = {x = 0, y = 0, z = 0}}
+end
 local blockedCommands = {}
 local blockedVehicle = {
   getID = corridorVehicle.getID,
@@ -291,17 +326,24 @@ core_trafficSignals = {
 blockedAutopilot:update(blockedVehicle, "toDestination", autopilotTarget, 0.2)
 assert(blockedAutopilot:getHud(true).status == "waitingSignal")
 map.objects[2].vel = {x = 3, y = 0, z = 0}
+for index = 0, 23 do map.objects[100 + index] = nil end
 core_trafficSignals.getMapNodeSignals = function()
   return {road0 = {road1 = {{action = 0, state = "greenTrafficLight",
     instance = "queueSignal", pos = {x = 20, y = 0, z = 0}}}}}
 end
 blockedAutopilot:update(blockedVehicle, "toDestination", autopilotTarget, 0.2)
-assert(blockedAutopilot:getHud(true).status == "driving")
+blockedAutopilot:update(blockedVehicle, "toDestination", autopilotTarget, 2)
+assert(blockedAutopilot:getHud(true).status ~= "waitingSignal")
 core_trafficSignals = nil
 map.objects[2] = nil
 
 local clearCommands = {}
 map.objects[2] = {pos = {x = 5, y = 0, z = 0}, vel = {x = 0, y = 0, z = 0}}
+for index = 0, 23 do
+  local angle = index * math.pi * 2 / 24
+  map.objects[100 + index] = {pos = {x = math.cos(angle) * 4.5,
+    y = math.sin(angle) * 4.5, z = 0}, vel = {x = 0, y = 0, z = 0}}
+end
 local clearAutopilot = autopilotModule.new({
   phases = autopilotPhases,
   config = {stuckDelay = 1, oncomingRetryInterval = 0.1},
@@ -321,6 +363,7 @@ assert(clearCommands[#clearCommands]:find("startReverseEscape", 1, true))
 assert(clearAutopilot:onBypassComplete(clearVehicle, false, autopilotTarget, "rearBlocked"))
 assert(clearAutopilot:getHud(true).status == "waitingTraffic")
 map.objects[2] = nil
+for index = 0, 23 do map.objects[100 + index] = nil end
 clearAutopilot:update(clearVehicle, "toDestination", autopilotTarget, 0.2)
 assert(clearAutopilot:getHud(true).status == "driving")
 assert(clearCommands[#clearCommands]:find("ai.driveUsingPath", 1, true))
@@ -380,6 +423,7 @@ assert(rayDiagnostics.leadVehicleId == 3 and rayDiagnostics.leadRayConfirmed == 
 
 local escalationCommands = {}
 local escalationGetMap = map.getMap
+map.objects[3] = nil
 map.getMap = function()
   local narrowLink = {oneWay = false}
   return {nodes = {
@@ -871,6 +915,226 @@ assert(vehicleScanGuard.onVehicleLifecycle(42, 42))
 assert(vehicleScanGuard.isSuspended())
 assert(not vehicleScanGuard.onVehicleLifecycle(7, 42))
 
+local perceptionVehicle = {}
+local perceptionVehicleHeight = 1.5
+local perceptionDirection = {x = 1, y = 0, z = 0}
+function perceptionVehicle:getID() return 42 end
+function perceptionVehicle:getPosition() return {x = 0, y = 0, z = 0} end
+function perceptionVehicle:getDirectionVector() return perceptionDirection end
+function perceptionVehicle:getDirectionVectorUp() return {x = -perceptionDirection.z, y = 0, z = perceptionDirection.x} end
+function perceptionVehicle:getInitialLength() return 4.5 end
+function perceptionVehicle:getInitialWidth() return 2 end
+function perceptionVehicle:getInitialHeight() return perceptionVehicleHeight end
+local perceptionObstacle = {}
+function perceptionObstacle:getInitialLength() return 4.5 end
+function perceptionObstacle:getInitialWidth() return 2 end
+function perceptionObstacle:getDirectionVector() return {x = 1, y = 0, z = 0} end
+getObjectByID = function(id) return (id == 91 or id == 92) and perceptionObstacle or nil end
+map = {
+  objects = {[91] = {pos = {x = 14, y = 0, z = 0}, vel = {x = 0, y = 0, z = 0},
+    dirVec = {x = 1, y = 0, z = 0}}},
+  findClosestRoad = function() return "p1", "p2" end,
+  getMap = function() return {nodes = {
+    p1 = {pos = {x = 0, y = 0, z = 0}, radius = 3, links = {p2 = {oneWay = false}}},
+    p2 = {pos = {x = 80, y = 0, z = 0}, radius = 3, links = {p1 = {oneWay = false}}}
+  }} end
+}
+castRayStatic = nil
+local perceptionModule = dofile("lua/ge/extensions/taxiDriver/autopilotPerception.lua")
+local perception = perceptionModule.new({followScanDistance = 80, bypassControllerSpeed = 7})
+local freeSpacePlan, freeSpaceReason = perception:planLocalBypass(perceptionVehicle, 91)
+assert(freeSpacePlan and freeSpaceReason == nil and
+  (freeSpacePlan.strategy == "freeSpace" or freeSpacePlan.strategy == "spatialGraph"))
+local bypassDetours = false
+for _, point in ipairs(freeSpacePlan.points) do
+  if math.abs(point.y) > 2 then bypassDetours = true; break end
+end
+assert(#freeSpacePlan.points >= 5 and bypassDetours)
+-- This maneuver extends beyond the narrow graph radius. It must remain usable
+-- because road markings are a score penalty, not a hard collision boundary.
+if freeSpacePlan.strategy == "freeSpace" then assert((freeSpacePlan.roadOutside or 0) > 0)
+else assert((freeSpacePlan.graphNodeCount or 0) >= 3) end
+local parkedPerceptionVehicle = {isParked = "true"}
+function parkedPerceptionVehicle:getID() return 94 end
+function parkedPerceptionVehicle:getPosition() return {x = 14, y = 0, z = 0} end
+function parkedPerceptionVehicle:getDirectionVector() return {x = 0, y = 1, z = 0} end
+function parkedPerceptionVehicle:getVelocity() return {x = 0, y = 0, z = 0} end
+function parkedPerceptionVehicle:getInitialLength() return 4.8 end
+function parkedPerceptionVehicle:getInitialWidth() return 2.1 end
+local mapObstacle = map.objects[91]
+map.objects[91] = nil
+getAllVehicles = function() return {perceptionVehicle, parkedPerceptionVehicle} end
+local parkedBypass = perception:planLocalBypass(perceptionVehicle, 94)
+assert(parkedBypass and parkedBypass.obstacleId == 94 and #parkedBypass.points >= 5)
+getAllVehicles = nil
+map.objects[91] = mapObstacle
+local pointApproach = perception:planPointApproach(perceptionVehicle, {x = 27, y = 0, z = 0})
+assert(pointApproach and pointApproach.strategy == "freeSpaceApproach" and
+  pointApproach.targetError == 0 and #pointApproach.points > 10)
+local approachDetours = false
+for _, point in ipairs(pointApproach.points) do
+  if math.abs(point.y) > 2.5 then approachDetours = true; break end
+end
+assert(approachDetours)
+map.objects[92] = {pos = {x = 27, y = 0, z = 0}, vel = {x = 0, y = 0, z = 0},
+  dirVec = {x = 1, y = 0, z = 0}}
+local closestApproach = perception:planPointApproach(perceptionVehicle, {x = 27, y = 0, z = 0})
+assert(closestApproach and closestApproach.targetError > 0 and closestApproach.targetError <= 6)
+map.objects[92] = nil
+-- A 15 cm pavement is rejected by a low car but may be used by a taller
+-- vehicle whose conservative suspension/body-height proxy can climb it.
+castRayStatic = function(origin, direction, maximumDistance)
+  if math.abs(direction.z or 0) < 0.5 then return maximumDistance end
+  local ground = math.abs(origin.y or 0) > 2 and 0.15 or 0
+  return (origin.z or 0) - ground
+end
+perceptionVehicleHeight = 1.2
+local lowCarPlan, lowCarReason = perception:planLocalBypass(perceptionVehicle, 91)
+assert(lowCarPlan == nil and lowCarReason == "noSafeCorridor")
+perceptionVehicleHeight = 2.2
+local tallCarPlan = perception:planLocalBypass(perceptionVehicle, 91)
+assert(tallCarPlan and (tallCarPlan.strategy == "freeSpace" or
+  tallCarPlan.strategy == "spatialGraph"))
+castRayStatic = nil
+local perceptionDraws = {lines = 0, spheres = 0, texts = 0}
+ColorF, ColorI = function(...) return {...} end, function(...) return {...} end
+debugDrawer = {
+  drawLine = function() perceptionDraws.lines = perceptionDraws.lines + 1 end,
+  drawSphere = function() perceptionDraws.spheres = perceptionDraws.spheres + 1 end,
+  drawTextAdvanced = function() perceptionDraws.texts = perceptionDraws.texts + 1 end
+}
+perception:setDebugEnabled(true)
+perception:updateDebug(perceptionVehicle, 91, 0.2)
+perception:drawDebug()
+assert(perceptionDraws.lines > 10 and perceptionDraws.spheres > 5 and perceptionDraws.texts == 1)
+assert(perception:getDebugSnapshot().chosen ~= nil)
+perception:updateDebug(perceptionVehicle, 91, 0.4, 1, true)
+local passiveSnapshot = perception:getDebugSnapshot()
+assert(passiveSnapshot.reason == "signalWait" and #passiveSnapshot.rays == 19 and
+  #passiveSnapshot.candidates == 0 and passiveSnapshot.graphNodes == nil)
+perceptionDirection = {x = 0.894427, y = 0, z = 0.447214}
+perception:setDebugEnabled(false); perception:setDebugEnabled(true)
+perception:updateDebug(perceptionVehicle, 91, 0.2)
+local pitchedRay = perception:getDebugSnapshot().rays[10]
+assert(pitchedRay.finish.z > pitchedRay.start.z + pitchedRay.distance * 0.4)
+perceptionDirection = {x = 1, y = 0, z = 0}
+perception:setDebugEnabled(false); perception:setDebugEnabled(true)
+perception:clearPointApproach()
+perception:updateDebug(perceptionVehicle, nil, 0.4, -1)
+local rearWorldRay = perception:getDebugSnapshot().rays[10]
+assert(rearWorldRay.travelDirection == -1 and rearWorldRay.finish.x < rearWorldRay.start.x)
+
+-- A narrow charging post just outside the old center ray must still intersect
+-- the swept body width. The hit exists only for the new outer comb probe.
+combObjects = map.objects
+map.objects = {}
+castRayStatic = function(origin, direction, maximumDistance)
+  if (direction.x or 0) > 0.8 and (origin.y or 0) > 1.15 then return 2 end
+  return maximumDistance
+end
+perception:setDebugEnabled(false); perception:setDebugEnabled(true)
+perception:updateDebug(perceptionVehicle, nil, 0.4, 1, true)
+combCenterRay = perception:getDebugSnapshot().rays[10]
+assert(combCenterRay.blocked and combCenterRay.hitKind == "static" and
+  math.abs(combCenterRay.distance - 2) < 0.01)
+castRayStatic = nil
+map.objects = combObjects
+
+local accessNodes = {
+  a = {pos = {x = 0, y = 0, z = 0}, radius = 4, links = {b = {drivability = 1}}},
+  b = {pos = {x = 10, y = 0, z = 0}, radius = 4,
+    links = {a = {drivability = 1}, c = {drivability = 1}}},
+  c = {pos = {x = 10, y = 15, z = 0}, radius = 4,
+    links = {b = {drivability = 1}, d = {drivability = 1}}},
+  d = {pos = {x = 20, y = 15, z = 0}, radius = 4, links = {c = {drivability = 1}}}
+}
+local function accessPath(startNode, endNode)
+  local queue, parents, head = {startNode}, {[startNode] = false}, 1
+  while queue[head] do
+    local current = queue[head]; head = head + 1
+    if current == endNode then break end
+    for neighbor in pairs(accessNodes[current].links) do
+      if parents[neighbor] == nil then parents[neighbor], queue[#queue + 1] = current, neighbor end
+    end
+  end
+  if parents[endNode] == nil then return {} end
+  local reversed, current = {}, endNode
+  while current do reversed[#reversed + 1], current = current, parents[current] end
+  local result = {}
+  for index = #reversed, 1, -1 do result[#result + 1] = reversed[index] end
+  return result
+end
+map = {objects = {}, getMap = function() return {nodes = accessNodes} end,
+  findClosestRoad = function() return "a", "b" end,
+  getGraphpath = function() return {getPath = function(_, first, second)
+    return accessPath(first, second)
+  end} end}
+castRayStatic = function(origin, direction, maximumDistance)
+  if (direction.z or 0) < -0.5 then return origin.z or 3 end
+  if math.abs(direction.x or 0) > 0.001 then
+    local distance = (12 - (origin.x or 0)) / direction.x
+    local y = (origin.y or 0) + (direction.y or 0) * distance
+    if distance >= 0 and distance <= maximumDistance and y >= -20 and y <= 12 then return distance end
+  end
+  return maximumDistance
+end
+local accessPlan = perception:planPointApproach(perceptionVehicle, {x = 20, y = 10, z = 0})
+assert(accessPlan and accessPlan.graphAssisted and accessPlan.targetError == 0 and
+  accessPlan.strategy == "graphAccessApproach")
+local visitedEntrance = false
+for _, point in ipairs(accessPlan.points) do
+  if point.y >= 14 then visitedEntrance = true; break end
+end
+assert(visitedEntrance)
+
+local proactiveCommands = {}
+local parkedTrackingCommands = {}
+local parkedTrackingVehicle = {isParked = "true"}
+function parkedTrackingVehicle:getID() return 95 end
+function parkedTrackingVehicle:getPosition() return {x = -38, y = 28, z = 0} end
+function parkedTrackingVehicle:queueLuaCommand(command)
+  parkedTrackingCommands[#parkedTrackingCommands + 1] = command
+end
+local proactiveVehicle = {
+  getID = function() return 93 end,
+  getPosition = function() return {x = -45, y = 0, z = 0} end,
+  getDirectionVector = function() return {x = 1, y = 0, z = 0} end,
+  queueLuaCommand = function(_, command) proactiveCommands[#proactiveCommands + 1] = command end
+}
+local proactiveTarget = {
+  pos = {x = 20, y = 10, z = 0}, nodeA = "c", nodeB = "d", exactApproach = true
+}
+local earlyGraphPlan = perception:planPointApproach(proactiveVehicle, proactiveTarget.pos,
+  {preferGraph = true})
+assert(earlyGraphPlan and earlyGraphPlan.graphAssisted and earlyGraphPlan.graphEdgeCount >= 3)
+assert(earlyGraphPlan.points[1].x == -45 and earlyGraphPlan.points[1].y == 0)
+local firstDrivenPoint = earlyGraphPlan.points[2]
+local firstDrivenDistance = firstDrivenPoint and math.sqrt((firstDrivenPoint.x + 45) ^ 2 +
+  firstDrivenPoint.y ^ 2) or 0
+assert(firstDrivenDistance > 0.5 and firstDrivenDistance <= 4.1)
+local proactiveAutopilot = autopilotModule.new({
+  phases = autopilotPhases,
+  getSpeedKmh = function() return 35 end,
+  getRoutePath = function() return {{wp = "a"}, {wp = "b"}, {wp = "c"}, {wp = "d"}} end
+})
+local perceptionGetObjectByID = getObjectByID
+getAllVehicles = function() return {proactiveVehicle, parkedTrackingVehicle} end
+getObjectByID = function(id)
+  if id == 95 then return parkedTrackingVehicle end
+  return perceptionGetObjectByID(id)
+end
+assert(proactiveAutopilot:enable(proactiveVehicle, "toFuelStation", proactiveTarget))
+assert(parkedTrackingCommands[#parkedTrackingCommands] == "mapmgr.enableTracking()")
+proactiveAutopilot:update(proactiveVehicle, "toFuelStation", proactiveTarget, 0.1)
+assert(proactiveAutopilot:getHud(true).status == "approaching")
+assert(proactiveCommands[#proactiveCommands]:find("taxiDriverAutopilotRecovery.start", 1, true) and
+  proactiveCommands[#proactiveCommands]:find("stopAtEnd=true", 1, true))
+proactiveAutopilot:disable(proactiveVehicle, "proactive-test")
+assert(parkedTrackingCommands[#parkedTrackingCommands] == "mapmgr.disableTracking()")
+getAllVehicles = nil
+getObjectByID = perceptionGetObjectByID
+castRayStatic = nil
+
 local recoveryInputs, recoveryCallbacks = {}, {}
 local safetyObjects = {}
 local recoveryPosition = {x = 0, y = 0, z = 0}
@@ -925,12 +1189,26 @@ local recoveryPoints = {
 assert(recoveryController.start({points = recoveryPoints, targetSpeed = 7, timeout = 14, signal = -1}))
 assert(gearboxCalls.mode == "arcade" and not gearboxCalls.directShifts)
 recoveryController.updateGFX(0.1)
-assert(recoveryInputs.leftSignal and recoveryInputs.steering > 0 and recoveryInputs.throttle > 0)
+-- Route geometry uses positive Y as the vehicle's left side, while BeamNG's
+-- steering input uses a negative value for a left turn.
+assert(recoveryInputs.leftSignal and recoveryInputs.steering < 0 and recoveryInputs.throttle > 0)
 for _, point in ipairs(recoveryPoints) do
   recoveryPosition = point
   recoveryController.updateGFX(0.1)
 end
 assert(recoveryCallbacks[#recoveryCallbacks]:find("onAutopilotBypassComplete(42,true", 1, true))
+
+recoveryCallbacks = {}
+recoveryPosition = {x = 0, y = 0, z = 0}
+electrics.values.wheelspeed = 0
+safetyObjects = {}
+assert(recoveryController.start({points = {{x = -8, y = -2, z = 0}}, targetSpeed = 3,
+  timeout = 10, allowReverse = true}))
+recoveryController.updateGFX(0.1)
+-- The destination is to the left of the rearward travel vector. Reverse
+-- kinematics therefore require the opposite input sign from forward motion.
+assert(recoveryInputs.steering > 0 and recoveryInputs.brake > 0)
+recoveryController.stop()
 
 recoveryCallbacks = {}
 recoveryPosition = {x = 0, y = 0, z = 0}
@@ -942,6 +1220,21 @@ assert(recoveryController.start({
 recoveryPosition = {x = 6, y = 0, z = 0}
 recoveryController.updateGFX(0.1)
 assert(recoveryCallbacks[#recoveryCallbacks]:find("onAutopilotBypassComplete(42,true", 1, true))
+recoveryCallbacks = {}
+recoveryPosition = {x = 0, y = 0, z = 0}
+electrics.values.wheelspeed = 0
+safetyObjects = {}
+assert(recoveryController.start({points = {{x = -12, y = 0, z = 0}}, targetSpeed = 4,
+  timeout = 20, allowReverse = false}))
+recoveryController.updateGFX(0.1)
+assert(recoveryInputs.throttle > 0 and recoveryInputs.brake == 0)
+recoveryController.stop()
+recoveryCallbacks = {}
+assert(recoveryController.start({points = {{x = 10, y = 0, z = 0}}, targetSpeed = 4,
+  timeout = 20, allowReverse = false}))
+for _ = 1, 36 do recoveryController.updateGFX(0.1) end
+assert(recoveryCallbacks[#recoveryCallbacks]:find(
+  'onAutopilotBypassComplete(42,false,"waypointNoProgress")', 1, true))
 recoveryPosition = {x = 0, y = 0, z = 0}
 electrics.values.wheelspeed = 15
 safetyObjects[77] = {pos = {x = 35, y = 0, z = 0}, vel = {x = 0, y = 0, z = 0}}
@@ -951,7 +1244,7 @@ assert(recoveryInputs.brake > 0 and recoveryInputs.brake < 1 and recoveryInputs.
 safetyObjects[77].pos = {x = 6, y = 0, z = 0}
 recoveryController.updateGFX(0.1)
 assert(recoveryInputs.brake == 1)
-safetyObjects[77].pos = {x = 8, y = 2.2, z = 0}
+safetyObjects[77].pos = {x = 8, y = -2.2, z = 0}
 input.state.steering.val = 1
 recoveryController.updateGFX(0.1)
 assert(recoveryInputs.brake > 0)
@@ -1000,6 +1293,22 @@ recoveryPosition = {x = -6, y = 0, z = 0}
 recoveryController.updateGFX(0.1)
 assert(recoveryCallbacks[#recoveryCallbacks]:find(
   'onAutopilotBypassComplete(42,true,"reverseComplete")', 1, true))
+
+recoveryCallbacks = {}
+recoveryPosition = {x = 0, y = 0, z = 0}
+safetyObjects = {[88] = {pos = {x = 3, y = 0, z = 0}, vel = {x = 0, y = 0, z = 0}}}
+electrics.values.wheelspeed = 0
+assert(recoveryController.startReverseEscape({
+  minDistance = 3, maxDistance = 6, targetSpeed = 2.2, requireFrontBlocked = true
+}))
+safetyObjects[90] = {pos = {x = -7, y = 0, z = 0}, vel = {x = 0, y = 0, z = 0}}
+electrics.values.wheelspeed = -4
+electrics.values.gearIndex = -1
+recoveryController.updateGFX(0.1)
+local rearDebug = recoveryController.getDebugState()
+assert(recoveryInputs.throttle == 1 and recoveryInputs.brake == 0 and
+  rearDebug.reverseRayCount == 13 and rearDebug.reverseFanClearance ~= nil)
+recoveryController.stop()
 
 recoveryCallbacks = {}
 recoveryPosition = {x = 0, y = 0, z = 0}

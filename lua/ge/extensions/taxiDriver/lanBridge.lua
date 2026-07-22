@@ -9,13 +9,17 @@ local wsUtils = require("utils/wsUtils")
 local port = 8085
 local protocolName = "bng-ext-app-v1"
 local externalEntryPoint = "/ui/modules/apps/TaxiDriverHUD/external/index.html"
-local externalUiRevision = "321-beta"
+local externalUiRevision = "330-beta"
 local connectionFilePath = "/settings/TaxiDriver/lan.json"
 local heartbeatTimeout = 8.0
 local mapRefreshInterval = 1.5
 local vehicleRefreshInterval = 0.25
 local maximumRoadSegments = 50000
 local roadChunkSize = 750
+local maximumProxyClients = 24
+local proxyAcceptPerFrame = 8
+local proxyReadSize = 32768
+local proxyBufferLimit = 2 * 1024 * 1024
 
 local enabled = false
 local server = nil
@@ -44,8 +48,11 @@ local cachedTerrainTiles = nil
 local pendingRoadChunk = 0
 local pendingRoadChunkCount = 0
 local socketLib = require("socket.socket")
+local lanListener = nil
+local proxyConnections = {}
 local bridgeReady = false
 local bridgeError = ""
+local activeTransport = ""
 
 local navigationViews = {
   trip = true,
@@ -72,6 +79,142 @@ end
 
 local function closeSocket(socket)
   if socket then pcall(function() socket:close() end) end
+end
+
+local function closeProxyConnection(connection)
+  if not connection then return end
+  closeSocket(connection.client)
+  closeSocket(connection.upstream)
+end
+
+local function stopLanProxy()
+  closeSocket(lanListener)
+  lanListener = nil
+  for _, connection in ipairs(proxyConnections) do
+    closeProxyConnection(connection)
+  end
+  proxyConnections = {}
+end
+
+local function startLanProxy()
+  stopLanProxy()
+  local ok, listenerOrError, bindError = pcall(function()
+    return socketLib.bind(chosenAddress, port, 16)
+  end)
+  if not ok or not listenerOrError then
+    bridgeError = tostring(ok and bindError or listenerOrError)
+    logger.error("lan", "proxy_bind_failed", {
+      address = chosenAddress, port = port, reason = bridgeError
+    })
+    return false
+  end
+  lanListener = listenerOrError
+  lanListener:settimeout(0)
+  logger.info("lan", "proxy_listening", {
+    address = chosenAddress, port = port, upstream = "127.0.0.1:" .. port
+  })
+  return true
+end
+
+local function appendProxyBuffer(connection, field, data)
+  if not data or data == "" then return true end
+  connection[field] = connection[field] .. data
+  return #connection[field] <= proxyBufferLimit
+end
+
+local function receiveProxyData(socket, connection, field)
+  local data, err, partial = socket:receive(proxyReadSize)
+  if not appendProxyBuffer(connection, field, data or partial) then
+    return false, "buffer limit"
+  end
+  if err == "closed" then
+    if field == "toUpstream" then
+      connection.clientClosed = true
+    else
+      connection.upstreamClosed = true
+    end
+    return true
+  end
+  if err and err ~= "timeout" then return false, err end
+  return true
+end
+
+local function sendProxyData(socket, connection, field)
+  local buffer = connection[field]
+  if buffer == "" then return true end
+  local sent, err, last = socket:send(buffer)
+  local count = tonumber(sent) or tonumber(last) or 0
+  if count > 0 then connection[field] = buffer:sub(count + 1) end
+  if err and err ~= "timeout" then return false, err end
+  return true
+end
+
+local function acceptProxyClients()
+  if not lanListener then return end
+  for _ = 1, proxyAcceptPerFrame do
+    local client, acceptError = lanListener:accept()
+    if not client then
+      if acceptError and acceptError ~= "timeout" then
+        bridgeError = tostring(acceptError)
+      end
+      return
+    end
+    if #proxyConnections >= maximumProxyClients then
+      closeSocket(client)
+    else
+      client:settimeout(0)
+      local upstream = socketLib.tcp()
+      upstream:settimeout(0.05)
+      local connectedUpstream, connectError = upstream:connect("127.0.0.1", port)
+      upstream:settimeout(0)
+      if connectedUpstream or connectError == "already connected" then
+        proxyConnections[#proxyConnections + 1] = {
+          client = client,
+          upstream = upstream,
+          toClient = "",
+          toUpstream = "",
+          clientClosed = false,
+          upstreamClosed = false
+        }
+      else
+        closeSocket(client)
+        closeSocket(upstream)
+        bridgeError = "Loopback connection failed: " .. tostring(connectError)
+        logger.warn("lan", "loopback_connection_failed", {reason = bridgeError})
+      end
+    end
+  end
+end
+
+local function updateLanProxy()
+  if not lanListener then return end
+  acceptProxyClients()
+  for index = #proxyConnections, 1, -1 do
+    local connection = proxyConnections[index]
+    local clientRead = connection.clientClosed or
+      receiveProxyData(connection.client, connection, "toUpstream")
+    local upstreamRead = clientRead and (connection.upstreamClosed or
+      receiveProxyData(connection.upstream, connection, "toClient"))
+    local upstreamWrite = upstreamRead and
+      sendProxyData(connection.upstream, connection, "toUpstream")
+    local clientWrite = upstreamWrite and
+      sendProxyData(connection.client, connection, "toClient")
+    local finished = (connection.clientClosed and connection.toUpstream == "") or
+      (connection.upstreamClosed and connection.toClient == "")
+    if not clientWrite or finished then
+      closeProxyConnection(connection)
+      table.remove(proxyConnections, index)
+    end
+  end
+end
+
+local function probeNativeLanListener(address)
+  local client = socketLib.tcp()
+  if not client then return false, "tcp unavailable" end
+  client:settimeout(0.15)
+  local connected, reason = client:connect(address, port)
+  closeSocket(client)
+  return connected == 1 or connected == true or reason == "already connected", reason
 end
 
 local function makeToken()
@@ -490,6 +633,26 @@ function M.start()
     return false
   end
   chosenAddress = detectedAddress
+  stopLanProxy()
+  local nativeReachable, nativeProbeError = probeNativeLanListener(chosenAddress)
+  logger.info("lan", "native_lan_probe", {
+    address = chosenAddress,
+    reachable = nativeReachable,
+    reason = nativeProbeError or ""
+  })
+  if nativeReachable then
+    activeTransport = "native_any"
+  elseif startLanProxy() then
+    activeTransport = "lua_proxy"
+  else
+    pcall(function() BNGWebWSServer.destroy(server) end)
+    server = nil
+    enabled = false
+    bridgeReady = false
+    statusChanged = true
+    logger.error("lan", "external_ui_unavailable", {reason = bridgeError})
+    return false
+  end
   bridgeReady = true
   bridgeError = ""
   savedAddressHint = chosenAddress
@@ -497,13 +660,15 @@ function M.start()
   enabled = true
   statusChanged = true
   logger.info("lan", "external_ui_started", {
-    address = chosenAddress, port = port, transport = "native_any"
+    address = chosenAddress, port = port, transport = activeTransport
   })
   return true
 end
 
 function M.stop()
+  stopLanProxy()
   bridgeReady = false
+  activeTransport = ""
   if server then
     pcall(function() BNGWebWSServer.destroy(server) end)
     server = nil
@@ -606,8 +771,12 @@ function M.update(dtReal)
   if server then
     -- Command and hook traffic is handled by BeamNG's native transport.
     -- Drain peer notifications so the server queue cannot grow indefinitely.
-    pcall(function() server:getPeerEvents() end)
+    pcall(function()
+      server:update()
+      server:getPeerEvents()
+    end)
   end
+  updateLanProxy()
   dtReal = math.max(0, tonumber(dtReal) or 0)
   externalHeartbeatAge = externalHeartbeatAge + dtReal
   if externalHeartbeatAge > heartbeatTimeout then setConnected(false) end

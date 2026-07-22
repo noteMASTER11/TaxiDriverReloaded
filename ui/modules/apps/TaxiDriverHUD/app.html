@@ -1,6 +1,6 @@
 <style>
-  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=321-beta");
-  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=321-beta");
+  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=330-beta");
+  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=330-beta");
 </style>
 
 <div class="taxi-shell" ng-if="externalPhoneMode || !vehicleConfigSuspended" ng-class="{'taxi-shell--minimized': phoneMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
@@ -222,6 +222,10 @@
             <label class="taxi-settings__switch-row">
               <span class="taxi-settings__switch-copy"><strong>{{ t('aiDebugLogger') }}</strong><span>{{ t('aiDebugLoggerHelp') }}</span></span>
               <input type="checkbox" ng-model="settings.aiDebugLogging" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+            </label>
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('aiDecisionVisualization') }}</strong><span>{{ t('aiDecisionVisualizationHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.aiDecisionVisualization" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
             </label>
           </div>
           <div class="taxi-settings__custom" ng-if="settings.aiDriver.preset === 'custom'">
@@ -1149,6 +1153,7 @@
 
     <div class="taxi-next-offer" ng-if="shouldShowNextOffer()">
       <div class="taxi-next-offer__card">
+        <button type="button" class="taxi-next-offer__close" ng-if="!state.nextOffer.accepted" ng-click="hud.dismissNextOffer(state.nextOffer.id)" title="{{ t('dismissNextOffer') }}" aria-label="{{ t('dismissNextOffer') }}">&times;</button>
         <div class="taxi-next-offer__eyebrow">{{ t('nextOfferTitle') }}</div>
         <div class="taxi-next-offer__head">
           <div class="taxi-next-offer__avatar">{{ state.nextOffer.isDelivery ? '📦' : getInitials(state.nextOffer.passengerName) }}</div>

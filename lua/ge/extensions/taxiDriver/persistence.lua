@@ -120,6 +120,7 @@ function M.new(options)
       realisticMode = false,
       randomEventsEnabled = false,
       aiDebugLogging = false,
+      aiDecisionVisualization = false,
       aiDriver = taxiConfig.sanitizeAiDriver(nil),
       fleet = taxiConfig.sanitizeFleet(nil),
       godMode = false,
@@ -182,6 +183,7 @@ function M.new(options)
     result.realisticMode = source.realisticMode == true
     result.randomEventsEnabled = source.randomEventsEnabled == true
     result.aiDebugLogging = source.aiDebugLogging == true
+    result.aiDecisionVisualization = source.aiDecisionVisualization == true
     result.aiDriver = taxiConfig.sanitizeAiDriver(source.aiDriver)
     result.fleet = taxiConfig.sanitizeFleet(source.fleet)
     result.godMode = source.godMode == true

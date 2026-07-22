@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
 
 namespace TaxiDriver.LanProbe;
 
@@ -12,7 +14,162 @@ internal static class Program
     public static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
+        if (args.Length > 0 && args[0] == "--live")
+        {
+            var configPath = args.Length > 1 ? args[1] : Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "BeamNG", "BeamNG.drive", "current", "settings", "TaxiDriver", "lan.json");
+            return await RunLiveProbeAsync(configPath);
+        }
         return await RunSelfTestAsync();
+    }
+
+    private static async Task<int> RunLiveProbeAsync(string configPath)
+    {
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(150));
+        try
+        {
+            var identity = await WaitForIdentityAsync(configPath, cancellation.Token);
+            var baseUri = new Uri($"http://{identity.Address}:8085");
+            var appUri = new Uri(baseUri,
+                $"{TargetPath}?token={Uri.EscapeDataString(identity.Token)}&v=330-beta");
+            using var handler = new SocketsHttpHandler { UseProxy = false };
+            using var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
+            var html = await GetRequiredTextWithRetryAsync(http, appUri, cancellation.Token);
+            RequireContains(html, "<title>TaxiDriver</title>", "external HTML title");
+            RequireContains(html, "taxi-loader", "external loader markup");
+
+            var assets = new[]
+            {
+                "/ui/entrypoints/main/comms.js",
+                "/ui/modules/apps/TaxiDriverHUD/external/loader.css?v=330-beta",
+                "/ui/modules/apps/TaxiDriverHUD/external/external.js?v=330-beta",
+                "/ui/modules/apps/TaxiDriverHUD/external/sounds-data.js?v=330-beta",
+                "/ui/modules/apps/TaxiDriverHUD/app.html?v=330-beta",
+                "/ui/modules/apps/TaxiDriverHUD/app.css?v=330-beta",
+                "/ui/modules/apps/TaxiDriverHUD/app.js?v=330-beta",
+                "/ui/modules/apps/TaxiDriverHUD/locales.json?v=330-beta",
+                "/ui/lib/ext/tiny-emitter/tinyemitter.js?v=330-beta",
+                "/ui/lib/ext/angular/angular.js?v=330-beta",
+                "/ui/lib/ext/qrcode.min.js?v=330-beta"
+            };
+            foreach (var asset in assets)
+            {
+                var body = await GetRequiredTextWithRetryAsync(http, new Uri(baseUri, asset), cancellation.Token);
+                if (body.Length < 16) throw new InvalidOperationException($"Asset is empty: {asset}");
+                Console.WriteLine($"PASS asset {asset} ({Encoding.UTF8.GetByteCount(body)} bytes)");
+            }
+
+            using var websocket = new ClientWebSocket();
+            websocket.Options.AddSubProtocol("bng-ext-app-v1");
+            var wsUri = new Uri($"ws://{identity.Address}:8085/");
+            await websocket.ConnectAsync(wsUri, cancellation.Token);
+            if (websocket.State != WebSocketState.Open)
+                throw new InvalidOperationException("WebSocket did not reach Open state.");
+            await SendTextAsync(websocket, "SE{}", cancellation.Token);
+            await SendTextAsync(websocket,
+                $"GLif taxiDriver_taxiDriver then taxiDriver_taxiDriver.externalPhoneHeartbeat(\"{identity.Token}\", \"home\", true, \"\", 0); taxiDriver_taxiDriver.requestExternalHudState() end",
+                cancellation.Token);
+            var liveState = await WaitForHudStateAsync(websocket, cancellation.Token);
+            RequireContains(liveState, "TaxiDriverHUDState", "live HUD hook");
+            Console.WriteLine($"PASS live HTTP entry point: {appUri}");
+            Console.WriteLine($"PASS WebSocket protocol: {websocket.SubProtocol}");
+            Console.WriteLine($"PASS live TaxiDriverHUDState ({liveState.Length} characters)");
+            await websocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "probe complete", CancellationToken.None);
+            return 0;
+        }
+        catch (Exception error)
+        {
+            Console.Error.WriteLine($"FAIL live probe: {error.GetType().Name}: {error.Message}");
+            return 1;
+        }
+    }
+
+    private static async Task<LanIdentity> WaitForIdentityAsync(string path, CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
+                        FileShare.ReadWrite | FileShare.Delete);
+                    var identity = await JsonSerializer.DeserializeAsync<LanIdentity>(stream,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true }, cancellationToken);
+                    if (identity is { Address.Length: > 0, Token.Length: >= 20 } &&
+                        identity.Address != "127.0.0.1") return identity;
+                }
+            }
+            catch (IOException) { }
+            catch (JsonException) { }
+            await Task.Delay(250, cancellationToken);
+        }
+        throw new TimeoutException("lan.json did not contain a usable fresh identity.");
+    }
+
+    private static async Task<string> GetRequiredTextWithRetryAsync(HttpClient http, Uri uri,
+        CancellationToken cancellationToken)
+    {
+        Exception? lastError = null;
+        for (var attempt = 1; attempt <= 120; attempt++)
+        {
+            try
+            {
+                using var response = await http.GetAsync(uri, cancellationToken);
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                    throw new HttpRequestException($"HTTP {(int)response.StatusCode} for {uri}");
+                if (string.IsNullOrWhiteSpace(body))
+                    throw new IOException($"Empty HTTP body for {uri}");
+                return body;
+            }
+            catch (Exception error) when (error is HttpRequestException or IOException or TaskCanceledException)
+            {
+                lastError = error;
+                if (cancellationToken.IsCancellationRequested) throw;
+                await Task.Delay(500, cancellationToken);
+            }
+        }
+        throw new IOException($"HTTP endpoint did not become ready: {uri}", lastError);
+    }
+
+    private static void RequireContains(string value, string expected, string label)
+    {
+        if (!value.Contains(expected, StringComparison.Ordinal))
+            throw new InvalidOperationException($"Missing {label}: {expected}");
+    }
+
+    private static async Task SendTextAsync(ClientWebSocket websocket, string value,
+        CancellationToken cancellationToken) => await websocket.SendAsync(
+        Encoding.UTF8.GetBytes(value), WebSocketMessageType.Text, true, cancellationToken);
+
+    private static async Task<string> WaitForHudStateAsync(ClientWebSocket websocket,
+        CancellationToken cancellationToken)
+    {
+        var buffer = new byte[256 * 1024];
+        while (websocket.State == WebSocketState.Open)
+        {
+            using var message = new MemoryStream();
+            WebSocketReceiveResult result;
+            do
+            {
+                result = await websocket.ReceiveAsync(buffer, cancellationToken);
+                if (result.MessageType == WebSocketMessageType.Close)
+                    throw new IOException("WebSocket closed before TaxiDriverHUDState.");
+                message.Write(buffer, 0, result.Count);
+            } while (!result.EndOfMessage);
+            var text = Encoding.UTF8.GetString(message.ToArray());
+            if (text.StartsWith("H#", StringComparison.Ordinal) &&
+                text.Contains("TaxiDriverHUDState", StringComparison.Ordinal)) return text;
+        }
+        throw new IOException("WebSocket left Open state before TaxiDriverHUDState.");
+    }
+
+    private sealed class LanIdentity
+    {
+        public string Address { get; set; } = "";
+        public string Token { get; set; } = "";
     }
 
     private static async Task<int> RunSelfTestAsync()

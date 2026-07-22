@@ -3,11 +3,14 @@ local M = {}
 local active = false
 local points = {}
 local pointIndex = 1
+local pointBestDistance = math.huge
+local pointNoProgress = 0
 local elapsed = 0
 local targetSpeed = 7
 local timeout = 14
 local stopAtEnd = false
 local completionRadius = 4
+local allowReverse = true
 local routeWatchActive = false
 local gearboxOverrideActive = false
 local stationaryDriveHold = false
@@ -30,6 +33,9 @@ local reverseSteering = 0
 local reverseRescanTimer = 0
 local reverseStopReason = nil
 local reverseStopSuccess = false
+local reverseFanClearance = math.huge
+local reverseTrajectoryClearance = math.huge
+local reverseRayCount = 0
 
 local function number(value, fallback)
   value = tonumber(value)
@@ -40,13 +46,55 @@ local function clamp(value, minimum, maximum)
   return math.max(minimum, math.min(maximum, value))
 end
 
+local function footprintOffsets(width, margin)
+  local edge = math.max(0.65, number(width, 2) * 0.5 + number(margin, 0.28))
+  return {-edge, -edge * 0.5, 0, edge * 0.5, edge}
+end
+
 local angleBetween
+
+-- BeamNG's steering input is negative for a left turn and positive for a
+-- right turn.  Geometry in this controller uses positive angles towards the
+-- vehicle's left vector.  Reverse motion mirrors the steering response, so
+-- keep the conversion in one place instead of silently mixing conventions.
+local function steeringForTravelAngle(angle, travelDirection, gain, limit)
+  local direction = travelDirection < 0 and -1 or 1
+  return clamp(-number(angle, 0) * direction * number(gain, 1),
+    -number(limit, 1), number(limit, 1))
+end
 
 local function planarUnit(value, fallbackX, fallbackY)
   local x, y = number(value and value.x, fallbackX or 1), number(value and value.y, fallbackY or 0)
   local length = math.sqrt(x * x + y * y)
   if length < 0.001 then return fallbackX or 1, fallbackY or 0 end
   return x / length, y / length
+end
+
+local function unit3(x, y, z, fallbackX, fallbackY, fallbackZ)
+  local length = math.sqrt(x * x + y * y + z * z)
+  if length < 0.001 then return fallbackX or 1, fallbackY or 0, fallbackZ or 0 end
+  return x / length, y / length, z / length
+end
+
+local function vehicleBasis(travelDirection)
+  local direction = obj:getDirectionVector()
+  local forwardX, forwardY, forwardZ = unit3(number(direction.x, 1),
+    number(direction.y, 0), number(direction.z, 0), 1, 0, 0)
+  local rawUp = type(obj.getDirectionVectorUp) == "function" and
+    obj:getDirectionVectorUp() or {x = 0, y = 0, z = 1}
+  local upX, upY, upZ = unit3(number(rawUp.x, 0), number(rawUp.y, 0),
+    number(rawUp.z, 1), 0, 0, 1)
+  local leftX, leftY, leftZ = unit3(upY * forwardZ - upZ * forwardY,
+    upZ * forwardX - upX * forwardZ, upX * forwardY - upY * forwardX,
+    -forwardY, forwardX, 0)
+  upX, upY, upZ = unit3(forwardY * leftZ - forwardZ * leftY,
+    forwardZ * leftX - forwardX * leftZ, forwardX * leftY - forwardY * leftX,
+    0, 0, 1)
+  if travelDirection < 0 then
+    forwardX, forwardY, forwardZ = -forwardX, -forwardY, -forwardZ
+    leftX, leftY, leftZ = -leftX, -leftY, -leftZ
+  end
+  return forwardX, forwardY, forwardZ, leftX, leftY, leftZ, upX, upY, upZ
 end
 
 local function rayOrientedBox(originX, originY, dirX, dirY, maximumDistance, box)
@@ -102,16 +150,16 @@ local function nearbyBoxes(range)
   return result
 end
 
-local function castTrajectoryRay(originX, originY, directionX, directionY, distance, boxes)
+local function castTrajectoryRay(originX, originY, originZ, directionX, directionY, directionZ,
+  distance, boxes)
   local closest, hit, blocked = distance, nil, false
   for _, box in ipairs(boxes) do
     local value = rayOrientedBox(originX, originY, directionX, directionY, closest, box)
     if value and value < closest then closest, hit, blocked = value, box, true end
   end
   if type(obj.castRayStatic) == "function" and type(vec3) == "function" then
-    local position = obj:getPosition()
-    local rayOrigin = vec3(originX, originY, number(position.z, 0) + 0.45)
-    local rayDirection = vec3(directionX, directionY, 0)
+    local rayOrigin = vec3(originX, originY, originZ)
+    local rayDirection = vec3(directionX, directionY, directionZ)
     local staticDistance = number(obj:castRayStatic(rayOrigin, rayDirection, closest), closest)
     if staticDistance < closest then closest, hit, blocked = staticDistance, nil, true end
   end
@@ -120,9 +168,9 @@ end
 
 local function scanPredictedTrajectory(speed, travelDirection, steeringOverride, horizonOverride)
   local position = obj:getPosition()
-  local forwardX, forwardY = planarUnit(obj:getDirectionVector(), 1, 0)
   travelDirection = travelDirection < 0 and -1 or 1
-  forwardX, forwardY = forwardX * travelDirection, forwardY * travelDirection
+  local forwardX, forwardY, forwardZ, baseLeftX, baseLeftY, baseLeftZ,
+    upX, upY, upZ = vehicleBasis(travelDirection)
   local steeringState = input.state and input.state.steering
   local steering = clamp(number(steeringOverride,
     number(steeringState and steeringState.val, 0)), -1, 1)
@@ -135,25 +183,35 @@ local function scanPredictedTrajectory(speed, travelDirection, steeringOverride,
   local boxes = nearbyBoxes(horizon + 10)
   local centerX = number(position.x, 0) + forwardX * ownLength * 0.42
   local centerY = number(position.y, 0) + forwardY * ownLength * 0.42
-  local heading = angleBetween(forwardY, forwardX)
-  local curvature = steering * 0.105 * travelDirection
+  local centerZ = number(position.z, 0) + forwardZ * ownLength * 0.42 + upZ * 0.45
+  -- Convert the BeamNG input sign back to the positive-left geometric angle
+  -- used by the sampled trajectory.
+  local curvature = -steering * 0.105 * travelDirection
   local traveled, closest, closestBox, closestBlocked = 0, horizon, nil, false
   local segmentLength = 2.25
+  local turnAngle = 0
   while traveled < horizon do
     local currentLength = math.min(segmentLength, horizon - traveled)
-    local directionX, directionY = math.cos(heading), math.sin(heading)
-    local leftX, leftY = -directionY, directionX
-    for _, lateral in ipairs({-ownWidth * 0.38, 0, ownWidth * 0.38}) do
+    local cosine, sine = math.cos(turnAngle), math.sin(turnAngle)
+    local directionX = forwardX * cosine + baseLeftX * sine
+    local directionY = forwardY * cosine + baseLeftY * sine
+    local directionZ = forwardZ * cosine + baseLeftZ * sine
+    local leftX = -forwardX * sine + baseLeftX * cosine
+    local leftY = -forwardY * sine + baseLeftY * cosine
+    local leftZ = -forwardZ * sine + baseLeftZ * cosine
+    for _, lateral in ipairs(footprintOffsets(ownWidth, 0.28)) do
       local rayDistance, box, blocked = castTrajectoryRay(centerX + leftX * lateral,
-        centerY + leftY * lateral, directionX, directionY, currentLength, boxes)
+        centerY + leftY * lateral, centerZ + leftZ * lateral,
+        directionX, directionY, directionZ, currentLength, boxes)
       if blocked and traveled + rayDistance < closest then
         closest, closestBox, closestBlocked = traveled + rayDistance, box, true
       end
     end
     centerX = centerX + directionX * currentLength
     centerY = centerY + directionY * currentLength
+    centerZ = centerZ + directionZ * currentLength
     traveled = traveled + currentLength
-    heading = heading + curvature * currentLength
+    turnAngle = turnAngle + curvature * currentLength
     if closest <= traveled then break end
   end
   local obstacleSpeed = 0
@@ -164,30 +222,36 @@ end
 
 local function scanDirectionalFan(travelDirection, maximumDistance)
   local position = obj:getPosition()
-  local forwardX, forwardY = planarUnit(obj:getDirectionVector(), 1, 0)
   travelDirection = travelDirection < 0 and -1 or 1
-  forwardX, forwardY = forwardX * travelDirection, forwardY * travelDirection
+  local forwardX, forwardY, forwardZ, leftX, leftY, leftZ,
+    upX, upY, upZ = vehicleBasis(travelDirection)
   local ownLength = math.max(3, number(type(obj.getInitialLength) == "function" and
     obj:getInitialLength(), 4.5))
   local ownWidth = math.max(1.2, number(type(obj.getInitialWidth) == "function" and
     obj:getInitialWidth(), 2))
-  maximumDistance = clamp(number(maximumDistance, 7), 2, 12)
+  maximumDistance = clamp(number(maximumDistance, 7), 2, 18)
   local boxes = nearbyBoxes(maximumDistance + ownLength + 4)
   local bumperX = number(position.x, 0) + forwardX * ownLength * 0.42
   local bumperY = number(position.y, 0) + forwardY * ownLength * 0.42
-  local leftX, leftY = -forwardY, forwardX
+  local bumperZ = number(position.z, 0) + forwardZ * ownLength * 0.42 + upZ * 0.45
   local result = {}
-  for _, angle in ipairs({-0.56, -0.28, 0, 0.28, 0.56}) do
+  -- Scan the full travel-facing hemisphere, including both exact side
+  -- directions. Reversing the vehicle basis gives the rear the same field.
+  for index = -6, 6 do
+    local angle = index * math.pi / 12
     local cosine, sine = math.cos(angle), math.sin(angle)
     local rayX = forwardX * cosine + leftX * sine
     local rayY = forwardY * cosine + leftY * sine
+    local rayZ = forwardZ * cosine + leftZ * sine
     local clearance = maximumDistance
-    for _, lateral in ipairs({-ownWidth * 0.38, 0, ownWidth * 0.38}) do
+    for _, lateral in ipairs(footprintOffsets(ownWidth, 0.28)) do
       local distance = castTrajectoryRay(bumperX + leftX * lateral,
-        bumperY + leftY * lateral, rayX, rayY, maximumDistance, boxes)
+        bumperY + leftY * lateral, bumperZ + leftZ * lateral,
+        rayX, rayY, rayZ, maximumDistance, boxes)
       clearance = math.min(clearance, distance)
     end
-    result[#result + 1] = {angle = angle, clearance = clearance}
+    result[#result + 1] = {angle = angle, clearance = clearance,
+      maximumDistance = maximumDistance}
   end
   return result
 end
@@ -196,6 +260,48 @@ local function maximumFanClearance(fan)
   local result = 0
   for _, ray in ipairs(fan or {}) do result = math.max(result, number(ray.clearance, 0)) end
   return result
+end
+
+local function corridorFanClearance(fan, steering, travelDirection)
+  local expected = travelDirection < 0 and steering * 0.78 or -steering * 0.62
+  local clearance, nearest, nearestDelta = math.huge, nil, math.huge
+  for _, ray in ipairs(fan or {}) do
+    local delta = math.abs(number(ray.angle, 0) - expected)
+    if delta < nearestDelta then nearest, nearestDelta = ray, delta end
+    local value = number(ray.clearance, math.huge)
+    if value >= number(ray.maximumDistance, value) - 0.05 then value = math.huge end
+    if delta <= 0.14 then clearance = math.min(clearance, value) end
+  end
+  if clearance ~= math.huge then return clearance end
+  local nearestValue = number(nearest and nearest.clearance, math.huge)
+  return nearestValue < number(nearest and nearest.maximumDistance, nearestValue) - 0.05 and
+    nearestValue or math.huge
+end
+
+local function bestFanSteering(fan, travelDirection, maximumDistance)
+  local best
+  for _, ray in ipairs(fan or {}) do
+    local steering = steeringForTravelAngle(number(ray.angle, 0), travelDirection,
+      (travelDirection < 0 and 0.9 or 1) / (math.pi * 0.5),
+      travelDirection < 0 and 0.9 or 1)
+    local trajectory = scanPredictedTrajectory(0, travelDirection, steering, maximumDistance)
+    local clearance = math.min(number(ray.clearance, 0), trajectory)
+    local score = clearance - math.abs(steering) * 0.38
+    if not best or score > best.score then
+      best = {steering = steering, clearance = clearance, trajectory = trajectory, score = score}
+    end
+  end
+  return best
+end
+
+local function scanMotionSpace(speed, travelDirection, steering, horizon)
+  horizon = clamp(number(horizon, speed * 1.8 + 7), 2, 48)
+  local fan = scanDirectionalFan(travelDirection, math.min(18, horizon))
+  local trajectory, closingSpeed, obstacleId, blocked =
+    scanPredictedTrajectory(speed, travelDirection, steering, horizon)
+  local fanClearance = corridorFanClearance(fan, steering, travelDirection)
+  return math.min(trajectory, fanClearance), trajectory, fanClearance,
+    closingSpeed, obstacleId, blocked, fan
 end
 
 local function findReverseEscapePlan(data)
@@ -207,18 +313,11 @@ local function findReverseEscapePlan(data)
     return nil, "frontEscapeAvailable"
   end
 
-  local best = nil
-  for _, ray in ipairs(scanDirectionalFan(-1, maximumDistance + 1.5)) do
-    local steering = clamp(-ray.angle / 0.56 * 0.72, -0.72, 0.72)
-    local trajectoryClearance = scanPredictedTrajectory(0, -1, steering, maximumDistance + 1.5)
-    local clearance = math.min(ray.clearance, trajectoryClearance)
-    local distance = clamp(clearance - 1.15, 0, maximumDistance)
-    local score = distance - math.abs(steering) * 0.45
-    if distance >= minimumDistance and (not best or score > best.score) then
-      best = {distance = distance, steering = steering, score = score,
-        clearance = clearance, angle = ray.angle}
-    end
-  end
+  local fan = scanDirectionalFan(-1, maximumDistance + 1.5)
+  local choice = bestFanSteering(fan, -1, maximumDistance + 1.5)
+  local best = choice and {distance = clamp(choice.clearance - 1.15, 0, maximumDistance),
+    steering = choice.steering, score = choice.score, clearance = choice.clearance} or nil
+  if best and best.distance < minimumDistance then best = nil end
   if not best then return nil, "rearBlocked" end
   return best
 end
@@ -247,8 +346,13 @@ local function updateCollisionSafety(dt)
   local speed = math.abs(signedSpeed)
   local gearIndex = number(electrics.values.gearIndex, 0)
   local travelDirection = (signedSpeed < -0.05 or (speed < 0.35 and gearIndex < 0)) and -1 or 1
-  local distance, closingSpeed, obstacleId, obstacleDetected =
-    scanPredictedTrajectory(speed, travelDirection)
+  local distance, trajectory, fanClearance, closingSpeed, obstacleId, obstacleDetected, fan =
+    scanMotionSpace(speed, travelDirection, number(input.state and input.state.steering and
+      input.state.steering.val, 0), speed * 1.8 + 7)
+  if travelDirection < 0 then
+    reverseFanClearance, reverseTrajectoryClearance, reverseRayCount =
+      fanClearance, trajectory, #fan
+  end
   safetyObstacleDistance = distance
   safetyObstacleClosingSpeed = closingSpeed
   safetyObstacleId = obstacleId
@@ -259,7 +363,8 @@ local function updateCollisionSafety(dt)
     local state = input.state or {}
     local throttle = number(state.throttle and state.throttle.val, 0)
     local brake = number(state.brake and state.brake.val, 0)
-    local movingIntent = travelDirection < 0 and brake > 0.08 or travelDirection > 0 and throttle > 0.08
+    local movingIntent = safetyHolding or travelDirection < 0 and brake > 0.08 or
+      travelDirection > 0 and throttle > 0.08
     local blockedAtBumper = obstacleDetected and distance <= 1.5
     if not movingIntent or not blockedAtBumper then
       safetyBrake = math.max(0, safetyBrake - math.max(0, number(dt, 0)) * 2)
@@ -493,6 +598,15 @@ local function stop()
   reverseRescanTimer = 0
   reverseStopReason = nil
   reverseStopSuccess = false
+  reverseFanClearance = math.huge
+  reverseTrajectoryClearance = math.huge
+  reverseRayCount = 0
+  safetyTimer = 0
+  safetyObstacleDistance = math.huge
+  safetyBrake = 0
+  safetyHolding = false
+  pointBestDistance = math.huge
+  pointNoProgress = 0
   releaseInputs()
   setSignal(0)
 end
@@ -503,11 +617,14 @@ local function start(data)
   points = type(data.points) == "table" and data.points or {}
   if #points < 1 then return false end
   pointIndex = 1
+  pointBestDistance = math.huge
+  pointNoProgress = 0
   elapsed = 0
   targetSpeed = clamp(tonumber(data.targetSpeed) or 7, 2, 12)
-  timeout = clamp(tonumber(data.timeout) or 14, 5, 30)
+  timeout = clamp(tonumber(data.timeout) or 14, 5, 90)
   stopAtEnd = data.stopAtEnd == true
-  completionRadius = clamp(tonumber(data.completionRadius) or 4, 2, 10)
+  completionRadius = clamp(tonumber(data.completionRadius) or 4, 0.65, 10)
+  allowReverse = data.allowReverse ~= false
   recoveryMode = "path"
   ensureArcadeMode()
   active = true
@@ -535,6 +652,9 @@ local function startReverseEscape(data)
   reverseRescanTimer = 0
   reverseStopReason = nil
   reverseStopSuccess = false
+  reverseFanClearance = math.huge
+  reverseTrajectoryClearance = math.huge
+  reverseRayCount = 0
   ensureArcadeMode()
   active = true
   setSignal(0)
@@ -569,22 +689,36 @@ local function updateReverseEscape(dt)
 
   reverseRescanTimer = reverseRescanTimer - math.max(0, number(dt, 0))
   if reverseRescanTimer <= 0 then
-    reverseRescanTimer = 0.08
-    local rearClearance = scanPredictedTrajectory(speed, -1, reverseSteering,
-      math.min(remaining + 1.25, 7.25))
-    if rearClearance <= math.min(1.15, remaining + 0.25) then
+    reverseRescanTimer = 0.05
+    local horizon = math.min(math.max(4, remaining + 1.5), 9)
+    local rearClearance, trajectory, _, _, _, _, fan =
+      scanMotionSpace(speed, -1, reverseSteering, horizon)
+    reverseFanClearance = corridorFanClearance(fan, reverseSteering, -1)
+    reverseTrajectoryClearance, reverseRayCount = trajectory, #fan
+    local alternative = bestFanSteering(fan, -1, horizon)
+    if alternative and alternative.clearance > rearClearance + 1.1 and
+      math.abs(alternative.steering - reverseSteering) <= 0.85 then
+      reverseSteering, rearClearance = alternative.steering, alternative.clearance
+      reverseTrajectoryClearance = alternative.trajectory
+    end
+    local emergencyDistance = 0.72 + speed * 0.22 + speed * speed / 12
+    if rearClearance <= emergencyDistance then
+      safetyBrake, safetyHolding = 1, true
       reverseStopReason, reverseStopSuccess = "rearBecameBlocked", false
       input.event("steering", 0, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
-      input.event("throttle", 0.75, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
+      input.event("throttle", 1, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
       input.event("brake", 0, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
       return
     end
   end
 
-  local desiredSpeed = math.min(targetSpeed, math.max(0.45, remaining * 0.7))
+  local usableRear = math.min(reverseFanClearance, reverseTrajectoryClearance)
+  local spaceSpeed = usableRear < math.huge and math.max(0, (usableRear - 0.8) * 0.55) or targetSpeed
+  local desiredSpeed = math.min(targetSpeed, spaceSpeed, math.max(0.35, remaining * 0.62))
   local reverseDrive = clamp(0.22 + (desiredSpeed - speed) * 0.22, 0.14, 0.58)
   local reverseStop = speed > desiredSpeed + 0.35 and
     clamp((speed - desiredSpeed) * 0.28, 0, 0.5) or 0
+  safetyBrake, safetyHolding = reverseStop, reverseStop > 0.01
   input.event("steering", reverseSteering, "FILTER_AI", nil, nil, nil, "taxiDriverRecovery")
   input.event("throttle", reverseStop, "FILTER_AI", nil, nil, nil,
     "taxiDriverRecovery")
@@ -595,7 +729,7 @@ end
 
 local function updateGFX(dt)
   ensureDriveReady(dt)
-  if recoveryMode ~= "reverse" then
+  if recoveryMode ~= "reverse" and not active then
     updateCollisionSafety(dt)
     updateStationaryDriveHold()
   end
@@ -622,11 +756,32 @@ local function updateGFX(dt)
   local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
   while distance < 3.5 and pointIndex < #points do
     pointIndex = pointIndex + 1
+    pointBestDistance, pointNoProgress = math.huge, 0
     target = points[pointIndex]
     dx = (tonumber(target.x) or 0) - position.x
     dy = (tonumber(target.y) or 0) - position.y
     dz = (tonumber(target.z) or 0) - position.z
     distance = math.sqrt(dx * dx + dy * dy + dz * dz)
+  end
+  if distance < pointBestDistance - 0.25 then
+    pointBestDistance, pointNoProgress = distance, 0
+  else
+    pointNoProgress = pointNoProgress + math.max(0, number(dt, 0))
+  end
+  if pointNoProgress >= 3.5 then
+    if pointIndex < #points then
+      local nextPoint = points[pointIndex + 1]
+      local nextDistance = math.sqrt((number(nextPoint.x, 0) - number(position.x, 0)) ^ 2 +
+        (number(nextPoint.y, 0) - number(position.y, 0)) ^ 2 +
+        (number(nextPoint.z, 0) - number(position.z, 0)) ^ 2)
+      if nextDistance + 1 < distance or distance > pointBestDistance + 2 then
+        pointIndex, pointBestDistance, pointNoProgress = pointIndex + 1, math.huge, 0
+        target = points[pointIndex]
+        dx, dy, dz = number(target.x, 0) - position.x, number(target.y, 0) - position.y,
+          number(target.z, 0) - position.z
+        distance = math.sqrt(dx * dx + dy * dy + dz * dz)
+      else finish(false, "waypointNoProgress"); return end
+    else finish(false, "waypointNoProgress"); return end
   end
   if pointIndex == #points and distance < completionRadius and not stopAtEnd then
     finish(true, "complete"); return
@@ -636,11 +791,11 @@ local function updateGFX(dt)
   local planarLength = math.max(0.001, math.sqrt(dx * dx + dy * dy))
   local targetX, targetY = dx / planarLength, dy / planarLength
   local forwardDot = direction.x * targetX + direction.y * targetY
-  local reversing = forwardDot < -0.25
+  local reversing = allowReverse and forwardDot < -0.25
   local angle = reversing and angleBetween(-direction.x * targetY + direction.y * targetX,
     -direction.x * targetX - direction.y * targetY) or
     angleBetween(direction.x * targetY - direction.y * targetX, forwardDot)
-  local steering = clamp(angle * (reversing and -1.7 or 1.7), -1, 1)
+  local steering = steeringForTravelAngle(angle, reversing and -1 or 1, 1.7, 1)
   local speed = math.abs(tonumber(electrics.values.wheelspeed) or 0)
   local desiredSpeed = targetSpeed * clamp(1 - math.abs(angle) * 0.55, 0.42, 1)
   if mapmgr and type(mapmgr.getObjects) == "function" then
@@ -663,12 +818,38 @@ local function updateGFX(dt)
   if stopAtEnd and pointIndex == #points then
     desiredSpeed = math.min(desiredSpeed, math.max(0, (distance - completionRadius * 0.45) * 0.55))
   end
+  safetyTimer = safetyTimer - math.max(0, number(dt, 0))
+  if safetyTimer <= 0 then
+    safetyTimer = 0.05
+    local clearance, trajectory, fanClearance, closingSpeed, obstacleId, blocked, fan =
+      scanMotionSpace(speed, reversing and -1 or 1, steering, speed * 1.8 + 7)
+    safetyObstacleDistance, safetyObstacleClosingSpeed = clearance, closingSpeed
+    safetyObstacleId, safetyObstacleDetected = obstacleId, blocked == true
+    if reversing then
+      reverseFanClearance, reverseTrajectoryClearance, reverseRayCount = fanClearance, trajectory, #fan
+    end
+  end
+  local deceleration = clamp(number(safetyConfig.comfortableDeceleration, 2.8), 1.5, 4.5)
+  local clearance = safetyObstacleDistance
+  local comfortableDistance = (reversing and 1.15 or 2.1) + speed *
+    (reversing and 0.72 or math.min(1.1, number(safetyConfig.timeGap, 2.2) * 0.32)) +
+    speed * speed / (2 * deceleration)
+  local emergencyDistance = (reversing and 0.7 or 1.1) + speed * 0.15 + speed * speed / 13
+  if clearance < comfortableDistance then
+    desiredSpeed = math.min(desiredSpeed, math.max(0, (clearance - (reversing and 0.7 or 1.1)) * 0.48))
+  end
   local throttle = clamp((desiredSpeed - speed) * 0.22, 0, 0.72)
   local brake = clamp((speed - desiredSpeed) * 0.28, 0, 0.8)
   if reversing then
     throttle = clamp((speed - desiredSpeed) * 0.28, 0, 0.7)
     brake = clamp((desiredSpeed - speed) * 0.22, 0.2, 0.65)
+    if clearance <= emergencyDistance then throttle, brake = 1, 0 end
+  elseif clearance <= emergencyDistance then
+    throttle, brake = 0, 1
   end
+  local spaceLimited = clearance < comfortableDistance
+  safetyBrake = spaceLimited and (reversing and throttle or brake) or 0
+  safetyHolding = safetyBrake > 0.01
   if stopAtEnd and pointIndex == #points and distance <= completionRadius then
     steering, throttle, brake = 0, 0, speed > 0.65 and 0.72 or 1
   end
@@ -720,10 +901,16 @@ local function getDebugState()
     pointIndex = pointIndex,
     pointCount = #points,
     pointDistance = pointDistance,
+    pointBestDistance = pointBestDistance ~= math.huge and pointBestDistance or nil,
+    pointNoProgress = pointNoProgress,
     targetSpeed = targetSpeed,
     reversing = active and recoveryMode == "reverse",
     reverseRemaining = reverseRemaining,
     reverseSteering = reverseSteering,
+    reverseFanClearance = reverseFanClearance ~= math.huge and reverseFanClearance or nil,
+    reverseTrajectoryClearance = reverseTrajectoryClearance ~= math.huge and
+      reverseTrajectoryClearance or nil,
+    reverseRayCount = reverseRayCount,
     gearboxOverrideActive = gearboxOverrideActive,
     stationaryDriveHold = stationaryDriveHold,
     driveReady = driveReady,

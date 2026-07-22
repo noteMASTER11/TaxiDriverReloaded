@@ -7,6 +7,7 @@ M.dependencies = {
   "gameplay_sites_sitesManager"
 }
 local offerGenerator = require("taxiDriver/offerGenerator")
+local nextOfferGuard = require("taxiDriver/nextOfferGuard")
 local taxiConfig = require("taxiDriver/config")
 local identity = require("taxiDriver/identity")
 local passengerMood = require("taxiDriver/passengerMood")
@@ -24,7 +25,7 @@ local tripEvents = require("taxiDriver/tripEvents")
 local hudPublisher = require("taxiDriver/hudPublisher")
 local logger = require("taxiDriver/logger")
 local aiLoggerModule = require("taxiDriver/aiLogger")
-local modVersion = "3.2.1-beta"
+local modVersion = "3.3.0-beta"
 local fleet = require("taxiDriver/fleetManager").new({modVersion = modVersion})
 local logTag = "taxiDriver"
 local supportedLanguages = taxiConfig.supportedLanguages
@@ -242,7 +243,7 @@ function M.writeDifficultySettings() return dataStore:writeDifficulty(userSettin
 local function writeUserSettings() return dataStore:writeSettings(userSettings) end
 local function loadUserSettings()
   userSettings, settingsNeedsLegacyImport = dataStore:loadSettings(); applyDifficulty(userSettings.difficulty); aiLogger:setEnabled(userSettings.aiDebugLogging == true)
-  autopilot:configure(userSettings.aiDriver)
+  autopilot:configure(userSettings.aiDriver); autopilot:setDebugVisualization(userSettings.aiDecisionVisualization == true)
   fleet:configure(userSettings.fleet, userSettings.language)
   lanBridge.setPerformanceOptions(userSettings)
 end
@@ -2198,12 +2199,17 @@ end
 
 local function scheduleNextOfferRetry()
   if not trip then return end
-  trip.nextOfferRetryTimer = randomRange(
-    offerConfig.nextOfferRetryMin,
-    offerConfig.nextOfferRetryMax
-  )
+  trip.nextOfferRetryTimer = randomRange(offerConfig.nextOfferRetryMin, offerConfig.nextOfferRetryMax)
 end
-
+local function updateNextOfferLifetime(dtReal)
+  local result = nextOfferGuard.update(nextOffer, nextOfferTimer, nextOfferAccepted, dtReal, {
+    active = state.active, hasTrip = trip ~= nil, phase = state.phase, expectedPhase = phases.toDestination,
+    duration = offerConfig.nextOfferDuration})
+  nextOfferTimer = result.remaining; if not result.expired then return end
+  local expiredId = nextOffer and nextOffer.id or nil; clearNextOffer()
+  if trip and state.phase == phases.toDestination then scheduleNextOfferRetry() end
+  logger.info("nextOffer", "offer_closed_by_guard", {id = expiredId, reason = result.reason}); notifyHud()
+end
 local function recordNextOfferError(errorMessage)
   if not trip then return end
   offerGeneration.nextJob = nil
@@ -2231,17 +2237,7 @@ end
 local function updateNextOfferOpportunity(dtSim)
   if not trip or state.phase ~= phases.toDestination or trip.nextOfferDisabled then return end
 
-  if nextOffer then
-    if not nextOfferAccepted then
-      nextOfferTimer = math.max(0, nextOfferTimer - dtSim)
-      if nextOfferTimer <= 0 then
-        clearNextOffer()
-        scheduleNextOfferRetry()
-        notifyHud()
-      end
-    end
-    return
-  end
+  if nextOffer then return end
 
   if not trip.nextOfferPrompted then
     local progress = getRouteProgress(getRemainingDistance())
@@ -3311,13 +3307,14 @@ function M.acceptNextOffer(offerId)
   end
 end
 
-function M.expireNextOffer(offerId)
+function M.dismissNextOffer(offerId)
   local id = math.floor(tonumber(offerId) or -1)
-  if not state.active or not nextOffer or nextOfferAccepted or nextOffer.id ~= id then return end
-  clearNextOffer()
-  if trip then scheduleNextOfferRetry() end
-  notifyHud()
+  if not state.active or not nextOffer or nextOfferAccepted or nextOffer.id ~= id then return false end
+  clearNextOffer(); if trip then scheduleNextOfferRetry() end
+  logger.info("nextOffer", "offer_dismissed_by_driver", {id = id}); notifyHud()
+  return true
 end
+function M.expireNextOffer(offerId) return M.dismissNextOffer(offerId) end
 
 function M.stopMode()
   if not state.active then
@@ -3434,7 +3431,7 @@ function M.saveSettings(incomingSettings)
   settingsNeedsLegacyImport = false
   applyDifficulty(userSettings.difficulty); aiLogger:setEnabled(userSettings.aiDebugLogging == true)
   if userSettings.aiDebugLogging == true and autopilot:isEnabled() then aiLogger:start(state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil, state.phase, getAutopilotTarget()) end
-  autopilot:configure(userSettings.aiDriver); autopilot:markRouteDirty(); fleet:configure(userSettings.fleet, userSettings.language)
+  autopilot:configure(userSettings.aiDriver); autopilot:setDebugVisualization(userSettings.aiDecisionVisualization == true); autopilot:markRouteDirty(); fleet:configure(userSettings.fleet, userSettings.language)
   lanBridge.setPerformanceOptions(userSettings)
   lanBridge.setEnabled(userSettings.lanEnabled)
   writeUserSettings()
@@ -3885,6 +3882,7 @@ function M.onTelemetry(vehicleId, data)
   end
 end
 function M.onUpdate(dtReal, dtSim)
+  updateNextOfferLifetime(dtReal)
   if vehicleScanGuard.isConfigurationOpen() then return end
   logger.observeRuntime(state, trip, #offers)
   dtReal = math.max(0, dtReal or 0)
@@ -4073,6 +4071,8 @@ function M.onExtensionLoaded()
     elseif action == "acceptNextOffer" then
       M.acceptNextOffer(args.id)
       return nextOfferAccepted == true
+    elseif action == "dismissNextOffer" then
+      return M.dismissNextOffer(args.id)
     elseif action == "requestFuelStop" then
       if not state.realisticMode then return false, "realistic_mode_required" end
       M.requestFuelStop()
@@ -4117,7 +4117,7 @@ function M.onClientEndMission()
   shiftHistory.write()
   vehicleHistory.resetTracking()
   restoreNavigationVisualSettings()
-end function M.onPreRender() if minimapAppVisible and not minimapUiBlocked then fleet:drawWorldLabels() end end
+end function M.onPreRender() if minimapAppVisible and not minimapUiBlocked then fleet:drawWorldLabels(); autopilot:drawDebug() end end
 
 function M.onExtensionUnloaded()
   shiftHistory.setRestoring(nil)

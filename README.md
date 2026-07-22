@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.2.1-beta"><img src="https://img.shields.io/badge/release-v3.2.1--beta-ffd11a?style=flat-square" alt="Release v3.2.1-beta"></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.3.0-beta"><img src="https://img.shields.io/badge/release-v3.3.0--beta-ffd11a?style=flat-square" alt="Release v3.3.0-beta"></a>
   <img src="https://img.shields.io/badge/BeamNG.drive-0.38.6-f28c28?style=flat-square" alt="BeamNG.drive 0.38.6">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.2.1-beta"><strong>Download 3.2.1 Beta</strong></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.3.0-beta"><strong>Download 3.3.0 Beta</strong></a>
 </p>
 
 ---
 
-> **3.2.1 Beta:** this patch makes Connected Phone discover a usable Windows LAN address even when BeamNG exposes only loopback, replaces an empty QR block with actionable diagnostics, and incorporates a native-speaker revision of the Simplified Chinese interface. Existing 3.2.0 Beta settings and progress remain compatible.
+> **3.3.0 Beta:** AI Driver now combines BeamNG's road graph with predictive access-route selection, vehicle-aligned free-space sensing, full-footprint collision checks, and a visual decision debugger. The release also hardens queued-offer expiry and Connected Phone transport. Existing 3.2.0/3.2.1 Beta settings and progress remain compatible.
 
 TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
@@ -117,14 +117,15 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Configure aggression, following gap, braking strength and stuck detection; independently control speed-limit and traffic-signal compliance.
 - Expand Maneuvers and Recovery to tune overtaking, lane-change clearance, oncoming-lane and reverse recovery, recovery attempt count, and exact-approach speed.
 - The supervisor follows red/yellow signals, commits through intersections after the stop line, signals lane changes, maintains a speed-dependent lead gap, and can overtake a slow queue on a free same-direction lane.
-- A local recovery planner measures road and obstacle geometry, checks both bypass sides, predicts nearby traffic, and generates the smallest safe smooth corridor around a stationary obstruction.
-- Vehicle-side trajectory rays follow straight and curved motion to apply progressive or emergency braking before a collision.
-- Native AI `Route Done` is verified against the physical target. If BeamNG stops early, a low-speed exact-approach controller completes the final metres.
-- When blocked with no usable forward angle, the recovery controller scans a rear collision fan and may reverse 3–6 metres before replanning a local bypass.
+- A predictive access planner compares nearby road-graph entrances before the final turn, rejects candidates that initially run backwards or jump away from the active route, and combines the shortest aligned graph prefix with a collision-checked local suffix into the physical trigger.
+- Vehicle-aligned 180° sensor fans assess forward and reverse space across the full vehicle footprint. Surface probes accept traversable pavements and mild slopes while rejecting unsafe steps, cross-slopes, static geometry, moving traffic, and parked vehicles.
+- Vehicle-side trajectory rays follow straight and curved motion to apply progressive or emergency braking before a collision; five lateral probes cover thin obstacles near either body edge.
+- Native AI `Route Done` is verified against the physical target. If BeamNG stops early, a densified low-speed approach controller follows the selected graph/free-space polyline into the final metres.
+- When blocked with no usable forward angle, the recovery controller scans rear space and may reverse 3–6 metres before replanning. Steering conversion is centralized so forward and reverse recovery use BeamNG's actual input-sign convention.
 - AI switches supported controllers to Arcade once, lets BeamNG manage the clutch, starts the powertrain when necessary, and holds stopped vehicles in Drive instead of cycling through Neutral.
 - Refueling is never started automatically. Open **Refuel** first and enable AI on the refueling route when you want the vehicle to drive there.
 - Reviews, shifts, vehicle history, and profile analytics record whether AI was used during a completed trip.
-- An opt-in AI journal can continuously record route progress, targets, traffic signals, obstacles, recovery, gearbox behavior, and damage to a dedicated JSON Lines file for diagnosis.
+- An opt-in AI journal can continuously record route progress, targets, traffic signals, obstacles, recovery, gearbox behavior, and damage to a dedicated JSON Lines file for diagnosis. A separate world-visualization toggle draws sensor rays, rejected candidates, the selected route and planner state at a 330 ms decision interval.
 
 ### Persistent driver profile
 
@@ -242,7 +243,7 @@ All application sounds—including clicks, online/offline cues, passenger messag
 - `shiftTracker.lua` owns current/previous shift totals and fuel-adjusted net income;
 - `shiftHistory.lua` validates and periodically persists restorable vehicle/energy/shift snapshots;
 - `tripEvents.lua` owns optional cancellations, route changes, additional stops, conditional tips, and fragile cargo;
-- `lanBridge.lua` owns the native all-interface Connected Phone server, ranked LAN-address discovery, live state, and map export;
+- `lanBridge.lua` owns the native Connected Phone server, automatic LAN-to-loopback fallback, ranked LAN-address discovery, live state, and map export;
 - `networkAddress.lua` filters and ranks BeamNG adapter, native-server, Winsock hostname, route-selected, and previously confirmed IPv4 candidates;
 - `delivery.lua`, `passengerMood.lua`, `routeDiversity.lua`, `offerGenerator.lua`, and `identity.lua` contain their corresponding gameplay domains.
 
@@ -250,7 +251,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Installation
 
-1. Download `taxidriver.zip` from the [3.2.1 Beta release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.2.1-beta).
+1. Download `taxidriver.zip` from the [3.3.0 Beta release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.3.0-beta).
 2. Place the archive directly in:
 
    ```text

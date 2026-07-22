@@ -1686,6 +1686,7 @@
     backdrop-filter: blur(3px);
   }
   .taxi-next-offer__card {
+    position: relative;
     width: 100%;
     padding: 15px;
     background: linear-gradient(155deg, #30353c, #1b1e23);
@@ -1694,6 +1695,8 @@
     box-shadow: 0 15px 38px rgba(0,0,0,.52), 0 0 22px rgba(255,209,26,.1);
     animation: taxi-next-offer-in .34s cubic-bezier(.2,.8,.2,1) both;
   }
+  .taxi-next-offer__close { position: absolute; top: 8px; right: 8px; z-index: 2; display: grid; width: 28px; height: 28px; padding: 0; place-items: center; color: #fff; font-size: 20px; font-weight: 900; line-height: 1; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.16); border-radius: 8px; cursor: pointer; }
+  .taxi-next-offer__close:hover { background: rgba(255,91,104,.22); border-color: rgba(255,91,104,.5); }
   .taxi-next-offer__eyebrow { color: var(--yellow); font-size: 10px; font-weight: 1000; letter-spacing: .7px; text-transform: uppercase; }
   .taxi-next-offer__head { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
   .taxi-next-offer__avatar { display: grid; width: 40px; height: 40px; place-items: center; color: #17140a; font-size: 12px; font-weight: 1000; background: var(--yellow); border-radius: 50%; }
