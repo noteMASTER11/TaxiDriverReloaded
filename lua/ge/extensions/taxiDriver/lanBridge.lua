@@ -3,27 +3,26 @@
 -- TaxiDriver phone instead of booting the complete game UI in the browser.
 local M = {}
 local logger = require("taxiDriver/logger")
+local networkAddress = require("taxiDriver/networkAddress")
+local wsUtils = require("utils/wsUtils")
 
 local port = 8085
 local protocolName = "bng-ext-app-v1"
 local externalEntryPoint = "/ui/modules/apps/TaxiDriverHUD/external/index.html"
-local externalUiRevision = "320-beta"
+local externalUiRevision = "321-beta"
 local connectionFilePath = "/settings/TaxiDriver/lan.json"
 local heartbeatTimeout = 8.0
 local mapRefreshInterval = 1.5
 local vehicleRefreshInterval = 0.25
 local maximumRoadSegments = 50000
 local roadChunkSize = 750
-local maximumProxyClients = 24
-local proxyAcceptPerFrame = 8
-local proxyReadSize = 32768
-local proxyBufferLimit = 2 * 1024 * 1024
 
 local enabled = false
 local server = nil
 local externalHeartbeatAge = math.huge
 local connected = false
 local chosenAddress = "127.0.0.1"
+local savedAddressHint = ""
 local sessionToken = ""
 local statusChanged = false
 local mapTimer = 0
@@ -44,13 +43,9 @@ local cachedRoads = nil
 local cachedTerrainTiles = nil
 local pendingRoadChunk = 0
 local pendingRoadChunkCount = 0
-local wsUtils = require("utils/wsUtils")
 local socketLib = require("socket.socket")
-local lanListener = nil
-local proxyConnections = {}
 local bridgeReady = false
 local bridgeError = ""
-local isPrivateIPv4
 
 local navigationViews = {
   trip = true,
@@ -79,137 +74,6 @@ local function closeSocket(socket)
   if socket then pcall(function() socket:close() end) end
 end
 
-local function closeProxyConnection(connection)
-  if not connection then return end
-  closeSocket(connection.client)
-  closeSocket(connection.upstream)
-end
-
-local function stopLanProxy()
-  closeSocket(lanListener)
-  lanListener = nil
-  for _, connection in ipairs(proxyConnections) do
-    closeProxyConnection(connection)
-  end
-  proxyConnections = {}
-  bridgeReady = false
-end
-
-local function startLanProxy()
-  stopLanProxy()
-  bridgeError = ""
-  if not isPrivateIPv4(chosenAddress) then
-    bridgeError = "No usable private IPv4 address was found"
-    return false
-  end
-
-  local ok, listenerOrError, bindError = pcall(function()
-    return socketLib.bind(chosenAddress, port, 16)
-  end)
-  if not ok or not listenerOrError then
-    bridgeError = tostring(ok and bindError or listenerOrError)
-    logger.error("lan", "proxy_bind_failed", {address = chosenAddress, port = port, reason = bridgeError})
-    return false
-  end
-  lanListener = listenerOrError
-  lanListener:settimeout(0)
-  bridgeReady = true
-  logger.info("lan", "proxy_listening", {address = chosenAddress, port = port})
-  return true
-end
-
-local function appendProxyBuffer(connection, field, data)
-  if not data or data == "" then return true end
-  connection[field] = connection[field] .. data
-  return #connection[field] <= proxyBufferLimit
-end
-
-local function receiveProxyData(socket, connection, field)
-  local data, err, partial = socket:receive(proxyReadSize)
-  if not appendProxyBuffer(connection, field, data or partial) then
-    return false, "buffer limit"
-  end
-  if err == "closed" then
-    if field == "toUpstream" then
-      connection.clientClosed = true
-    else
-      connection.upstreamClosed = true
-    end
-    return true
-  end
-  if err and err ~= "timeout" then return false, err end
-  return true
-end
-
-local function sendProxyData(socket, connection, field)
-  local buffer = connection[field]
-  if buffer == "" then return true end
-  local sent, err, last = socket:send(buffer)
-  local count = tonumber(sent) or tonumber(last) or 0
-  if count > 0 then connection[field] = buffer:sub(count + 1) end
-  if err and err ~= "timeout" then return false, err end
-  return true
-end
-
-local function acceptProxyClients()
-  if not lanListener then return end
-  for _ = 1, proxyAcceptPerFrame do
-    local client, acceptError = lanListener:accept()
-    if not client then
-      if acceptError and acceptError ~= "timeout" then
-        bridgeError = tostring(acceptError)
-      end
-      return
-    end
-    if #proxyConnections >= maximumProxyClients then
-      closeSocket(client)
-    else
-      client:settimeout(0)
-      local upstream = socketLib.tcp()
-      upstream:settimeout(0.02)
-      local connectedUpstream, connectError = upstream:connect("127.0.0.1", port)
-      upstream:settimeout(0)
-      if connectedUpstream or connectError == "already connected" then
-        proxyConnections[#proxyConnections + 1] = {
-          client = client,
-          upstream = upstream,
-          toClient = "",
-          toUpstream = "",
-          clientClosed = false,
-          upstreamClosed = false
-        }
-      else
-        closeSocket(client)
-        closeSocket(upstream)
-        bridgeError = "Loopback connection failed: " .. tostring(connectError)
-        logger.warn("lan", "loopback_connection_failed", {reason = bridgeError})
-      end
-    end
-  end
-end
-
-local function updateLanProxy()
-  if not bridgeReady then return end
-  acceptProxyClients()
-  for index = #proxyConnections, 1, -1 do
-    local connection = proxyConnections[index]
-    local clientRead = connection.clientClosed or
-      receiveProxyData(connection.client, connection, "toUpstream")
-    local upstreamRead = clientRead and (connection.upstreamClosed or
-      receiveProxyData(connection.upstream, connection, "toClient"))
-    local upstreamWrite = upstreamRead and
-      sendProxyData(connection.upstream, connection, "toUpstream")
-    local clientWrite = upstreamWrite and
-      sendProxyData(connection.client, connection, "toClient")
-    local finished = (connection.clientClosed and connection.toUpstream == "") or
-      (connection.upstreamClosed and connection.toClient == "")
-    if not clientWrite or finished then
-      closeProxyConnection(connection)
-      table.remove(proxyConnections, index)
-    end
-  end
-end
-
 local function makeToken()
   local now = os.time() or 0
   local a = math.random(0, 0x7fffffff)
@@ -222,39 +86,110 @@ local function isValidToken(value)
     value:match("^[a-fA-F0-9]+$") ~= nil
 end
 
-isPrivateIPv4 = function(address)
-  if type(address) ~= "string" then return false end
-  if address:match("^10%.") or address:match("^192%.168%.") then return true end
-  local second = tonumber(address:match("^172%.(%d+)%.") or "")
-  return second ~= nil and second >= 16 and second <= 31
+local function routedLanAddress()
+  -- Connecting a UDP socket does not send a packet. Windows only resolves the
+  -- route and assigns the local interface, which gives us a fallback when the
+  -- BeamNG adapter list is incomplete.
+  for _, destination in ipairs({"1.1.1.1", "8.8.8.8", "192.0.2.1"}) do
+    local udp = socketLib.udp()
+    if udp then
+      pcall(function() udp:settimeout(0) end)
+      local connectedOk, connected = pcall(function()
+        return udp:setpeername(destination, 53)
+      end)
+      local address = nil
+      if connectedOk and connected then
+        local nameOk, value = pcall(function() return udp:getsockname() end)
+        if nameOk then address = networkAddress.normalizeIPv4(value) end
+      end
+      closeSocket(udp)
+      if networkAddress.isLanIPv4(address) then return address end
+    end
+  end
+  return nil
 end
 
-local function selectLanAddress()
-  local bestAddress, bestScore = nil, -1
+local function canBindAddress(address)
+  local ok, listener = pcall(function() return socketLib.bind(address, 0, 1) end)
+  if ok and listener then closeSocket(listener); return true end
+  closeSocket(listener)
+  return false
+end
+
+local function adapterAddresses()
   local ok, addresses = pcall(function()
     return BNGWebWSServer.getNetworkAdapterAddresses()
   end)
-  if ok and addresses then
-    pcall(function()
-      for _, adapter in ipairs(addresses) do
-        local rawAddress = tostring(adapter.ipv4Addr or "")
-        local address = rawAddress:match("(%d+%.%d+%.%d+%.%d+)") or rawAddress
-        local description = tostring(adapter.description or ""):lower()
-        local ignored = description:find("virtualbox", 1, true) or
-          description:find("vmware", 1, true) or description:find("loopback", 1, true) or
-          description:find("hyper%-v") or description:find("default switch", 1, true)
-        if not ignored and isPrivateIPv4(address) then
-          local score = address:match("^192%.168%.") and 30 or
-            (address:match("^10%.") and 20 or 10)
-          if description:find("wi%-fi") or description:find("wireless") then score = score + 5 end
-          if score > bestScore then
-            bestAddress, bestScore = address, score
-          end
-        end
+  local usable = ok and type(addresses) == "table" and addresses or {}
+  logger.info("lan", "adapter_discovery", {
+    count = #usable,
+    resultType = type(addresses),
+    success = ok
+  })
+  return usable
+end
+
+local function hostnameAddresses()
+  local results = {}
+  local hostname = ""
+  local ok, failure = pcall(function()
+    hostname = tostring(socketLib.dns.gethostname() or "")
+    if hostname == "" then return end
+    local addresses = socketLib.dns.getaddrinfo(hostname)
+    for _, entry in ipairs(type(addresses) == "table" and addresses or {}) do
+      if type(entry) == "table" and entry.family == "inet" then
+        results[#results + 1] = {
+          ipv4Addr = entry.addr,
+          description = "Windows hostname " .. hostname
+        }
       end
-    end)
+    end
+  end)
+  logger.info("lan", "hostname_discovery", {
+    count = #results,
+    hostname = hostname,
+    reason = ok and "" or tostring(failure),
+    success = ok
+  })
+  return results
+end
+
+local function candidateSources(candidate)
+  local values = {}
+  for _, key in ipairs({"adapter", "native", "route", "saved"}) do
+    if candidate.sources and candidate.sources[key] then values[#values + 1] = key end
   end
-  return bestAddress
+  return table.concat(values, ",")
+end
+
+local function selectLanAddress(nativeAddress)
+  local routedAddress = routedLanAddress()
+  logger.info("lan", "route_discovery", {address = routedAddress or ""})
+  local adapters = adapterAddresses()
+  for _, entry in ipairs(hostnameAddresses()) do
+    adapters[#adapters + 1] = entry
+  end
+  local address, candidates = networkAddress.select({
+    adapters = adapters,
+    nativeAddress = nativeAddress,
+    routedAddress = routedAddress,
+    savedAddress = savedAddressHint,
+    canBind = canBindAddress
+  })
+  for _, candidate in ipairs(candidates or {}) do
+    logger.info("lan", "address_candidate", {
+      address = candidate.address,
+      bindable = candidate.bindable,
+      description = candidate.description,
+      penalty = candidate.penalty,
+      score = candidate.score,
+      sources = candidateSources(candidate)
+    })
+  end
+  logger.info("lan", "address_selected", {
+    address = address or "", candidateCount = #(candidates or {})
+  })
+  return address
 end
 
 local function loadConnectionIdentity()
@@ -264,9 +199,12 @@ local function loadConnectionIdentity()
     if ok and type(value) == "table" then saved = value end
   end
   sessionToken = saved and isValidToken(saved.token) and saved.token or makeToken()
-  local detectedAddress = selectLanAddress()
   local savedAddress = saved and tostring(saved.address or "") or ""
-  chosenAddress = detectedAddress or (isPrivateIPv4(savedAddress) and savedAddress) or "127.0.0.1"
+  savedAddressHint = networkAddress.isLanIPv4(savedAddress) and savedAddress or ""
+  chosenAddress = savedAddressHint ~= "" and savedAddressHint or "127.0.0.1"
+end
+
+local function saveConnectionIdentity()
   jsonWriteFile(connectionFilePath, {
     schemaVersion = 1,
     token = sessionToken,
@@ -518,22 +456,15 @@ end
 
 function M.start()
   if enabled then return true end
-  if sessionToken == "" then loadConnectionIdentity() else
-    local detectedAddress = selectLanAddress()
-    if detectedAddress then
-      chosenAddress = detectedAddress
-      jsonWriteFile(connectionFilePath, {
-        schemaVersion = 1,
-        token = sessionToken,
-        address = chosenAddress
-      }, true)
-    end
-  end
+  if sessionToken == "" then loadConnectionIdentity() end
   externalHeartbeatAge = math.huge
   setConnected(false)
-  local ok, createdServer, serverAddress = pcall(function()
+  -- In BeamNG 0.38 the native adapter list is populated only when a server is
+  -- created on "any". The native server therefore owns the LAN listener; a
+  -- second LuaSocket proxy on the same port would conflict with it.
+  local ok, createdServer, nativeAddress = pcall(function()
     return wsUtils.createOrGetWS(
-      "any", port, "./", protocolName, externalEntryPoint
+      "any", port, "./", protocolName, externalEntryPoint, true
     )
   end)
   if not ok or not createdServer then
@@ -544,11 +475,13 @@ function M.start()
     return false
   end
   server = createdServer
-  local detectedServerAddress = tostring(serverAddress or ""):match("(%d+%.%d+%.%d+%.%d+)")
-  if isPrivateIPv4(detectedServerAddress) then
-    chosenAddress = detectedServerAddress
-  end
-  if not startLanProxy() then
+  pcall(function() server:enableDataStreams() end)
+  logger.info("lan", "native_server_started", {
+    address = tostring(nativeAddress or ""), listenAddress = "any", port = port
+  })
+  local detectedAddress = selectLanAddress(nativeAddress)
+  if not detectedAddress then
+    bridgeError = "No bindable LAN IPv4 address was found after server initialization"
     pcall(function() BNGWebWSServer.destroy(server) end)
     server = nil
     enabled = false
@@ -556,14 +489,21 @@ function M.start()
     logger.error("lan", "external_ui_unavailable", {reason = bridgeError})
     return false
   end
+  chosenAddress = detectedAddress
+  bridgeReady = true
+  bridgeError = ""
+  savedAddressHint = chosenAddress
+  saveConnectionIdentity()
   enabled = true
   statusChanged = true
-  logger.info("lan", "external_ui_started", {address = chosenAddress, port = port})
+  logger.info("lan", "external_ui_started", {
+    address = chosenAddress, port = port, transport = "native_any"
+  })
   return true
 end
 
 function M.stop()
-  stopLanProxy()
+  bridgeReady = false
   if server then
     pcall(function() BNGWebWSServer.destroy(server) end)
     server = nil
@@ -668,10 +608,6 @@ function M.update(dtReal)
     -- Drain peer notifications so the server queue cannot grow indefinitely.
     pcall(function() server:getPeerEvents() end)
   end
-  -- The phone first reaches this LuaSocket listener on the laptop's LAN
-  -- address. Pump it before checking heartbeats because the WebSocket that
-  -- supplies those heartbeats also travels through this bridge.
-  updateLanProxy()
   dtReal = math.max(0, tonumber(dtReal) or 0)
   externalHeartbeatAge = externalHeartbeatAge + dtReal
   if externalHeartbeatAge > heartbeatTimeout then setConnected(false) end

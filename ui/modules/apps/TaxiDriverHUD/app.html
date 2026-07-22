@@ -1,6 +1,6 @@
 <style>
-  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=320-beta");
-  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=320-beta");
+  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=321-beta");
+  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=321-beta");
 </style>
 
 <div class="taxi-shell" ng-if="externalPhoneMode || !vehicleConfigSuspended" ng-class="{'taxi-shell--minimized': phoneMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
@@ -438,17 +438,18 @@
             </div>
           </div>
           <div class="taxi-lan" ng-if="settings.lanEnabled">
-            <div class="taxi-lan__status" ng-class="{'taxi-lan__status--connected': state.lan.connected > 0}">
-              <i></i><strong>{{ state.lan.connected > 0 ? t('externalConnected') : (state.lan.enabled ? t('externalWaiting') : t('externalStarting')) }}</strong>
+            <div class="taxi-lan__status" ng-class="{'taxi-lan__status--connected': state.lan.connected > 0, 'taxi-lan__status--error': state.lan.bridgeError}">
+              <i></i><strong>{{ state.lan.bridgeError ? t('externalUnavailable') : (state.lan.connected > 0 ? t('externalConnected') : (state.lan.enabled ? t('externalWaiting') : t('externalStarting'))) }}</strong>
               <span ng-if="state.lan.connected > 0">{{ state.lan.connected }}</span>
             </div>
-            <div class="taxi-lan__connect">
+            <div class="taxi-lan__connect" ng-if="state.lan.enabled && state.lan.url">
               <div class="taxi-lan__qr"><div class="taxi-lan__qr-code" aria-label="QR code"></div></div>
               <div class="taxi-lan__link">
                 <div class="taxi-settings__help">{{ t('externalOpenHelp') }}</div>
                 <input class="taxi-lan__url" type="text" readonly value="{{ state.lan.url }}" onclick="this.select()" onfocus="this.select()">
               </div>
             </div>
+            <div class="taxi-lan__error" ng-if="state.lan.bridgeError">{{ state.lan.bridgeError }}</div>
             <div class="taxi-settings__help taxi-lan__warning">{{ t('externalSecurityHelp') }}</div>
           </div>
         </div>

@@ -1,5 +1,33 @@
 # Changelog
 
+## 3.2.1 Beta — Connected Phone Reliability
+
+This patch contains every change made after `3.2.0-beta`.
+
+### Connected Phone networking
+
+- Replaced the loopback proxy path with BeamNG's native all-interface External UI listener.
+- Added ranked IPv4 discovery from BeamNG adapter data, the native server result, the Windows route-selected socket, Winsock hostname resolution, and a previously confirmed address.
+- Added RFC1918/CGNAT validation, real bind checks, physical-adapter preference, and penalties for common VPN, Hyper-V, VirtualBox, VMware, tunnel, Bluetooth, and other virtual interfaces.
+- Added a Windows 10/11 fallback for systems where BeamNG reports only `127.0.0.1`: LuaSocket resolves the computer hostname through Winsock and evaluates every returned IPv4.
+- Persisted `lan.json` only after a usable address and server have been confirmed.
+- Added structured `native_server_started`, `adapter_discovery`, `hostname_discovery`, `route_discovery`, `address_candidate`, and `address_selected` diagnostics.
+- Replaced the empty white QR square on failed startup with a localized **Local server unavailable** state and the underlying diagnostic message.
+- Confirmed clean discovery with no pre-existing `lan.json`: `192.168.93.143` was selected over the Hyper-V address `172.25.192.1`, and the phone connected successfully.
+
+### Localization and documentation
+
+- Incorporated 156 native-speaker corrections to the Simplified Chinese interface while preserving keys introduced after the contributed locale revision.
+- Added a plain-language BeamNG Repository description covering supported gameplay modes, physical cargo mass, shifts, AI driving, fleet operations, refueling, persistence, and diagnostics.
+- Updated the runtime documentation for native LAN listening and the dedicated `networkAddress.lua` selector.
+
+### Validation and compatibility
+
+- Passed LAN address-selection combinatorics, Lua syntax verification, and HTTP/WebSocket subnet transport checks.
+- Verified 343 responsive UI states across the in-game UI App, Connected Phone, all nine locales, and DPR 2 HiDPI rendering.
+- Passed deterministic 48-entry package validation.
+- Existing 3.2.0 Beta settings, progression, fleet, vehicle, and shift data remain compatible. UI cache revision: `321-beta`.
+
 ## 3.2.0 Beta — Fleet Operations
 
 This prerelease contains every change made after `3.1.1-rc`.

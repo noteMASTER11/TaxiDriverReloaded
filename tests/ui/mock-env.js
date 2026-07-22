@@ -140,7 +140,7 @@
       refueling: { active: false, completing: false, energyType: "", quantity: 0, cost: 0, duration: 0, elapsed: 0, progress: 0, remainingSeconds: 0, completionId: 0 } },
     fuelDetour: { active: false, hadTrip: false, passengerOnboard: false, stationName: "", routeDistance: 0, penaltyPercent: 0, arrived: false },
     autopilot: { available: false, enabled: false, suspended: false, status: "off", reason: "", stuckSeconds: 0, recoveryAttempt: 0 },
-    lan: { enabled: true, connected: 0, address: "192.168.93.143", port: 8084,
+    lan: { enabled: true, connected: 0, bridgeReady: 1, bridgeError: "", address: "192.168.93.143", port: 8084,
       url: "http://192.168.93.143:8084/?token=6a574f0844bfa68fe570" },
     settings, settingsNeedsLegacyImport: false, offers: [], offerTargetCount: 12,
     nextOffer: null, notification: null, penaltyEvents: [], activeTripId: 0,

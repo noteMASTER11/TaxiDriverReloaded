@@ -1,0 +1,344 @@
+[CENTER]
+[SIZE=7][COLOR=#D39E00][B]TaxiDriver Reloaded[/B][/COLOR][/SIZE]
+[SIZE=5][B]Free Roam passenger, delivery, fleet, and driver-progression systems[/B][/SIZE]
+
+[COLOR=#777777]Current documented version: 3.2.1 Beta · Target game version: BeamNG.drive 0.38.6[/COLOR]
+
+[URL='https://github.com/noteMASTER11/TaxiDriverReloaded/releases'][B]Releases[/B][/URL] · [URL='https://github.com/noteMASTER11/TaxiDriverReloaded'][B]Source code[/B][/URL] · [URL='https://github.com/noteMASTER11/TaxiDriverReloaded/wiki'][B]Wiki[/B][/URL]
+[/CENTER]
+
+[HR][/HR]
+
+[SIZE=5][COLOR=#B83B47][B]Bug reports[/B][/COLOR][/SIZE]
+
+If the game crashes or shows a Fatal Lua Error while TaxiDriver is active, send the relevant [B]beamng.log[/B] or [B]beamng.*.log[/B] files with the report. A text description alone is usually not enough to identify a Lua, vehicle, map, or mod-conflict problem.
+
+The logs are located in:
+
+[B]%LOCALAPPDATA%\BeamNG\BeamNG.drive\current[/B]
+
+For AI-driving problems, enable [B]AI trip debug log[/B] before reproducing the issue and also attach the generated [B]taxidriver_ailog_[timestamp].jsonl[/B] file.
+
+[CENTER][IMG]https://i.imgur.com/mpSP895.png[/IMG][/CENTER]
+
+[HR][/HR]
+
+[SIZE=6][COLOR=#D39E00][B]What the mod does[/B][/COLOR][/SIZE]
+
+TaxiDriver Reloaded adds passenger transport, cargo delivery, driver progression, optional AI driving, and fleet management to ordinary BeamNG.drive Free Roam. It is a gameplay extension rather than a separate scenario or career map.
+
+Add the [B]TaxiDriverHUD[/B] UI App to the current layout, select a vehicle, and start a shift. Orders are generated from the active map's road network. The Lua runtime owns the current order, route, payment, driver profile, vehicle history, fuel state, and settings; the phone-shaped UI displays and controls that state.
+
+The mod can be used in several combinations:
+
+[LIST]
+[*][B]Personal driver:[/B] complete passenger and cargo orders manually.
+[*][B]AI-assisted driver:[/B] hand the active route to the experimental AI Driver and take control back at any time.
+[*][B]Fleet owner:[/B] hire separate vehicles that complete background work while the player observes or continues driving.
+[*][B]Realistic fuel economy:[/B] pay for fuel or charging from the TaxiDriver wallet and make station detours.
+[*][B]Random Events:[/B] enable route changes, cancellations, extra stops, conditional tips, and fragile cargo.
+[*][B]Connected Phone:[/B] open the same live interface on a phone or tablet over the local network.
+[/LIST]
+
+These systems are mostly independent. For example, the player can drive manually while fleet workers operate elsewhere, use AI only for a refueling route, enable Random Events without Realistic Mode, or run the normal in-game UI without Connected Phone.
+
+[HR][/HR]
+
+[CENTER]
+[SIZE=6][B]Gameplay video[/B][/SIZE]
+[COLOR=#777777]Recorded during development of version 2.25.0. The interface and several systems have changed since this recording.[/COLOR]
+
+[MEDIA=youtube]9Da01Sbq1_I[/MEDIA]
+[/CENTER]
+
+[HR][/HR]
+
+[CENTER]
+[SIZE=6][B]Screenshots[/B][/SIZE]
+
+[IMG]https://i.imgur.com/r1FAUjL.png[/IMG] [IMG]https://i.imgur.com/Z5jZk0D.png[/IMG] [IMG]https://i.imgur.com/seMatIm.png[/IMG] [IMG]https://i.imgur.com/W8Q2ypT.png[/IMG]
+
+[IMG]https://i.imgur.com/2IHmYmW.png[/IMG] [IMG]https://i.imgur.com/6ZZSv0x.png[/IMG] [IMG]https://i.imgur.com/gu0Kfs0.png[/IMG] [IMG]https://i.imgur.com/ntDWJVi.png[/IMG]
+
+[IMG]https://i.imgur.com/Pf19d99.png[/IMG] [IMG]https://i.imgur.com/SibS3G3.png[/IMG] [IMG]https://i.imgur.com/7mrLlci.png[/IMG] [IMG]https://i.imgur.com/GHVsrwS.png[/IMG]
+[/CENTER]
+
+[HR][/HR]
+
+[SIZE=6][COLOR=#D39E00][B]Starting and restoring shifts[/B][/COLOR][/SIZE]
+
+The start screen displays the selected BeamNG vehicle and configuration, its preview image, TaxiDriver odometer, current fuel or charge, and estimated range. Clicking the vehicle card opens BeamNG's normal vehicle selector.
+
+[B]Start Shift[/B] begins a new vehicle-bound work session. The dispatcher then builds a pool of 10–12 passenger and delivery offers. Generation is divided across simulation updates so a large road graph is not scanned in one blocking operation.
+
+An active shift is snapshotted approximately once per minute. Completed shifts with at least one order are stored in a separate history. A history entry remembers the vehicle configuration, fuel or charge percentage, completed work, AI use, income, costs, penalties, and average rating.
+
+Selecting a previous shift replaces the current vehicle with the saved configuration and restores its compatible energy level after the new Vehicle Lua instance has settled. Entries are removed if the corresponding vehicle mod or configuration is no longer installed.
+
+[HR][/HR]
+
+[SIZE=6][COLOR=#D39E00][B]Dispatcher and order selection[/B][/COLOR][/SIZE]
+
+Order cards show pickup distance, estimated duration, route length, fare, rating bonus, and approximate income per minute and per kilometre or mile. They can be sorted by:
+
+[LIST]
+[*]highest fare;
+[*]distance to pickup;
+[*]estimated duration;
+[*]income per kilometre or mile.
+[/LIST]
+
+The normal route-length range is approximately 1–25 km. An optional setting removes the 25 km upper limit, allowing the generator to select much longer valid road-graph routes. Very long routes can take longer to generate.
+
+Recent endpoints and route pairs are remembered to reduce obvious repetition. On maps with little road or point-of-interest data, the diversity rules gradually relax so order generation can continue.
+
+[SIZE=5][B]Standard passenger rides[/B][/SIZE]
+
+Drive to the pickup, stop inside the target area, wait for boarding, and continue to the destination. Pickup time, route progress, driving quality, passenger mood, and current driver rating affect the result.
+
+[SIZE=5][B]Rush rides[/B][/SIZE]
+
+Rush orders add a time-limited bonus. Missing the target removes the bonus while retaining the base fare and the rest of the order.
+
+[SIZE=5][B]Multi-stop rides[/B][/SIZE]
+
+These orders contain intermediate roadside stops. The vehicle must remain close to each stop and nearly stationary for ten seconds before navigation advances to the next leg.
+
+[SIZE=5][B]Cargo deliveries[/B][/SIZE]
+
+Cargo is not only an abstract label between two coordinates. After loading, the displayed cargo mass is physically added to the active vehicle through Vehicle Lua.
+
+[LIST]
+[*]Packages weigh from 2 to 250 kg.
+[*]The added mass affects acceleration, braking, suspension response, cornering, and powertrain energy consumption.
+[*]A heavy load can therefore increase actual fuel or battery use during the delivery.
+[*]Mass above 15 kg adds a progressive fare premium, reaching +150% at 250 kg.
+[*]Confirmed collision damage can damage the package and reduce both payout and delivery rating.
+[*]Fragile cargo can appear when Random Events are enabled and reacts more strongly to impacts.
+[/LIST]
+
+TaxiDriver attempts to operate a trunk, tailgate, or cargo door during loading and unloading. Vehicle trigger names are not standardized, so this animation is best-effort and does not block the delivery when no compatible trigger exists.
+
+[HR][/HR]
+
+[SIZE=6][COLOR=#D39E00][B]Passengers, ratings, and driving quality[/B][/COLOR][/SIZE]
+
+Each passenger has a generated name, initial mood, and tolerance. Mood can improve through smooth route progress or fall after late pickup, speeding, collisions, harsh acceleration, braking, or cornering.
+
+[LIST]
+[*]Relaxed passengers can ignore some eligible negative events.
+[*]Low mood reduces tolerance for further poor driving.
+[*]A critically dissatisfied passenger can demand an early stop and leave without paying.
+[*]Passenger orders can produce one to three emoji messages while the player drives to pickup.
+[/LIST]
+
+TaxiDriver uses vehicle damage and g-force telemetry rather than checking only whether the destination was reached. Applied events appear in an expandable violation summary. Passenger fare reduction is capped at 50%; cargo damage can reduce a delivery payout further.
+
+The final review stores both the customer's order score and the driver's resulting profile rating. AI-assisted work is marked in reviews, shift history, vehicle history, and profile statistics.
+
+[SIZE=5][B]Optional Random Events[/B][/SIZE]
+
+Random Events are disabled by default and have their own setting. When enabled, a passenger may cancel before pickup, change the destination, request an additional stop, or offer a conditional tip for careful or quick driving. A delivery may be marked as fragile cargo.
+
+[HR][/HR]
+
+[SIZE=6][COLOR=#D39E00][B]Navigation and trip information[/B][/COLOR][/SIZE]
+
+Pickup points, scheduled stops, and destinations are generated from the active map instead of a fixed coordinate list. TaxiDriver prefers suitable parking spaces, bus stops, points of interest, and semantic map objects, then falls back to road-edge locations.
+
+During an active route, the interface can display:
+
+[LIST]
+[*]BeamNG's route and rectangular minimap;
+[*]arrival time, ETA, remaining distance, and route progress;
+[*]the current road speed limit and adjustable overspeed warning;
+[*]passenger mood or cargo condition;
+[*]projected payout and accumulated reductions;
+[*]the next destination on a multi-stop order;
+[*]fuel or charge quantity with two-decimal precision;
+[*]estimated remaining vehicle range.
+[/LIST]
+
+The ETA uses an average city-driving speed of approximately 40 km/h. It is a planning estimate rather than a required driving speed.
+
+[HR][/HR]
+
+[SIZE=6][COLOR=#D39E00][B]Experimental AI Driver[/B][/COLOR][/SIZE]
+
+The AI Driver is a supervisor around BeamNG's built-in vehicle AI. It does not use BeamNGpy or an external process. Game Engine Lua chooses the current TaxiDriver target and road path; BeamNG AI follows the route; a lazy Vehicle Lua controller handles exact final approach, powertrain readiness, local recovery, indicators, and collision-safety braking.
+
+The AI control button is available over passenger, delivery, and refueling maps. It can be enabled or disabled at any point during an eligible route.
+
+Ready-made driving presets range from [B]Modest Novice[/B] to [B]Mad Racer[/B]. A Custom preset exposes separate controls for:
+
+[LIST]
+[*]aggression and following time gap;
+[*]comfortable braking and stuck-detection delay;
+[*]speed-limit compliance;
+[*]traffic-signal compliance;
+[*]same-direction overtaking and lane-change clearance;
+[*]validated oncoming-lane and reverse recovery;
+[*]maximum recovery attempts;
+[*]exact final-approach speed.
+[/LIST]
+
+The supervisor tracks lead vehicles, applies speed-dependent following caps, observes red and yellow traffic signals, verifies BeamNG's [B]Route Done[/B] event against the physical target, and can finish the final metres with a low-speed controller. Straight and curved trajectory rays can apply progressive or emergency braking when an obstacle is detected.
+
+When blocked, the recovery planner checks road boundaries, nearby traffic, both bypass sides, and a rear-facing collision fan. It may select a small local bypass or reverse several metres before replanning.
+
+[COLOR=#B83B47][B]The AI Driver is experimental.[/B][/COLOR] It is an attempt to make BeamNG's existing vehicle AI more useful in a visible taxi scenario, not a production autonomous-driving system. Behavior still depends on the selected vehicle, map graph, lane metadata, traffic layout, and native AI limitations. The player can take control at any time.
+
+An optional AI trip logger writes detailed route, target, signal, obstacle, gearbox, recovery, and damage records to a separate JSON Lines file for diagnosis.
+
+[HR][/HR]
+
+[SIZE=6][COLOR=#D39E00][B]My Fleet[/B][/COLOR][/SIZE]
+
+The fleet system allows the player to operate additional taxis in the same Free Roam session. It can be used from the start screen or opened while the player is already completing a personal order.
+
+Vehicles can be hired in two ways:
+
+[LIST]
+[*][B]Garage hire:[/B] spawn a separate installed vehicle configuration near the player without switching the player's vehicle.
+[*][B]Traffic recruitment:[/B] select a nearby eligible traffic vehicle and remove it from BeamNG's normal despawn pool while employed.
+[/LIST]
+
+Each hired taxi receives an independent worker and its own instance of the TaxiDriver AI supervisor. Fleet workers select passenger or delivery jobs, plan road-graph routes, complete the work, rest briefly, and select another assignment.
+
+Fleet operation has configurable economics:
+
+[LIST]
+[*]one-time hiring fee;
+[*]driver wage charged every ten minutes;
+[*]player share of completed fares;
+[*]maximum active-driver count;
+[*]passenger and delivery job switches;
+[*]Careful, Standard, and Fast worker presets.
+[/LIST]
+
+A worker pauses when the TaxiDriver wallet cannot pay the next wage and resumes when payment becomes possible. Active employees are session-scoped, while completed-job statistics persist between sessions.
+
+The fleet screen shows total jobs, gross revenue, owner revenue, wages, hiring costs, and net fleet profit. Active taxis appear as purple markers on the map. Nearby owned vehicles can also display a localized world label with their current activity; its distance is adjustable from 50 to 1,000 metres.
+
+Fleet workers use the same experimental AI foundation and therefore share its map, traffic, and vehicle limitations.
+
+[HR][/HR]
+
+[SIZE=6][COLOR=#D39E00][B]Vehicles, odometer, and profile[/B][/COLOR][/SIZE]
+
+TaxiDriver maintains separate history for BeamNG vehicle configurations that complete at least one order. Switching vehicles or reloading a level refreshes the selected-vehicle card and its existing odometer.
+
+The vehicle journal records:
+
+[LIST]
+[*]TaxiDriver odometer distance;
+[*]passenger, cargo, and AI-assisted order counts;
+[*]total and average income;
+[*]average rating;
+[*]penalty and cargo-damage losses;
+[*]fuel or energy consumed and its cost when available;
+[*]profit per kilometre or mile.
+[/LIST]
+
+The driver profile stores the driver's name, birth date, avatar, wallet, rating, customer reviews, and rating/balance history. Profile, vehicle, shift, fleet, and settings data are stored under the BeamNG user directory rather than inside the mod archive, so replacing the ZIP does not normally reset progress.
+
+[HR][/HR]
+
+[SIZE=6][COLOR=#D39E00][B]Optional Realistic Mode[/B][/COLOR][/SIZE]
+
+Realistic Mode is selected before starting a shift. Combustion vehicles begin the shift with 5% fuel and electric vehicles with 30% charge. Fuel and charging purchases use the TaxiDriver wallet.
+
+The [B]Refuel[/B] action searches for a compatible station and temporarily gives that route navigation priority without deleting the accepted or queued order. AI driving is never started automatically: after opening the refueling route, the player can drive manually or explicitly enable AI.
+
+The refueling screen includes:
+
+[LIST]
+[*]quick amounts for +5 L, +10 L, 50%, and Full where applicable;
+[*]energy level before and after purchase;
+[*]price per unit and total price;
+[*]estimated range after refueling;
+[*]the selected vehicle's compatible fuel or battery storages.
+[/LIST]
+
+Liquid fuel is added at two readable units per second. Electric charging adds four battery percentage points per second. The vehicle must remain stopped, and progress pauses when simulation time is paused.
+
+If the map has no compatible station, TaxiDriver opens a separate [B]Magic Fuel[/B] fallback instead of reporting an unusable route. It uses the same wallet, vehicle capacity, timing, and passenger-wait rules as a normal station.
+
+[HR][/HR]
+
+[SIZE=6][COLOR=#D39E00][B]Connected Phone[/B][/COLOR][/SIZE]
+
+Connected Phone is an experimental option that serves the live TaxiDriver UI to a browser on the same local network. It does not create a second gameplay state: the in-game app and browser use the same shift, active order, route, wallet, fleet, profile, and settings.
+
+The browser version includes the same screens and controls, plus its own Canvas navigation renderer using road data, route points, fleet markers, vehicle position, and heading exported by the game.
+
+[SIZE=5][COLOR=#B83B47][B]Network requirements[/B][/COLOR][/SIZE]
+
+[LIST]
+[*]TCP port 8085 must be available.
+[*]BeamNG.drive must have inbound permission on the Windows Private network profile.
+[*]The computer and phone must be on the same LAN without wireless client isolation.
+[*]The feature should be used only on a trusted private network because it exposes a control path to the running game.
+[*]Connected Phone starts disabled and must be enabled for each game session.
+[/LIST]
+
+Mobile browsers, especially Safari on iPhone, require a user interaction before event audio can start. Map and terrain detail can be reduced or disabled in settings to lower phone battery usage.
+
+[HR][/HR]
+
+[SIZE=6][COLOR=#D39E00][B]Settings and localization[/B][/COLOR][/SIZE]
+
+The UI includes:
+
+[LIST]
+[*]English, Russian, German, French, Italian, Spanish, Polish, Ukrainian, and Simplified Chinese;
+[*]complete interface scaling from 80% to 180%;
+[*]metric or imperial units and 12/24-hour time;
+[*]Elementary, Easy, Standard, Professional, and Custom difficulty;
+[*]individual switches for every penalty system;
+[*]passenger/delivery order ratio and optional unlimited route length;
+[*]Random Events and Realistic Mode switches;
+[*]AI Driver and fleet settings;
+[*]road guidance, map zoom intensity, and overspeed-warning margin;
+[*]application volume, Silent Mode, and seven independent sound groups;
+[*]Connected Phone map, terrain, and refresh-quality controls.
+[/LIST]
+
+TaxiDriver follows BeamNG's [B]Interface Volume[/B] setting. If every UI App appears blurry, check BeamNG's global [B]UI Maximum Resolution[/B] option; an individual app cannot reverse scaling already applied to the complete CEF interface.
+
+[HR][/HR]
+
+[SIZE=6][COLOR=#D39E00][B]Installation[/B][/COLOR][/SIZE]
+
+[LIST=1]
+[*]Download [B]taxidriver.zip[/B] from the [URL='https://github.com/noteMASTER11/TaxiDriverReloaded/releases']GitHub Releases page[/URL].
+[*]Copy the ZIP to [B]%LOCALAPPDATA%\BeamNG\BeamNG.drive\current\mods[/B].
+[*]Start a Free Roam session.
+[*]Open the UI Apps editor and add [B]TaxiDriverHUD[/B].
+[*]Select a vehicle and press [B]Start Shift[/B].
+[/LIST]
+
+[COLOR=#B83B47][B]Do not keep packed and unpacked copies of TaxiDriver active at the same time.[/B][/COLOR] Duplicate Lua and UI files can create stale interfaces, duplicate hooks, and unrelated-looking errors.
+
+[HR][/HR]
+
+[SIZE=6][COLOR=#D39E00][B]Compatibility and limitations[/B][/COLOR][/SIZE]
+
+[LIST]
+[*]Designed for BeamNG.drive Free Roam and maps with a usable road graph.
+[*]Pickup and destination quality depends on road, parking, bus-stop, and point-of-interest data provided by the map.
+[*]Large road graphs can take longer to populate all dispatcher or fleet routes.
+[*]Door and cargo-access animation depends on vehicle trigger definitions.
+[*]Fuel, battery, and station support depends on energy-storage data exposed by the vehicle and map.
+[*]AI behavior depends on native controller, lane, traffic-signal, and road-graph information.
+[*]Some community vehicles and maps do not expose every value used by the mod.
+[*]The current documented target is BeamNG.drive 0.38.6.
+[/LIST]
+
+[HR][/HR]
+
+[SIZE=6][COLOR=#D39E00][B]Credits[/B][/COLOR][/SIZE]
+
+Thanks to Incognito, creator of the original [URL='https://www.beamng.com/resources/taxidriver.28763/']TaxiDriver[/URL] mod and its original taxi-gameplay concept.
+
+TaxiDriver Reloaded is an independent reimplementation for modern Free Roam. It is not an official update to the original resource.

@@ -15,7 +15,46 @@ local delivery = dofile("lua/ge/extensions/taxiDriver/delivery.lua")
 local routePlanner = dofile("lua/ge/extensions/taxiDriver/routePlanner.lua")
 local autopilotModule = dofile("lua/ge/extensions/taxiDriver/autopilot.lua")
 local aiLoggerModule = dofile("lua/ge/extensions/taxiDriver/aiLogger.lua")
+local networkAddress = dofile("lua/ge/extensions/taxiDriver/networkAddress.lua")
 local taxiConfig = dofile("lua/ge/extensions/taxiDriver/config.lua")
+
+assert(networkAddress.normalizeIPv4("IPv4 192.168.1.209 preferred") == "192.168.1.209")
+assert(networkAddress.normalizeIPv4("999.168.1.1") == nil)
+assert(networkAddress.isLanIPv4("10.0.0.4"))
+assert(networkAddress.isLanIPv4("172.16.0.4"))
+assert(networkAddress.isLanIPv4("172.31.255.254"))
+assert(networkAddress.isLanIPv4("192.168.93.143"))
+assert(networkAddress.isLanIPv4("100.64.1.2"))
+assert(not networkAddress.isLanIPv4("127.0.0.1"))
+assert(not networkAddress.isLanIPv4("169.254.1.2"))
+assert(not networkAddress.isLanIPv4("172.32.0.4"))
+local selectedNetworkAddress, addressCandidates = networkAddress.select({
+  adapters = {
+    {ipv4Addr = "172.25.192.1", description = "Hyper-V Virtual Ethernet Adapter"},
+    {ipv4Addr = "10.8.0.2", description = "OpenVPN Data Channel Offload"},
+    {ipv4Addr = "192.168.93.143", description = "Intel(R) Wi-Fi 6E AX211 160MHz"}
+  },
+  routedAddress = "10.8.0.2",
+  savedAddress = "127.0.0.1",
+  canBind = function() return true end
+})
+assert(selectedNetworkAddress == "192.168.93.143")
+assert(#addressCandidates == 3)
+selectedNetworkAddress = networkAddress.select({
+  adapters = {}, routedAddress = "192.168.1.209",
+  canBind = function(address) return address == "192.168.1.209" end
+})
+assert(selectedNetworkAddress == "192.168.1.209")
+selectedNetworkAddress = networkAddress.select({
+  adapters = {}, nativeAddress = "192.168.50.12",
+  routedAddress = "172.25.192.1", canBind = function() return true end
+})
+assert(selectedNetworkAddress == "192.168.50.12")
+selectedNetworkAddress = networkAddress.select({
+  adapters = {}, savedAddress = "192.168.1.77",
+  canBind = function() return false end
+})
+assert(selectedNetworkAddress == nil)
 
 local defaultAiDriver = taxiConfig.sanitizeAiDriver(nil)
 assert(defaultAiDriver.preset == "balanced")

@@ -70,6 +70,10 @@ const lanBridgeLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/lanBridge.lua"),
   "utf8"
 );
+const networkAddressLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/networkAddress.lua"),
+  "utf8"
+);
 const hudPublisherLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/hudPublisher.lua"),
   "utf8"
@@ -184,6 +188,21 @@ assert.doesNotMatch(lanBridgeLuaSource,
   "Remote map telemetry must not stop because a browser view reported itself hidden");
 assert.match(lanBridgeLuaSource, /heartbeatTimeout\s*=\s*8\.0/,
   "Battery-friendly heartbeats must tolerate browser timer throttling");
+assert.match(lanBridgeLuaSource,
+  /wsUtils\.createOrGetWS\([\s\S]*?"any"[\s\S]*?selectLanAddress\(nativeAddress\)[\s\S]*?transport = "native_any"/,
+  "Connected Phone must let BeamNG initialize and own its all-interface LAN listener before selecting the published address");
+assert.match(lanBridgeLuaSource,
+  /routedLanAddress[\s\S]*?setpeername[\s\S]*?getsockname[\s\S]*?canBindAddress[\s\S]*?socketLib\.bind/,
+  "LAN discovery must combine the Windows route-selected address with an ownership bind probe");
+assert.match(lanBridgeLuaSource,
+  /hostnameAddresses[\s\S]*?dns\.gethostname[\s\S]*?dns\.getaddrinfo[\s\S]*?hostname_discovery/,
+  "LAN discovery must fall back to Windows hostname resolution when BeamNG exposes only loopback");
+assert.match(networkAddressLuaSource,
+  /virtualMarkers[\s\S]*?openvpn[\s\S]*?wi%-fi[\s\S]*?candidate\.bindable[\s\S]*?candidate\.score/,
+  "LAN selection must prefer a bindable physical Wi-Fi/Ethernet adapter over VPN and virtual interfaces");
+assert.match(appHtmlSource,
+  /state\.lan\.enabled && state\.lan\.url[\s\S]*?state\.lan\.bridgeError/,
+  "A failed LAN start must show its error instead of an empty white QR container");
 assert.match(taxiDriverLuaSource, /state\.ratingCount\s*=\s*math\.max\(0,[\s\S]*?state\.completedRides[\s\S]*?vehicleHistory\.setAllRatings\(rating\)/,
   "The rating cheat must re-rate the complete ride history");
 assert.match(taxiDriverLuaSource,
@@ -477,6 +496,27 @@ try {
   const collapsedIndicator = functionalPage.locator(".taxi-settings__group-head i").filter({ hasText: "+" }).last();
   assert.equal((await collapsedIndicator.textContent()).trim(), "+", "A collapsed Settings group must show '+'");
   await collapsedIndicator.locator("..").click();
+
+  const lanFailureAudit = await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    scope.$apply(() => {
+      Object.keys(scope.settingsSections).forEach((key) => { scope.settingsSections[key] = false; });
+      scope.settingsSections.connectivity = true;
+      scope.state.lan = {
+        enabled: false, connected: 0, bridgeReady: 0, address: "127.0.0.1",
+        url: "", bridgeError: "No bindable LAN IPv4 address was found"
+      };
+    });
+    return {
+      qrCount: document.querySelectorAll(".taxi-lan__qr").length,
+      errorText: document.querySelector(".taxi-lan__error")?.textContent.trim() || "",
+      statusError: document.querySelector(".taxi-lan__status")?.classList.contains("taxi-lan__status--error") || false,
+    };
+  });
+  assert.equal(lanFailureAudit.qrCount, 0,
+    "A failed Connected Phone start must not leave an empty white QR square");
+  assert.match(lanFailureAudit.errorText, /No bindable LAN IPv4/);
+  assert.equal(lanFailureAudit.statusError, true);
 
   const aiPresetAudit = await functionalPage.evaluate(() => {
     const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
