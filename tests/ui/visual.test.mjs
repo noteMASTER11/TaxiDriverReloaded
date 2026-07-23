@@ -102,6 +102,14 @@ const autopilotRecoveryLuaSource = await fs.readFile(
   path.join(here, "../../lua/vehicle/extensions/taxiDriverAutopilotRecovery.lua"),
   "utf8"
 );
+const vehicleBridgeGuardLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/vehicleBridgeGuard.lua"),
+  "utf8"
+);
+const optionalLanBridgeLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/optionalLanBridge.lua"),
+  "utf8"
+);
 assert.match(
   externalLoaderSource,
   /\.api\.subscribeToEvents\(\s*["']\{\}["']\s*\)/,
@@ -109,7 +117,28 @@ assert.match(
 );
 assert.match(vehicleHistoryLuaSource, /filePath\s*=\s*settingsDirectoryPath\s*\.\.\s*["']\/vehicles\.json["']/,
   "Vehicle odometer and ride history must use a separate vehicles.json document");
-assert.match(taxiDriverLuaSource, /if not bestFacility then\s+realisticFuel\.openMagicStation\(vehicle\)/,
+assert.match(taxiDriverLuaSource, /require\(["']taxiDriver\/optionalLanBridge["']\)/,
+  "LAN support must be loaded lazily instead of remaining a hard dependency of the mod");
+assert.match(optionalLanBridgeLuaSource, /pcall\(require,\s*["']taxiDriver\/lanBridge["']\)/,
+  "An unavailable LAN implementation must not abort the core extension");
+assert.match(vehicleBridgeGuardLuaSource,
+  /scanGeneration[\s\S]*?isRequestCurrent[\s\S]*?getObjectByID[\s\S]*?pcall\(callback/,
+  "Vehicle bridge callbacks must reject stale VM generations and isolate callback failures");
+assert.doesNotMatch(taxiDriverLuaSource, /core_vehicleBridge\.requestValue/,
+  "The orchestrator must not issue unguarded asynchronous vehicle bridge requests");
+assert.doesNotMatch(shiftHistoryLuaSource, /core_vehicleBridge\.requestValue/,
+  "Shift energy restoration must not issue unguarded vehicle bridge requests");
+assert.doesNotMatch(taxiDriverLuaSource, /onTelemetryVehicleReset/,
+  "The duplicate telemetry reset entry point must not bypass the vehicle scan guard");
+assert.match(taxiDriverLuaSource, /runtimeBoundary:call\(["']activeMode\.update["']/,
+  "A failure in active gameplay work must not abort every later game tick subsystem");
+assert.match(lanBridgeLuaSource, /coroutine\.yield\(false\)[\s\S]*?coroutine\.resume\(roadBuildJob\)/,
+  "Road-network serialization must be chunked across frames");
+assert.match(loggerLuaSource, /setOperationFilter[\s\S]*?pcall\(operationFilter/,
+  "Extended operation logging must support filtering high-volume traffic events");
+assert.match(appJsSource, /pagehide[\s\S]*?beforeunload[\s\S]*?stopHudHeartbeats/,
+  "HUD heartbeat timers must stop before late Angular teardown");
+assert.match(taxiDriverLuaSource, /if not bestFacility then\s+realisticFuel\.openMagicStation\(currentVehicle\)/,
   "Missing compatible stations must open the magic refueling fallback");
 assert.match(taxiDriverLuaSource, /state\.completedRides\s*=\s*state\.completedRides\s*\+\s*1[\s\S]*?vehicleHistory\.recordRide\(\{/,
   "Completed rides and income must be attributed to the current vehicle");
@@ -175,7 +204,7 @@ assert.match(nextOfferGuardLuaSource,
   /phaseChanged[\s\S]*?invalidTimer[\s\S]*?value\s*=\s*math\.min\(value, duration\)[\s\S]*?dtReal/,
   "Next offers must have a phase-independent real-time expiry guard for corrupt and stale timers");
 assert.match(taxiDriverLuaSource,
-  /updateNextOfferLifetime\(dtReal\)[\s\S]*?vehicleScanGuard\.isConfigurationOpen/,
+  /runtimeBoundary:call\(["']nextOffer\.lifetime["'],\s*updateNextOfferLifetime,\s*dtReal\)[\s\S]*?vehicleScanGuard\.isConfigurationOpen/,
   "The offer expiry guard must run while vehicle configuration suspends normal gameplay updates");
 assert.match(appHtmlSource,
   /taxi-next-offer__close[\s\S]*?dismissNextOffer\(state\.nextOffer\.id\)/,
@@ -195,7 +224,8 @@ assert.match(hudPublisherLuaSource, /TaxiDriverHUDPatch/,
   "Periodic HUD updates must use compact delta packets");
 assert.match(hudPublisherLuaSource, /baseRevision[\s\S]*?revision[\s\S]*?clientNeedsSync/,
   "HUD deltas must be revisioned and support loss detection");
-assert.match(taxiDriverLuaSource, /if not state\.active[\s\S]*?notifyHudPatch\(\)[\s\S]*?hudTimer >= hudUpdateInterval[\s\S]*?notifyHudPatch\(\)/,
+assert.match(taxiDriverLuaSource,
+  /if not state\.active[\s\S]*?["']hud\.patch["'],\s*notifyHudPatch[\s\S]*?hudTimer >= runtimeConfig\.hudUpdateInterval[\s\S]*?["']hud\.patch["'],\s*notifyHudPatch/,
   "The active and inactive periodic loops must avoid repeating full HUD snapshots");
 assert.match(lanBridgeLuaSource, /canPublishNavigation\(\)[\s\S]*?navigationPhases\[authoritativePhase\]/,
   "Remote map telemetry must follow Lua's authoritative trip phase");
@@ -258,6 +288,12 @@ assert.match(taxiDriverLuaSource, /require\(["']taxiDriver\/autopilot["']\)\.new
 assert.match(appJsSource, /autopilotValues[\s\S]*?setMinimapOcclusions/,
   "The native minimap layout must reserve an occlusion rectangle for the autopilot control");
 assert.match(appJsSource,
+  /phoneSuperMinimized[\s\S]*?toggleSuperMinimized[\s\S]*?hideMinimap\(true\)/,
+  "The button-only native UI stage must explicitly hide the minimap");
+assert.match(appJsSource,
+  /hasNewNextOffer \|\| hasNewNotification[\s\S]*?collapseAttention\s*=\s*true/,
+  "Collapsed UI notifications must set an indicator instead of forcing expansion");
+assert.match(appJsSource,
   /updateReviewPagination[\s\S]*?getBoundingClientRect[\s\S]*?availableHeight[\s\S]*?reviewsPerPage[\s\S]*?ResizeObserver/,
   "Review pagination must derive its page size from the live profile-panel height");
 assert.match(appHtmlSource, /taxi-ai-ride-counter[\s\S]*?profileProgress\.aiRideCount/,
@@ -295,6 +331,9 @@ assert.match(autopilotPerceptionLuaSource, /debugTimer\s*=\s*0\.33/,
 assert.match(autopilotRecoveryLuaSource,
   /rayOrientedBox[\s\S]*?castTrajectoryRay[\s\S]*?scanPredictedTrajectory[\s\S]*?comfortableDistance[\s\S]*?emergencyDistance/,
   "Vehicle safety must ray-test straight and curved trajectories with smooth and emergency braking");
+assert.match(autopilotRecoveryLuaSource,
+  /safetyStepSeconds\s*=\s*0\.05[\s\S]*?pointApproachSafetyTimer[\s\S]*?nearbyOverride/,
+  "Collision and point-approach raycasts must use independent fixed-rate timers and shared object snapshots");
 assert.match(autopilotRecoveryLuaSource,
   /ensureDriveReady[\s\S]*?setIgnitionLevel[\s\S]*?setStarter/,
   "AI activation must explicitly start and verify the selected vehicle powertrain");
@@ -450,6 +489,9 @@ const harnessUrl = (scenario, viewport, options = {}) => {
 const waitForHarness = async (page) => {
   await page.waitForFunction(() => window.__taxiHarnessReady === true);
   await page.evaluate(() => document.fonts && document.fonts.ready);
+  await page.evaluate(() => new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(resolve))
+  ));
   if (new URL(page.url()).searchParams.get("external") === "1") {
     await page.waitForFunction(() => {
       const canvas = Array.from(document.querySelectorAll("canvas.taxi-external-minimap"))
@@ -753,6 +795,23 @@ try {
     "Vehicle history tab must list every persisted vehicle record");
   assert.match((await functionalPage.locator(".taxi-vehicle-history").filter({ hasText: "ETK 854t" }).textContent()), /ETK 854t[\s\S]*7[\s\S]*\$184\.25/,
     "Vehicle history must show selector name, completed rides, and income");
+  const vehicleSortValues = ["distance", "income", "rides"];
+  for (let index = 0; index < vehicleSortValues.length; index += 1) {
+    await functionalPage.locator(".taxi-vehicle-history__sort .taxi-sort-menu__trigger").click();
+    const vehicleSortOptions = functionalPage.locator(
+      ".taxi-vehicle-history__sort .taxi-sort-menu__options button"
+    );
+    assert.equal(await vehicleSortOptions.count(), 3,
+      "Vehicle sorting menu must render all choices above the vehicle cards");
+    await vehicleSortOptions.nth(index).click();
+    assert.equal(await functionalPage.evaluate(() => {
+      const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+      return scope.vehicleSort;
+    }), vehicleSortValues[index], `Vehicle sorting choice ${vehicleSortValues[index]} must be clickable`);
+    assert.equal(await functionalPage.locator(
+      ".taxi-vehicle-history__sort .taxi-sort-menu__options"
+    ).count(), 0, "Vehicle sorting menu must close after selection");
+  }
 
   for (const realistic of [false, true]) {
     for (const events of [false, true]) {
@@ -913,6 +972,43 @@ try {
   );
   assert.match(compactMapCommand, /setMinimapTransform\([^)]*[1-9][0-9]*,\s*false\)/,
     "Minimized native UI must publish a non-empty map rectangle");
+  assert.equal(await functionalPage.locator(".taxi-shell__controls button").count(), 2,
+    "Minimized native UI must expose separate expand and collapse-to-button controls");
+  await functionalPage.locator(".taxi-shell__toggle--super").click();
+  assert.equal(await functionalPage.locator(".taxi-shell--super-minimized").count(), 1,
+    "The secondary control must enter the button-only stage");
+  assert.equal(await functionalPage.locator(".taxi-phone").count(), 0,
+    "Button-only mode must remove the full phone");
+  assert.equal(await functionalPage.locator(".taxi-compact").count(), 0,
+    "Button-only mode must remove the compact map interface");
+  assert.equal(await functionalPage.locator(".taxi-shell__controls button").count(), 1,
+    "Button-only mode must retain exactly one restore control");
+  const superMinimizedBounds = await functionalPage.locator(".taxi-shell__toggle--super")
+    .evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    });
+  assert.ok(superMinimizedBounds.width <= 46 && superMinimizedBounds.height <= 46,
+    `Button-only restore control must remain unobtrusive (${JSON.stringify(superMinimizedBounds)})`);
+  await assertVisualAudit(functionalPage, "game button-only 520x900");
+  await screenshot(functionalPage, "game-button-only-520x900.png");
+  assert.ok((await functionalPage.evaluate(() => window.__taxiEngineLuaCommands || []))
+    .some((value) => value.includes("hideMinimap")),
+  "Button-only mode must explicitly hide the native minimap");
+  await functionalPage.evaluate(() => window.__taxiSetState({
+    notification: { id: 9901, key: "notify_orderAccepted", severity: "success" },
+  }));
+  await functionalPage.waitForFunction(() =>
+    document.querySelector(".taxi-shell__notification") !== null
+  );
+  assert.equal(await functionalPage.locator(".taxi-shell--super-minimized").count(), 1,
+    "A notification must not force button-only mode to expand");
+  await functionalPage.locator(".taxi-shell__toggle--super").click();
+  assert.equal(await functionalPage.locator(".taxi-compact").isVisible(), true,
+    "Super-expand must restore the previously selected compact stage");
+  await functionalPage.locator(".taxi-shell__toggle:not(.taxi-shell__toggle--super)").click();
+  assert.equal(await functionalPage.locator(".taxi-phone").isVisible(), true,
+    "The primary expand control must restore the full interface");
 
   await functionalPage.goto(harnessUrl("magicFuel", { width: 390, height: 844 }));
   await waitForHarness(functionalPage);

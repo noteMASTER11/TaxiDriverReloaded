@@ -49,7 +49,7 @@ function M.publishFull(state, trigger, encode)
   return revision
 end
 
-function M.publishPatch(state, trigger, encode)
+local function publishPatch(state, trigger, encode, allowRemovals)
   local values = {}
   local removed = {}
   local changed = false
@@ -67,11 +67,13 @@ function M.publishPatch(state, trigger, encode)
     end
   end
 
-  for key, _ in pairs(lastSignatures) do
-    if not seen[key] then
-      lastSignatures[key] = nil
-      table.insert(removed, key)
-      changed = true
+  if allowRemovals then
+    for key, _ in pairs(lastSignatures) do
+      if not seen[key] then
+        lastSignatures[key] = nil
+        table.insert(removed, key)
+        changed = true
+      end
     end
   end
 
@@ -87,6 +89,14 @@ function M.publishPatch(state, trigger, encode)
     })
   end
   return changed
+end
+
+function M.publishPatch(state, trigger, encode)
+  return publishPatch(state, trigger, encode, true)
+end
+
+function M.publishPartialPatch(state, trigger, encode)
+  return publishPatch(state, trigger, encode, false)
 end
 
 function M.getEpoch()

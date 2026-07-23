@@ -300,6 +300,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         $scope.offlineHoldProgress = 0;
         $scope.offlineConfirmOpen = false;
         $scope.phoneMinimized = false;
+        $scope.phoneSuperMinimized = false;
+        $scope.collapseAttention = false;
         $scope.localPhoneOpen = true;
         $scope.phoneToast = null;
         $scope.passengerChat = null;
@@ -349,6 +351,12 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         $scope.profileReviews = [];
         $scope.profileVehicles = [];
         $scope.vehicleSort = "distance";
+        $scope.vehicleSortMenuOpen = false;
+        $scope.vehicleSortOptions = [
+          { value: "distance", label: "distance" },
+          { value: "income", label: "vehicleIncome" },
+          { value: "rides", label: "vehicleTrips" },
+        ];
         $scope.offerSort = "fare";
         $scope.offerSortMenuOpen = false;
         $scope.offerSortOptions = [
@@ -1198,6 +1206,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             if (!$scope.settingsOpen && !$scope.profileOpen && !$scope.offlineConfirmOpen) {
               $scope.fuelStationOpen = true;
               $scope.phoneMinimized = false;
+              $scope.phoneSuperMinimized = false;
+              $scope.collapseAttention = false;
               dismissPassengerChat();
               hideMinimap();
             }
@@ -1511,7 +1521,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.setExternalPhoneView("${view}", ${visible ? "true" : "false"}, "${externalSessionToken}") end`
           );
         };
-        const canRenderMinimap = (hudState) => !externalPhoneMode && uiVisible && hudState &&
+        const canRenderMinimap = (hudState) => !externalPhoneMode && !$scope.phoneSuperMinimized &&
+          uiVisible && hudState &&
           (!(hudState.lan && Number(hudState.lan.connected || 0) > 0) || $scope.localPhoneOpen) &&
           ($scope.fleetOpen || (hudState.active === true && minimapPhases.has(hudState.phase))) &&
           ($scope.phoneMinimized || (
@@ -1837,6 +1848,15 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           }
           $scope.offerSortMenuOpen = false;
         };
+        this.toggleVehicleSortMenu = () => {
+          $scope.vehicleSortMenuOpen = !$scope.vehicleSortMenuOpen;
+        };
+        this.selectVehicleSort = (value) => {
+          if ($scope.vehicleSortOptions.some((option) => option.value === value)) {
+            $scope.vehicleSort = value;
+          }
+          $scope.vehicleSortMenuOpen = false;
+        };
         this.beginOfflineHold = (event) => {
           if ($scope.offlineConfirmOpen || offlineHoldTimer) return;
           if (event && event.button !== undefined && event.button !== 0) return;
@@ -1866,6 +1886,19 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           $scope.phoneMinimized = !$scope.phoneMinimized;
           if ($scope.phoneMinimized) {
             dismissPassengerChat();
+          } else {
+            $scope.collapseAttention = false;
+          }
+          lastMinimapRect = "";
+          scheduleMinimapUpdate();
+        };
+        this.toggleSuperMinimized = () => {
+          $scope.phoneSuperMinimized = !$scope.phoneSuperMinimized;
+          if ($scope.phoneSuperMinimized) {
+            dismissPassengerChat();
+            hideMinimap(true);
+          } else {
+            $scope.collapseAttention = false;
           }
           lastMinimapRect = "";
           scheduleMinimapUpdate();
@@ -2301,6 +2334,10 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           const selected = $scope.offerSortOptions.find((option) => option.value === $scope.offerSort);
           return $scope.t(selected ? selected.label : "sortFare");
         };
+        $scope.getVehicleSortLabel = () => {
+          const selected = $scope.vehicleSortOptions.find((option) => option.value === $scope.vehicleSort);
+          return $scope.t(selected ? selected.label : "distance");
+        };
         $scope.getSortedOffers = () => ($scope.state.offers || []).slice().sort((left, right) => {
           const key = $scope.offerSort;
           if (key === "pickup") return Number(left.pickupDistance || 0) - Number(right.pickupDistance || 0);
@@ -2391,6 +2428,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
         $scope.shouldShowNextOffer = () => {
           const offer = $scope.state.nextOffer;
+          if (!externalPhoneMode && $scope.phoneSuperMinimized) return false;
           if ($scope.settingsOpen || $scope.profileOpen || $scope.offlineConfirmOpen || $scope.fuelStationOpen) return false;
           if (!offer || $scope.state.phase !== "toDestination") return false;
           return offer.accepted ? $scope.nextOfferAcceptedVisible : $scope.nextOfferUiRemaining > 0;
@@ -2632,9 +2670,10 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           if (isOverspeedWarning && !overspeedWarningActive) playAppSound("overspeed");
           overspeedWarningActive = isOverspeedWarning;
           $scope.overspeedWarningActive = isOverspeedWarning;
-          if ((hasNewNextOffer || hasNewNotification) && $scope.phoneMinimized &&
+          if ((hasNewNextOffer || hasNewNotification) &&
+              ($scope.phoneMinimized || $scope.phoneSuperMinimized) &&
               !(data.lan && Number(data.lan.connected || 0) > 0)) {
-            $scope.phoneMinimized = false;
+            $scope.collapseAttention = true;
           }
           if (hasNewNotification) {
             dismissPassengerChat();
@@ -2704,6 +2743,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           if (!wasRemotelyConnected && isRemotelyConnected) {
             $scope.localPhoneOpen = false;
             $scope.phoneMinimized = false;
+            $scope.phoneSuperMinimized = false;
+            $scope.collapseAttention = false;
             dismissPassengerChat();
           } else if (wasRemotelyConnected && !isRemotelyConnected) {
             $scope.localPhoneOpen = true;
@@ -2876,6 +2917,20 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         window.addEventListener("resize", resizeMap);
         let externalHeartbeatTimer = null;
         let nativeHudHeartbeatTimer = null;
+        let uiShuttingDown = false;
+        const stopHudHeartbeats = () => {
+          if (uiShuttingDown) return;
+          uiShuttingDown = true;
+          if (externalHeartbeatTimer) clearInterval(externalHeartbeatTimer);
+          if (nativeHudHeartbeatTimer) clearInterval(nativeHudHeartbeatTimer);
+          externalHeartbeatTimer = null;
+          nativeHudHeartbeatTimer = null;
+        };
+        const handleHeartbeatPageHide = (event) => {
+          if (!event || event.persisted !== true) stopHudHeartbeats();
+        };
+        window.addEventListener("pagehide", handleHeartbeatPageHide);
+        window.addEventListener("beforeunload", stopHudHeartbeats);
         const stopExternalMapWork = () => {
           if (externalMapFrame) cancelAnimationFrame(externalMapFrame);
           externalMapFrame = 0;
@@ -2899,6 +2954,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           : null;
         if (externalPhoneMode) {
           sendExternalHeartbeat = () => {
+            if (uiShuttingDown) return;
             const view = getExternalView();
             const visible = view !== "hidden";
             bngApi.engineLua(
@@ -2913,19 +2969,23 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           );
           syncExternalView();
         } else {
-          const sendNativeHudHeartbeat = () => bngApi.engineLua(
-            `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.hudClientHeartbeat("${hudEpoch}", ${hudRevision}) end`
-          );
+          const sendNativeHudHeartbeat = () => {
+            if (uiShuttingDown) return;
+            bngApi.engineLua(
+              `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.hudClientHeartbeat("${hudEpoch}", ${hudRevision}) end`
+            );
+          };
           sendNativeHudHeartbeat();
           nativeHudHeartbeatTimer = setInterval(sendNativeHudHeartbeat, 2500);
         }
         $scope.$on("$destroy", () => {
+          stopHudHeartbeats();
           if (settingsSaveTimer) persistSettingsNow();
           clearInterval(clockTimer);
           clearInterval(nextOfferCountdownTimer);
           if (minimapTimer) clearInterval(minimapTimer);
-          if (externalHeartbeatTimer) clearInterval(externalHeartbeatTimer);
-          if (nativeHudHeartbeatTimer) clearInterval(nativeHudHeartbeatTimer);
+          window.removeEventListener("pagehide", handleHeartbeatPageHide);
+          window.removeEventListener("beforeunload", stopHudHeartbeats);
           stopExternalMapWork();
           if (stopExternalViewWatch) stopExternalViewWatch();
           if (phoneToastTimer) clearTimeout(phoneToastTimer);

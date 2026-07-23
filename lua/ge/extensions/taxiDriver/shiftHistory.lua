@@ -1,5 +1,6 @@
 local M = {}
 local vehicleScanGuard = require("taxiDriver/vehicleScanGuard")
+local vehicleBridgeGuard = require("taxiDriver/vehicleBridgeGuard")
 
 local schemaVersion = 1
 local settingsDirectoryPath = "/settings/TaxiDriver"
@@ -195,9 +196,7 @@ end
 
 local function captureVehicleEnergy(vehicle, callback)
   if not vehicle or type(callback) ~= "function" then return false end
-  local vehicleId = vehicle:getID()
-  core_vehicleBridge.requestValue(vehicle, function(data)
-    if not getObjectByID(vehicleId) then return end
+  return vehicleBridgeGuard.request(vehicle, "energyStorage", function(data)
     local tanks = type(data) == "table" and data[1] or nil
     local fuelEnergy, fuelCapacity = 0, 0
     local electricEnergy, electricCapacity = 0, 0
@@ -230,8 +229,7 @@ local function captureVehicleEnergy(vehicle, callback)
       snapshot.electricPercent = clamp(electricEnergy / electricCapacity * 100, 0, 100)
     end
     callback(snapshot)
-  end, "energyStorage")
-  return true
+  end)
 end
 
 local function applyVehicleEnergy(vehicle, snapshot, callback)
@@ -244,7 +242,7 @@ local function applyVehicleEnergy(vehicle, snapshot, callback)
   elseif not fuelPercent then
     fuelPercent = tonumber(snapshot.percent)
   end
-  core_vehicleBridge.requestValue(vehicle, function(data)
+  return vehicleBridgeGuard.request(vehicle, "energyStorage", function(data, currentVehicle)
     local tanks = type(data) == "table" and data[1] or nil
     local changedCount = 0
     for _, tank in ipairs(type(tanks) == "table" and tanks or {}) do
@@ -254,14 +252,16 @@ local function applyVehicleEnergy(vehicle, snapshot, callback)
         energyType == "diesel" or energyType == "kerosine" or energyType == "kerosene"
       local maxEnergy = math.max(0, tonumber(tank.maxEnergy) or 0)
       if supported and percent and maxEnergy > 0 then
-        core_vehicleBridge.executeAction(vehicle, "setEnergyStorageEnergy", tank.name,
-          maxEnergy * clamp(percent, 0, 100) / 100)
-        changedCount = changedCount + 1
+        if vehicleBridgeGuard.execute(currentVehicle, "setEnergyStorageEnergy", tank.name,
+          maxEnergy * clamp(percent, 0, 100) / 100) then
+          changedCount = changedCount + 1
+        end
       end
     end
     if type(callback) == "function" then callback(changedCount > 0, changedCount) end
-  end, "energyStorage")
-  return true
+  end, function()
+    if type(callback) == "function" then callback(false, 0) end
+  end)
 end
 
 function M.load(version)

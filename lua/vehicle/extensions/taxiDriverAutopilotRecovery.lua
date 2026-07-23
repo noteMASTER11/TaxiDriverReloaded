@@ -12,10 +12,14 @@ local stopAtEnd = false
 local completionRadius = 4
 local allowReverse = true
 local routeWatchActive = false
+local routeObserverOriginalTrigger = nil
+local routeObserverWrapper = nil
 local gearboxOverrideActive = false
 local stationaryDriveHold = false
 local safetyConfig = {timeGap = 2.2, comfortableDeceleration = 2.8}
+local safetyStepSeconds = 0.05
 local safetyTimer = 0
+local pointApproachSafetyTimer = 0
 local safetyBrake = 0
 local safetyHolding = false
 local safetyObstacleDistance = math.huge
@@ -166,7 +170,8 @@ local function castTrajectoryRay(originX, originY, originZ, directionX, directio
   return closest, hit, blocked
 end
 
-local function scanPredictedTrajectory(speed, travelDirection, steeringOverride, horizonOverride)
+local function scanPredictedTrajectory(speed, travelDirection, steeringOverride, horizonOverride,
+  nearbyOverride)
   local position = obj:getPosition()
   travelDirection = travelDirection < 0 and -1 or 1
   local forwardX, forwardY, forwardZ, baseLeftX, baseLeftY, baseLeftZ,
@@ -180,7 +185,7 @@ local function scanPredictedTrajectory(speed, travelDirection, steeringOverride,
     obj:getInitialWidth(), 2))
   local horizon = horizonOverride and clamp(number(horizonOverride, 10), 2, 48) or
     clamp(speed * 1.8 + 7, 10, 48)
-  local boxes = nearbyBoxes(horizon + 10)
+  local boxes = nearbyOverride or nearbyBoxes(horizon + 10)
   local centerX = number(position.x, 0) + forwardX * ownLength * 0.42
   local centerY = number(position.y, 0) + forwardY * ownLength * 0.42
   local centerZ = number(position.z, 0) + forwardZ * ownLength * 0.42 + upZ * 0.45
@@ -220,7 +225,7 @@ local function scanPredictedTrajectory(speed, travelDirection, steeringOverride,
     closestBlocked
 end
 
-local function scanDirectionalFan(travelDirection, maximumDistance)
+local function scanDirectionalFan(travelDirection, maximumDistance, nearbyOverride)
   local position = obj:getPosition()
   travelDirection = travelDirection < 0 and -1 or 1
   local forwardX, forwardY, forwardZ, leftX, leftY, leftZ,
@@ -230,7 +235,7 @@ local function scanDirectionalFan(travelDirection, maximumDistance)
   local ownWidth = math.max(1.2, number(type(obj.getInitialWidth) == "function" and
     obj:getInitialWidth(), 2))
   maximumDistance = clamp(number(maximumDistance, 7), 2, 18)
-  local boxes = nearbyBoxes(maximumDistance + ownLength + 4)
+  local boxes = nearbyOverride or nearbyBoxes(maximumDistance + ownLength + 4)
   local bumperX = number(position.x, 0) + forwardX * ownLength * 0.42
   local bumperY = number(position.y, 0) + forwardY * ownLength * 0.42
   local bumperZ = number(position.z, 0) + forwardZ * ownLength * 0.42 + upZ * 0.45
@@ -296,9 +301,10 @@ end
 
 local function scanMotionSpace(speed, travelDirection, steering, horizon)
   horizon = clamp(number(horizon, speed * 1.8 + 7), 2, 48)
-  local fan = scanDirectionalFan(travelDirection, math.min(18, horizon))
+  local boxes = nearbyBoxes(horizon + 10)
+  local fan = scanDirectionalFan(travelDirection, math.min(18, horizon), boxes)
   local trajectory, closingSpeed, obstacleId, blocked =
-    scanPredictedTrajectory(speed, travelDirection, steering, horizon)
+    scanPredictedTrajectory(speed, travelDirection, steering, horizon, boxes)
   local fanClearance = corridorFanClearance(fan, steering, travelDirection)
   return math.min(trajectory, fanClearance), trajectory, fanClearance,
     closingSpeed, obstacleId, blocked, fan
@@ -340,8 +346,8 @@ local function updateCollisionSafety(dt)
     return
   end
   safetyTimer = safetyTimer - math.max(0, number(dt, 0))
-  if safetyTimer > 0 and safetyBrake <= 0 then return end
-  safetyTimer = 0.05
+  if safetyTimer > 0 then return end
+  safetyTimer = safetyStepSeconds
   local signedSpeed = number(electrics.values.wheelspeed, 0)
   local speed = math.abs(signedSpeed)
   local gearIndex = number(electrics.values.gearIndex, 0)
@@ -358,16 +364,19 @@ local function updateCollisionSafety(dt)
   safetyObstacleId = obstacleId
   safetyObstacleDetected = obstacleDetected == true
   if speed < 0.35 then
-    preflightFrontClearance = scanPredictedTrajectory(0, 1, 0, 8)
-    preflightRearClearance = scanPredictedTrajectory(0, -1, 0, 8)
     local state = input.state or {}
     local throttle = number(state.throttle and state.throttle.val, 0)
     local brake = number(state.brake and state.brake.val, 0)
     local movingIntent = safetyHolding or travelDirection < 0 and brake > 0.08 or
       travelDirection > 0 and throttle > 0.08
+    if movingIntent then
+      local preflightBoxes = nearbyBoxes(18)
+      preflightFrontClearance = scanPredictedTrajectory(0, 1, 0, 8, preflightBoxes)
+      preflightRearClearance = scanPredictedTrajectory(0, -1, 0, 8, preflightBoxes)
+    end
     local blockedAtBumper = obstacleDetected and distance <= 1.5
     if not movingIntent or not blockedAtBumper then
-      safetyBrake = math.max(0, safetyBrake - math.max(0, number(dt, 0)) * 2)
+      safetyBrake = math.max(0, safetyBrake - safetyStepSeconds * 2)
       if safetyBrake <= 0 then releaseSafetyInputs() end
       return
     end
@@ -383,7 +392,7 @@ local function updateCollisionSafety(dt)
     rawBrake = clamp(0.16 + 0.74 * (comfortableDistance - distance) /
       math.max(0.5, comfortableDistance - emergencyDistance), 0.16, 0.9)
   end
-  local frame = math.max(0.016, number(dt, 0))
+  local frame = safetyStepSeconds
   if rawBrake >= 1 then safetyBrake = 1
   elseif rawBrake > safetyBrake then safetyBrake = math.min(rawBrake, safetyBrake + frame * 2.5)
   else safetyBrake = math.max(rawBrake, safetyBrake - frame * 0.9) end
@@ -546,20 +555,19 @@ end
 
 local function installRouteObserver()
   if not guihooks or type(guihooks.trigger) ~= "function" then return false end
-  if guihooks._taxiDriverRouteDoneObserverInstalled ~= true then
-    local previousTrigger = guihooks.trigger
-    guihooks.trigger = function(hookName, ...)
-      local sink = guihooks._taxiDriverRouteDoneSink
-      if type(sink) == "function" then sink(hookName, ...) end
-      return previousTrigger(hookName, ...)
+  if not routeObserverWrapper then
+    routeObserverOriginalTrigger = guihooks.trigger
+    routeObserverWrapper = function(hookName, ...)
+      if routeWatchActive and hookName == "AIStatusChange" then
+        local data = select(1, ...)
+        if type(data) == "table" and data.category == "route" and
+          string.lower(tostring(data.status or "")) == "route done" then
+          pcall(notifyRouteDone)
+        end
+      end
+      return routeObserverOriginalTrigger(hookName, ...)
     end
-    guihooks._taxiDriverRouteDoneObserverInstalled = true
-  end
-  guihooks._taxiDriverRouteDoneSink = function(hookName, data)
-    if routeWatchActive and hookName == "AIStatusChange" and type(data) == "table" and
-      data.category == "route" and string.lower(tostring(data.status or "")) == "route done" then
-      notifyRouteDone()
-    end
+    guihooks.trigger = routeObserverWrapper
   end
   return true
 end
@@ -571,7 +579,11 @@ end
 
 local function unwatchRouteDone()
   routeWatchActive = false
-  if guihooks then guihooks._taxiDriverRouteDoneSink = nil end
+  if guihooks and routeObserverWrapper and guihooks.trigger == routeObserverWrapper then
+    guihooks.trigger = routeObserverOriginalTrigger
+  end
+  routeObserverOriginalTrigger = nil
+  routeObserverWrapper = nil
 end
 
 local function notifyCompletion(success, reason)
@@ -602,6 +614,7 @@ local function stop()
   reverseTrajectoryClearance = math.huge
   reverseRayCount = 0
   safetyTimer = 0
+  pointApproachSafetyTimer = 0
   safetyObstacleDistance = math.huge
   safetyBrake = 0
   safetyHolding = false
@@ -818,9 +831,10 @@ local function updateGFX(dt)
   if stopAtEnd and pointIndex == #points then
     desiredSpeed = math.min(desiredSpeed, math.max(0, (distance - completionRadius * 0.45) * 0.55))
   end
-  safetyTimer = safetyTimer - math.max(0, number(dt, 0))
-  if safetyTimer <= 0 then
-    safetyTimer = 0.05
+  pointApproachSafetyTimer =
+    pointApproachSafetyTimer - math.max(0, number(dt, 0))
+  if pointApproachSafetyTimer <= 0 then
+    pointApproachSafetyTimer = safetyStepSeconds
     local clearance, trajectory, fanClearance, closingSpeed, obstacleId, blocked, fan =
       scanMotionSpace(speed, reversing and -1 or 1, steering, speed * 1.8 + 7)
     safetyObstacleDistance, safetyObstacleClosingSpeed = clearance, closingSpeed

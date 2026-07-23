@@ -52,9 +52,13 @@ $requiredEntries = @(
   "lua/ge/extensions/taxiDriver/nextOfferGuard.lua",
   "lua/ge/extensions/taxiDriver/fleetManager.lua",
   "lua/ge/extensions/taxiDriver/fleetWorker.lua",
+  "lua/ge/extensions/taxiDriver/faultBoundary.lua",
+  "lua/ge/extensions/taxiDriver/offerPlan.lua",
+  "lua/ge/extensions/taxiDriver/optionalLanBridge.lua",
   "lua/ge/extensions/taxiDriver/autopilotPerception.lua",
   "lua/ge/extensions/taxiDriver/persistence.lua",
   "lua/ge/extensions/taxiDriver/routePlanner.lua",
+  "lua/ge/extensions/taxiDriver/rideRules.lua",
   "lua/ge/extensions/taxiDriver/hudPublisher.lua",
   "lua/ge/extensions/taxiDriver/logger.lua",
   "lua/ge/extensions/taxiDriver/shiftTracker.lua",
@@ -63,6 +67,7 @@ $requiredEntries = @(
   "lua/ge/extensions/taxiDriver/vehicleControl.lua",
   "lua/ge/extensions/taxiDriver/vehicleHistory.lua",
   "lua/ge/extensions/taxiDriver/vehicleScanGuard.lua",
+  "lua/ge/extensions/taxiDriver/vehicleBridgeGuard.lua",
   "lua/vehicle/extensions/taxiDriverTelemetry.lua",
   "lua/vehicle/extensions/taxiDriverAutopilotRecovery.lua",
   "lua/vehicle/extensions/taxiDriverCargo.lua",
@@ -82,7 +87,7 @@ try {
   if ($entries | Where-Object FullName -like "lua/vehicle/extensions/auto/taxiDriver*") {
     throw "TaxiDriver vehicle extensions must remain lazy-loaded, not automatic"
   }
-  if ($entries.Count -ne 49) {
+  if ($entries.Count -ne 54) {
     throw "Unexpected archive entry count: $($entries.Count)"
   }
 }

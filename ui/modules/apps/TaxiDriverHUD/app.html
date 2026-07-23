@@ -1,21 +1,42 @@
 <style>
-  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=331-beta");
-  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=331-beta");
+  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=340-beta");
+  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=340-beta");
 </style>
 
-<div class="taxi-shell" ng-if="externalPhoneMode || !vehicleConfigSuspended" ng-class="{'taxi-shell--minimized': phoneMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
+<div class="taxi-shell" ng-if="externalPhoneMode || !vehicleConfigSuspended" ng-class="{'taxi-shell--minimized': !externalPhoneMode && phoneMinimized, 'taxi-shell--super-minimized': !externalPhoneMode && phoneSuperMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
   <div class="taxi-shell__scale-stage" ng-class="getUiScaleClass()" ng-style="getUiScaleStyle()">
   <button type="button" class="taxi-shell__remote-toggle" ng-if="!externalPhoneMode && state.lan.connected > 0" ng-click="hud.toggleLocalPhone()" aria-label="{{ localPhoneOpen ? t('externalHideLocal') : t('externalShowLocal') }}">
     <span>&#128241;</span><i ng-if="state.nextOffer"></i>
   </button>
 
-  <button type="button" class="taxi-shell__toggle" ng-if="!externalPhoneMode && (state.lan.connected < 1 || localPhoneOpen)" ng-click="hud.toggleMinimized()">
-    <span class="taxi-shell__toggle-icon">⌄</span>
-    <span>{{ phoneMinimized ? t('expand') : t('minimize') }}</span>
-    <i class="taxi-shell__notification" ng-if="phoneMinimized && state.nextOffer"></i>
-  </button>
+  <div class="taxi-shell__controls" ng-if="!externalPhoneMode && (state.lan.connected < 1 || localPhoneOpen)" ng-class="{'taxi-shell__controls--compact': phoneMinimized && !phoneSuperMinimized, 'taxi-shell__controls--button': phoneSuperMinimized}">
+    <button type="button" class="taxi-shell__toggle" ng-if="!phoneSuperMinimized" ng-click="hud.toggleMinimized()" title="{{ phoneMinimized ? t('expand') : t('minimize') }}" aria-label="{{ phoneMinimized ? t('expand') : t('minimize') }}">
+      <svg class="taxi-shell__toggle-icon" ng-if="!phoneMinimized" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="4" width="16" height="16" rx="3"></rect>
+        <path d="M8 10h8M9 14h6"></path>
+      </svg>
+      <svg class="taxi-shell__toggle-icon" ng-if="phoneMinimized" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="4" width="16" height="16" rx="3"></rect>
+        <path d="M8 14h8M9 10h6"></path>
+      </svg>
+      <span>{{ phoneMinimized ? t('expand') : t('minimize') }}</span>
+      <i class="taxi-shell__notification" ng-if="phoneMinimized && (collapseAttention || state.nextOffer)"></i>
+    </button>
+    <button type="button" class="taxi-shell__toggle taxi-shell__toggle--super" ng-click="hud.toggleSuperMinimized()" title="{{ phoneSuperMinimized ? t('superExpand') : t('superMinimize') }}" aria-label="{{ phoneSuperMinimized ? t('superExpand') : t('superMinimize') }}">
+      <svg class="taxi-shell__toggle-icon" ng-if="!phoneSuperMinimized" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path>
+        <path d="M8 8l3 3M16 8l-3 3M8 16l3-3M16 16l-3-3"></path>
+      </svg>
+      <svg class="taxi-shell__toggle-icon" ng-if="phoneSuperMinimized" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="5" y="5" width="14" height="14" rx="3"></rect>
+        <path d="M9 12h6M12 9v6"></path>
+      </svg>
+      <span class="taxi-shell__toggle-label">{{ phoneSuperMinimized ? t('superExpand') : t('superMinimize') }}</span>
+      <i class="taxi-shell__notification" ng-if="phoneSuperMinimized && (collapseAttention || state.nextOffer)"></i>
+    </button>
+  </div>
 
-  <div class="taxi-compact" ng-if="!externalPhoneMode && phoneMinimized && (state.lan.connected < 1 || localPhoneOpen)">
+  <div class="taxi-compact" ng-if="!externalPhoneMode && phoneMinimized && !phoneSuperMinimized && (state.lan.connected < 1 || localPhoneOpen)">
     <div class="taxi-compact__map">
       <div class="taxi-minimap-surface"></div>
       <canvas class="taxi-external-minimap" ng-if="externalPhoneMode"></canvas>
@@ -57,7 +78,7 @@
     </div>
   </div>
 
-  <div class="taxi-phone" ng-if="!phoneMinimized && (externalPhoneMode || state.lan.connected < 1 || localPhoneOpen)">
+  <div class="taxi-phone" ng-if="externalPhoneMode || (!phoneMinimized && !phoneSuperMinimized && (state.lan.connected < 1 || localPhoneOpen))">
   <div class="taxi-phone__screen">
     <div class="phone-status">
       <span>{{ currentClock }}</span>
@@ -608,7 +629,17 @@
 
         <div class="taxi-profile__panel taxi-profile__panel--vehicles" ng-if="profileTab === 'vehicles'">
           <div class="taxi-profile__empty" ng-if="!profileVehicles.length">{{ t('noVehicleHistory') }}</div>
-          <label class="taxi-vehicle-history__sort" ng-if="profileVehicles.length"><span>{{ t('sortBy') }}</span><select ng-model="vehicleSort"><option value="distance">{{ t('distance') }}</option><option value="income">{{ t('vehicleIncome') }}</option><option value="rides">{{ t('vehicleTrips') }}</option></select></label>
+          <div class="taxi-vehicle-history__sort" ng-if="profileVehicles.length">
+            <span>{{ t('sortBy') }}</span>
+            <div class="taxi-sort-menu" ng-class="{'taxi-sort-menu--open': vehicleSortMenuOpen}">
+              <button type="button" class="taxi-sort-menu__trigger" ng-click="hud.toggleVehicleSortMenu()" aria-haspopup="listbox" ng-attr-aria-expanded="{{ vehicleSortMenuOpen }}">
+                <span>{{ getVehicleSortLabel() }}</span><i>⌄</i>
+              </button>
+              <div class="taxi-sort-menu__options" ng-if="vehicleSortMenuOpen" role="listbox">
+                <button type="button" ng-repeat="option in vehicleSortOptions track by option.value" ng-class="{'taxi-sort-menu__option--active': vehicleSort === option.value}" ng-click="hud.selectVehicleSort(option.value)" role="option" ng-attr-aria-selected="{{ vehicleSort === option.value }}">{{ t(option.label) }}</button>
+              </div>
+            </div>
+          </div>
           <div class="taxi-vehicle-history" ng-repeat="vehicle in getSortedProfileVehicles() track by vehicle.key">
             <div class="taxi-vehicle-history__preview"><span>🚘</span><img ng-if="vehicle.preview" ng-src="{{ vehicle.preview }}" alt="{{ vehicle.name }}" onerror="this.style.display='none'"></div>
             <div class="taxi-vehicle-history__head">

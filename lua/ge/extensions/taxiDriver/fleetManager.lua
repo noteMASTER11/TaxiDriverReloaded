@@ -504,11 +504,9 @@ function M.new(options)
     end
     if dirty and saveTimer >= 5 then writeStore() end
     if hudTimer >= 1 then hudTimer, hudDirty = 0, true end
-    return money(walletDelta), hudDirty
-  end
-
-  function service:consumeHudDirty()
-    local value = hudDirty; hudDirty = false; return value
+    local changed = hudDirty
+    hudDirty = false
+    return money(walletDelta), changed
   end
 
   function service:getHud(balance, garage)

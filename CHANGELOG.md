@@ -1,5 +1,79 @@
 # Changelog
 
+## 3.4.0 Beta — Runtime Stability and Compact UI
+
+This cumulative prerelease contains every change made after `3.3.1-beta`. It focuses on making the in-game UI less intrusive, reducing periodic runtime work, and preventing stale asynchronous callbacks or optional subsystem failures from destabilizing a game session.
+
+### Three-stage in-game UI
+
+- Added three explicit native UI App stages: the full phone, the existing compact route-map view, and a new translucent button-only stage.
+- Replaced the old CSS-rotated minimization control with two clearly separated controls for regular minimize/expand and super-minimize/restore.
+- The button-only stage hides the phone body and native minimap completely while retaining a small restoration control.
+- Added an attention indicator for a new queued order or notification while the phone is collapsed. Incoming events no longer force the interface open.
+- Every new UI App session starts in the full interface. Collapse state is intentionally not persisted.
+- Kept the external Connected Phone interface independent from the native three-stage collapse behavior.
+- Fixed the Vehicles profile tab sort selector by replacing the clipped native `<select>` popup with a layered in-app menu that remains above vehicle cards.
+
+### Lua architecture and fault isolation
+
+- Reduced the main `taxiDriver.lua` chunk to 174 top-level locals, leaving additional safety margin below LuaJIT's 200-local limit.
+- Extracted fare/ETA/phase rules, offer-type planning, guarded vehicle-bridge work, runtime fault boundaries, and optional LAN loading into focused modules.
+- Added per-subsystem runtime boundaries around vehicle history, shift validation/restoration, Fleet updates, dashboard energy, LAN, active gameplay, HUD publication, and teardown work.
+- A failure in an optional or periodic subsystem is logged, temporarily circuit-broken, and no longer aborts all remaining work in that game tick.
+- Mission and extension teardown now execute independent cleanup operations so one failed cleanup cannot prevent persistence, AI shutdown, LAN shutdown, or navigation restoration.
+- Removed the unused `onTelemetryVehicleReset` entry point after verifying that Vehicle Config suspension is owned by `vehicleScanGuard`, `onUiChangedState`, and the normal vehicle spawn/reset lifecycle.
+
+### Safe vehicle callbacks and fuel control
+
+- Added a guarded wrapper for asynchronous `core_vehicleBridge` reads and writes.
+- Every callback captures the selected vehicle ID and vehicle-scan generation, re-resolves the live object, and rejects responses from a destroyed or replaced vehicle VM.
+- Callback failures are contained and logged instead of escaping through BeamNG's vehicle bridge.
+- Dashboard energy, realistic refueling, magic-station routing, cheat fuel/charge assignment, and shift fuel restoration now use the guarded path.
+- The cheat fuel/charge slider and Realistic Mode initialization share the same proven `setEnergyStorageEnergy` implementation.
+- Opening Vehicle Config or receiving a relevant vehicle lifecycle event invalidates outstanding energy requests and clears their pending flags before lazy scanning resumes.
+- AI route-complete and recovery callbacks now validate that the active vehicle still exists before invoking the controller.
+
+### HUD, LAN, and road-network performance
+
+- Periodic HUD updates now publish revisioned partial patches instead of rebuilding and retransmitting complete authoritative snapshots.
+- Heavy order, shift-history, Fleet, garage, and settings collections are rebuilt only for explicit full updates or when their owning subsystem reports a real change.
+- Fixed Fleet HUD dirty-state consumption so a collection refresh is published once instead of remaining dirty forever or being lost between periodic frames.
+- Moved Connected Phone behind a lazy optional adapter. Missing LAN/socket support can no longer prevent the core taxi extension from loading.
+- LAN method failures are contained and reported through status data instead of propagating into gameplay.
+- Road-network serialization now runs as a coroutine and yields every 500 examined edges, preventing a large map from being synchronously scanned in one frame.
+- Road chunks are published only after the level-specific background build completes and stale builds are discarded after a level or terrain-setting change.
+- `lan.json` persistence is protected against filesystem write failures.
+- Connected Phone is stopped at mission shutdown and safely restarted for the next mission when sharing remains enabled.
+
+### AI safety timing and lifecycle
+
+- Split collision-supervisor and exact-approach raycasting into independent fixed-rate 50 ms clocks so the two controllers no longer consume the same timer.
+- Removed the frame-rate-dependent “scan every frame while braking” path; braking envelopes now advance using the fixed safety step.
+- Reused one nearby-object snapshot for the directional fan and curved predicted trajectory instead of enumerating scene vehicles twice per safety pass.
+- Stationary forward/reverse preflight rays are calculated only when the vehicle has actual movement intent and share the same nearby-object snapshot.
+- Replaced the permanent `guihooks.trigger` modification with a protected route observer installed only while TaxiDriver watches an active native-AI route. The original trigger is restored when route watching stops.
+
+### Logging, lifecycle, and Connected Phone shutdown
+
+- Extended operation logging now filters reset events from unrelated traffic vehicles while preserving player and active TaxiDriver vehicle events.
+- Native and external HUD heartbeat timers stop on early page shutdown, Angular destruction, and mission teardown rather than waiting for late failed callbacks.
+- Back/forward-cache page transitions remain supported and do not permanently disable a restored Connected Phone page.
+
+### Localization
+
+- Incorporated a second native-speaker Simplified Chinese revision by replacing only the translator-provided values for existing `zh-CN` keys.
+- Added localized labels for button-only collapse and interface restoration in every supported language.
+- English and Simplified Chinese retain identical key coverage.
+
+### Validation and compatibility
+
+- Added regression coverage for stale vehicle generations, isolated callback failures, runtime cleanup continuation, lazy LAN loading, chunked road export, partial HUD publication, logger filtering, fixed-rate raycasting, and early heartbeat shutdown.
+- Passed the Lua gameplay combinatorics suite, including Fleet lifecycle, AI recovery, vehicle powertrain, refueling, shift persistence, and 500 deferred respawns.
+- Passed 343 responsive UI states across supported locales, HiDPI rendering, native UI, and Connected Phone layouts.
+- Passed the live LAN probe for subnet HTTP access, loopback proxying, WebSocket Upgrade, and bidirectional traffic.
+- Existing `3.3.1-beta` settings, driver progress, reviews, vehicle history, shift history, Fleet records, and LAN identity remain compatible.
+- UI cache revision: `340-beta`.
+
 ## 3.3.1 Beta — Lightweight Fleet Routing
 
 This focused prerelease separates hired Fleet drivers from the experimental predictive AI Driver used by the player's vehicle.

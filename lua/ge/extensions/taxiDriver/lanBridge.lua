@@ -9,7 +9,7 @@ local wsUtils = require("utils/wsUtils")
 local port = 8085
 local protocolName = "bng-ext-app-v1"
 local externalEntryPoint = "/ui/modules/apps/TaxiDriverHUD/external/index.html"
-local externalUiRevision = "331-beta"
+local externalUiRevision = "340-beta"
 local connectionFilePath = "/settings/TaxiDriver/lan.json"
 local heartbeatTimeout = 8.0
 local mapRefreshInterval = 1.5
@@ -47,6 +47,8 @@ local cachedRoads = nil
 local cachedTerrainTiles = nil
 local pendingRoadChunk = 0
 local pendingRoadChunkCount = 0
+local roadBuildJob = nil
+local roadBuildKey = ""
 local socketLib = require("socket.socket")
 local lanListener = nil
 local proxyConnections = {}
@@ -348,11 +350,14 @@ local function loadConnectionIdentity()
 end
 
 local function saveConnectionIdentity()
-  jsonWriteFile(connectionFilePath, {
+  local ok, errorMessage = pcall(jsonWriteFile, connectionFilePath, {
     schemaVersion = 1,
     token = sessionToken,
     address = chosenAddress
   }, true)
+  if not ok then
+    logger.warn("lan", "identity_write_failed", {reason = tostring(errorMessage)})
+  end
 end
 
 local function point(pos)
@@ -398,9 +403,12 @@ local function buildRoadNetwork(mapData)
   local roads = {}
   if not mapData or type(mapData.nodes) ~= "table" then return roads end
   local visitedEdges = {}
+  local processedEdges = 0
   for nodeId, node in pairs(mapData.nodes) do
     if node and node.pos and type(node.links) == "table" then
       for linkedId, edge in pairs(node.links) do
+        processedEdges = processedEdges + 1
+        if processedEdges % 500 == 0 then coroutine.yield(false) end
         local linked = mapData.nodes[linkedId]
         if linked and linked.pos then
           local a, b = tostring(nodeId), tostring(linkedId)
@@ -522,18 +530,46 @@ local function rebuildMap()
   mapKey = currentMapKey()
 end
 
-local function rebuildRoads()
+local queueRoadPublish
+
+local function beginRoadRebuild()
+  local nextKey = currentRoadLevelKey()
+  if roadBuildJob and roadBuildKey == nextKey then return end
   local mapData = map and map.getMap and map.getMap() or nil
-  cachedRoads = buildRoadNetwork(mapData)
-  cachedTerrainTiles = externalTerrainEnabled and buildTerrainTiles() or {}
+  roadBuildKey = nextKey
+  roadBuildJob = coroutine.create(function()
+    local roads = buildRoadNetwork(mapData)
+    return {
+      key = nextKey,
+      roads = roads,
+      terrainTiles = externalTerrainEnabled and buildTerrainTiles() or {}
+    }
+  end)
+end
+
+local function stepRoadRebuild()
+  if not roadBuildJob then return false end
+  local ok, result = coroutine.resume(roadBuildJob)
+  if not ok then
+    logger.error("lan", "map_build_failed", {reason = tostring(result)})
+    roadBuildJob, roadBuildKey = nil, ""
+    return false
+  end
+  if coroutine.status(roadBuildJob) ~= "dead" then return false end
+  roadBuildJob, roadBuildKey = nil, ""
+  if type(result) ~= "table" or result.key ~= currentRoadLevelKey() then return false end
+  cachedRoads = result.roads or {}
+  cachedTerrainTiles = result.terrainTiles or {}
+  roadLevelKey = result.key
   roadRevision = roadRevision + 1
-  roadLevelKey = currentRoadLevelKey()
   local mapFields = {roads = #cachedRoads, terrainTiles = #cachedTerrainTiles}
   if #cachedRoads > 0 then logger.info("lan", "map_prepared", mapFields)
   else logger.warn("lan", "map_empty", mapFields) end
+  queueRoadPublish()
+  return true
 end
 
-local function queueRoadPublish()
+queueRoadPublish = function()
   pendingRoadChunk = 1
   pendingRoadChunkCount = math.max(1,
     math.ceil(#(cachedRoads or {}) / roadChunkSize))
@@ -687,6 +723,8 @@ function M.stop()
   roadLevelKey = ""
   pendingRoadChunk = 0
   pendingRoadChunkCount = 0
+  roadBuildJob = nil
+  roadBuildKey = ""
   statusChanged = true
   logger.info("lan", "external_ui_stopped")
 end
@@ -709,10 +747,12 @@ end
 
 function M.requestExternalMap()
   if not enabled or not canPublishNavigation() then return end
-  if not cachedRoads or roadLevelKey ~= currentRoadLevelKey() then rebuildRoads() end
+  if not cachedRoads or roadLevelKey ~= currentRoadLevelKey() then beginRoadRebuild() end
   publishMap()
-  queueRoadPublish()
-  publishNextRoadChunk()
+  if cachedRoads then
+    queueRoadPublish()
+    publishNextRoadChunk()
+  end
   guihooks.trigger("TaxiDriverExternalVehicleState", vehicleSnapshot() or {})
 end
 
@@ -737,6 +777,8 @@ function M.setPerformanceOptions(options)
     cachedTerrainTiles = nil
     roadLevelKey = ""
     pendingRoadChunk = 0
+    roadBuildJob = nil
+    roadBuildKey = ""
   end
   logger.info("lan", "performance_options", {
     mapEnabled = externalMapEnabled,
@@ -794,9 +836,9 @@ function M.update(dtReal)
 
   local newRoadLevelKey = currentRoadLevelKey()
   if not cachedRoads or newRoadLevelKey ~= roadLevelKey then
-    rebuildRoads()
-    queueRoadPublish()
+    beginRoadRebuild()
   end
+  stepRoadRebuild()
   publishNextRoadChunk()
 
   vehicleTimer = vehicleTimer + dtReal
@@ -817,8 +859,5 @@ end
 function M.isConnected()
   return connected
 end
-
--- Kept as a no-op so older taxiDriver.lua builds can load this module safely.
-function M.setCommandHandler() end
 
 return M

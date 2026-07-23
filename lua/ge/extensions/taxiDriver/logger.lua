@@ -2,6 +2,7 @@ local M = {}
 
 local prefix = "[TaxiDriver]"
 local enabledProvider = function() return true end
+local operationFilter = function() return true end
 local eventSink = nil
 local unpackValues = unpack or table.unpack
 local defaultOperations = {
@@ -59,6 +60,10 @@ function M.setEnabledProvider(provider)
   enabledProvider = type(provider) == "function" and provider or enabledProvider
 end
 
+function M.setOperationFilter(filter)
+  operationFilter = type(filter) == "function" and filter or operationFilter
+end
+
 function M.setEventSink(sink)
   eventSink = type(sink) == "function" and sink or nil
 end
@@ -100,8 +105,10 @@ function M.attachOperations(module, names)
     if type(original) == "function" then
       module[name] = function(...)
         if not isEnabled() then return original(...) end
-        local started = type(os.clockhp) == "function" and os.clockhp() or os.clock()
         local arguments = pack(...)
+        local filterOk, shouldLog = pcall(operationFilter, name, arguments)
+        if not filterOk or shouldLog == false then return original(...) end
+        local started = type(os.clockhp) == "function" and os.clockhp() or os.clock()
         local fields = {argumentCount = arguments.n}
         for index = 1, math.min(arguments.n, 3) do fields["arg" .. index] = arguments[index] end
         M.info("operation", name .. ".begin", fields)

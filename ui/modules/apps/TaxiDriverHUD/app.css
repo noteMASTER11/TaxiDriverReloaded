@@ -86,36 +86,78 @@
   .taxi-shell--remote:not(.taxi-shell--remote-collapsed) .taxi-shell__remote-toggle { left: 34px; top: 4px; }
   .taxi-shell--remote-collapsed .taxi-shell__remote-toggle { top: 50%; transform: translate(-50%, -50%); }
   .taxi-shell--remote-collapsed .taxi-shell__remote-toggle:hover { transform: translate(-50%, -50%) scale(1.06); }
-  .taxi-shell--remote-collapsed .taxi-shell__toggle,
+  .taxi-shell--remote-collapsed .taxi-shell__controls,
   .taxi-shell--remote-collapsed .taxi-phone,
   .taxi-shell--remote-collapsed .taxi-compact { display: none; }
 
-  .taxi-shell__toggle {
+  .taxi-shell__controls {
     position: absolute;
     z-index: 70;
     top: 0;
     left: 50%;
     display: flex;
     height: 34px;
+    align-items: stretch;
+    gap: 4px;
+    padding: 0;
+    transform: translateX(-50%);
+  }
+  .taxi-shell__toggle {
+    position: relative;
+    display: flex;
+    min-width: 108px;
+    height: 100%;
     align-items: center;
-    gap: 8px;
-    padding: 0 17px;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 14px;
     color: #fff7cc;
     font-size: 12px;
     font-weight: 900;
     letter-spacing: .2px;
     white-space: nowrap;
-    background: linear-gradient(180deg, rgba(46,49,54,.96), rgba(19,21,24,.97));
-    border: 1px solid rgba(255,209,26,.48);
-    border-radius: 13px 13px 7px 7px;
-    box-shadow: 0 7px 20px rgba(0,0,0,.36), inset 0 0 0 1px rgba(255,255,255,.04);
-    transform: translateX(-50%);
+    background: linear-gradient(180deg, rgba(44,48,54,.96), rgba(19,22,26,.97));
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 10px;
+    box-shadow: 0 7px 20px rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.05);
     cursor: pointer;
-    transition: color .2s, background .2s;
+    transition: color .16s ease, background .16s ease, border-color .16s ease, box-shadow .16s ease;
   }
-  .taxi-shell__toggle:hover { color: #17140a; background: var(--yellow, #ffd11a); }
-  .taxi-shell__toggle-icon { color: #ffd11a; font-size: 16px; line-height: 1; transition: transform .58s cubic-bezier(.22,.78,.18,1); }
-  .taxi-shell__toggle:hover .taxi-shell__toggle-icon { color: currentColor; }
+  .taxi-shell__toggle:hover {
+    color: #17140a;
+    background: var(--yellow, #ffd11a);
+    border-color: rgba(255,229,107,.8);
+    box-shadow: 0 8px 24px rgba(0,0,0,.44), 0 0 18px rgba(255,209,26,.22);
+  }
+  .taxi-shell__toggle--super {
+    min-width: 36px;
+    width: 36px;
+    padding: 0;
+    color: #c9ced5;
+    background: rgba(23,26,31,.9);
+  }
+  .taxi-shell__toggle-icon {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    fill: none;
+    stroke: #ffd11a;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .taxi-shell__toggle:hover .taxi-shell__toggle-icon { stroke: currentColor; }
+  .taxi-shell__toggle--super .taxi-shell__toggle-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
   .taxi-shell__notification {
     position: absolute;
     top: -4px;
@@ -128,9 +170,33 @@
     box-shadow: 0 0 10px #ff9d1e;
     animation: taxi-notification-pulse .7s ease-in-out infinite alternate;
   }
-  .taxi-shell--minimized .taxi-shell__toggle { top: calc(100% - 382px); border-radius: 13px; }
-  .taxi-shell--minimized .taxi-shell__toggle-icon { transform: rotate(180deg); }
+  .taxi-shell--minimized .taxi-shell__controls { top: calc(100% - 382px); }
   .taxi-shell--minimized .taxi-phone { display: none; }
+  .taxi-shell--super-minimized .taxi-shell__scale-stage > :not(.taxi-shell__controls) {
+    display: none!important;
+  }
+  .taxi-shell--super-minimized .taxi-shell__controls {
+    top: 8px;
+    height: 42px;
+  }
+  .taxi-shell--super-minimized .taxi-shell__toggle--super {
+    width: 42px;
+    min-width: 42px;
+    color: #fff5bd;
+    background: rgba(17,20,24,.58);
+    border-color: rgba(255,209,26,.42);
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.08);
+  }
+  .taxi-shell--super-minimized .taxi-shell__toggle--super:hover {
+    color: #17140a;
+    background: rgba(255,209,26,.94);
+  }
+  .taxi-shell--super-minimized .taxi-shell__toggle-icon {
+    width: 20px;
+    height: 20px;
+    flex-basis: 20px;
+  }
 
   .taxi-lan {
     display: grid;
@@ -943,7 +1009,18 @@
   .taxi-orders__search strong { display: block; font-size: 15px; }
   .taxi-orders__search span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
   .taxi-orders__sort, .taxi-vehicle-history__sort { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 12px; color: var(--muted); font-size: 10px; font-weight: 900; }
-  .taxi-vehicle-history__sort { grid-column: 1 / -1; width: 100%; box-sizing: border-box; }
+  .taxi-vehicle-history__sort {
+    position: relative;
+    z-index: 24;
+    grid-column: 1 / -1;
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(31,35,41,.98);
+    border-bottom: 1px solid var(--taxi-border);
+    border-radius: 8px;
+  }
+  .taxi-vehicle-history__sort > span { flex: 0 0 auto; white-space: nowrap; }
+  .taxi-vehicle-history__sort .taxi-sort-menu__options { z-index: 80; }
   .taxi-orders__sort select, .taxi-vehicle-history__sort select { min-width: 130px; padding: 7px 9px; color: #f5f7f9; background: #262b32; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; }
   .taxi-orders__sort { position: relative; z-index: 18; }
   .taxi-orders__sort > span { flex: 0 0 auto; white-space: nowrap; }
@@ -2467,7 +2544,7 @@
   }
 
   .taxi-compact { height: 370px; }
-  .taxi-shell--minimized .taxi-shell__toggle { top: calc(100% - 412px); }
+  .taxi-shell--minimized .taxi-shell__controls { top: calc(100% - 412px); }
   .taxi-compact__dashboard { flex-basis: 176px; }
   .taxi-compact__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .taxi-compact__metric { min-height: 38px; }
@@ -2641,7 +2718,7 @@
       grid-template-columns: minmax(240px, 44%) minmax(0, 1fr);
       flex-direction: row;
     }
-    .taxi-shell--minimized .taxi-shell__toggle { top: 4px; }
+    .taxi-shell--minimized .taxi-shell__controls { top: 4px; }
     .taxi-compact__dashboard { min-width: 0; padding: 9px 12px; }
   }
 
@@ -2821,13 +2898,20 @@
   .taxi-shell:not(.taxi-shell--external) .taxi-compact {
     height: min(530px, calc(100% - 42px));
   }
-  .taxi-shell--minimized:not(.taxi-shell--external) .taxi-shell__toggle {
+  .taxi-shell--minimized:not(.taxi-shell--external) .taxi-shell__controls {
     top: max(4px, calc(100% - 572px));
   }
   @media (orientation: landscape) and (max-height: 500px) {
     .taxi-shell:not(.taxi-shell--external) .taxi-compact {
       height: calc(100% - 46px);
     }
+  }
+
+  /* Keep the single restore button at the top after every compact-layout
+     override, regardless of the stage that was active before hiding. */
+  .taxi-shell--super-minimized.taxi-shell--minimized:not(.taxi-shell--external) .taxi-shell__controls,
+  .taxi-shell--super-minimized:not(.taxi-shell--external) .taxi-shell__controls {
+    top: 8px;
   }
   .taxi-shell:not(.taxi-shell--external) .taxi-compact__dashboard { flex-basis: 200px; }
   .taxi-shell:not(.taxi-shell--external) .taxi-compact__route-info span,

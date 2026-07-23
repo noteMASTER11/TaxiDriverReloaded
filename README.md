@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.3.1-beta"><img src="https://img.shields.io/badge/release-v3.3.1--beta-ffd11a?style=flat-square" alt="Release v3.3.1-beta"></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.0-beta"><img src="https://img.shields.io/badge/release-v3.4.0--beta-ffd11a?style=flat-square" alt="Release v3.4.0-beta"></a>
   <img src="https://img.shields.io/badge/BeamNG.drive-0.38.6-f28c28?style=flat-square" alt="BeamNG.drive 0.38.6">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.3.1-beta"><strong>Download 3.3.1 Beta</strong></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.0-beta"><strong>Download 3.4.0 Beta</strong></a>
 </p>
 
 ---
 
-> **3.3.1 Beta:** hired Fleet vehicles now use lightweight, staggered native route workers instead of running the player's full predictive AI stack in parallel. Current-segment replanning and bounded recovery prevent route-origin U-turns, permanent stalls, and runaway CPU work. The experimental predictive AI Driver remains available for the player's vehicle. Existing 3.3.0 Beta settings and progress remain compatible.
+> **3.4.0 Beta:** the in-game phone now has full, compact-map, and button-only stages, including collapsed-state attention indicators. The Lua runtime has been split into smaller services, asynchronous vehicle callbacks reject stale vehicle VMs, periodic systems are isolated by fault boundaries, road-network export is chunked across frames, and HUD/LAN/AI update work is substantially reduced. Simplified Chinese includes a new native-speaker revision. Existing 3.3.1 Beta settings and progress remain compatible.
 
 TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
@@ -251,7 +251,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Installation
 
-1. Download `taxidriver.zip` from the [3.3.1 Beta release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.3.1-beta).
+1. Download `taxidriver.zip` from the [3.4.0 Beta release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.0-beta).
 2. Place the archive directly in:
 
    ```text

@@ -9,7 +9,7 @@ local shiftTracker = dofile("lua/ge/extensions/taxiDriver/shiftTracker.lua")
 local shiftHistory = dofile("lua/ge/extensions/taxiDriver/shiftHistory.lua")
 local offerGenerator = dofile("lua/ge/extensions/taxiDriver/offerGenerator.lua")
 local hudPublisher = dofile("lua/ge/extensions/taxiDriver/hudPublisher.lua")
-local vehicleScanGuard = dofile("lua/ge/extensions/taxiDriver/vehicleScanGuard.lua")
+local vehicleScanGuard = require("taxiDriver/vehicleScanGuard")
 local vehicleControl = dofile("lua/ge/extensions/taxiDriver/vehicleControl.lua")
 local delivery = dofile("lua/ge/extensions/taxiDriver/delivery.lua")
 local routePlanner = dofile("lua/ge/extensions/taxiDriver/routePlanner.lua")
@@ -914,6 +914,39 @@ assert(vehicleScanGuard.isRequestCurrent(stableGeneration))
 assert(vehicleScanGuard.onVehicleLifecycle(42, 42))
 assert(vehicleScanGuard.isSuspended())
 assert(not vehicleScanGuard.onVehicleLifecycle(7, 42))
+for _ = 1, 94 do vehicleScanGuard.update(0.016) end
+assert(not vehicleScanGuard.isSuspended())
+
+do
+  local vehicleBridgeGuard = require("taxiDriver/vehicleBridgeGuard")
+  local bridgeCallback = nil
+  local bridgeVehicle = {getID = function() return 42 end}
+  getObjectByID = function(id) return id == 42 and bridgeVehicle or nil end
+  core_vehicleBridge = {
+    requestValue = function(_, callback) bridgeCallback = callback end,
+    executeAction = function() return true end
+  }
+  local acceptedBridgeCallback, rejectedBridgeCallback = false, false
+  assert(vehicleBridgeGuard.request(bridgeVehicle, "energyStorage", function(_, currentVehicle)
+    acceptedBridgeCallback = currentVehicle == bridgeVehicle
+  end, function() rejectedBridgeCallback = true end))
+  assert(vehicleScanGuard.onVehicleLifecycle(42, 42))
+  bridgeCallback({})
+  assert(not acceptedBridgeCallback and rejectedBridgeCallback)
+  for _ = 1, 94 do vehicleScanGuard.update(0.016) end
+  assert(vehicleBridgeGuard.request(bridgeVehicle, "energyStorage", function()
+    acceptedBridgeCallback = true
+  end))
+  bridgeCallback({})
+  assert(acceptedBridgeCallback)
+
+  local isolatedCleanupRan = false
+  local boundary = require("taxiDriver/faultBoundary").new({retrySeconds = 0.1})
+  local boundaryOk = boundary:call("failingSubsystem", function() error("expected") end)
+  assert(not boundaryOk)
+  assert(boundary:cleanup("independentCleanup", function() isolatedCleanupRan = true end))
+  assert(isolatedCleanupRan)
+end
 
 local perceptionVehicle = {}
 local perceptionVehicleHeight = 1.5
