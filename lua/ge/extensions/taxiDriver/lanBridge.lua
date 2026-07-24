@@ -333,6 +333,57 @@ local function hostnameAddresses()
   return results
 end
 
+-- BeamNG's Lua sandbox blocks outbound socket connect() ("connect restricted"),
+-- so the UDP route trick cannot work here. Reading /proc/net/fib_trie is a
+-- plain local file read (not a shelled-out command) that lists every IPv4
+-- address the Linux kernel has assigned to a local interface, independent of
+-- BNGWebWSServer's adapter enumeration (which only reports loopback here).
+local function procNetAddresses()
+  local results = {}
+  local rawAddresses = {}
+  local ok, failure = pcall(function()
+    if type(io) ~= "table" or type(io.open) ~= "function" then
+      error("io.open unavailable")
+    end
+    local file = io.open("/proc/net/fib_trie", "r")
+    if not file then error("could not open /proc/net/fib_trie") end
+    -- The "Local:" section (which lists every address owned by this host,
+    -- tagged "host LOCAL") always comes after "Main:" in this file, so we
+    -- skip everything until we see it rather than stopping at "Main:".
+    local pendingAddress = nil
+    local inLocalSection = false
+    for line in file:lines() do
+      if not inLocalSection then
+        if line:find("^Local:") then inLocalSection = true end
+      else
+        local address = line:match("|%-%-%s+(%d+%.%d+%.%d+%.%d+)%s*$")
+        if address then
+          pendingAddress = address
+        elseif pendingAddress and line:find("host LOCAL", 1, true) then
+          rawAddresses[#rawAddresses + 1] = pendingAddress
+          pendingAddress = nil
+        end
+      end
+    end
+    file:close()
+  end)
+  if ok then
+    for _, address in ipairs(rawAddresses) do
+      results[#results + 1] = {ipv4Addr = address, description = "proc/net (linux)"}
+    end
+  end
+  logger.info("lan", "proc_net_discovery", {
+    count = #results,
+    reason = ok and "" or tostring(failure),
+    success = ok
+  })
+  for index, address in ipairs(rawAddresses) do
+    if index > 8 then break end
+    logger.info("lan", "proc_net_entry", {index = index, address = address})
+  end
+  return results
+end
+
 local function candidateSources(candidate)
   local values = {}
   for _, key in ipairs({"adapter", "native", "route", "saved"}) do
@@ -346,6 +397,9 @@ local function selectLanAddress(nativeAddress)
   logger.info("lan", "route_discovery", {address = routedAddress or ""})
   local adapters = adapterAddresses()
   for _, entry in ipairs(hostnameAddresses()) do
+    adapters[#adapters + 1] = entry
+  end
+  for _, entry in ipairs(procNetAddresses()) do
     adapters[#adapters + 1] = entry
   end
   local address, candidates = networkAddress.select({
