@@ -442,6 +442,11 @@
               <span class="taxi-settings__switch"></span>
             </label>
           </div>
+          <div class="taxi-settings__section" ng-if="settings.lanEnabled">
+            <div class="taxi-settings__label"><span>{{ t('lanManualAddress') }}</span></div>
+            <div class="taxi-settings__help">{{ t('lanManualAddressHelp') }}</div>
+            <input class="taxi-lan__url" type="text" ng-model="settings.lanManualAddress" ng-change="hud.settingsChanged()" placeholder="192.168.1.50">
+          </div>
           <div class="taxi-settings__section taxi-settings__section--remote-performance">
             <label class="taxi-settings__switch-row">
               <span class="taxi-settings__switch-copy"><strong>{{ t('externalMapEnabled') }}</strong><span>{{ t('externalMapEnabledHelp') }}</span></span>

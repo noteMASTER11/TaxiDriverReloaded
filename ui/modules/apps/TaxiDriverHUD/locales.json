@@ -468,6 +468,8 @@
     "settingsConnectivity": "Connected phone",
     "externalPhone": "Share over local network",
     "externalPhoneHelp": "Open TaxiDriver as an interactive web app on a phone connected to the same network.",
+    "lanManualAddress": "Manual LAN IP (optional)",
+    "lanManualAddressHelp": "If automatic detection fails to find your PC's network address, enter it here (e.g. 192.168.1.50, from your OS network settings or router's device list).",
     "externalMapEnabled": "Remote navigation map",
     "externalMapEnabledHelp": "Disable to stop sending roads and vehicle position to the phone.",
     "externalTerrainEnabled": "Terrain layer",

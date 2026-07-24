@@ -49,6 +49,7 @@ function M.select(options)
   local saved = M.normalizeIPv4(options.savedAddress)
   local routed = M.normalizeIPv4(options.routedAddress)
   local native = M.normalizeIPv4(options.nativeAddress)
+  local manual = M.normalizeIPv4(options.manualAddress)
   local candidates, byAddress = {}, {}
 
   local function add(value, description, source)
@@ -74,12 +75,14 @@ function M.select(options)
   add(native, "BeamNG native server", "native")
   add(routed, "", "route")
   add(saved, "", "saved")
+  add(manual, "Manual override", "manual")
 
   local canBind = type(options.canBind) == "function" and options.canBind or function() return true end
   for _, candidate in ipairs(candidates) do
     local description = lower(candidate.description)
     candidate.subnetScore = subnetScore(candidate.address)
     local sourceBonus = 0
+    if candidate.sources.manual then sourceBonus = sourceBonus + 1000 end
     if candidate.sources.native then sourceBonus = sourceBonus + 100 end
     if candidate.sources.route then sourceBonus = sourceBonus + 90 end
     if candidate.sources.saved then sourceBonus = sourceBonus + 15 end

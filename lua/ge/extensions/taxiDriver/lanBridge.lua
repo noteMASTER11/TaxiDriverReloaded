@@ -27,6 +27,7 @@ local externalHeartbeatAge = math.huge
 local connected = false
 local chosenAddress = "127.0.0.1"
 local savedAddressHint = ""
+local manualAddressOverride = ""
 local sessionToken = ""
 local statusChanged = false
 local mapTimer = 0
@@ -386,7 +387,7 @@ end
 
 local function candidateSources(candidate)
   local values = {}
-  for _, key in ipairs({"adapter", "native", "route", "saved"}) do
+  for _, key in ipairs({"adapter", "native", "route", "saved", "manual"}) do
     if candidate.sources and candidate.sources[key] then values[#values + 1] = key end
   end
   return table.concat(values, ",")
@@ -402,11 +403,13 @@ local function selectLanAddress(nativeAddress)
   for _, entry in ipairs(procNetAddresses()) do
     adapters[#adapters + 1] = entry
   end
+  logger.info("lan", "manual_address", {value = manualAddressOverride})
   local address, candidates = networkAddress.select({
     adapters = adapters,
     nativeAddress = nativeAddress,
     routedAddress = routedAddress,
     savedAddress = savedAddressHint,
+    manualAddress = manualAddressOverride,
     canBind = canBindAddress
   })
   for _, candidate in ipairs(candidates or {}) do
@@ -879,6 +882,16 @@ function M.setPerformanceOptions(options)
     vehicleRefreshInterval = vehicleRefreshInterval
   })
   if not externalMapEnabled then pendingRoadChunk = 0 end
+end
+
+-- On platforms where BeamNG's own address discovery is unusable (e.g. its
+-- Lua sandbox blocks both outbound socket connect() and io.open() on native
+-- Linux builds, leaving only loopback-only sources), a user-supplied address
+-- is the only way LAN sharing can work at all. It is still validated as a
+-- private LAN IPv4 and bind-tested like every other candidate, and it is
+-- never trusted blindly -- it just outranks the automatic sources.
+function M.setManualAddress(value)
+  manualAddressOverride = tostring(value or ""):gsub("%s+", "")
 end
 
 function M.getStatus()
