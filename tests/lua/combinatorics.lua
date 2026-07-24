@@ -74,6 +74,67 @@ selectedNetworkAddress = networkAddress.select({
 })
 assert(selectedNetworkAddress == nil)
 
+assert(not networkAddress.isLanIPv4("0.0.0.0"))
+assert(not networkAddress.isLanIPv4("255.255.255.255"))
+assert(not networkAddress.isLanIPv4("224.0.0.1"))
+
+-- Linux predictable wired interface names should score like Ethernet.
+for _, linuxName in ipairs({"eno1", "enp3s0", "ens33", "eth0"}) do
+  local address = networkAddress.select({
+    adapters = {{ipv4Addr = "192.168.1.50", description = linuxName}},
+    canBind = function() return true end
+  })
+  assert(address == "192.168.1.50", "expected selection for " .. linuxName)
+end
+
+-- Linux predictable wireless interface names should score like Wi-Fi.
+for _, linuxName in ipairs({"wlan0", "wlp2s0"}) do
+  local address = networkAddress.select({
+    adapters = {{ipv4Addr = "192.168.1.60", description = linuxName}},
+    canBind = function() return true end
+  })
+  assert(address == "192.168.1.60", "expected selection for " .. linuxName)
+end
+
+-- A Linux-named adapter should outrank an equally-scored undescribed one.
+local rankedAddress, rankedCandidates = networkAddress.select({
+  adapters = {
+    {ipv4Addr = "192.168.1.70", description = ""},
+    {ipv4Addr = "192.168.1.71", description = "enp3s0"}
+  },
+  canBind = function() return true end
+})
+assert(rankedAddress == "192.168.1.71")
+assert(#rankedCandidates == 2)
+
+-- Docker/Podman bridge interfaces must not outrank a real LAN adapter.
+local dockerAddress = networkAddress.select({
+  adapters = {
+    {ipv4Addr = "172.17.0.1", description = "docker0"},
+    {ipv4Addr = "192.168.1.80", description = "Intel(R) Wi-Fi 6E AX211"}
+  },
+  canBind = function() return true end
+})
+assert(dockerAddress == "192.168.1.80")
+
+-- A stale saved address must not override a stronger live candidate.
+local nativeOverSaved = networkAddress.select({
+  adapters = {}, savedAddress = "192.168.0.5",
+  nativeAddress = "192.168.1.20",
+  canBind = function() return true end
+})
+assert(nativeOverSaved == "192.168.1.20")
+
+-- canBind's second return value (bind failure reason) must propagate to the candidate.
+local _, bindReasonCandidates = networkAddress.select({
+  adapters = {}, savedAddress = "192.168.1.5",
+  canBind = function(address)
+    if address == "192.168.1.5" then return false, "address already in use" end
+    return true, ""
+  end
+})
+assert(bindReasonCandidates[1].bindReason == "address already in use")
+
 local defaultAiDriver = taxiConfig.sanitizeAiDriver(nil)
 assert(defaultAiDriver.preset == "balanced")
 assert(defaultAiDriver.obeySpeedLimits == true and defaultAiDriver.laneDiscipline == true)

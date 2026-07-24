@@ -232,9 +232,10 @@ local function isValidToken(value)
 end
 
 local function routedLanAddress()
-  -- Connecting a UDP socket does not send a packet. Windows only resolves the
+  -- Connecting a UDP socket does not send a packet. The OS only resolves the
   -- route and assigns the local interface, which gives us a fallback when the
-  -- BeamNG adapter list is incomplete.
+  -- BeamNG adapter list is incomplete. This relies on standard POSIX/BSD
+  -- socket semantics and is expected to behave the same on Windows and Linux.
   for _, destination in ipairs({"1.1.1.1", "8.8.8.8", "192.0.2.1"}) do
     local udp = socketLib.udp()
     if udp then
@@ -243,11 +244,21 @@ local function routedLanAddress()
         return udp:setpeername(destination, 53)
       end)
       local address = nil
+      local routeError = ""
       if connectedOk and connected then
         local nameOk, value = pcall(function() return udp:getsockname() end)
-        if nameOk then address = networkAddress.normalizeIPv4(value) end
+        if nameOk then
+          address = networkAddress.normalizeIPv4(value)
+        else
+          routeError = tostring(value)
+        end
+      else
+        routeError = tostring(connected)
       end
       closeSocket(udp)
+      logger.info("lan", "route_probe", {
+        destination = destination, address = address or "", error = routeError
+      })
       if networkAddress.isLanIPv4(address) then return address end
     end
   end
@@ -255,10 +266,10 @@ local function routedLanAddress()
 end
 
 local function canBindAddress(address)
-  local ok, listener = pcall(function() return socketLib.bind(address, 0, 1) end)
-  if ok and listener then closeSocket(listener); return true end
+  local ok, listener, bindError = pcall(function() return socketLib.bind(address, 0, 1) end)
+  if ok and listener then closeSocket(listener); return true, "" end
   closeSocket(listener)
-  return false
+  return false, tostring(bindError or (not ok and listener) or "unknown")
 end
 
 local function adapterAddresses()
@@ -271,22 +282,38 @@ local function adapterAddresses()
     resultType = type(addresses),
     success = ok
   })
+  for index, adapter in ipairs(usable) do
+    if index > 8 then break end
+    adapter = type(adapter) == "table" and adapter or {}
+    logger.info("lan", "adapter_entry", {
+      index = index,
+      ipv4Addr = tostring(adapter.ipv4Addr),
+      address = tostring(adapter.address),
+      ip = tostring(adapter.ip),
+      description = tostring(adapter.description),
+      name = tostring(adapter.name)
+    })
+  end
   return usable
 end
 
 local function hostnameAddresses()
   local results = {}
   local hostname = ""
+  local rawEntries = {}
   local ok, failure = pcall(function()
     hostname = tostring(socketLib.dns.gethostname() or "")
     if hostname == "" then return end
     local addresses = socketLib.dns.getaddrinfo(hostname)
     for _, entry in ipairs(type(addresses) == "table" and addresses or {}) do
-      if type(entry) == "table" and entry.family == "inet" then
-        results[#results + 1] = {
-          ipv4Addr = entry.addr,
-          description = "Windows hostname " .. hostname
-        }
+      if type(entry) == "table" then
+        rawEntries[#rawEntries + 1] = entry
+        if entry.family == "inet" then
+          results[#results + 1] = {
+            ipv4Addr = entry.addr,
+            description = "Hostname " .. hostname
+          }
+        end
       end
     end
   end)
@@ -296,6 +323,12 @@ local function hostnameAddresses()
     reason = ok and "" or tostring(failure),
     success = ok
   })
+  for index, entry in ipairs(rawEntries) do
+    if index > 8 then break end
+    logger.info("lan", "hostname_entry", {
+      index = index, family = tostring(entry.family), addr = tostring(entry.addr)
+    })
+  end
   return results
 end
 
@@ -325,8 +358,12 @@ local function selectLanAddress(nativeAddress)
     logger.info("lan", "address_candidate", {
       address = candidate.address,
       bindable = candidate.bindable,
+      bindReason = candidate.bindReason or "",
       description = candidate.description,
       penalty = candidate.penalty,
+      subnetScore = candidate.subnetScore,
+      sourceBonus = candidate.sourceBonus,
+      descriptionBonus = candidate.descriptionBonus,
       score = candidate.score,
       sources = candidateSources(candidate)
     })
@@ -797,6 +834,7 @@ function M.getStatus()
     bridgeError = bridgeError,
     address = chosenAddress,
     port = port,
+    -- do not log this URL verbatim -- it embeds the session token
     url = enabled and ("http://" .. chosenAddress .. ":" .. port ..
       externalEntryPoint .. "?token=" .. sessionToken .. "&v=" .. externalUiRevision) or ""
   }

@@ -24,7 +24,8 @@ end
 local virtualMarkers = {
   "virtualbox", "vmware", "hyper-v", "default switch", "loopback",
   "openvpn", "wireguard", "tailscale", "zerotier", "hamachi",
-  "tap-windows", "tunnel", "bluetooth", "vethernet"
+  "tap-windows", "tunnel", "bluetooth", "vethernet",
+  "docker", "podman", "veth", "br-"
 }
 
 local function adapterPenalty(description)
@@ -77,19 +78,28 @@ function M.select(options)
   local canBind = type(options.canBind) == "function" and options.canBind or function() return true end
   for _, candidate in ipairs(candidates) do
     local description = lower(candidate.description)
-    local score = subnetScore(candidate.address)
-    if candidate.sources.native then score = score + 100 end
-    if candidate.sources.route then score = score + 90 end
-    if candidate.sources.saved then score = score + 15 end
+    candidate.subnetScore = subnetScore(candidate.address)
+    local sourceBonus = 0
+    if candidate.sources.native then sourceBonus = sourceBonus + 100 end
+    if candidate.sources.route then sourceBonus = sourceBonus + 90 end
+    if candidate.sources.saved then sourceBonus = sourceBonus + 15 end
+    candidate.sourceBonus = sourceBonus
+    local descriptionBonus = 0
     if description:find("wi%-fi") or description:find("wireless", 1, true) or
-      description:find("wlan", 1, true) or description:find("802%.11") then
-      score = score + 80
+      description:find("wlan", 1, true) or description:find("802%.11") or
+      description:match("^wlp%d") then
+      descriptionBonus = 80
     elseif description:find("ethernet", 1, true) or
-      description:find("gigabit", 1, true) then
-      score = score + 55
+      description:find("gigabit", 1, true) or
+      description:match("^eth%d") or description:match("^en[ops]") then
+      descriptionBonus = 55
     end
+    candidate.descriptionBonus = descriptionBonus
     candidate.penalty = adapterPenalty(description)
-    candidate.bindable = canBind(candidate.address) == true
+    local bindableOk, bindReason = canBind(candidate.address)
+    candidate.bindable = bindableOk == true
+    candidate.bindReason = bindReason
+    local score = candidate.subnetScore + sourceBonus + descriptionBonus
     candidate.score = candidate.bindable and (score - candidate.penalty) or -10000
   end
 
