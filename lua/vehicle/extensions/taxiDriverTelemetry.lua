@@ -5,6 +5,12 @@ local forcedStop = false
 local updateTimer = 0
 local updateInterval = 0.2
 local lastDamageSnapshot = nil
+local pickupHonkStage = 0
+local pickupHonkTimer = 0
+
+local function applyHorn(value)
+  if electrics and type(electrics.horn) == "function" then electrics.horn(value == true) end
+end
 
 local function setEnabled(value)
   enabled = value == true
@@ -20,6 +26,37 @@ end
 local function setForcedStop(value)
   forcedStop = value == true
   if not forcedStop then releaseForcedStopInputs() end
+end
+
+local function stopPickupHonk()
+  pickupHonkStage, pickupHonkTimer = 0, 0
+  applyHorn(false)
+end
+
+local function startPickupHonk()
+  pickupHonkStage, pickupHonkTimer = 1, 0
+  applyHorn(true)
+end
+
+local function updatePickupHonk(dt)
+  if pickupHonkStage == 0 then return end
+  pickupHonkTimer = pickupHonkTimer + math.max(0, tonumber(dt) or 0)
+  if pickupHonkStage == 1 then
+    applyHorn(true)
+    if pickupHonkTimer >= 0.6 then
+      pickupHonkStage, pickupHonkTimer = 2, pickupHonkTimer - 0.6
+      applyHorn(false)
+    end
+  elseif pickupHonkStage == 2 then
+    applyHorn(false)
+    if pickupHonkTimer >= 0.2 then
+      pickupHonkStage, pickupHonkTimer = 3, pickupHonkTimer - 0.2
+      applyHorn(true)
+    end
+  else
+    applyHorn(true)
+    if pickupHonkTimer >= 0.6 then stopPickupHonk() end
+  end
 end
 
 local function getGForces()
@@ -39,13 +76,15 @@ local function inputValue(name)
 end
 
 local function getAutopilotControllerState()
-  local extension = extensions and extensions.taxiDriverAutopilotRecovery or nil
+  local extension = extensions and
+    (extensions.taxiDriverStockAiObserver or extensions.taxiDriverAutopilotRecovery) or nil
   if not extension or type(extension.getDebugState) ~= "function" then return nil end
   local ok, result = pcall(extension.getDebugState)
   return ok and type(result) == "table" and result or nil
 end
 
 local function updateGFX(dt)
+  updatePickupHonk(dt)
   if forcedStop then
     input.event("throttle", 0, FILTER_DIRECT)
     input.event("brake", 1, FILTER_DIRECT)
@@ -77,6 +116,7 @@ local function updateGFX(dt)
     brake = inputValue("brake"),
     clutch = inputValue("clutch"),
     parkingBrake = inputValue("parkingbrake"),
+    horn = (tonumber(electrics.values.horn) or 0) > 0,
     leftSignal = electrics.values.signal_left_input == 1 or electrics.values.signal_L == 1,
     rightSignal = electrics.values.signal_right_input == 1 or electrics.values.signal_R == 1,
     autopilotController = getAutopilotControllerState()
@@ -100,12 +140,15 @@ local function onReset()
   updateTimer = 0
   lastDamageSnapshot = nil
   enabled = false
+  stopPickupHonk()
   if forcedStop then releaseForcedStopInputs() end
   forcedStop = false
 end
 
 M.setEnabled = setEnabled
 M.setForcedStop = setForcedStop
+M.startPickupHonk = startPickupHonk
+M.stopPickupHonk = stopPickupHonk
 M.updateGFX = updateGFX
 M.onReset = onReset
 

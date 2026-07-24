@@ -197,7 +197,8 @@ local function nearbyObjects(vehicle, context, range)
     local id, object = source.id, source.object
     local mapData = type(source.data) == "table" and source.data or {}
     local position = objectCenter(object) or mapData.pos or callVector(object, "getPosition")
-    if tostring(id) ~= tostring(ownId) and position then
+    if tostring(id) ~= tostring(ownId) and position and
+      (not object or object.taxiDriverIgnoreObstacle ~= true) then
       local data = {
         pos = position,
         vel = mapData.vel or callVector(object, "getVelocity"),
@@ -760,6 +761,137 @@ local function densifyPolyline(points, spacing)
   return result
 end
 
+local function smoothDriveablePolyline(points, turningRadius, spacing)
+  if type(points) ~= "table" or #points < 3 then return densifyPolyline(points, spacing) end
+  turningRadius, spacing = math.max(4, number(turningRadius, 6)), math.max(1.5, number(spacing, 2.5))
+  local cleaned = {}
+  for _, point in ipairs(points) do
+    local previous = cleaned[#cleaned]
+    if not previous or length2(number(point.x, 0) - previous.x,
+      number(point.y, 0) - previous.y) > 0.2 then
+      cleaned[#cleaned + 1] = {x = number(point.x, 0), y = number(point.y, 0),
+        z = number(point.z, 0)}
+    end
+  end
+  if #cleaned < 3 then return densifyPolyline(cleaned, spacing) end
+  local result = {cleaned[1]}
+  local function append(point)
+    local previous = result[#result]
+    if not previous or length2(point.x - previous.x, point.y - previous.y) > 0.08 then
+      result[#result + 1] = point
+    end
+  end
+  for index = 2, #cleaned - 1 do
+    local previous, corner, following = cleaned[index - 1], cleaned[index], cleaned[index + 1]
+    local inX, inY = corner.x - previous.x, corner.y - previous.y
+    local outX, outY = following.x - corner.x, following.y - corner.y
+    local inLength, outLength = length2(inX, inY), length2(outX, outY)
+    if inLength < 0.5 or outLength < 0.5 then
+      append(corner)
+    else
+      inX, inY, outX, outY = inX / inLength, inY / inLength, outX / outLength, outY / outLength
+      local angle = math.acos(clamp(inX * outX + inY * outY, -1, 1))
+      if angle < 0.1 then
+        append(corner)
+      else
+        local trim = math.min(inLength * 0.42, outLength * 0.42,
+          turningRadius * 1.35 * math.min(2, math.tan(angle * 0.5)))
+        local entry = {x = corner.x - inX * trim, y = corner.y - inY * trim,
+          z = corner.z + (previous.z - corner.z) * (trim / inLength)}
+        local exit = {x = corner.x + outX * trim, y = corner.y + outY * trim,
+          z = corner.z + (following.z - corner.z) * (trim / outLength)}
+        append(entry)
+        local samples = math.max(2, math.ceil(trim * 2 / spacing))
+        for sample = 1, samples do
+          local t, inverse = sample / samples, 1 - sample / samples
+          append({x = inverse * inverse * entry.x + 2 * inverse * t * corner.x + t * t * exit.x,
+            y = inverse * inverse * entry.y + 2 * inverse * t * corner.y + t * t * exit.y,
+            z = inverse * inverse * entry.z + 2 * inverse * t * corner.z + t * t * exit.z})
+        end
+      end
+    end
+  end
+  append(cleaned[#cleaned])
+  return densifyPolyline(result, spacing)
+end
+
+local function buildForwardArc(context, radius, angle, spacing)
+  local points = {}
+  local arcLength = math.abs(radius * angle)
+  local steps = math.max(4, math.ceil(arcLength / math.max(1.4, spacing or 2)))
+  local side = angle >= 0 and 1 or -1
+  for index = 0, steps do
+    local currentAngle = math.abs(angle) * index / steps
+    points[#points + 1] = localPoint(context,
+      math.sin(currentAngle) * radius,
+      side * radius * (1 - math.cos(currentAngle)))
+  end
+  return points
+end
+
+local function routeForwardTurn(vehicle, context, objects, referencePoints)
+  if type(referencePoints) ~= "table" or #referencePoints < 2 then return nil end
+  local anchor
+  for index = 2, #referencePoints do
+    local point = referencePoints[index]
+    local dx, dy = number(point.x, 0) - context.position.x,
+      number(point.y, 0) - context.position.y
+    local distance = length2(dx, dy)
+    if distance >= 12 then
+      anchor = point
+      if distance >= 24 then break end
+    end
+  end
+  if not anchor then return nil end
+
+  local anchorX, anchorY = number(anchor.x, 0) - context.position.x,
+    number(anchor.y, 0) - context.position.y
+  local localX = anchorX * context.forwardX + anchorY * context.forwardY
+  local localY = anchorX * context.leftX + anchorY * context.leftY
+  local desiredAngle = angleBetween(localY, localX)
+  if math.abs(desiredAngle) < math.rad(12) then return nil end
+
+  local ownLength = dimension(vehicle, "getInitialLength", 4.5)
+  local minimumRadius = clamp(ownLength * 1.15, 4.8, 8)
+  local signs = desiredAngle >= 0 and {1} or {-1}
+  if math.abs(desiredAngle) > math.rad(155) then signs = {1, -1} end
+  local magnitudes = {
+    clamp(math.abs(desiredAngle) - math.rad(18), math.rad(18), math.rad(168)),
+    clamp(math.abs(desiredAngle), math.rad(18), math.rad(168)),
+    clamp(math.abs(desiredAngle) + math.rad(18), math.rad(18), math.rad(168))
+  }
+  local best, candidateCount = nil, 0
+  for _, side in ipairs(signs) do
+    for _, radius in ipairs({minimumRadius, minimumRadius * 1.45}) do
+      for _, magnitude in ipairs(magnitudes) do
+        candidateCount = candidateCount + 1
+        local points = buildForwardArc(context, radius, magnitude * side, 1.8)
+        local candidate = {points = points, targetError = 0, offset = 0}
+        if evaluateApproachCandidate(vehicle, context, objects, candidate) then
+          local endpoint = points[#points]
+          local endpointError = length2(endpoint.x - number(anchor.x, 0),
+            endpoint.y - number(anchor.y, 0))
+          local endpointAngle = magnitude * side
+          local angleError = math.abs(endpointAngle - desiredAngle)
+          local aligned, alignmentPenalty = referenceAlignment(points, referencePoints)
+          if aligned then
+            candidate.score = 170 - endpointError * 1.25 - angleError * 9 -
+              alignmentPenalty + math.min(12, number(candidate.minimumClearance, 0))
+            candidate.signal = side > 0 and -1 or 1
+            candidate.strategy = "routeForwardTurn"
+            candidate.radius = radius
+            candidate.turnAngle = endpointAngle
+            candidate.candidateCount = candidateCount
+            if not best or candidate.score > best.score then best = candidate end
+          end
+        end
+      end
+    end
+  end
+  if best then best.candidateCount = candidateCount end
+  return best
+end
+
 local function graphPoints(vehicle, edge, nodes, pathCache, referencePoints)
   if not map or type(map.findClosestRoad) ~= "function" or type(map.getGraphpath) ~= "function" then return nil end
   local graph = map.getGraphpath()
@@ -815,7 +947,9 @@ local function graphPoints(vehicle, edge, nodes, pathCache, referencePoints)
               local aligned, alignmentPenalty = referenceAlignment(usable, referencePoints)
               local selectionScore = routeLength + alignmentPenalty
               if aligned and (not best or selectionScore < best.score) then
-                best = {points = densifyPolyline(usable, 4), length = routeLength,
+                best = {points = smoothDriveablePolyline(usable,
+                    clamp(dimension(vehicle, "getInitialLength", 4.5) * 1.3, 5, 8), 2.5),
+                  length = routeLength,
                   score = selectionScore, alignmentPenalty = alignmentPenalty,
                   startNode = startNode, endNode = endNode}
               end
@@ -841,7 +975,10 @@ local function segmentPoints(first, second, step)
 end
 
 local function spatialGraphBypass(vehicle, context, obstacle, objects)
-  local directionCount, rings = 24, {4.5, 9, 15, 22, 30, 39, 49}
+  -- This is a last-resort local planner. Keep the graph deliberately small:
+  -- the old 168-node/600-iteration graph performed thousands of synchronous
+  -- terrain rays in one game tick and could visibly stall the simulation.
+  local directionCount, rings = 12, {6, 13, 22, 32}
   local nodes, ringNodes = {{point = {x = context.position.x, y = context.position.y,
     z = context.position.z}, localX = 0, localY = 0, ring = 0, angleIndex = 0}}, {}
   for ringIndex, radius in ipairs(rings) do
@@ -855,7 +992,7 @@ local function spatialGraphBypass(vehicle, context, obstacle, objects)
     end
   end
   local ownHalfLength = dimension(vehicle, "getInitialLength", 4.5) * 0.5
-  local goalDistance = clamp(obstacle.longitudinal + obstacle.length * 0.5 + ownHalfLength + 8, 15, 44)
+  local goalDistance = clamp(obstacle.longitudinal + obstacle.length * 0.5 + ownHalfLength + 8, 14, 30)
   local rejoin = context.roadAvailable and math.abs(context.roadAlignment) > 0.25 and
     clamp(-context.roadLateral / context.roadAlignment, -5, 5) or 0
   local goalPoint = localPoint(context, goalDistance, rejoin)
@@ -868,7 +1005,10 @@ local function spatialGraphBypass(vehicle, context, obstacle, objects)
   local function neighbors(index)
     if index == 1 then
       local result = {}
-      for angleIndex = 0, directionCount - 1 do result[#result + 1] = ringNodes[1][angleIndex] end
+      for angleIndex = 0, directionCount - 1 do
+        local angle = angleIndex * math.pi * 2 / directionCount
+        if math.cos(angle) >= -0.05 then result[#result + 1] = ringNodes[1][angleIndex] end
+      end
       return result
     end
     local node, result = nodes[index], {}
@@ -895,7 +1035,7 @@ local function spatialGraphBypass(vehicle, context, obstacle, objects)
   end
   local open, g, parent = {[1] = true}, {[1] = 0}, {}
   local reached, iterations = nil, 0
-  while next(open) and iterations < 600 do
+  while next(open) and iterations < 140 do
     iterations = iterations + 1
     local current, currentScore
     for index in pairs(open) do
@@ -908,11 +1048,11 @@ local function spatialGraphBypass(vehicle, context, obstacle, objects)
     if goals[current] then reached = current; break end
     local currentNode = nodes[current]
     for _, nextIndex in ipairs(neighbors(current)) do
-      if nextIndex and edgeClear(current, nextIndex) then
-        local nextNode = nodes[nextIndex]
+      local nextNode = nextIndex and nodes[nextIndex]
+      if nextNode and nextNode.localX >= -1.5 and edgeClear(current, nextIndex) then
         local edgeLength = length2(nextNode.point.x - currentNode.point.x,
           nextNode.point.y - currentNode.point.y)
-        local backward = nextNode.localX < currentNode.localX - 0.5 and edgeLength * 1.6 or 0
+        local backward = nextNode.localX < currentNode.localX - 0.5 and edgeLength * 4 or 0
         local tentative = g[current] + edgeLength + backward + math.abs(nextNode.localY) * 0.015
         if g[nextIndex] == nil or tentative < g[nextIndex] then
           g[nextIndex], parent[nextIndex], open[nextIndex] = tentative, current, true
@@ -933,6 +1073,10 @@ local function spatialGraphBypass(vehicle, context, obstacle, objects)
   if evaluateApproachCandidate(vehicle, context, objects, finalCandidate) then
     for index = 2, #finalCandidate.points do path[#path + 1] = finalCandidate.points[index] end
   end
+  local smoothed = smoothDriveablePolyline(path,
+    clamp(dimension(vehicle, "getInitialLength", 4.5) * 1.3, 5, 8), 2.2)
+  local smoothedCandidate = {points = smoothed, targetError = 0, offset = 0}
+  if evaluateApproachCandidate(vehicle, context, objects, smoothedCandidate) then path = smoothed end
   for _, index in ipairs(indices) do nodes[index].state = "path" end
   return {points = path, signal = nodes[indices[2]] and nodes[indices[2]].localY < 0 and 1 or -1,
     obstacleId = obstacle.id, offset = nodes[reached].localY, distance = goalDistance,
@@ -949,7 +1093,7 @@ function M.new(sourceConfig)
   local approachTarget = nil
   local accessCacheKey, accessCacheEdges, accessCacheNodes = nil, nil, nil
 
-  local function assess(vehicle, preferredObstacleId)
+  local function assess(vehicle, preferredObstacleId, options)
     if not vehicle then return nil, "vehicleUnavailable" end
     local context, contextReason = contextFor(vehicle)
     if not context then return nil, contextReason end
@@ -962,8 +1106,23 @@ function M.new(sourceConfig)
     local current = {context = context, rays = rays, candidates = {}, obstacle = obstacle,
       reason = obstacle and "evaluating" or "noStationaryObstacle"}
     snapshot = current
-    if not obstacle then return nil, current.reason end
-
+    local routeTurn = routeForwardTurn(vehicle, context, objects,
+      type(options) == "table" and options.referencePoints or nil)
+    if routeTurn then
+      routeTurn.obstacleId = obstacle and obstacle.id or nil
+      routeTurn.distance = length2(routeTurn.points[#routeTurn.points].x - context.position.x,
+        routeTurn.points[#routeTurn.points].y - context.position.y)
+      routeTurn.feasible = true
+      current.candidates[#current.candidates + 1] = routeTurn
+    end
+    if not obstacle then
+      if routeTurn then
+        routeTurn.chosen, current.chosen = true, routeTurn
+        current.reason = "routeForwardTurn"
+        return routeTurn
+      end
+      return nil, current.reason
+    end
     local candidates = {}
     for _, side in ipairs({1, -1}) do
       for _, extra in ipairs({0, 1.25, 2.5}) do
@@ -975,23 +1134,29 @@ function M.new(sourceConfig)
         if candidate.feasible then candidates[#candidates + 1] = candidate end
       end
     end
-    local graphPlan, graphNodes = spatialGraphBypass(vehicle, context, obstacle, objects)
-    current.graphNodes = graphNodes
+    local graphPlan, graphNodes
+    if type(options) == "table" and options.allowSpatialGraph == true and
+      #candidates == 0 and not routeTurn then
+      graphPlan, graphNodes = spatialGraphBypass(vehicle, context, obstacle, objects)
+      current.graphNodes = graphNodes
+    end
     if graphPlan then
       graphPlan.feasible = true
       current.candidates[#current.candidates + 1] = graphPlan
     end
-    if #candidates == 0 and not graphPlan then
+    if #candidates == 0 and not graphPlan and not routeTurn then
       current.reason = "noSafeCorridor"
       return nil, current.reason
     end
     table.sort(candidates, function(first, second) return first.score > second.score end)
     local chosen = candidates[1]
+    if routeTurn and (not chosen or routeTurn.score > chosen.score) then chosen = routeTurn end
     if graphPlan and (not chosen or graphPlan.score > chosen.score) then chosen = graphPlan end
     chosen.chosen = true
     current.chosen = chosen
-    current.reason = chosen.strategy == "spatialGraph" and "spatialGraphPath" or "freeSpacePath"
-    if chosen.strategy == "spatialGraph" then return chosen end
+    current.reason = chosen.strategy == "spatialGraph" and "spatialGraphPath" or
+      (chosen.strategy == "routeForwardTurn" and "routeForwardTurn" or "freeSpacePath")
+    if chosen.strategy == "spatialGraph" or chosen.strategy == "routeForwardTurn" then return chosen end
     return {
       points = chosen.points,
       signal = chosen.offset > 0 and -1 or 1,
@@ -1068,6 +1233,8 @@ function M.new(sourceConfig)
             local combined = {}
             for _, point in ipairs(route.points) do combined[#combined + 1] = point end
             for index = 2, #suffix.points do combined[#combined + 1] = suffix.points[index] end
+            combined = smoothDriveablePolyline(combined,
+              clamp(dimension(vehicle, "getInitialLength", 4.5) * 1.3, 5, 8), 2.2)
             local candidate = {points = combined, endpoint = suffix.endpoint,
               targetError = suffix.targetError, minimumClearance = suffix.minimumClearance,
               offset = suffix.offset, pathLength = route.length + suffix.pathLength,
@@ -1106,9 +1273,9 @@ function M.new(sourceConfig)
       graphFeasibleCount = current.graphFeasibleCount, score = chosen.score}
   end
 
-  function service:planLocalBypass(vehicle, preferredObstacleId)
+  function service:planLocalBypass(vehicle, preferredObstacleId, options)
     approachTarget = nil
-    return assess(vehicle, preferredObstacleId)
+    return assess(vehicle, preferredObstacleId, options)
   end
 
   function service:planPointApproach(vehicle, target, options)

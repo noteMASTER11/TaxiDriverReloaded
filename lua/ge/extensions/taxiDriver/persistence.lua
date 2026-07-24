@@ -1,5 +1,6 @@
 local M = {}
 local shiftTracker = require("taxiDriver/shiftTracker")
+local tripHistory = require("taxiDriver/tripHistory")
 
 local settingsDirectoryPath = "/settings/TaxiDriver"
 local settingsFilePath = settingsDirectoryPath .. "/settings.json"
@@ -119,8 +120,8 @@ function M.new(options)
       showRouteGuidance = true,
       realisticMode = false,
       randomEventsEnabled = false,
+      randomEvents = taxiConfig.sanitizeRandomEvents(nil),
       aiDebugLogging = false,
-      aiDecisionVisualization = false,
       aiDriver = taxiConfig.sanitizeAiDriver(nil),
       fleet = taxiConfig.sanitizeFleet(nil),
       godMode = false,
@@ -182,8 +183,8 @@ function M.new(options)
     result.showRouteGuidance = source.showRouteGuidance ~= false
     result.realisticMode = source.realisticMode == true
     result.randomEventsEnabled = source.randomEventsEnabled == true
+    result.randomEvents = taxiConfig.sanitizeRandomEvents(source.randomEvents)
     result.aiDebugLogging = source.aiDebugLogging == true
-    result.aiDecisionVisualization = source.aiDecisionVisualization == true
     result.aiDriver = taxiConfig.sanitizeAiDriver(source.aiDriver)
     result.fleet = taxiConfig.sanitizeFleet(source.fleet)
     result.godMode = source.godMode == true
@@ -342,6 +343,8 @@ function M.new(options)
             orderRating = clamp(tonumber(review.orderRating) or
               (tonumber(review.quality) or 0) / 20, 0, 5),
             usedAutopilot = review.usedAutopilot == true,
+            penalties = tripHistory.sanitizePenalties(review.penalties),
+            randomEvents = tripHistory.sanitizeRandomEvents(review.randomEvents),
             timestamp = math.max(0, math.floor(tonumber(review.timestamp) or 0)),
             outcome = tostring(review.outcome or "completed")
           }

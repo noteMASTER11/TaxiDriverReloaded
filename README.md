@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.0-beta"><img src="https://img.shields.io/badge/release-v3.4.0--beta-ffd11a?style=flat-square" alt="Release v3.4.0-beta"></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.1-rc"><img src="https://img.shields.io/badge/release-v3.4.1--RC-ffd11a?style=flat-square" alt="Release v3.4.1-rc"></a>
   <img src="https://img.shields.io/badge/BeamNG.drive-0.38.6-f28c28?style=flat-square" alt="BeamNG.drive 0.38.6">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.0-beta"><strong>Download 3.4.0 Beta</strong></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.1-rc"><strong>Download 3.4.1 RC</strong></a>
 </p>
 
 ---
 
-> **3.4.0 Beta:** the in-game phone now has full, compact-map, and button-only stages, including collapsed-state attention indicators. The Lua runtime has been split into smaller services, asynchronous vehicle callbacks reject stale vehicle VMs, periodic systems are isolated by fault boundaries, road-network export is chunked across frames, and HUD/LAN/AI update work is substantially reduced. Simplified Chinese includes a new native-speaker revision. Existing 3.3.1 Beta settings and progress remain compatible.
+> **3.4.1 RC:** AI Driver now delegates steering and road travel to BeamNG's native vehicle AI, verifies real arrival at the gameplay target, and adds a smooth traffic guard for following and curved collision paths. Optional strict GPS routing follows the displayed shortest route. Fleet workers use the same protection at a reduced update rate. Random Events now have individual switches and probabilities, physical passenger/cargo pickups, trip-history details, and an opt-in native police-stop event. Existing 3.4.0 Beta saves remain compatible.
 
 TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
@@ -98,7 +98,8 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Each mood change briefly flashes a green or red border around the emoji. Positive recovery is capped at 40 percentage points above the passenger's initial mood.
 - Relaxed passengers may ignore some penalty events; sensitive passengers react more strongly to poor driving.
 - A passenger who becomes critically dissatisfied can demand an immediate stop and end the ride early.
-- Optional Random Events let passengers cancel before pickup, change the destination, request an additional stop, or offer a conditional tip for careful or quick driving. Delivery orders can carry fragile cargo with increased impact sensitivity.
+- Optional Random Events have individual switches and probabilities for cancellation, destination changes, additional stops, conditional tips, fragile cargo, passenger no-shows, VIP quiet rides, forgotten items, temporary reroutes, and an opt-in native police stop.
+- Passenger pickups can spawn BeamNG's unicycle character and cargo pickups can spawn a small cardboard box. A passenger walks to the stopped taxi after a horn signal; the system falls back to the logical pickup flow if the physical prop cannot be created.
 
 ### Shift overview
 
@@ -111,21 +112,19 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 
 ### Optional AI driver
 
-- **Experimental:** the AI driver is intentionally a little clumsy. It is primarily a playful demonstration of BeamNG's built-in vehicle AI, with TaxiDriver trying to make that AI more predictable in a clear passenger/cargo route scenario rather than promising a production-grade autonomous driver.
-- Hand an active passenger, delivery, or refueling route to BeamNG's vehicle AI from the map overlay and take control back at any time.
-- Choose a complete driving preset from Modest Novice through Mad Racer, or select Custom to tune every available parameter.
-- Configure aggression, following gap, braking strength and stuck detection; independently control speed-limit and traffic-signal compliance.
-- Expand Maneuvers and Recovery to tune overtaking, lane-change clearance, oncoming-lane and reverse recovery, recovery attempt count, and exact-approach speed.
-- The supervisor follows red/yellow signals, commits through intersections after the stop line, signals lane changes, maintains a speed-dependent lead gap, and can overtake a slow queue on a free same-direction lane.
-- A predictive access planner compares nearby road-graph entrances before the final turn, rejects candidates that initially run backwards or jump away from the active route, and combines the shortest aligned graph prefix with a collision-checked local suffix into the physical trigger.
-- Vehicle-aligned 180° sensor fans assess forward and reverse space across the full vehicle footprint. Surface probes accept traversable pavements and mild slopes while rejecting unsafe steps, cross-slopes, static geometry, moving traffic, and parked vehicles.
-- Vehicle-side trajectory rays follow straight and curved motion to apply progressive or emergency braking before a collision; five lateral probes cover thin obstacles near either body edge.
-- Native AI `Route Done` is verified against the physical target. If BeamNG stops early, a densified low-speed approach controller follows the selected graph/free-space polyline into the final metres.
-- When blocked with no usable forward angle, the recovery controller scans rear space and may reverse 3–6 metres before replanning. Steering conversion is centralized so forward and reverse recovery use BeamNG's actual input-sign convention.
-- AI switches supported controllers to Arcade once, lets BeamNG manage the clutch, starts the powertrain when necessary, and holds stopped vehicles in Drive instead of cycling through Neutral.
+- **Experimental:** AI Driver is a practical TaxiDriver adapter around BeamNG's built-in vehicle AI, not a separate autonomous-driving implementation.
+- Hand an active passenger, delivery, or refueling route to native `ai.driveUsingPath` from the map overlay and take control back at any time.
+- The default autonomous route follows the legal direction of the target road edge and may choose a valid route that differs from the displayed ground markers.
+- Enable **Strict GPS route** to send the exact displayed shortest GPS node sequence to the vehicle AI. If that path is temporarily unavailable, TaxiDriver falls back to its legal autonomous route instead of disabling control.
+- Native `Route Done` is checked against the physical gameplay target. Premature completion triggers an immediate route rebuild from the current road segment with a bounded retry count.
+- A lightweight Vehicle Lua traffic guard observes nearby vehicles, maintains a configurable time and bumper gap, predicts intersections with the current steering arc, and applies jerk-limited speed reduction. Immediate braking is reserved for an unavoidable collision.
+- Final-target braking activates only when the vehicle is aligned with the target-side travel direction. Pickup succeeds within seven metres only after a complete stop.
+- At an AI passenger pickup, the taxi stops, emits two 600 ms horn pulses, waits for the physical boarding event, and starts the passenger leg only after boarding completes.
+- Presets configure native aggression, following time, minimum distance, comfortable braking, traffic wait time, speed-limit compliance, and lane discipline. Custom exposes the same focused controls.
+- The player-vehicle guard rejects NPC IDs, and native crash recovery/teleport is disabled for the player's car so boarding cannot despawn or relocate it.
 - Refueling is never started automatically. Open **Refuel** first and enable AI on the refueling route when you want the vehicle to drive there.
 - Reviews, shifts, vehicle history, and profile analytics record whether AI was used during a completed trip.
-- An opt-in AI journal can continuously record route progress, targets, traffic signals, obstacles, recovery, gearbox behavior, and damage to a dedicated JSON Lines file for diagnosis. A separate world-visualization toggle draws sensor rays, rejected candidates, the selected route and planner state at a 330 ms decision interval.
+- An opt-in AI journal continuously records route selection, target distance, native completion, traffic-guard state, gearbox telemetry, collisions, and damage to a dedicated JSON Lines file for diagnosis.
 
 ### Persistent driver profile
 
@@ -232,12 +231,13 @@ All application sounds—including clicks, online/offline cues, passenger messag
 
 - `persistence.lua` owns settings, difficulty, profile, progress schemas, validation, and JSON I/O;
 - `routePlanner.lua` owns road-graph routing, semantic stop discovery, level caches, and recently used stops;
-- `autopilot.lua` supervises BeamNG vehicle AI, exact target approach, signal/intersection rules, following, overtaking, and recovery state;
-- `autopilotPerception.lua` measures road/vehicle geometry and builds collision-checked local bypass corridors;
+- `autopilot.lua` validates the player vehicle, selects legal or strict-GPS graph nodes, dispatches native BeamNG AI, and verifies physical arrival;
+- `taxiDriverStockAiObserver.lua` adds smooth following, steering-arc traffic prediction, target-aligned final braking, and native `Route Done` observation;
 - `aiLogger.lua` writes opt-in, crash-readable AI navigation and vehicle telemetry journals;
 - `fleetManager.lua` owns hiring, fleet economy, persistence, map/world markers, and worker lifecycle;
-- `fleetWorker.lua` runs one isolated assignment and supervised AI state machine per hired vehicle;
-- `taxiDriverAutopilotRecovery.lua` runs vehicle-side exact approach, powertrain/gearbox control, indicators, and trajectory-ray collision braking;
+- `fleetWorker.lua` runs one native route assignment per hired vehicle with bounded replanning and a reduced-rate traffic guard;
+- `navigationUi.lua` owns native minimap visibility, dynamic zoom, occlusion regions, and restoration of BeamNG navigation settings;
+- `physicalPickup.lua`, `policeCheckEvent.lua`, `tripEvents.lua`, and `tripHistory.lua` own physical pickup props, the opt-in native police flow, configurable events, and expandable trip records;
 - `vehicleControl.lua` owns telemetry commands, forced-stop/freeze control, and passenger/cargo access triggers;
 - `vehicleHistory.lua` owns current-vehicle detection, per-configuration odometers, previews, ride counts, and income;
 - `shiftTracker.lua` owns current/previous shift totals and fuel-adjusted net income;
@@ -251,7 +251,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Installation
 
-1. Download `taxidriver.zip` from the [3.4.0 Beta release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.0-beta).
+1. Download `taxidriver.zip` from the [3.4.1 RC release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.1-rc).
 2. Place the archive directly in:
 
    ```text

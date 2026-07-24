@@ -326,7 +326,12 @@ function M.new(options)
       if safety then summary.safetyInterventions = summary.safetyInterventions + 1 end
       write(safety and "collision_safety_engaged" or "collision_safety_released", withContext({
         brake = optionalRound(controller.safetyBrake, 3), obstacleDistance = optionalRound(controller.obstacleDistance, 3),
-        obstacleClosingSpeed = optionalRound(controller.obstacleClosingSpeed, 3), obstacleId = controller.obstacleId
+        obstacleClosingSpeed = optionalRound(controller.obstacleClosingSpeed, 3), obstacleId = controller.obstacleId,
+        curvedPathRisk = controller.curvedPathRisk == true,
+        curvedPathRiskTime = optionalRound(controller.curvedPathRiskTime, 3),
+        requestedDeceleration = optionalRound(controller.requestedDeceleration, 3),
+        appliedDeceleration = optionalRound(controller.appliedDeceleration, 3),
+        emergencyBraking = controller.emergencyBraking == true
       }), safety)
       lastSafetyHolding = safety
     end
@@ -378,6 +383,8 @@ function M.new(options)
       leadClosingSpeed = optionalRound(diagnostics.leadClosingSpeed, 2),
       leadTtc = optionalRound(diagnostics.leadTtc, 2), leadConfirmed = diagnostics.leadConfirmed,
       leadRayConfirmed = diagnostics.leadRayConfirmed,
+      curvedPathRisk = diagnostics.curvedPathRisk == true,
+      curvedPathRiskTime = optionalRound(diagnostics.curvedPathRiskTime, 2),
       leadCandidateSeconds = optionalRound(diagnostics.leadCandidateSeconds, 2),
       followSpeedCap = diagnostics.followSpeedCap and round(diagnostics.followSpeedCap, 2) or nil,
       signalId = diagnostics.signalId, signalState = diagnostics.signalState,
@@ -388,6 +395,16 @@ function M.new(options)
       signalSpeedCap = optionalRound(diagnostics.signalSpeedCap, 2),
       routeSpeedCap = optionalRound(diagnostics.routeSpeedCap, 2),
       appliedSpeedCap = optionalRound(diagnostics.appliedSpeedCap, 2),
+      requestedDeceleration = optionalRound(diagnostics.requestedDeceleration, 3),
+      appliedDeceleration = optionalRound(diagnostics.appliedDeceleration, 3),
+      emergencyBraking = diagnostics.emergencyBraking == true,
+      targetApproachActive = diagnostics.targetApproachActive == true,
+      targetApproachDistance = optionalRound(diagnostics.targetApproachDistance, 2),
+      targetApproachSpeedCap = optionalRound(diagnostics.targetApproachSpeedCap, 2),
+      routeDoneRetryCount = diagnostics.routeDoneRetryCount,
+      orientedApproach = diagnostics.orientedApproach == true,
+      approachNode = diagnostics.approachNode,
+      departureNode = diagnostics.departureNode,
       routeRemainingDistance = optionalRound(routeRemaining, 2),
       routeSegmentIndex = diagnostics.routeSegmentIndex,
       routeCrossTrack = optionalRound(diagnostics.routeCrossTrack, 2),
@@ -429,6 +446,11 @@ function M.new(options)
       record.obstacleClosingSpeed = optionalRound(controller.obstacleClosingSpeed, 3)
       record.obstacleId = controller.obstacleId
       record.obstacleDetected = controller.obstacleDetected
+      record.curvedPathRisk = controller.curvedPathRisk == true
+      record.curvedPathRiskTime = optionalRound(controller.curvedPathRiskTime, 2)
+      record.requestedDeceleration = optionalRound(controller.requestedDeceleration, 3)
+      record.appliedDeceleration = optionalRound(controller.appliedDeceleration, 3)
+      record.emergencyBraking = controller.emergencyBraking == true
       record.preflightFrontClearance = optionalRound(controller.preflightFrontClearance, 2)
       record.preflightRearClearance = optionalRound(controller.preflightRearClearance, 2)
     end

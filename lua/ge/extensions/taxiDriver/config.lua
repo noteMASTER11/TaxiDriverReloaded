@@ -86,55 +86,41 @@ end
 M.aiDriverPresetOrder = {"novice", "cautious", "balanced", "assertive", "racer", "custom"}
 
 M.aiDriverDefaults = {
-  aggressionPercent = 30,
-  followingTimeGap = 2.2,
-  brakingDeceleration = 2.8,
-  stuckDelaySeconds = 15,
+  aggressionPercent = 40,
+  followingTimeGap = 2.3,
+  minimumFollowingDistance = 4,
+  brakingDeceleration = 3.5,
+  trafficWaitSeconds = 3,
   obeySpeedLimits = true,
-  obeyTrafficSignals = true,
-  allowOvertaking = true,
-  laneChangeClearancePercent = 100,
-  allowOncomingRecovery = true,
-  allowReverseRecovery = true,
-  recoveryMaxAttempts = 3,
-  finalApproachSpeedKmh = 12
+  laneDiscipline = true,
+  strictGpsRoute = false
 }
 
 M.aiDriverPresets = {
   novice = {
-    aggressionPercent = 15, followingTimeGap = 3.5, brakingDeceleration = 2.0,
-    stuckDelaySeconds = 25, obeySpeedLimits = true, obeyTrafficSignals = true,
-    allowOvertaking = false, laneChangeClearancePercent = 160,
-    allowOncomingRecovery = false, allowReverseRecovery = true,
-    recoveryMaxAttempts = 2, finalApproachSpeedKmh = 7
+    aggressionPercent = 30, followingTimeGap = 3.4, minimumFollowingDistance = 7,
+    brakingDeceleration = 2.5, trafficWaitSeconds = 6,
+    obeySpeedLimits = true, laneDiscipline = true
   },
   cautious = {
-    aggressionPercent = 25, followingTimeGap = 3.0, brakingDeceleration = 2.4,
-    stuckDelaySeconds = 20, obeySpeedLimits = true, obeyTrafficSignals = true,
-    allowOvertaking = false, laneChangeClearancePercent = 140,
-    allowOncomingRecovery = false, allowReverseRecovery = true,
-    recoveryMaxAttempts = 3, finalApproachSpeedKmh = 9
+    aggressionPercent = 35, followingTimeGap = 2.8, minimumFollowingDistance = 5.5,
+    brakingDeceleration = 3, trafficWaitSeconds = 4,
+    obeySpeedLimits = true, laneDiscipline = true
   },
   balanced = {
-    aggressionPercent = 30, followingTimeGap = 2.2, brakingDeceleration = 2.8,
-    stuckDelaySeconds = 15, obeySpeedLimits = true, obeyTrafficSignals = true,
-    allowOvertaking = true, laneChangeClearancePercent = 100,
-    allowOncomingRecovery = true, allowReverseRecovery = true,
-    recoveryMaxAttempts = 3, finalApproachSpeedKmh = 12
+    aggressionPercent = 40, followingTimeGap = 2.3, minimumFollowingDistance = 4,
+    brakingDeceleration = 3.5, trafficWaitSeconds = 3,
+    obeySpeedLimits = true, laneDiscipline = true
   },
   assertive = {
-    aggressionPercent = 50, followingTimeGap = 1.7, brakingDeceleration = 3.4,
-    stuckDelaySeconds = 12, obeySpeedLimits = false, obeyTrafficSignals = true,
-    allowOvertaking = true, laneChangeClearancePercent = 75,
-    allowOncomingRecovery = true, allowReverseRecovery = true,
-    recoveryMaxAttempts = 4, finalApproachSpeedKmh = 16
+    aggressionPercent = 60, followingTimeGap = 1.8, minimumFollowingDistance = 3,
+    brakingDeceleration = 4.5, trafficWaitSeconds = 2,
+    obeySpeedLimits = false, laneDiscipline = true
   },
   racer = {
-    aggressionPercent = 80, followingTimeGap = 1.2, brakingDeceleration = 4.5,
-    stuckDelaySeconds = 8, obeySpeedLimits = false, obeyTrafficSignals = false,
-    allowOvertaking = true, laneChangeClearancePercent = 50,
-    allowOncomingRecovery = true, allowReverseRecovery = true,
-    recoveryMaxAttempts = 5, finalApproachSpeedKmh = 20
+    aggressionPercent = 85, followingTimeGap = 1.3, minimumFollowingDistance = 2,
+    brakingDeceleration = 6, trafficWaitSeconds = 1,
+    obeySpeedLimits = false, laneDiscipline = false
   }
 }
 
@@ -147,31 +133,71 @@ function M.sanitizeAiDriver(source)
   if not preset then preset = hasSource and next(source) ~= nil and "custom" or "balanced" end
   local base = preset == "custom" and M.aiDriverDefaults or M.aiDriverPresets[preset]
   local values = preset == "custom" and source or base
-  local legacyRules = values.obeyTrafficRules
-  local obeySpeedLimits = values.obeySpeedLimits ~= nil and values.obeySpeedLimits ~= false or nil
-  local obeyTrafficSignals = values.obeyTrafficSignals ~= nil and values.obeyTrafficSignals ~= false or nil
-  if values.obeySpeedLimits == false then obeySpeedLimits = false end
-  if values.obeyTrafficSignals == false then obeyTrafficSignals = false end
-  if obeySpeedLimits == nil then obeySpeedLimits = legacyRules ~= false end
-  if obeyTrafficSignals == nil then obeyTrafficSignals = legacyRules ~= false end
+  local obeySpeedLimits = values.obeySpeedLimits
+  if obeySpeedLimits == nil then obeySpeedLimits = values.obeyTrafficRules ~= false end
   return {
     preset = preset,
-    aggressionPercent = clamp(tonumber(values.aggressionPercent) or base.aggressionPercent, 10, 80),
-    followingTimeGap = clamp(tonumber(values.followingTimeGap) or base.followingTimeGap, 1.2, 3.5),
-    brakingDeceleration = clamp(tonumber(values.brakingDeceleration) or base.brakingDeceleration, 1.5, 4.5),
-    stuckDelaySeconds = clamp(tonumber(values.stuckDelaySeconds) or base.stuckDelaySeconds, 8, 30),
-    obeySpeedLimits = obeySpeedLimits,
-    obeyTrafficSignals = obeyTrafficSignals,
-    allowOvertaking = values.allowOvertaking ~= false,
-    laneChangeClearancePercent = clamp(tonumber(values.laneChangeClearancePercent) or
-      base.laneChangeClearancePercent, 50, 175),
-    allowOncomingRecovery = values.allowOncomingRecovery ~= false,
-    allowReverseRecovery = values.allowReverseRecovery ~= false,
-    recoveryMaxAttempts = math.floor(clamp(tonumber(values.recoveryMaxAttempts) or
-      base.recoveryMaxAttempts, 1, 5) + 0.5),
-    finalApproachSpeedKmh = clamp(tonumber(values.finalApproachSpeedKmh) or
-      base.finalApproachSpeedKmh, 5, 20)
+    aggressionPercent = clamp(tonumber(values.aggressionPercent) or base.aggressionPercent, 30, 100),
+    followingTimeGap = clamp(tonumber(values.followingTimeGap) or base.followingTimeGap, 1, 4),
+    minimumFollowingDistance = clamp(tonumber(values.minimumFollowingDistance) or
+      base.minimumFollowingDistance, 2, 10),
+    brakingDeceleration = clamp(tonumber(values.brakingDeceleration) or
+      base.brakingDeceleration, 2, 8),
+    trafficWaitSeconds = clamp(tonumber(values.trafficWaitSeconds) or
+      base.trafficWaitSeconds, 1, 10),
+    obeySpeedLimits = obeySpeedLimits ~= false,
+    laneDiscipline = values.laneDiscipline ~= false,
+    -- Route fidelity is independent from driving temperament and therefore
+    -- survives preset changes.
+    strictGpsRoute = source.strictGpsRoute == true
   }
+end
+
+M.randomEventOrder = {
+  "cancellation",
+  "destinationChange",
+  "additionalStop",
+  "tip",
+  "fragileCargo",
+  "policeCheck",
+  "passengerNoShow",
+  "vipQuietRide",
+  "forgottenItem",
+  "roadClosure"
+}
+
+M.randomEventDefaults = {
+  cancellation = {enabled = true, chancePercent = 8},
+  destinationChange = {enabled = true, chancePercent = 10},
+  additionalStop = {enabled = true, chancePercent = 10},
+  tip = {enabled = true, chancePercent = 30},
+  fragileCargo = {enabled = true, chancePercent = 28},
+  policeCheck = {enabled = false, chancePercent = 9, preloadConfirmed = false},
+  passengerNoShow = {enabled = true, chancePercent = 7},
+  vipQuietRide = {enabled = true, chancePercent = 12},
+  forgottenItem = {enabled = true, chancePercent = 8},
+  roadClosure = {enabled = true, chancePercent = 10}
+}
+
+function M.sanitizeRandomEvents(source)
+  source = type(source) == "table" and source or {}
+  local result = {}
+  for _, key in ipairs(M.randomEventOrder) do
+    local defaults = M.randomEventDefaults[key]
+    local value = type(source[key]) == "table" and source[key] or {}
+    local enabled = value.enabled == nil and defaults.enabled == true or value.enabled == true
+    if key == "policeCheck" and value.preloadConfirmed ~= true then enabled = false end
+    result[key] = {
+      enabled = enabled,
+      chancePercent = math.floor(clamp(
+        tonumber(value.chancePercent) or defaults.chancePercent,
+        0,
+        100
+      ) + 0.5),
+      preloadConfirmed = key == "policeCheck" and value.preloadConfirmed == true or nil
+    }
+  end
+  return result
 end
 
 M.fleetDefaults = {

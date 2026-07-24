@@ -1,5 +1,91 @@
 # Changelog
 
+## 3.4.1 RC — Native AI Driver and Dynamic Events
+
+This release candidate contains every change made after `3.4.0-beta`. It replaces the overextended predictive driving experiment with a smaller adapter around BeamNG's native vehicle AI, adds traffic-aware protection for the player and hired Fleet vehicles, and expands Random Events and physical pickups.
+
+> **Experimental AI notice:** AI Driver still depends on BeamNG road graphs, vehicle controllers and traffic behavior. It is intended as an entertaining assisted-driving mode rather than a guarantee of human-level autonomous driving on every map or mod vehicle.
+
+### Native AI Driver architecture
+
+- Replaced runtime use of the predictive free-space planner, local A* controller, aggressive bypass and custom reverse-recovery stack with BeamNG's native `ai.driveUsingPath`.
+- Added an explicit player-vehicle identity guard. AI commands for a stale or NPC vehicle ID are rejected instead of moving, teleporting or despawning the player's car.
+- Disabled native `setRecoverOnCrash` for the player vehicle so a stationary boarding sequence cannot be mistaken for a crashed traffic bot and safe-teleported.
+- Kept native obstacle avoidance and lane following enabled during ordinary travel.
+- Simplified AI presets and Custom settings to parameters the current native adapter actually uses: aggression, following time, minimum following distance, comfortable braking, traffic wait time, speed-limit compliance and lane discipline.
+- Removed the obsolete decision-visualization setting from the UI.
+
+### Legal routes and optional strict GPS
+
+- Added directed-edge route planning for the final target road. It approaches the target edge in its legal travel direction and forbids an immediate reversal through the opposing lane.
+- Added **Strict GPS route** as a setting independent of driving temperament. When enabled, AI receives the exact ordered road-node sequence currently displayed by BeamNG ground navigation.
+- A recalculated GPS route immediately marks the AI route dirty and sends the updated shortest route to the vehicle.
+- If a strict GPS path is temporarily unavailable, AI falls back to the legal autonomous graph route instead of turning itself off.
+- Filtered coordinate-only ground-marker entries before Vehicle Lua serialization, preventing invalid `table: 0x...` waypoint IDs and native AI errors.
+- Native `Route Done` is accepted only after checking physical distance to the active TaxiDriver target. A premature completion causes an immediate current-position replan, bounded to three retries.
+- Final-target braking activates only after the vehicle is aligned with the target-side travel direction, preventing early stops on the opposite side of the road.
+
+### Smooth traffic guard
+
+- Added the lazy Vehicle Lua `taxiDriverStockAiObserver` around native driving.
+- It observes map-tracked vehicles, maintains both a configurable time gap and minimum bumper gap, and derives a progressive speed cap from relative speed and comfortable stopping distance.
+- Speed reduction is jerk-limited. Full emergency braking is reserved for critical time-to-collision or a physically excessive required deceleration.
+- Added steering-arc prediction so vehicles crossing the swept path during a turn can be detected even when they are outside the straight lane corridor.
+- Added target-aligned final-approach speed limiting without taking steering away from native AI.
+- The observer owns the protected native `Route Done` hook only while an AI route is active and restores the original BeamNG hook when stopped.
+
+### Passenger and cargo pickup flow
+
+- Passenger orders can spawn BeamNG's unicycle character at the pickup point; cargo orders can spawn the small cardboard-box vehicle.
+- Physical pickup is optional at runtime: missing content or an unsupported spawn falls back to the existing logical pickup without cancelling the order.
+- A manual horn near the passenger starts walking toward the taxi.
+- AI pickup now requires the taxi to be within seven metres and fully stopped.
+- After stopping, AI emits two 600 ms horn pulses separated by 200 ms, waits for the passenger boarding event, and only then starts the destination route.
+- The passenger is treated as a pickup obstacle. Hitting the passenger cancels the order, records the incident and applies a major fine.
+- Reduced physical-passenger command frequency and excluded its prop from broad vehicle prediction scans to prevent pickup-area frame spikes.
+
+### Configurable Random Events
+
+- Added a dedicated Random Events settings expander.
+- Every event has an independent enable switch and probability from 0% to 100%.
+- Existing cancellation, destination-change, additional-stop, conditional-tip and fragile-cargo events now use the same configuration model.
+- Added passenger no-show, VIP/quiet ride, forgotten-item return and temporary road-reroute events.
+- Added an opt-in police inspection using BeamNG's native police and pursuit systems.
+- Police content is selected from installed compatible configurations, preloaded asynchronously and activated 500–600 metres behind the player when the event begins.
+- Police inspection is disabled by default. Enabling it requires a confirmation explaining that preparing a police vehicle can stall the start of a shift for 5–15 seconds.
+- A completed native police stop can apply a small randomized administrative fine; unavailable police content fails safely without breaking the trip.
+
+### Trip history and Fleet access
+
+- Reviews are now expandable trip-history records containing outcome, fare, date, penalties and Random Event history.
+- AI-assisted trips remain marked in review and profile history.
+- The Fleet map button remains present with `F 0` when no driver is hired, allowing the hiring screen to be opened during an active personal shift.
+- Fleet controls and driver-count labels remain CEF overlays above both personal and Fleet maps.
+
+### Traffic-aware Fleet workers
+
+- Hired drivers keep the low-cost native route worker introduced in 3.3.1 Beta.
+- Each Fleet vehicle now runs a simplified instance of the traffic guard: smooth following, minimum-gap control and steering-arc collision prediction.
+- Fleet observation runs every 200 ms with six trajectory samples, versus the player's 100 ms and twelve samples, limiting aggregate CPU cost.
+- Fleet presets provide aggression, legal-speed behavior, following time and braking values without instantiating player-only target logic.
+- Fleet route progress remains staggered at 250 ms, trims already passed nodes, rebuilds from the current road segment and abandons an unreachable job after bounded retries.
+- Fleet traffic state is isolated per worker and never uses the player's position when selecting or repairing a route.
+
+### Runtime modularization
+
+- Extracted native minimap ownership, dynamic zoom, occlusion regions and restoration of BeamNG navigation settings into `navigationUi.lua`.
+- Reduced `taxiDriver.lua` from 4,199 to 4,026 lines and from 179 to 166 main-chunk locals, restoring meaningful safety margin below LuaJIT's 200-local limit.
+- Kept Vehicle Config suspension and lazy vehicle rescanning unchanged so editing parts does not reintroduce the previous long configuration stalls.
+- Added dedicated `physicalPickup.lua`, `policeCheckEvent.lua` and `tripHistory.lua` services.
+
+### Validation and compatibility
+
+- Passed the Lua gameplay combinatorics suite, including native player routing, strict GPS, directed-edge approach, premature `Route Done`, traffic observation, physical pickup, Random Events, police lifecycle, Fleet economy/routing and 500 deferred respawns.
+- Passed 357 responsive UI states across all supported locales, native/Connected Phone layouts and DPR 2 HiDPI rendering.
+- Built a deterministic 59-entry release archive and verified the installed archive hash.
+- Existing `3.4.0-beta` settings, driver progress, reviews, vehicle history, shift history, Fleet records and LAN identity remain compatible. Removed AI fields are safely ignored during settings migration.
+- UI cache revision: `341-rc`.
+
 ## 3.4.0 Beta — Runtime Stability and Compact UI
 
 This cumulative prerelease contains every change made after `3.3.1-beta`. It focuses on making the in-game UI less intrusive, reducing periodic runtime work, and preventing stale asynchronous callbacks or optional subsystem failures from destabilizing a game session.

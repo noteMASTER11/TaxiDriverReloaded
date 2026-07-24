@@ -1,6 +1,6 @@
 <style>
-  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=340-beta");
-  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=340-beta");
+  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=341-rc");
+  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=341-rc");
 </style>
 
 <div class="taxi-shell" ng-if="externalPhoneMode || !vehicleConfigSuspended" ng-class="{'taxi-shell--minimized': !externalPhoneMode && phoneMinimized, 'taxi-shell--super-minimized': !externalPhoneMode && phoneSuperMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
@@ -225,6 +225,37 @@
         </div>
       </section>
 
+      <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.randomEvents}">
+        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('randomEvents')">
+          <span class="taxi-settings__group-icon">⚡</span><strong>{{ t('randomEvents') }}</strong><i>{{ settingsSections.randomEvents ? '-' : '+' }}</i>
+        </button>
+        <div class="taxi-settings__group-body" ng-if="settingsSections.randomEvents">
+          <div class="taxi-settings__section">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('randomEventsEnabled') }}</strong><span>{{ t('randomEventsSettingsHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.randomEventsEnabled" ng-change="hud.toggleRandomEvents()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <div class="taxi-settings__section" ng-repeat="option in randomEventOptions track by option.key">
+            <label class="taxi-settings__switch-row taxi-settings__switch-row--compact">
+              <span class="taxi-settings__switch-copy"><strong>{{ t(option.label) }}</strong><span>{{ t(option.help) }}</span></span>
+              <input type="checkbox" ng-model="settings.randomEvents[option.key].enabled" ng-change="hud.toggleRandomEvent(option)">
+              <span class="taxi-settings__switch"></span>
+            </label>
+            <div class="taxi-settings__label">
+              <span>{{ t('randomEventProbability') }}</span>
+              <span>{{ settings.randomEvents[option.key].chancePercent | number:0 }}%</span>
+            </div>
+            <input class="taxi-settings__range" type="range" min="0" max="100" step="1"
+              ng-model="settings.randomEvents[option.key].chancePercent"
+              ng-disabled="!settings.randomEvents[option.key].enabled"
+              ng-change="hud.settingsChanged()">
+          </div>
+          <div class="taxi-settings__portable">{{ t('randomEventsExclusiveHelp') }}</div>
+        </div>
+      </section>
+
       <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.aiDriver}">
         <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('aiDriver')">
           <span class="taxi-settings__group-icon">AI</span><strong>{{ t('settingsAiDriver') }}</strong><i>{{ settingsSections.aiDriver ? '-' : '+' }}</i>
@@ -241,85 +272,53 @@
           </div>
           <div class="taxi-settings__section taxi-settings__section--stacked-switches">
             <label class="taxi-settings__switch-row">
-              <span class="taxi-settings__switch-copy"><strong>{{ t('aiDebugLogger') }}</strong><span>{{ t('aiDebugLoggerHelp') }}</span></span>
-              <input type="checkbox" ng-model="settings.aiDebugLogging" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+              <span class="taxi-settings__switch-copy"><strong>{{ t('aiStrictGpsRoute') }}</strong><span>{{ t('aiStrictGpsRouteHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.aiDriver.strictGpsRoute" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
             </label>
             <label class="taxi-settings__switch-row">
-              <span class="taxi-settings__switch-copy"><strong>{{ t('aiDecisionVisualization') }}</strong><span>{{ t('aiDecisionVisualizationHelp') }}</span></span>
-              <input type="checkbox" ng-model="settings.aiDecisionVisualization" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+              <span class="taxi-settings__switch-copy"><strong>{{ t('aiDebugLogger') }}</strong><span>{{ t('aiDebugLoggerHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.aiDebugLogging" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
             </label>
           </div>
           <div class="taxi-settings__custom" ng-if="settings.aiDriver.preset === 'custom'">
             <p>{{ t('aiCustomHelp') }}</p>
-          <div class="taxi-settings__section">
-            <div class="taxi-settings__label"><span>{{ t('aiAggression') }}</span><span>{{ settings.aiDriver.aggressionPercent | number:0 }}%</span></div>
-            <div class="taxi-settings__help">{{ t('aiAggressionHelp') }}</div>
-            <input class="taxi-settings__range" type="range" min="10" max="80" step="5" ng-model="settings.aiDriver.aggressionPercent" ng-change="hud.settingsChanged()">
-            <div class="taxi-settings__range-ends"><span>{{ t('aiCalm') }}</span><span>{{ t('aiAssertive') }}</span></div>
-          </div>
-          <div class="taxi-settings__section">
-            <div class="taxi-settings__label"><span>{{ t('aiFollowingGap') }}</span><span>{{ settings.aiDriver.followingTimeGap | number:1 }} s</span></div>
-            <div class="taxi-settings__help">{{ t('aiFollowingGapHelp') }}</div>
-            <input class="taxi-settings__range" type="range" min="1.2" max="3.5" step="0.1" ng-model="settings.aiDriver.followingTimeGap" ng-change="hud.settingsChanged()">
-            <div class="taxi-settings__range-ends"><span>{{ t('aiClose') }}</span><span>{{ t('aiFar') }}</span></div>
-          </div>
-          <div class="taxi-settings__section">
-            <div class="taxi-settings__label"><span>{{ t('aiBraking') }}</span><span>{{ settings.aiDriver.brakingDeceleration | number:1 }} m/s²</span></div>
-            <div class="taxi-settings__help">{{ t('aiBrakingHelp') }}</div>
-            <input class="taxi-settings__range" type="range" min="1.5" max="4.5" step="0.1" ng-model="settings.aiDriver.brakingDeceleration" ng-change="hud.settingsChanged()">
-            <div class="taxi-settings__range-ends"><span>{{ t('aiSmooth') }}</span><span>{{ t('aiFirm') }}</span></div>
-          </div>
-          <div class="taxi-settings__section">
-            <div class="taxi-settings__label"><span>{{ t('aiStuckDelay') }}</span><span>{{ settings.aiDriver.stuckDelaySeconds | number:0 }} s</span></div>
-            <div class="taxi-settings__help">{{ t('aiStuckDelayHelp') }}</div>
-            <input class="taxi-settings__range" type="range" min="8" max="30" step="1" ng-model="settings.aiDriver.stuckDelaySeconds" ng-change="hud.settingsChanged()">
-          </div>
-          <div class="taxi-settings__section taxi-settings__section--stacked-switches">
-            <label class="taxi-settings__switch-row">
-              <span class="taxi-settings__switch-copy"><strong>{{ t('aiObeySpeedLimits') }}</strong><span>{{ t('aiObeySpeedLimitsHelp') }}</span></span>
-              <input type="checkbox" ng-model="settings.aiDriver.obeySpeedLimits" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
-            </label>
-            <label class="taxi-settings__switch-row">
-              <span class="taxi-settings__switch-copy"><strong>{{ t('aiObeyTrafficSignals') }}</strong><span>{{ t('aiObeyTrafficSignalsHelp') }}</span></span>
-              <input type="checkbox" ng-model="settings.aiDriver.obeyTrafficSignals" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
-            </label>
-          </div>
-          <section class="taxi-settings__subgroup" ng-class="{'taxi-settings__subgroup--open': aiManeuversOpen}">
-            <button type="button" class="taxi-settings__subgroup-head" ng-click="hud.toggleAiManeuvers()">
-              <strong>{{ t('aiManeuversRecovery') }}</strong><i>{{ aiManeuversOpen ? '-' : '+' }}</i>
-            </button>
-            <div class="taxi-settings__subgroup-body" ng-if="aiManeuversOpen">
-              <div class="taxi-settings__section taxi-settings__section--stacked-switches">
-                <label class="taxi-settings__switch-row">
-                  <span class="taxi-settings__switch-copy"><strong>{{ t('aiOvertaking') }}</strong><span>{{ t('aiOvertakingHelp') }}</span></span>
-                  <input type="checkbox" ng-model="settings.aiDriver.allowOvertaking" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
-                </label>
-                <label class="taxi-settings__switch-row taxi-settings__switch-row--warning">
-                  <span class="taxi-settings__switch-copy"><strong>{{ t('aiEmergencyBypass') }}</strong><span>{{ t('aiEmergencyBypassHelp') }}</span></span>
-                  <input type="checkbox" ng-model="settings.aiDriver.allowOncomingRecovery" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
-                </label>
-                <label class="taxi-settings__switch-row">
-                  <span class="taxi-settings__switch-copy"><strong>{{ t('aiReverseRecovery') }}</strong><span>{{ t('aiReverseRecoveryHelp') }}</span></span>
-                  <input type="checkbox" ng-model="settings.aiDriver.allowReverseRecovery" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
-                </label>
-              </div>
-              <div class="taxi-settings__section">
-                <div class="taxi-settings__label"><span>{{ t('aiLaneChangeClearance') }}</span><span>{{ settings.aiDriver.laneChangeClearancePercent | number:0 }}%</span></div>
-                <div class="taxi-settings__help">{{ t('aiLaneChangeClearanceHelp') }}</div>
-                <input class="taxi-settings__range" type="range" min="50" max="175" step="5" ng-model="settings.aiDriver.laneChangeClearancePercent" ng-change="hud.settingsChanged()">
-              </div>
-              <div class="taxi-settings__section">
-                <div class="taxi-settings__label"><span>{{ t('aiRecoveryAttempts') }}</span><span>{{ settings.aiDriver.recoveryMaxAttempts | number:0 }}</span></div>
-                <div class="taxi-settings__help">{{ t('aiRecoveryAttemptsHelp') }}</div>
-                <input class="taxi-settings__range" type="range" min="1" max="5" step="1" ng-model="settings.aiDriver.recoveryMaxAttempts" ng-change="hud.settingsChanged()">
-              </div>
-              <div class="taxi-settings__section">
-                <div class="taxi-settings__label"><span>{{ t('aiFinalApproachSpeed') }}</span><span>{{ formatSpeed(settings.aiDriver.finalApproachSpeedKmh) }}</span></div>
-                <div class="taxi-settings__help">{{ t('aiFinalApproachSpeedHelp') }}</div>
-                <input class="taxi-settings__range" type="range" min="5" max="20" step="1" ng-model="settings.aiDriver.finalApproachSpeedKmh" ng-change="hud.settingsChanged()">
-              </div>
+            <div class="taxi-settings__portable"><strong>{{ t('aiTrafficAwareness') }}</strong><br>{{ t('aiTrafficAwarenessHelp') }}</div>
+            <div class="taxi-settings__section">
+              <div class="taxi-settings__label"><span>{{ t('aiAggression') }}</span><span>{{ settings.aiDriver.aggressionPercent | number:0 }}%</span></div>
+              <div class="taxi-settings__help">{{ t('aiAggressionHelp') }}</div>
+              <input class="taxi-settings__range" type="range" min="30" max="100" step="5" ng-model="settings.aiDriver.aggressionPercent" ng-change="hud.settingsChanged()">
+              <div class="taxi-settings__range-ends"><span>{{ t('aiCalm') }}</span><span>{{ t('aiAssertive') }}</span></div>
             </div>
-          </section>
+            <div class="taxi-settings__section">
+              <div class="taxi-settings__label"><span>{{ t('aiFollowingGap') }}</span><span>{{ settings.aiDriver.followingTimeGap | number:1 }} s</span></div>
+              <div class="taxi-settings__help">{{ t('aiFollowingGapHelp') }}</div>
+              <input class="taxi-settings__range" type="range" min="1" max="4" step="0.1" ng-model="settings.aiDriver.followingTimeGap" ng-change="hud.settingsChanged()">
+            </div>
+            <div class="taxi-settings__section">
+              <div class="taxi-settings__label"><span>{{ t('aiMinimumGap') }}</span><span>{{ settings.aiDriver.minimumFollowingDistance | number:1 }} m</span></div>
+              <div class="taxi-settings__help">{{ t('aiMinimumGapHelp') }}</div>
+              <input class="taxi-settings__range" type="range" min="2" max="10" step="0.5" ng-model="settings.aiDriver.minimumFollowingDistance" ng-change="hud.settingsChanged()">
+            </div>
+            <div class="taxi-settings__section">
+              <div class="taxi-settings__label"><span>{{ t('aiBraking') }}</span><span>{{ settings.aiDriver.brakingDeceleration | number:1 }} m/s²</span></div>
+              <div class="taxi-settings__help">{{ t('aiBrakingHelp') }}</div>
+              <input class="taxi-settings__range" type="range" min="2" max="8" step="0.5" ng-model="settings.aiDriver.brakingDeceleration" ng-change="hud.settingsChanged()">
+            </div>
+            <div class="taxi-settings__section">
+              <div class="taxi-settings__label"><span>{{ t('aiTrafficWait') }}</span><span>{{ settings.aiDriver.trafficWaitSeconds | number:0 }} s</span></div>
+              <div class="taxi-settings__help">{{ t('aiTrafficWaitHelp') }}</div>
+              <input class="taxi-settings__range" type="range" min="1" max="10" step="1" ng-model="settings.aiDriver.trafficWaitSeconds" ng-change="hud.settingsChanged()">
+            </div>
+            <div class="taxi-settings__section taxi-settings__section--stacked-switches">
+              <label class="taxi-settings__switch-row">
+                <span class="taxi-settings__switch-copy"><strong>{{ t('aiObeySpeedLimits') }}</strong><span>{{ t('aiObeySpeedLimitsHelp') }}</span></span>
+                <input type="checkbox" ng-model="settings.aiDriver.obeySpeedLimits" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+              </label>
+              <label class="taxi-settings__switch-row">
+                <span class="taxi-settings__switch-copy"><strong>{{ t('aiLaneDiscipline') }}</strong><span>{{ t('aiLaneDisciplineHelp') }}</span></span>
+                <input type="checkbox" ng-model="settings.aiDriver.laneDiscipline" ng-change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+              </label>
+            </div>
           </div>
         </div>
       </section>
@@ -591,10 +590,36 @@
             <div class="taxi-review__copy"><strong>{{ t('deliveryOrder') }}</strong><span>Sep 30, 2026 · $99999.99</span><b>AI · {{ t('aiAssisted') }}</b></div>
             <div class="taxi-review__ratings"><strong>{{ t('orderRating') }} 5.00 ★</strong><span>{{ t('profileRating') }} 5.00 ★</span></div>
           </div>
-          <div class="taxi-review" ng-repeat="review in getPagedReviews() track by review.id">
-            <div class="taxi-review__emoji">{{ review.emoji }}</div>
-            <div class="taxi-review__copy"><strong>{{ (review.outcome === 'delivery' || review.outcome === 'deliveryAbandonment') ? t('deliveryOrder') : review.passengerName }}</strong><span>{{ formatReviewDate(review.timestamp) }} · {{ formatMoney(review.fare) }}</span><b ng-if="review.usedAutopilot">AI · {{ t('aiAssisted') }}</b></div>
-            <div class="taxi-review__ratings"><strong ng-class="'taxi-review__order-rating--' + getReviewRatingClass(review)">{{ t('orderRating') }} {{ review.orderRating | number:2 }} ★</strong><span>{{ t('profileRating') }} {{ review.rating | number:2 }} ★</span></div>
+          <div class="taxi-review-wrap" ng-repeat="review in getPagedReviews() track by review.id" ng-class="{'taxi-review-wrap--open': expandedReviewId === review.id}">
+            <button type="button" class="taxi-review" ng-click="hud.toggleReviewDetails(review)" ng-attr-aria-expanded="{{ expandedReviewId === review.id }}">
+              <span class="taxi-review__emoji">{{ review.emoji }}</span>
+              <span class="taxi-review__copy"><strong>{{ (review.outcome === 'delivery' || review.outcome === 'deliveryAbandonment') ? t('deliveryOrder') : review.passengerName }}</strong><span>{{ formatReviewDate(review.timestamp) }} · {{ formatMoney(review.fare) }}</span><b ng-if="review.usedAutopilot">AI · {{ t('aiAssisted') }}</b></span>
+              <span class="taxi-review__ratings"><strong ng-class="'taxi-review__order-rating--' + getReviewRatingClass(review)">{{ t('orderRating') }} {{ review.orderRating | number:2 }} ★</strong><span>{{ t('profileRating') }} {{ review.rating | number:2 }} ★</span></span>
+              <i class="taxi-review__expand">{{ expandedReviewId === review.id ? '−' : '+' }}</i>
+            </button>
+            <div class="taxi-review-details" ng-if="expandedReviewId === review.id">
+              <div class="taxi-review-details__summary">
+                <span><small>{{ t('tripHistoryOutcome') }}</small><strong>{{ t('tripOutcome_' + review.outcome) }}</strong></span>
+                <span><small>{{ t('tripHistoryFare') }}</small><strong>{{ formatMoney(review.fare) }}</strong></span>
+                <span><small>{{ t('tripHistoryDate') }}</small><strong>{{ formatReviewDate(review.timestamp) }}</strong></span>
+              </div>
+              <section>
+                <h4>{{ t('tripHistoryPenalties') }}</h4>
+                <p ng-if="!review.penalties.length">{{ t('tripHistoryNoPenalties') }}</p>
+                <div class="taxi-review-details__line" ng-repeat="penalty in review.penalties track by $index">
+                  <span><strong>{{ getPenaltyHistoryLabel(penalty) }}</strong><small ng-if="penalty.detail">{{ penalty.detail }}</small></span>
+                  <b>{{ formatPenaltyHistory(penalty) }}</b>
+                </div>
+              </section>
+              <section>
+                <h4>{{ t('tripHistoryRandomEvents') }}</h4>
+                <p ng-if="!review.randomEvents.length">{{ t('tripHistoryNoRandomEvents') }}</p>
+                <div class="taxi-review-details__line" ng-repeat="event in review.randomEvents track by $index">
+                  <span><strong>{{ getRandomEventLabel(event) }}</strong><small>{{ getRandomEventStatus(event) }}</small></span>
+                  <b ng-if="event.amount > 0">{{ formatMoney(event.amount) }}</b>
+                </div>
+              </section>
+            </div>
           </div>
           <div class="taxi-profile__pager" ng-if="profileReviews.length">
             <button type="button" ng-click="hud.previousReviewPage()" ng-disabled="reviewPage <= 1">‹</button>
@@ -683,7 +708,7 @@
         <button type="button" class="taxi-map__autopilot" ng-if="state.active && (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination' || state.phase === 'toFuelStation')" ng-class="{'taxi-map__autopilot--active': state.autopilot.enabled, 'taxi-map__autopilot--recovering': state.autopilot.status === 'recovering'}" ng-click="hud.toggleAutopilot()" ng-disabled="!state.autopilot.available">
           <strong>AI</strong><span>{{ t(state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable') }}</span>
         </button>
-        <div class="taxi-fleet__map-status"><i></i><strong>{{ state.fleet.activeDrivers }}</strong><span>{{ t('fleetActiveDrivers') }}</span></div>
+        <div class="taxi-fleet__map-status"><i>F</i><strong>{{ state.fleet.activeDrivers }}</strong><span>{{ t('fleetActiveDrivers') }}</span></div>
       </div>
       <div class="taxi-fleet__panel">
        <div class="taxi-fleet__head">
@@ -941,7 +966,7 @@
           <strong>AI</strong>
           <span>{{ t(state.autopilot.status === 'recovering' ? 'autopilotRecovering' : (state.autopilot.status === 'waitingTraffic' ? 'autopilotWaitingTraffic' : (state.autopilot.status === 'waitingSignal' ? 'autopilotWaiting' : (state.autopilot.status === 'planning' ? 'autopilotPlanning' : (state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable'))))) }}</span>
         </button>
-        <button type="button" class="taxi-map__fleet" ng-if="state.fleet.activeDrivers > 0" ng-click="hud.toggleFleet()"><strong>F</strong><span>{{ state.fleet.activeDrivers }}</span></button>
+        <button type="button" class="taxi-map__fleet" ng-click="hud.toggleFleet()" title="{{ t('fleetTitle') }}" aria-label="{{ t('fleetTitle') }}"><strong>F</strong><span>{{ state.fleet.activeDrivers || 0 }}</span></button>
       </div>
       <div class="taxi-fuel-route__sheet">
         <div class="taxi-fuel-route__head">
@@ -985,7 +1010,7 @@
           <strong>AI</strong>
           <span>{{ t(state.autopilot.status === 'recovering' ? 'autopilotRecovering' : (state.autopilot.status === 'waitingTraffic' ? 'autopilotWaitingTraffic' : (state.autopilot.status === 'waitingSignal' ? 'autopilotWaiting' : (state.autopilot.status === 'planning' ? 'autopilotPlanning' : (state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable'))))) }}</span>
         </button>
-        <button type="button" class="taxi-map__fleet" ng-if="state.fleet.activeDrivers > 0" ng-click="hud.toggleFleet()"><strong>F</strong><span>{{ state.fleet.activeDrivers }}</span></button>
+        <button type="button" class="taxi-map__fleet" ng-click="hud.toggleFleet()" title="{{ t('fleetTitle') }}" aria-label="{{ t('fleetTitle') }}"><strong>F</strong><span>{{ state.fleet.activeDrivers || 0 }}</span></button>
       </div>
 
       <div class="taxi-sheet">
@@ -1178,6 +1203,18 @@
         <div class="taxi-offline-confirm__actions">
           <button type="button" class="taxi-offline-confirm__cancel" ng-click="hud.cancelOfflineConfirmation()">{{ t('cancel') }}</button>
           <button type="button" class="taxi-offline-confirm__confirm" ng-click="hud.confirmOfflineWithPassenger()">{{ t('confirmOffline') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="taxi-offline-confirm taxi-police-confirm" ng-if="policeCheckConfirmOpen">
+      <div class="taxi-offline-confirm__card">
+        <div class="taxi-offline-confirm__icon">🚓</div>
+        <h2>{{ t('policeCheckEnableTitle') }}</h2>
+        <p>{{ t('policeCheckEnableDesc') }}</p>
+        <div class="taxi-offline-confirm__actions">
+          <button type="button" class="taxi-offline-confirm__cancel" ng-click="hud.cancelPoliceCheckEnable()">{{ t('cancel') }}</button>
+          <button type="button" class="taxi-offline-confirm__confirm" ng-click="hud.confirmPoliceCheckEnable()">{{ t('policeCheckEnableConfirm') }}</button>
         </div>
       </div>
     </div>

@@ -57,19 +57,24 @@ $requiredEntries = @(
   "lua/ge/extensions/taxiDriver/optionalLanBridge.lua",
   "lua/ge/extensions/taxiDriver/autopilotPerception.lua",
   "lua/ge/extensions/taxiDriver/persistence.lua",
+  "lua/ge/extensions/taxiDriver/physicalPickup.lua",
+  "lua/ge/extensions/taxiDriver/policeCheckEvent.lua",
   "lua/ge/extensions/taxiDriver/routePlanner.lua",
   "lua/ge/extensions/taxiDriver/rideRules.lua",
   "lua/ge/extensions/taxiDriver/hudPublisher.lua",
   "lua/ge/extensions/taxiDriver/logger.lua",
+  "lua/ge/extensions/taxiDriver/navigationUi.lua",
   "lua/ge/extensions/taxiDriver/shiftTracker.lua",
   "lua/ge/extensions/taxiDriver/shiftHistory.lua",
   "lua/ge/extensions/taxiDriver/tripEvents.lua",
+  "lua/ge/extensions/taxiDriver/tripHistory.lua",
   "lua/ge/extensions/taxiDriver/vehicleControl.lua",
   "lua/ge/extensions/taxiDriver/vehicleHistory.lua",
   "lua/ge/extensions/taxiDriver/vehicleScanGuard.lua",
   "lua/ge/extensions/taxiDriver/vehicleBridgeGuard.lua",
   "lua/vehicle/extensions/taxiDriverTelemetry.lua",
   "lua/vehicle/extensions/taxiDriverAutopilotRecovery.lua",
+  "lua/vehicle/extensions/taxiDriverStockAiObserver.lua",
   "lua/vehicle/extensions/taxiDriverCargo.lua",
   "ui/modules/apps/TaxiDriverHUD/app.html",
   "ui/modules/apps/TaxiDriverHUD/app.js",
@@ -87,7 +92,7 @@ try {
   if ($entries | Where-Object FullName -like "lua/vehicle/extensions/auto/taxiDriver*") {
     throw "TaxiDriver vehicle extensions must remain lazy-loaded, not automatic"
   }
-  if ($entries.Count -ne 54) {
+  if ($entries.Count -ne 59) {
     throw "Unexpected archive entry count: $($entries.Count)"
   }
 }

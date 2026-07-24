@@ -735,7 +735,7 @@
   .taxi-map__autopilot:disabled { opacity: .46; }
   .taxi-map__fleet {
     position: absolute;
-    z-index: 3;
+    z-index: 5;
     bottom: 10px;
     left: 10px;
     display: flex;
@@ -1682,7 +1682,7 @@
   .taxi-profile__save { width: 100%; margin-top: 12px; padding: 11px; color: #17140a; font-size: 11px; font-weight: 1000; background: var(--yellow); border: 0; border-radius: 9px; cursor: pointer; }
   .taxi-profile__saved { margin-top: 7px; color: var(--green); font-size: 10px; text-align: center; }
   .taxi-profile__empty { padding: 30px 12px; color: var(--muted); font-size: 11px; text-align: center; }
-  .taxi-review { display: flex; align-items: center; gap: 10px; padding: 9px 1px; border-top: 1px solid rgba(255,255,255,.065); }
+  .taxi-review { display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 1px; color: inherit; text-align: left; background: transparent; border: 0; border-top: 1px solid rgba(255,255,255,.065); cursor: pointer; }
   .taxi-review:first-child { border-top: 0; }
   .taxi-review__emoji { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; font-family: "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 25px; background: rgba(255,255,255,.065); border-radius: 10px; }
   .taxi-review__copy { min-width: 0; flex: 1; }
@@ -1695,6 +1695,26 @@
   .taxi-review__order-rating--higher { color: var(--green); }
   .taxi-review__order-rating--equal { color: var(--yellow); }
   .taxi-review__order-rating--lower { color: var(--red); }
+  .taxi-review__expand { display: grid; width: 20px; height: 20px; flex: 0 0 20px; place-items: center; color: var(--yellow); font-size: 15px; font-style: normal; background: rgba(255,209,26,.08); border-radius: 6px; }
+  .taxi-review-wrap:first-of-type .taxi-review { border-top: 0; }
+  .taxi-review-wrap--open { margin: 0 -5px; padding: 0 5px 7px; background: rgba(255,209,26,.035); border: 1px solid rgba(255,209,26,.16); border-radius: 9px; }
+  .taxi-review-details { padding: 2px 4px 4px; }
+  .taxi-review-details__summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+  .taxi-review-details__summary span { min-width: 0; padding: 7px; background: rgba(0,0,0,.16); border-radius: 7px; }
+  .taxi-review-details__summary small, .taxi-review-details__summary strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .taxi-review-details__summary small { color: var(--muted); font-size: 7px; text-transform: uppercase; }
+  .taxi-review-details__summary strong { margin-top: 3px; font-size: 9px; }
+  .taxi-review-details section { margin-top: 8px; }
+  .taxi-review-details h4 { margin: 0 0 4px; color: var(--muted); font-size: 8px; text-transform: uppercase; }
+  .taxi-review-details p { margin: 0; padding: 7px; color: var(--muted); font-size: 8px; background: rgba(0,0,0,.12); border-radius: 6px; }
+  .taxi-review-details__line { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 7px; background: rgba(0,0,0,.14); border-top: 1px solid rgba(255,255,255,.05); }
+  .taxi-review-details__line:first-of-type { border-top: 0; border-radius: 6px 6px 0 0; }
+  .taxi-review-details__line:last-child { border-radius: 0 0 6px 6px; }
+  .taxi-review-details__line span { min-width: 0; }
+  .taxi-review-details__line strong, .taxi-review-details__line small { display: block; }
+  .taxi-review-details__line strong { font-size: 9px; }
+  .taxi-review-details__line small { margin-top: 2px; overflow-wrap: anywhere; color: var(--muted); font-size: 7px; line-height: 1.3; }
+  .taxi-review-details__line > b { flex: 0 0 auto; color: var(--yellow); font-size: 9px; }
   .taxi-profile__panel--reviews { position: relative; display: flex; min-height: 100%; flex-direction: column; }
   .taxi-review--measure { position: absolute; right: 12px; left: 12px; visibility: hidden; pointer-events: none; }
   .taxi-review--measure + .taxi-review:not(.taxi-review--measure) { border-top: 0; }
@@ -1751,6 +1771,9 @@
   .taxi-offline-confirm__actions button { padding: 10px 7px; font-size: 9px; font-weight: 1000; border-radius: 8px; cursor: pointer; }
   .taxi-offline-confirm__cancel { color: #fff; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); }
   .taxi-offline-confirm__confirm { color: #fff; background: #b93642; border: 1px solid #e25a65; }
+  .taxi-police-confirm .taxi-offline-confirm__card { background: linear-gradient(155deg, #342f20, #1b1e23); border-color: rgba(255,209,26,.55); }
+  .taxi-police-confirm .taxi-offline-confirm__icon { background: rgba(255,209,26,.12); border-color: rgba(255,209,26,.34); }
+  .taxi-police-confirm .taxi-offline-confirm__confirm { color: #17140a; background: var(--yellow); border-color: var(--yellow); }
 
   .taxi-next-offer {
     position: absolute;
@@ -2189,8 +2212,8 @@
   }
   .taxi-fleet__map { flex: 0 0 clamp(180px, 34vh, 290px); border-bottom: 1px solid rgba(174,116,255,.2); }
   .taxi-fleet__panel { display: flex; min-height: 0; flex: 1; flex-direction: column; padding: 14px; background: linear-gradient(165deg, rgba(36,40,46,.98), rgba(17,19,23,.99) 72%); }
-  .taxi-fleet__map-status { position: absolute; z-index: 3; bottom: 10px; left: 10px; display: flex; min-height: 34px; align-items: center; gap: 6px; padding: 6px 9px; color: #e7d8ff; background: rgba(29,16,46,.93); border: 1px solid rgba(174,116,255,.42); border-radius: 9px; box-shadow: 0 5px 14px rgba(0,0,0,.25); }
-  .taxi-fleet__map-status i { width: 9px; height: 9px; background: #9a4aff; border: 2px solid #d1b3ff; border-radius: 50%; box-shadow: 0 0 8px #9a4aff; }
+  .taxi-fleet__map-status { position: absolute; z-index: 5; bottom: 10px; left: 10px; display: flex; min-height: 40px; align-items: center; gap: 7px; padding: 6px 10px 6px 7px; color: #e7d8ff; background: rgba(29,16,46,.95); border: 1px solid rgba(174,116,255,.5); border-radius: 11px; box-shadow: 0 7px 18px rgba(0,0,0,.28); pointer-events: none; }
+  .taxi-fleet__map-status i { display: grid; width: 27px; height: 27px; place-items: center; color: #fff; font-size: 14px; font-style: normal; font-weight: 1000; background: #9254e8; border-radius: 50%; box-shadow: 0 0 8px rgba(154,74,255,.65); }
   .taxi-fleet__map-status strong { font-size: 13px; }
   .taxi-fleet__map-status span { color: #c9b9df; font-size: 9px; }
   .taxi-fleet__head { display: flex; align-items: flex-start; gap: 10px; }

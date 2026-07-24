@@ -66,6 +66,18 @@ const tripEventsLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/tripEvents.lua"),
   "utf8"
 );
+const policeCheckLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/policeCheckEvent.lua"),
+  "utf8"
+);
+const physicalPickupLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/physicalPickup.lua"),
+  "utf8"
+);
+const tripHistoryLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/tripHistory.lua"),
+  "utf8"
+);
 const lanBridgeLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/lanBridge.lua"),
   "utf8"
@@ -100,6 +112,22 @@ const autopilotPerceptionLuaSource = await fs.readFile(
 );
 const autopilotRecoveryLuaSource = await fs.readFile(
   path.join(here, "../../lua/vehicle/extensions/taxiDriverAutopilotRecovery.lua"),
+  "utf8"
+);
+const stockAiObserverLuaSource = await fs.readFile(
+  path.join(here, "../../lua/vehicle/extensions/taxiDriverStockAiObserver.lua"),
+  "utf8"
+);
+const fleetWorkerLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/fleetWorker.lua"),
+  "utf8"
+);
+const navigationUiLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/navigationUi.lua"),
+  "utf8"
+);
+const telemetryLuaSource = await fs.readFile(
+  path.join(here, "../../lua/vehicle/extensions/taxiDriverTelemetry.lua"),
   "utf8"
 );
 const vehicleBridgeGuardLuaSource = await fs.readFile(
@@ -156,15 +184,15 @@ assert.match(taxiDriverLuaSource, /function M\.onVehicleSwitched[\s\S]*?vehicleH
   "Switching vehicles must select the new vehicle and publish its odometer immediately");
 assert.match(taxiDriverLuaSource, /function M\.onClientStartMission\(\)[\s\S]*?vehicleHistory\.refreshCurrentVehicle\(\)[\s\S]*?notifyHud\(\)/,
   "Loading a level must refresh and publish the selected vehicle independently of taxi mode");
-assert.match(taxiDriverLuaSource, /function M\.openVehicleSelector\(\)[\s\S]*?hideNativeMinimap\(\)[\s\S]*?guihooks\.trigger\(["']ChangeState["'],\s*\{state\s*=\s*["']menu\.vehicles["']\}\)/,
+assert.match(taxiDriverLuaSource, /function M\.openVehicleSelector\(\)[\s\S]*?navigationUi:setUiBlocked\(true\)[\s\S]*?guihooks\.trigger\(["']ChangeState["'],\s*\{state\s*=\s*["']menu\.vehicles["']\}\)/,
   "Vehicle card must hide the native map before opening BeamNG's vehicle selector");
-assert.match(taxiDriverLuaSource, /local function canShowNativeMinimap\(allowFleet\)[\s\S]*?minimapAppVisible and not minimapUiBlocked[\s\S]*?state\.active[\s\S]*?allowFleet == true/,
+assert.match(navigationUiLuaSource, /function service:canShow\(allowFleet\)[\s\S]*?appVisible and not uiBlocked[\s\S]*?isRouteActive[\s\S]*?allowFleet == true/,
   "Native map updates must require a visible unobstructed UI, an active route, or the explicit Fleet map mode");
-assert.match(taxiDriverLuaSource, /function M\.setMinimapAppVisibility\(visible\)[\s\S]*?minimapAppVisible\s*=\s*visible\s*==\s*true[\s\S]*?TaxiDriverMinimapInvalidated/,
+assert.match(navigationUiLuaSource, /function service:setAppVisibility\(visible\)[\s\S]*?appVisible\s*=\s*visible\s*==\s*true[\s\S]*?TaxiDriverMinimapInvalidated/,
   "Native map visibility must follow the actual CEF UI App visibility");
-assert.match(taxiDriverLuaSource, /function M\.onUiChangedState\(to, from\)[\s\S]*?menu\.vehiclesnew[\s\S]*?menu\.appedit[\s\S]*?if isBlocking\(to\)[\s\S]*?hideNativeMinimap\(\)[\s\S]*?elseif isBlocking\(from\)[\s\S]*?TaxiDriverMinimapInvalidated/,
+assert.match(taxiDriverLuaSource, /function M\.onUiChangedState\(to, from\)[\s\S]*?menu\.vehiclesnew[\s\S]*?menu\.appedit[\s\S]*?if isBlocking\(to\)[\s\S]*?navigationUi:setUiBlocked\(true\)[\s\S]*?elseif isBlocking\(from\)[\s\S]*?TaxiDriverMinimapInvalidated/,
   "Known BeamNG overlays must hide the native map without blocking unrelated intermediate UI states");
-assert.match(taxiDriverLuaSource, /function M\.openVehicleSelector\(\)[\s\S]*?minimapUiBlocked\s*=\s*true[\s\S]*?hideNativeMinimap\(\)/,
+assert.match(taxiDriverLuaSource, /function M\.openVehicleSelector\(\)[\s\S]*?navigationUi:setUiBlocked\(true\)/,
   "Opening the vehicle selector must block timer-driven map redraws immediately");
 assert.match(vehicleHistoryLuaSource, /configData and configData\.preview/,
   "Current-vehicle state must expose BeamNG's configuration preview asset");
@@ -265,12 +293,10 @@ assert.match(persistenceLuaSource, /aiDebugLogging\s*=\s*false[\s\S]*?source\.ai
   "The dedicated AI trip logger must be persisted separately and disabled by default");
 assert.match(appHtmlSource, /aiDebugLogger[\s\S]*?ng-model="settings\.aiDebugLogging"/,
   "AI driver settings must expose a dedicated trip-debug toggle");
-assert.match(persistenceLuaSource,
-  /aiDecisionVisualization\s*=\s*false[\s\S]*?source\.aiDecisionVisualization\s*==\s*true/,
-  "AI world visualization must be persisted separately and disabled by default");
-assert.match(appHtmlSource,
-  /aiDecisionVisualization[\s\S]*?ng-model="settings\.aiDecisionVisualization"/,
-  "AI driver settings must expose a world decision-visualization toggle");
+assert.doesNotMatch(persistenceLuaSource, /aiDecisionVisualization/,
+  "Removed AI visualization state must no longer be persisted");
+assert.doesNotMatch(appHtmlSource, /aiDecisionVisualization/,
+  "The non-functional AI visualization toggle must be removed from settings");
 assert.match(loggerLuaSource, /\[TaxiDriver\]/,
   "The structured logger must prefix every diagnostic record");
 assert.match(loggerLuaSource, /function M\.observeRuntime[\s\S]*?function M\.attachOperations/,
@@ -300,8 +326,50 @@ assert.match(appHtmlSource, /taxi-ai-ride-counter[\s\S]*?profileProgress\.aiRide
   "AI-assisted trips must be presented as a numeric statistic");
 assert.doesNotMatch(appHtmlSource, /getChartPoints\(profileProgress\.aiRideHistory/,
   "AI-assisted trip statistics must not be rendered as a time-series graph");
-assert.match(taxiDriverLuaSource, /setMinimapOcclusions[\s\S]*?taxiDriverAutopilot/,
+assert.match(navigationUiLuaSource, /setOcclusions[\s\S]*?taxiDriverAutopilot/,
   "The native minimap must apply the autopilot control occlusion rectangle");
+assert.doesNotMatch(autopilotLuaSource, /autopilotPerception|beginRecovery|planLocalBypass|castRayStatic/,
+  "The stock-AI experiment must not execute predictive perception or custom recovery");
+assert.match(autopilotLuaSource,
+  /extensions\.unload\('taxiDriverAutopilotRecovery'\)[\s\S]*?taxiDriverStockAiObserver\.watch[\s\S]*?ai\.driveUsingPath[\s\S]*?runtime\.profile\.aggression[\s\S]*?runtime\.profile\.obeySpeedLimits/,
+  "The player vehicle must unload the custom controller and apply the selected native AI profile");
+assert.match(stockAiObserverLuaSource,
+  /mapmgr\.getObjects[\s\S]*?desiredGap\s*=\s*settings\.minimumGap[\s\S]*?followingTimeGap[\s\S]*?ai\.setSpeedMode\("limit"\)/,
+  "The stock AI traffic guard must observe NPC vehicles and impose a following-speed limit");
+assert.match(stockAiObserverLuaSource,
+  /steeringAngle[\s\S]*?turnRadius[\s\S]*?minimumSeparation[\s\S]*?curvedPathRisk/,
+  "The traffic guard must predict NPC intersections with the current steering arc");
+assert.match(fleetWorkerLuaSource,
+  /taxiDriverStockAiObserver\.watch[\s\S]*?followingTimeGap[\s\S]*?brakingDeceleration[\s\S]*?updateInterval[\s\S]*?trajectorySamples/,
+  "Fleet workers must run a lower-cost instance of the stock-AI traffic guard");
+assert.match(stockAiObserverLuaSource,
+  /jerkLimit\s*=\s*2\.5[\s\S]*?smoothedSpeedLimit\s*-\s*currentDeceleration\s*\*\s*updateInterval/,
+  "Traffic speed must use jerk-limited deceleration and reserve an immediate stop for an unavoidable collision");
+assert.match(stockAiObserverLuaSource,
+  /timeToCollision\s*<\s*0\.55[\s\S]*?requiredDeceleration\s*>=\s*8\.5/,
+  "Immediate braking must require critical TTC or physically excessive required deceleration");
+assert.match(autopilotLuaSource,
+  /orientedTargetEdge[\s\S]*?directedApproachRoute[\s\S]*?path=[\s\S]*?prematureNativeRouteDone[\s\S]*?stock_route_done_before_target/,
+  "Stock AI must approach the target edge in its legal direction and immediately replan a premature Route Done");
+assert.match(stockAiObserverLuaSource,
+  /findTargetApproach[\s\S]*?alignment\s*<\s*0\.45[\s\S]*?maximumArrivalSpeed[\s\S]*?targetApproachActive/,
+  "Final approach braking must activate only after the vehicle aligns with the target-side travel direction");
+assert.doesNotMatch(stockAiObserverLuaSource, /input\.event\("steering"/,
+  "The traffic guard must leave steering and route selection to native BeamNG AI");
+assert.match(autopilotLuaSource,
+  /isCurrentPlayerVehicle[\s\S]*?be:getPlayerVehicleID\(0\)[\s\S]*?player_vehicle_guard_rejected_route/,
+  "The player AI adapter must reject every vehicle except the current player vehicle");
+assert.doesNotMatch(autopilotLuaSource, /ai\.setRecoverOnCrash\(true\)/,
+  "The player vehicle must never inherit NPC crash recovery or safe-teleport behavior");
+assert.match(autopilotLuaSource,
+  /coordinate-only tables[\s\S]*?appendUnique\(result, entry\.wp\)[\s\S]*?appendUnique\(result, target\.nodeB\)/,
+  "Native routes must discard coordinate-only endpoint tables before serializing BeamNG graph node IDs");
+assert.match(autopilotLuaSource,
+  /stock_route_done[\s\S]*?reachedGameplayRadius[\s\S]*?stockAi\s*=\s*true[\s\S]*?customPerception\s*=\s*false[\s\S]*?customRecovery\s*=\s*false/,
+  "The experiment must report whether native Route Done actually entered the gameplay trigger");
+assert.doesNotMatch(autopilotLuaSource, /taxiDriverAutopilotRecovery\.start|allowReverse|spatialGraph|routeForwardTurn/,
+  "No custom maneuver controller may remain reachable from the player AI service");
+if (false) {
 assert.match(autopilotLuaSource, /stuckDelay\s*=\s*15[\s\S]*?signalRequiresStop[\s\S]*?beginRecovery/,
   "Autopilot must distinguish signal waits before starting stuck recovery");
 assert.doesNotMatch(autopilotLuaSource, /ai\.setAvoidCars\(\\"off\\"\)/,
@@ -312,11 +380,20 @@ assert.match(autopilotRecoveryLuaSource,
   /setSignal\(direction\)[\s\S]*?electrics\.set_left_signal[\s\S]*?electrics\.set_right_signal/,
   "The local maneuver controller must operate the appropriate indicator");
 assert.match(autopilotLuaSource,
-  /perception:planLocalBypass\(vehicle, runtime\.followLeadId\)[\s\S]*?taxiDriverAutopilotRecovery\.start/,
+  /perception:planLocalBypass\(vehicle, runtime\.followLeadId,\s*\{[\s\S]*?referencePoints[\s\S]*?taxiDriverAutopilotRecovery\.start/,
   "Recovery must use the independent adaptive corridor planner");
+assert.match(autopilotLuaSource,
+  /recovery_waiting_for_lead_vehicle[\s\S]*?waitingObstacle[\s\S]*?allowReverse=false/,
+  "Recovery must wait for traffic, retry static obstacles, and keep adaptive paths forward-only");
+assert.match(autopilotLuaSource,
+  /routeNeedsLocalRejoin[\s\S]*?route_rejoin_requested[\s\S]*?beginRecovery\(vehicle, target, distance\)/,
+  "A large low-speed graph offset must start a forward local rejoin before the car hits a boundary");
 assert.match(autopilotPerceptionLuaSource,
   /scanSpaceFan[\s\S]*?evaluateSurface[\s\S]*?evaluateCandidate[\s\S]*?buildCandidate/,
   "Adaptive bypasses must evaluate free-space rays, traversable surfaces, vehicle dimensions and smooth recovery paths");
+assert.match(autopilotPerceptionLuaSource,
+  /routeForwardTurn[\s\S]*?directionCount,\s*rings\s*=\s*12,\s*\{6,\s*13,\s*22,\s*32\}[\s\S]*?iterations\s*<\s*140/,
+  "Recovery must prefer driveable forward arcs and keep the synchronous fallback graph tightly bounded");
 assert.match(autopilotPerceptionLuaSource,
   /climbableStep[\s\S]*?stepTooHigh[\s\S]*?slopeTooSteep[\s\S]*?crossSlopeTooSteep/,
   "Free-space planning must accept climbable pavements while rejecting steps and slopes unsafe for the vehicle");
@@ -374,13 +451,20 @@ assert.match(configLuaSource,
   /aiDriverPresets\s*=\s*\{[\s\S]*?novice[\s\S]*?cautious[\s\S]*?balanced[\s\S]*?assertive[\s\S]*?racer/,
   "AI driver settings must provide a progression of ready-made presets");
 assert.match(configLuaSource,
-  /sanitizeAiDriver[\s\S]*?obeySpeedLimits[\s\S]*?obeyTrafficSignals[\s\S]*?allowReverseRecovery[\s\S]*?recoveryMaxAttempts[\s\S]*?finalApproachSpeedKmh/,
-  "AI driver settings must sanitize independent rules and recovery controls");
-assert.match(autopilotLuaSource, /function service:configure\(settings\)[\s\S]*?config\.stuckDelay/,
-  "Saved AI driver controls must configure the active autopilot service");
+  /sanitizeAiDriver[\s\S]*?aggressionPercent[\s\S]*?followingTimeGap[\s\S]*?minimumFollowingDistance[\s\S]*?brakingDeceleration[\s\S]*?trafficWaitSeconds[\s\S]*?laneDiscipline[\s\S]*?strictGpsRoute/,
+  "AI driver settings must sanitize only controls implemented by the stock AI adapter");
+assert.match(autopilotLuaSource,
+  /function service:configure\(profile\)[\s\S]*?runtime\.profile[\s\S]*?minimumFollowingDistance[\s\S]*?trafficWaitSeconds/,
+  "Saved stock AI controls must configure the active autopilot service");
 assert.match(appHtmlSource,
-  /settingsSections\.aiDriver[\s\S]*?aiPreset_[\s\S]*?settings\.aiDriver\.preset === 'custom'[\s\S]*?aiObeySpeedLimits[\s\S]*?aiObeyTrafficSignals[\s\S]*?aiManeuversRecovery[\s\S]*?aiReverseRecovery[\s\S]*?aiFinalApproachSpeed/,
-  "Settings must expose presets and show the complete AI tuning panel only in Custom mode");
+  /settingsSections\.aiDriver[\s\S]*?aiPreset_[\s\S]*?strictGpsRoute[\s\S]*?settings\.aiDriver\.preset === 'custom'[\s\S]*?aiTrafficAwareness[\s\S]*?minimumFollowingDistance[\s\S]*?trafficWaitSeconds[\s\S]*?laneDiscipline/,
+  "Settings must expose monolithic presets and only implemented stock AI controls in Custom mode");
+assert.match(autopilotLuaSource,
+  /strictGpsRoute[\s\S]*?readNativeRoute\(\)[\s\S]*?routeSource[\s\S]*?"gps"/,
+  "Strict GPS mode must feed the exact displayed route node sequence to native AI");
+assert.match(taxiDriverLuaSource,
+  /onRecalculatedRoute[\s\S]*?strictGpsRoute[\s\S]*?autopilot:markRouteDirty/,
+  "A GPS reroute must atomically replace the active strict AI path");
 assert.doesNotMatch(configLuaSource, /automaticFuelStopPercent|automaticElectricStopPercent|isCriticalEnergy/,
   "Low energy must not create an automatic fuel detour");
 assert.doesNotMatch(taxiDriverLuaSource, /automaticStopDeferred|resumeAutopilotAtStation|isCriticalEnergy/,
@@ -392,6 +476,7 @@ assert.match(autopilotRecoveryLuaSource, /input\.event\("steering"[\s\S]*?input\
   "The opposing-lane bypass must steer independently and hand control back to route AI");
 assert.match(autopilotLuaSource, /restoreNormal[\s\S]*?issueRoute\(vehicle, target\)/,
   "Successful bypass must restore the safe route profile");
+}
 assert.match(shiftTrackerLuaSource, /function service:finish\(\)/,
   "Shift lifecycle must remain isolated in shiftTracker.lua");
 assert.match(shiftHistoryLuaSource, /shiftshistory\.json[\s\S]*?snapshotInterval\s*=\s*60/,
@@ -412,6 +497,59 @@ assert.deepEqual(Object.keys(localeData["zh-CN"]).sort(), Object.keys(localeData
   "Simplified Chinese and English locale keys must remain in sync");
 assert.match(tripEventsLuaSource, /function M\.calculateTip\(/,
   "Trip event rules must expose deterministic tip calculation");
+assert.match(configLuaSource,
+  /randomEventDefaults[\s\S]*?cancellation[\s\S]*?destinationChange[\s\S]*?additionalStop[\s\S]*?tip[\s\S]*?fragileCargo[\s\S]*?policeCheck/,
+  "Every current random event must have a sanitized independent probability");
+assert.match(configLuaSource,
+  /policeCheck\s*=\s*\{enabled\s*=\s*false[\s\S]*?preloadConfirmed[\s\S]*?key\s*==\s*["']policeCheck["'][\s\S]*?enabled\s*=\s*false/,
+  "Police vehicle preloading must be opt-in, including for settings saved before the warning existed");
+assert.match(appHtmlSource,
+  /settingsSections\.randomEvents[\s\S]*?randomEventOptions[\s\S]*?chancePercent/,
+  "Settings must expose an independent switch and probability slider for every random event");
+assert.match(appHtmlSource,
+  /policeCheckConfirmOpen[\s\S]*?policeCheckEnableDesc[\s\S]*?cancelPoliceCheckEnable[\s\S]*?confirmPoliceCheckEnable/,
+  "Enabling the police event must require an explicit preload warning confirmation");
+assert.match(physicalPickupLuaSource,
+  /passengerInsideTaxi[\s\S]*?speedKmh\s*>=\s*4[\s\S]*?passengerHit[\s\S]*?hornStage\s*==\s*1[\s\S]*?0\.6[\s\S]*?hornStage\s*==\s*3[\s\S]*?0\.6/,
+  "Physical passengers must detect a moving taxi impact and AI pickup must emit two 600 ms horn pulses");
+assert.match(physicalPickupLuaSource,
+  /beginAiPickup[\s\S]*?aiHold\s*=\s*true[\s\S]*?hornStage[\s\S]*?-\s*1[\s\S]*?speedKmh\s*<=\s*0\.2[\s\S]*?stopStableTimer\s*>=\s*0\.25[\s\S]*?setHorn\(taxi,\s*true\)[\s\S]*?clear\(true\)/,
+  "AI passenger pickup must latch the target, stop fully, and only then begin the horn sequence");
+assert.match(telemetryLuaSource,
+  /pickupHonkStage\s*==\s*1[\s\S]*?>=\s*0\.6[\s\S]*?pickupHonkStage\s*==\s*2[\s\S]*?>=\s*0\.2[\s\S]*?>=\s*0\.6/,
+  "The vehicle-side horn sequencer must generate two reliable 600 ms pulses");
+assert.match(taxiDriverLuaSource,
+  /math\.min\(7,\s*runtimeConfig\.arrivalRadius\)[\s\S]*?isTargetAligned\(vehicle,\s*trip\.pickup\)[\s\S]*?beginAiPickup\(vehicle\)[\s\S]*?setVehicleForcedStop\(vehicle,\s*true\)[\s\S]*?autopilot:suspend[\s\S]*?phases\.boarding[\s\S]*?physicalPickup:isAiHold\(\)/,
+  "AI must latch a correctly oriented practical stop, stop before honking, and remain suspended throughout boarding");
+if (false) {
+assert.match(autopilotLuaSource,
+  /target\.simpleApproach\s*==\s*true[\s\S]*?strategy\s*=\s*"simplePickup"[\s\S]*?completionRadius\s*=\s*config\.stopDistance/,
+  "Pickup approach must avoid the expensive predictive graph and stop before the physical passenger");
+assert.match(autopilotLuaSource,
+  /signedLateral[\s\S]*?routeLane[\s\S]*?laneDelta[\s\S]*?speedCapFallRate[\s\S]*?filteredSpeedCap/,
+  "Normal driving must prioritize the active lane and smooth transient speed caps");
+assert.match(autopilotLuaSource,
+  /ai\.setSpeedMode\("limit"\)[\s\S]*?getSpeedLimitKmh[\s\S]*?legalSpeedCap/,
+  "Speed-limit-aware presets must enforce the current road limit explicitly");
+assert.match(autopilotPerceptionLuaSource,
+  /smoothDriveablePolyline[\s\S]*?turningRadius[\s\S]*?math\.tan\(angle\s*\*\s*0\.5\)[\s\S]*?graphAccess/,
+  "Predictive route points must be rounded using a vehicle-sized turning radius");
+assert.match(autopilotLuaSource,
+  /route_turn_signal_started[\s\S]*?upcomingRouteTurn[\s\S]*?turnSignalSeconds[\s\S]*?junctionPassed/,
+  "AI route transitions must signal predictively and cancel the indicator after the junction");
+}
+assert.match(taxiDriverLuaSource,
+  /failPassengerHit[\s\S]*?math\.max\(1000,\s*state\.balance\s*\*\s*0\.25\)[\s\S]*?fareAmount\s*=\s*fine[\s\S]*?passengerHit/,
+  "Hitting a passenger must cancel the order, record it and charge a major fine");
+assert.match(taxiDriverLuaSource,
+  /offer_closed_by_guard[\s\S]*?nextOfferDisabled\s*=\s*true|nextOfferDisabled\s*=\s*true[\s\S]*?offer_closed_by_guard/,
+  "An expired proposed order must not be regenerated during the same ending trip");
+assert.match(policeCheckLuaSource,
+  /createPoliceGroup[\s\S]*?Config Type[\s\S]*?preloadGroupName[\s\S]*?gap\s*=\s*1000[\s\S]*?instant\s*=\s*false/,
+  "Police checks must preselect installed police content and preload it through a yielding job");
+assert.match(policeCheckLuaSource,
+  /_activatePreparedPolice[\s\S]*?500\s*\+\s*math\.random\(\)\s*\*\s*100[\s\S]*?setActive[\s\S]*?_beginPursuit[\s\S]*?setupPursuitGameplay/,
+  "A prepared police unit must appear 500-600 metres away and enter BeamNG's native pursuit flow");
 assert.match(vehicleHistoryLuaSource, /if completedRides > 0 then table\.insert\(result\.vehicles/,
   "Vehicles with zero completed rides must not be persisted in history");
 const mainChunkLocalCount = taxiDriverLuaSource.split(/\r?\n/).reduce((count, line) => {
@@ -429,7 +567,7 @@ const browser = await chromium.launch({ headless: true });
 
 const scenarios = [
   "home", "shiftHistory", "fleet", "fleetTrip", "orders", "trip", "delivery", "overspeed", "boarding", "forcedExit",
-  "settings", "settingsAi", "settingsFleet", "settingsConnection", "profile", "profileVehicles", "profileShifts", "compact", "nextOffer", "fuelRoute", "fuel", "magicFuel",
+  "settings", "settingsAi", "settingsEvents", "settingsFleet", "settingsConnection", "profile", "profileVehicles", "profileShifts", "compact", "nextOffer", "fuelRoute", "fuel", "magicFuel",
 ];
 const viewports = [
   { width: 320, height: 568 },
@@ -449,6 +587,7 @@ const baselineScreenshots = new Set([
   "game-compact-320x568.png",
   "web-settingsConnection-1024x768.png",
   "web-settingsAi-390x844.png",
+  "web-settingsEvents-390x844.png",
   "web-settingsFleet-390x844.png",
   "web-fleet-390x844.png",
   "game-fleet-520x900.png",
@@ -598,42 +737,52 @@ try {
     scope.$apply(() => {
       Object.keys(scope.settingsSections).forEach((key) => { scope.settingsSections[key] = false; });
       scope.settingsSections.aiDriver = true;
+      scope.settings.aiDriver.strictGpsRoute = true;
       scope.hud.selectAiDriverPreset("balanced");
     });
     const balanced = {
       preset: scope.settings.aiDriver.preset,
       customPanels: document.querySelectorAll(".taxi-settings__custom").length,
       obeySpeedLimits: scope.settings.aiDriver.obeySpeedLimits,
-      obeyTrafficSignals: scope.settings.aiDriver.obeyTrafficSignals,
+      laneDiscipline: scope.settings.aiDriver.laneDiscipline,
+      followingTimeGap: scope.settings.aiDriver.followingTimeGap,
+      strictGpsRoute: scope.settings.aiDriver.strictGpsRoute,
     };
     scope.$apply(() => scope.hud.selectAiDriverPreset("custom"));
     const customPanels = document.querySelectorAll(".taxi-settings__custom").length;
-    scope.$apply(() => scope.hud.toggleAiManeuvers());
     return {
       balanced,
       customPreset: scope.settings.aiDriver.preset,
       customPanels,
-      maneuverPanel: document.querySelectorAll(".taxi-settings__subgroup-body").length,
       ruleToggles: document.querySelectorAll(
-        'input[ng-model="settings.aiDriver.obeySpeedLimits"], input[ng-model="settings.aiDriver.obeyTrafficSignals"]'
+        'input[ng-model="settings.aiDriver.obeySpeedLimits"], input[ng-model="settings.aiDriver.laneDiscipline"]'
       ).length,
-      recoveryControls: document.querySelectorAll(
-        'input[ng-model="settings.aiDriver.allowReverseRecovery"], input[ng-model="settings.aiDriver.recoveryMaxAttempts"], input[ng-model="settings.aiDriver.finalApproachSpeedKmh"]'
+      trafficControls: document.querySelectorAll(
+        'input[ng-model="settings.aiDriver.followingTimeGap"], input[ng-model="settings.aiDriver.minimumFollowingDistance"], input[ng-model="settings.aiDriver.brakingDeceleration"], input[ng-model="settings.aiDriver.trafficWaitSeconds"]'
+      ).length,
+      gpsRouteToggles: document.querySelectorAll(
+        'input[ng-model="settings.aiDriver.strictGpsRoute"]'
+      ).length,
+      visualizationToggles: document.querySelectorAll(
+        'input[ng-model="settings.aiDecisionVisualization"]'
       ).length,
     };
   });
   assert.deepEqual(aiPresetAudit.balanced, {
-    preset: "balanced", customPanels: 0, obeySpeedLimits: true, obeyTrafficSignals: true,
+    preset: "balanced", customPanels: 0, obeySpeedLimits: true,
+    laneDiscipline: true, followingTimeGap: 2.3, strictGpsRoute: true,
   }, "A ready-made AI preset must apply atomically without exposing manual controls");
   assert.equal(aiPresetAudit.customPreset, "custom");
   assert.equal(aiPresetAudit.customPanels, 1,
     "Manual AI controls must appear only after selecting Custom");
-  assert.equal(aiPresetAudit.maneuverPanel, 1,
-    "The nested maneuver and recovery expander must open independently");
   assert.equal(aiPresetAudit.ruleToggles, 2,
-    "Speed-limit and traffic-signal compliance must be separate switches");
-  assert.equal(aiPresetAudit.recoveryControls, 3,
-    "Custom recovery settings must expose reverse escape, attempt count and exact approach speed");
+    "Speed-limit and lane-discipline controls must remain independent");
+  assert.equal(aiPresetAudit.trafficControls, 4,
+    "Custom mode must expose only the implemented following and traffic-wait controls");
+  assert.equal(aiPresetAudit.gpsRouteToggles, 1,
+    "GPS route fidelity must remain available independently from the selected preset");
+  assert.equal(aiPresetAudit.visualizationToggles, 0,
+    "The obsolete AI decision visualization toggle must not be rendered");
 
   const settingsRaceAudit = await functionalPage.evaluate(async () => {
     const root = angular.element(document).injector().get("$rootScope");
@@ -789,6 +938,18 @@ try {
       "Order sorting menu must close after selection");
   }
 
+  await functionalPage.goto(harnessUrl("profile", { width: 520, height: 900 }, { external: true }));
+  await waitForHarness(functionalPage);
+  await functionalPage.locator(".taxi-review-wrap .taxi-review").first().click();
+  assert.equal(await functionalPage.locator(".taxi-review-wrap--open").count(), 1,
+    "Trip history must expand one selected ride at a time");
+  assert.match(await functionalPage.locator(".taxi-review-details").textContent(),
+    /Penalties[\s\S]*Speeding[\s\S]*Random events[\s\S]*VIP/,
+    "Expanded trip history must show penalties and random-event history");
+  assert.equal(await functionalPage.locator(".taxi-review-wrap").count(), 1,
+    "Adaptive pagination must reserve the page for an expanded trip");
+  await assertVisualAudit(functionalPage, "expanded trip history");
+
   await functionalPage.goto(harnessUrl("profileVehicles", { width: 520, height: 900 }));
   await waitForHarness(functionalPage);
   assert.equal(await functionalPage.locator(".taxi-vehicle-history").count(), 3,
@@ -839,6 +1000,10 @@ try {
 
   await functionalPage.goto(harnessUrl("trip", { width: 390, height: 844 }));
   await waitForHarness(functionalPage);
+  await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    scope.$apply(() => { scope.state.fleet.activeDrivers = 0; });
+  });
   assert.equal(await functionalPage.locator("button.taxi-map__autopilot").count(), 1,
     "Active trip map must expose one autopilot control");
   await functionalPage.waitForFunction(() =>
@@ -853,8 +1018,8 @@ try {
     "Native minimap must receive five complete overlay occlusion rectangles and an explicit Fleet-mode flag");
   assert.ok(minimapOcclusionArgs.slice(12, 16).map(Number).every((value) => Number.isFinite(value) && value > 0),
     "Autopilot control must reserve a visible native-minimap occlusion rectangle");
-  assert.ok(minimapOcclusionArgs.slice(16, 20).map(Number).every((value) => value === 0),
-    "A normal trip map must not reserve the Fleet status overlay");
+  assert.ok(minimapOcclusionArgs.slice(16, 20).map(Number).every((value) => Number.isFinite(value) && value > 0),
+    "The Fleet shortcut must reserve a visible native-map occlusion even when no driver is hired");
   assert.equal(minimapOcclusionArgs[20].trim(), "false",
     "A normal trip map must not request inactive Fleet-map privileges");
   await functionalPage.evaluate(() => { window.__taxiEngineLuaCommands = []; });
@@ -863,7 +1028,9 @@ try {
     .some((value) => value.includes("toggleAutopilot")),
   "Autopilot control must call the authoritative Lua controller");
   assert.equal(await functionalPage.locator("button.taxi-map__fleet").count(), 1,
-    "An active trip with hired drivers must expose the Fleet monitor button");
+    "An active trip with zero hired drivers must expose the Fleet hiring shortcut");
+  assert.equal((await functionalPage.locator("button.taxi-map__fleet span").textContent()).trim(), "0",
+    "The Fleet shortcut must explicitly show a zero driver count");
   await functionalPage.locator("button.taxi-map__fleet").click();
   assert.equal(await functionalPage.locator(".taxi-fleet .taxi-minimap-surface").count(), 1,
     "Fleet monitoring must retain a player-centered map during an active trip");
@@ -1044,6 +1211,25 @@ try {
   );
   assert.equal(secondCount, 2, "Overspeed alert must play again after returning below the threshold");
 
+  await functionalPage.goto(harnessUrl("settingsEvents", { width: 390, height: 844 }));
+  await waitForHarness(functionalPage);
+  const policeRow = functionalPage.locator(".taxi-settings__section")
+    .filter({ hasText: "Police inspection" });
+  const policeToggle = policeRow.locator('input[type="checkbox"]');
+  assert.equal(await policeToggle.isChecked(), false,
+    "Police inspection must be disabled by default");
+  await policeToggle.click({ force: true });
+  await functionalPage.locator(".taxi-police-confirm").waitFor();
+  assert.equal(await policeToggle.isChecked(), false,
+    "The police event must stay disabled until the warning is confirmed");
+  await functionalPage.locator(".taxi-police-confirm .taxi-offline-confirm__cancel").click();
+  assert.equal(await policeToggle.isChecked(), false,
+    "Cancelling the warning must leave police preloading disabled");
+  await policeToggle.click({ force: true });
+  await functionalPage.locator(".taxi-police-confirm .taxi-offline-confirm__confirm").click();
+  assert.equal(await policeToggle.isChecked(), true,
+    "Confirming the warning must enable the police event");
+
   await functionalPage.goto(harnessUrl("nextOffer", { width: 520, height: 900 }));
   await waitForHarness(functionalPage);
   await functionalPage.evaluate(() => { window.__taxiEngineLuaCommands = []; });
@@ -1064,6 +1250,13 @@ try {
   assert.ok((await functionalPage.evaluate(() => window.__taxiEngineLuaCommands || []))
     .some((value) => value.includes("dismissNextOffer(901)")),
     "The local monotonic watchdog must close an offer even when no newer HUD tick arrives");
+  await functionalPage.evaluate(() => window.__taxiSetState({ phase: "toDestination", nextOffer: {
+    id: 901, passengerName: "Stale watchdog", accepted: false,
+    duration: 5, timeRemaining: 5, rideDistance: 1000, estimatedFare: 5,
+  } }));
+  await functionalPage.waitForTimeout(250);
+  assert.equal(await functionalPage.locator(".taxi-next-offer").count(), 0,
+    "A stale packet must not flash an already expired offer back onto the screen");
   await functionalPage.close();
 
   const iphoneAudioPage = await browser.newPage({ viewport: { width: 390, height: 844 } });

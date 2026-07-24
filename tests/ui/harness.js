@@ -52,7 +52,7 @@
     scope.$apply(() => {
       if (scenarioName === "settings") {
         scope.settingsOpen = true;
-        scope.settingsSections = { general: true, gameplay: true, aiDriver: true, navigation: true, audio: true, connectivity: true, cheats: true };
+        scope.settingsSections = { general: true, gameplay: true, randomEvents: true, aiDriver: true, fleet: true, navigation: true, audio: true, connectivity: true, cheats: true };
       }
       if (scenarioName === "settingsAi") {
         scope.settingsOpen = true;
@@ -60,7 +60,11 @@
       }
       if (scenarioName === "settingsFleet") {
         scope.settingsOpen = true;
-        scope.settingsSections = { general: false, gameplay: false, aiDriver: false, fleet: true, navigation: false, audio: false, connectivity: false, cheats: false };
+        scope.settingsSections = { general: false, gameplay: false, randomEvents: false, aiDriver: false, fleet: true, navigation: false, audio: false, connectivity: false, cheats: false };
+      }
+      if (scenarioName === "settingsEvents") {
+        scope.settingsOpen = true;
+        scope.settingsSections = { general: false, gameplay: false, randomEvents: true, aiDriver: false, fleet: false, navigation: false, audio: false, connectivity: false, cheats: false };
       }
       if (scenarioName === "settingsConnection") {
         scope.settingsOpen = true;
@@ -87,7 +91,19 @@
       profile: { fullName: "Alex Morgan", birthDate: "1991-05-17", avatar: "🙂" },
       progress: {
         balance: 75.15, rating: 4.37, completedRides: 18, aiRideCount: 7,
-        reviews: Array.from({ length: 12 }, (_, index) => ({ id: index + 1, passengerName: `Passenger ${index + 1}`, emoji: index % 3 ? "😊" : "🤩", quality: 82 + index, timestamp: 1760000000 + index * 80000, rating: 4.3, orderRating: 3.8 + (index % 4) * 0.3, usedAutopilot: index % 2 === 0 })),
+        reviews: Array.from({ length: 12 }, (_, index) => ({
+          id: index + 1, passengerName: `Passenger ${index + 1}`,
+          emoji: index % 3 ? "😊" : "🤩", quality: 82 + index,
+          timestamp: 1760000000 + index * 80000, rating: 4.3,
+          orderRating: 3.8 + (index % 4) * 0.3, usedAutopilot: index % 2 === 0,
+          penalties: index === 11 ? [
+            {kind: "speeding", detail: "18 km/h above the limit · 6.2 s", penalty: 0.025},
+            {kind: "collision", detail: "Minor impact", penalty: 0.04},
+          ] : [],
+          randomEvents: index === 11 ? [
+            {kind: "vipQuietRide", status: "conditionsFailed", amount: 0},
+          ] : [],
+        })),
         ratingHistory: [], balanceHistory: [], aiRideHistory: [{index: 1, value: 0}, {index: 6, value: 2}, {index: 12, value: 5}, {index: 18, value: 7}],
       },
       vehicles: [

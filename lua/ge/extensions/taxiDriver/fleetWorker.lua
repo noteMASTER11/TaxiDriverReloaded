@@ -75,6 +75,11 @@ function M.new(options)
   local config = {
     aggression = 0.3,
     obeySpeedLimits = true,
+    followingTimeGap = 2.4,
+    minimumGap = 4.5,
+    brakingDeceleration = 2.8,
+    observerInterval = 0.2,
+    trajectorySamples = 6,
     stuckSeconds = defaults.minimumStuckSeconds,
     maximumReplans = defaults.maximumReplans
   }
@@ -196,11 +201,20 @@ function M.new(options)
 
   local function nativeCommand(nodes)
     return table.concat({
-      "extensions.load('taxiDriverAutopilotRecovery');",
       "if extensions.taxiDriverAutopilotRecovery then ",
       "extensions.taxiDriverAutopilotRecovery.stop();",
-      "extensions.taxiDriverAutopilotRecovery.setGearboxOverride(false);",
-      "extensions.taxiDriverAutopilotRecovery.watchRouteDone() end;",
+      "extensions.taxiDriverAutopilotRecovery.unwatchRouteDone();",
+      "extensions.taxiDriverAutopilotRecovery.setGearboxOverride(false) end;",
+      "if extensions.unload then extensions.unload('taxiDriverAutopilotRecovery') end;",
+      "extensions.load('taxiDriverStockAiObserver');",
+      "if extensions.taxiDriverStockAiObserver then ",
+      "extensions.taxiDriverStockAiObserver.watch({followingTimeGap=",
+      string.format("%.2f", config.followingTimeGap),
+      ",minimumGap=", string.format("%.2f", config.minimumGap),
+      ",brakingDeceleration=", string.format("%.2f", config.brakingDeceleration),
+      ",routeSpeedMode=", quote(config.obeySpeedLimits and "legal" or "off"),
+      ",updateInterval=", string.format("%.2f", config.observerInterval),
+      ",trajectorySamples=", tostring(config.trajectorySamples), "}) end;",
       "electrics.set_left_signal(false,false); electrics.set_right_signal(false,false);",
       "ai.setMode('disabled'); ai.setRecoverOnCrash(true);",
       "ai.setParameters({awarenessForceCoef=0.35,trafficWaitTime=8,edgeDist=0,enableElectrics=true});",
@@ -213,6 +227,10 @@ function M.new(options)
 
   local function stopNative(vehicle, unwatch)
     return queue(vehicle, table.concat({
+      "if extensions.taxiDriverStockAiObserver then ",
+      "extensions.taxiDriverStockAiObserver.unwatch() end;",
+      unwatch and
+        "if extensions.unload then extensions.unload('taxiDriverStockAiObserver') end;" or "",
       "if extensions.taxiDriverAutopilotRecovery then ",
       "extensions.taxiDriverAutopilotRecovery.stop();",
       unwatch and "extensions.taxiDriverAutopilotRecovery.unwatchRouteDone();" or "",
@@ -260,6 +278,10 @@ function M.new(options)
   function service:configure(settings)
     settings = type(settings) == "table" and settings or {}
     config.aggression = clamp((tonumber(settings.aggressionPercent) or 30) / 100, 0.1, 0.8)
+    config.followingTimeGap = clamp(tonumber(settings.followingTimeGap) or 2.4, 1, 4)
+    config.minimumGap = clamp(2.1 + (config.followingTimeGap - 1) * 1.7, 3, 7)
+    config.brakingDeceleration =
+      clamp(tonumber(settings.brakingDeceleration) or 2.8, 2, 8)
     config.obeySpeedLimits = settings.obeySpeedLimits ~= false and
       settings.obeyTrafficRules ~= false
     config.stuckSeconds = math.max(defaults.minimumStuckSeconds,
@@ -441,7 +463,9 @@ function M.new(options)
       stuckSeconds = runtime.stuckSeconds,
       recoveryAttempt = runtime.replanCount,
       targetDistance = targetDistance ~= math.huge and targetDistance or nil,
-      lightweight = true
+      lightweight = true,
+      trafficGuard = true,
+      observerInterval = config.observerInterval
     }
   end
 
