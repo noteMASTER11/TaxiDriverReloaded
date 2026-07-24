@@ -240,20 +240,21 @@ local function routedLanAddress()
     local udp = socketLib.udp()
     if udp then
       pcall(function() udp:settimeout(0) end)
-      local connectedOk, connected = pcall(function()
+      local connectedOk, connected, connectError = pcall(function()
         return udp:setpeername(destination, 53)
       end)
       local address = nil
       local routeError = ""
       if connectedOk and connected then
-        local nameOk, value = pcall(function() return udp:getsockname() end)
-        if nameOk then
+        local nameOk, value, nameError = pcall(function() return udp:getsockname() end)
+        if nameOk and value then
           address = networkAddress.normalizeIPv4(value)
+          if not address then routeError = "getsockname returned " .. tostring(value) end
         else
-          routeError = tostring(value)
+          routeError = tostring(nameError or value or "getsockname failed")
         end
       else
-        routeError = tostring(connected)
+        routeError = tostring(connectError or connected or "setpeername failed")
       end
       closeSocket(udp)
       logger.info("lan", "route_probe", {
