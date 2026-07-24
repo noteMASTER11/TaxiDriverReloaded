@@ -80,29 +80,24 @@ function M.select(options)
   local canBind = type(options.canBind) == "function" and options.canBind or function() return true end
   for _, candidate in ipairs(candidates) do
     local description = lower(candidate.description)
-    candidate.subnetScore = subnetScore(candidate.address)
-    local sourceBonus = 0
-    if candidate.sources.manual then sourceBonus = sourceBonus + 1000 end
-    if candidate.sources.native then sourceBonus = sourceBonus + 100 end
-    if candidate.sources.route then sourceBonus = sourceBonus + 90 end
-    if candidate.sources.saved then sourceBonus = sourceBonus + 15 end
-    candidate.sourceBonus = sourceBonus
-    local descriptionBonus = 0
+    local score = subnetScore(candidate.address)
+    if candidate.sources.manual then score = score + 1000 end
+    if candidate.sources.native then score = score + 100 end
+    if candidate.sources.route then score = score + 90 end
+    if candidate.sources.saved then score = score + 15 end
     if description:find("wi%-fi") or description:find("wireless", 1, true) or
       description:find("wlan", 1, true) or description:find("802%.11") or
       description:match("^wlp%d") then
-      descriptionBonus = 80
+      score = score + 80
     elseif description:find("ethernet", 1, true) or
       description:find("gigabit", 1, true) or
       description:match("^eth%d") or description:match("^en[ops]") then
-      descriptionBonus = 55
+      score = score + 55
     end
-    candidate.descriptionBonus = descriptionBonus
     candidate.penalty = adapterPenalty(description)
     local bindableOk, bindReason = canBind(candidate.address)
     candidate.bindable = bindableOk == true
     candidate.bindReason = bindReason
-    local score = candidate.subnetScore + sourceBonus + descriptionBonus
     candidate.score = candidate.bindable and (score - candidate.penalty) or -10000
   end
 

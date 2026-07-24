@@ -237,6 +237,7 @@ local function routedLanAddress()
   -- route and assigns the local interface, which gives us a fallback when the
   -- BeamNG adapter list is incomplete. This relies on standard POSIX/BSD
   -- socket semantics and is expected to behave the same on Windows and Linux.
+  local lastError = ""
   for _, destination in ipairs({"1.1.1.1", "8.8.8.8", "192.0.2.1"}) do
     local udp = socketLib.udp()
     if udp then
@@ -245,25 +246,22 @@ local function routedLanAddress()
         return udp:setpeername(destination, 53)
       end)
       local address = nil
-      local routeError = ""
       if connectedOk and connected then
         local nameOk, value, nameError = pcall(function() return udp:getsockname() end)
         if nameOk and value then
           address = networkAddress.normalizeIPv4(value)
-          if not address then routeError = "getsockname returned " .. tostring(value) end
+          if not address then lastError = "getsockname returned " .. tostring(value) end
         else
-          routeError = tostring(nameError or value or "getsockname failed")
+          lastError = tostring(nameError or value or "getsockname failed")
         end
       else
-        routeError = tostring(connectError or connected or "setpeername failed")
+        lastError = tostring(connectError or connected or "setpeername failed")
       end
       closeSocket(udp)
-      logger.info("lan", "route_probe", {
-        destination = destination, address = address or "", error = routeError
-      })
       if networkAddress.isLanIPv4(address) then return address end
     end
   end
+  logger.info("lan", "route_discovery", {address = "", error = lastError})
   return nil
 end
 
@@ -284,38 +282,22 @@ local function adapterAddresses()
     resultType = type(addresses),
     success = ok
   })
-  for index, adapter in ipairs(usable) do
-    if index > 8 then break end
-    adapter = type(adapter) == "table" and adapter or {}
-    logger.info("lan", "adapter_entry", {
-      index = index,
-      ipv4Addr = tostring(adapter.ipv4Addr),
-      address = tostring(adapter.address),
-      ip = tostring(adapter.ip),
-      description = tostring(adapter.description),
-      name = tostring(adapter.name)
-    })
-  end
   return usable
 end
 
 local function hostnameAddresses()
   local results = {}
   local hostname = ""
-  local rawEntries = {}
   local ok, failure = pcall(function()
     hostname = tostring(socketLib.dns.gethostname() or "")
     if hostname == "" then return end
     local addresses = socketLib.dns.getaddrinfo(hostname)
     for _, entry in ipairs(type(addresses) == "table" and addresses or {}) do
-      if type(entry) == "table" then
-        rawEntries[#rawEntries + 1] = entry
-        if entry.family == "inet" then
-          results[#results + 1] = {
-            ipv4Addr = entry.addr,
-            description = "Hostname " .. hostname
-          }
-        end
+      if type(entry) == "table" and entry.family == "inet" then
+        results[#results + 1] = {
+          ipv4Addr = entry.addr,
+          description = "Hostname " .. hostname
+        }
       end
     end
   end)
@@ -325,63 +307,6 @@ local function hostnameAddresses()
     reason = ok and "" or tostring(failure),
     success = ok
   })
-  for index, entry in ipairs(rawEntries) do
-    if index > 8 then break end
-    logger.info("lan", "hostname_entry", {
-      index = index, family = tostring(entry.family), addr = tostring(entry.addr)
-    })
-  end
-  return results
-end
-
--- BeamNG's Lua sandbox blocks outbound socket connect() ("connect restricted"),
--- so the UDP route trick cannot work here. Reading /proc/net/fib_trie is a
--- plain local file read (not a shelled-out command) that lists every IPv4
--- address the Linux kernel has assigned to a local interface, independent of
--- BNGWebWSServer's adapter enumeration (which only reports loopback here).
-local function procNetAddresses()
-  local results = {}
-  local rawAddresses = {}
-  local ok, failure = pcall(function()
-    if type(io) ~= "table" or type(io.open) ~= "function" then
-      error("io.open unavailable")
-    end
-    local file = io.open("/proc/net/fib_trie", "r")
-    if not file then error("could not open /proc/net/fib_trie") end
-    -- The "Local:" section (which lists every address owned by this host,
-    -- tagged "host LOCAL") always comes after "Main:" in this file, so we
-    -- skip everything until we see it rather than stopping at "Main:".
-    local pendingAddress = nil
-    local inLocalSection = false
-    for line in file:lines() do
-      if not inLocalSection then
-        if line:find("^Local:") then inLocalSection = true end
-      else
-        local address = line:match("|%-%-%s+(%d+%.%d+%.%d+%.%d+)%s*$")
-        if address then
-          pendingAddress = address
-        elseif pendingAddress and line:find("host LOCAL", 1, true) then
-          rawAddresses[#rawAddresses + 1] = pendingAddress
-          pendingAddress = nil
-        end
-      end
-    end
-    file:close()
-  end)
-  if ok then
-    for _, address in ipairs(rawAddresses) do
-      results[#results + 1] = {ipv4Addr = address, description = "proc/net (linux)"}
-    end
-  end
-  logger.info("lan", "proc_net_discovery", {
-    count = #results,
-    reason = ok and "" or tostring(failure),
-    success = ok
-  })
-  for index, address in ipairs(rawAddresses) do
-    if index > 8 then break end
-    logger.info("lan", "proc_net_entry", {index = index, address = address})
-  end
   return results
 end
 
@@ -395,15 +320,14 @@ end
 
 local function selectLanAddress(nativeAddress)
   local routedAddress = routedLanAddress()
-  logger.info("lan", "route_discovery", {address = routedAddress or ""})
+  if routedAddress then logger.info("lan", "route_discovery", {address = routedAddress}) end
   local adapters = adapterAddresses()
   for _, entry in ipairs(hostnameAddresses()) do
     adapters[#adapters + 1] = entry
   end
-  for _, entry in ipairs(procNetAddresses()) do
-    adapters[#adapters + 1] = entry
+  if manualAddressOverride ~= "" then
+    logger.info("lan", "manual_address", {value = manualAddressOverride})
   end
-  logger.info("lan", "manual_address", {value = manualAddressOverride})
   local address, candidates = networkAddress.select({
     adapters = adapters,
     nativeAddress = nativeAddress,
@@ -419,9 +343,6 @@ local function selectLanAddress(nativeAddress)
       bindReason = candidate.bindReason or "",
       description = candidate.description,
       penalty = candidate.penalty,
-      subnetScore = candidate.subnetScore,
-      sourceBonus = candidate.sourceBonus,
-      descriptionBonus = candidate.descriptionBonus,
       score = candidate.score,
       sources = candidateSources(candidate)
     })
