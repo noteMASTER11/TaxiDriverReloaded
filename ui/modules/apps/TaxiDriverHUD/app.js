@@ -2224,6 +2224,9 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             Math.round(Number($scope.cheatEnergyPercent) || 0)
           ));
         };
+        this.cheatRepairVehicle = () => bngApi.engineLua(
+          "if taxiDriver_taxiDriver then taxiDriver_taxiDriver.cheatRepairVehicle() end"
+        );
         this.cheatAddMoney = (amount) => {
           const allowed = [1, 5, 10, 50];
           const value = Number(amount);
