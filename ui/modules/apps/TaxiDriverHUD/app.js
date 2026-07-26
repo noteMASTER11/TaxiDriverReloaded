@@ -2311,7 +2311,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           clampRefuelAmount();
         };
         this.purchaseFuel = () => {
-          if ($scope.state.fuelStation.refueling.active || !$scope.state.fuelStation.vehicleStopped) return;
+          if ($scope.state.fuelStation.refueling.active || $scope.state.repairStation.repairing.active ||
+            !$scope.state.fuelStation.vehicleStopped) return;
           const option = getFuelOption($scope.selectedFuelType);
           clampRefuelAmount();
           const quantity = Number($scope.refuel.amount || 0);
@@ -2323,7 +2324,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         };
         this.purchaseRepair = () => {
           const repairStation = $scope.state.repairStation;
-          if (repairStation.repairing.active || !repairStation.vehicleStopped ||
+          if (repairStation.repairing.active || $scope.state.fuelStation.refueling.active ||
+            !repairStation.vehicleStopped ||
             !repairStation.canRepair || repairStation.balance < repairStation.price) return;
           bngApi.engineLua(
             'if taxiDriver_taxiDriver then taxiDriver_taxiDriver.purchaseRepair() end'

@@ -1277,7 +1277,7 @@ end
 
 function realisticFuel.purchase(energyType, requestedQuantity)
   if not state.active or not state.realisticMode or not realisticFuel.station or
-    realisticFuel.refueling.active then return end
+    realisticFuel.refueling.active or realisticFuel.repairing.active then return end
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
   if not vehicle or getVehicleSpeedKmh(vehicle) > 2 then return end
 
@@ -1290,7 +1290,7 @@ function realisticFuel.purchase(energyType, requestedQuantity)
   local vehicleId = vehicle:getID()
   vehicleBridgeGuard.request(vehicle, "energyStorage", function(data, currentVehicle)
     if not state.active or not state.realisticMode or realisticFuel.refueling.active or
-      realisticFuel.station ~= stationAtRequest or
+      realisticFuel.repairing.active or realisticFuel.station ~= stationAtRequest or
       tonumber(state.activeVehicleId) ~= tonumber(vehicleId) then return end
 
     local tanks = type(data) == "table" and data[1] or nil
@@ -1473,7 +1473,8 @@ function realisticFuel.requestCurrentDamage(vehicle, callback)
 end
 
 function realisticFuel.purchaseRepair()
-  if realisticFuel.repairing.active or not realisticFuel.repairStation then return end
+  if realisticFuel.repairing.active or realisticFuel.refueling.active or
+    not realisticFuel.repairStation then return end
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
   if not vehicle or getVehicleSpeedKmh(vehicle) > 2 then return end
   if realisticFuel.repairStation.center and
@@ -1483,7 +1484,7 @@ function realisticFuel.purchaseRepair()
   local stationAtRequest = realisticFuel.repairStation
   local vehicleId = tonumber(vehicle:getID())
   realisticFuel.requestCurrentDamage(vehicle, function(rawDamage)
-    if not rawDamage or realisticFuel.repairing.active or
+    if not rawDamage or realisticFuel.repairing.active or realisticFuel.refueling.active or
       realisticFuel.repairStation ~= stationAtRequest then return end
     local currentVehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or
       getPlayerVehicle()
