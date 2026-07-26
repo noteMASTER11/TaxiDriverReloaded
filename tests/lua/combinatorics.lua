@@ -22,6 +22,7 @@ local aiLoggerModule = dofile("lua/ge/extensions/taxiDriver/aiLogger.lua")
 local networkAddress = dofile("lua/ge/extensions/taxiDriver/networkAddress.lua")
 local nextOfferGuard = dofile("lua/ge/extensions/taxiDriver/nextOfferGuard.lua")
 local taxiConfig = dofile("lua/ge/extensions/taxiDriver/config.lua")
+local repairPricing = dofile("lua/ge/extensions/taxiDriver/repairPricing.lua")
 
 local guardedOffer = {id = 71}
 local guarded = nextOfferGuard.update(guardedOffer, 0.2, false, 0.25,
@@ -2264,4 +2265,29 @@ assert(dismissed and trafficInserted)
 fleetService:shutdown()
 assert(deletedVehicles[101])
 
-print("TaxiDriver Lua combinatorics: stock player AI routing, lightweight fleet routing, fleet presets/economy/lifecycle, AI logging, powertrain handshake, gameplay modes, and 500 deferred respawns passed")
+assert(repairPricing.calculateRepairPrice(0, taxiConfig.repair) == taxiConfig.repair.minimumRepairPrice)
+assert(repairPricing.calculateRepairPrice(-50, taxiConfig.repair) == taxiConfig.repair.minimumRepairPrice)
+local repairAtMax = repairPricing.calculateRepairPrice(100, taxiConfig.repair)
+local repairRange = taxiConfig.repair.maximumRepairPrice - taxiConfig.repair.minimumRepairPrice
+assert(repairAtMax <= taxiConfig.repair.maximumRepairPrice and
+  repairAtMax > taxiConfig.repair.minimumRepairPrice + repairRange * 0.7)
+assert(repairPricing.calculateRepairPrice(999, taxiConfig.repair) == repairAtMax)
+local repairLow = repairPricing.calculateRepairPrice(10, taxiConfig.repair)
+local repairMid = repairPricing.calculateRepairPrice(40, taxiConfig.repair)
+local repairHigh = repairPricing.calculateRepairPrice(80, taxiConfig.repair)
+assert(repairLow < repairMid and repairMid < repairHigh and repairHigh <= repairAtMax)
+local customRepairConfig = {minimumRepairPrice = 20, maximumRepairPrice = 60, repairPriceScale = 10}
+local customLow = repairPricing.calculateRepairPrice(1, customRepairConfig)
+local customHigh = repairPricing.calculateRepairPrice(90, customRepairConfig)
+assert(customLow >= 20 and customLow < 30 and customHigh <= 60 and customHigh > 55)
+assert(repairPricing.calculateRepairPrice(50, nil) > 0)
+assert(repairPricing.calculateRepairPrice(nil, taxiConfig.repair) == taxiConfig.repair.minimumRepairPrice)
+
+assert(repairPricing.calculateDamagePercent(0, taxiConfig.repair) == 0)
+assert(repairPricing.calculateDamagePercent(-100, taxiConfig.repair) == 0)
+local damageLow = repairPricing.calculateDamagePercent(1000, taxiConfig.repair)
+local damageHigh = repairPricing.calculateDamagePercent(9000, taxiConfig.repair)
+assert(damageLow > 0 and damageLow < 100 and damageHigh > damageLow and damageHigh <= 100)
+assert(repairPricing.calculateDamagePercent(50, nil) > 0)
+
+print("TaxiDriver Lua combinatorics: stock player AI routing, lightweight fleet routing, fleet presets/economy/lifecycle, AI logging, powertrain handshake, gameplay modes, repair pricing, and 500 deferred respawns passed")
