@@ -54,6 +54,10 @@ const routePlannerLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/routePlanner.lua"),
   "utf8"
 );
+const routeCacheLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/routeCache.lua"),
+  "utf8"
+);
 const shiftTrackerLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/shiftTracker.lua"),
   "utf8"
@@ -206,6 +210,30 @@ assert.match(persistenceLuaSource, /function store:loadSettings\(\)/,
   "Persistence module must own settings loading and canonicalization");
 assert.match(routePlannerLuaSource, /function service\.chooseStop\(/,
   "Route planner module must expose a named stop-selection API");
+assert.match(routePlannerLuaSource,
+  /calculateGraphDistance[\s\S]*?getRoutePoints[\s\S]*?chooseGraphRoadStop/,
+  "Order generation must retain an in-memory road-graph fallback independent from semantic map modules");
+assert.match(routePlannerLuaSource,
+  /function service\.chooseStop[\s\S]*?getRoutePoints\(\)[\s\S]*?chooseSemanticStop/,
+  "Road-graph fallback points must be prepared even when semantic anchors can satisfy the first order");
+assert.match(routeCacheLuaSource,
+  /\/settings\/TaxiDriver\/route_cache[\s\S]*?routes_%s_%s\.json[\s\S]*?schemaVersion/,
+  "Every map must persist dispatcher routes in its own user-folder JSON cache");
+assert.match(routeCacheLuaSource,
+  /function M\.appendOffer\(offer, originPos\)[\s\S]*?document\.routes\s*=\s*routes[\s\S]*?writeDocument/,
+  "Every offer shown by the dispatcher must be appended to the current map JSON");
+assert.match(taxiDriverLuaSource,
+  /table\.insert\(offers, offer\)[\s\S]*?cachePublishedOffer\(offer\)[\s\S]*?notifyHud\(\)/,
+  "A generated offer must be cached in the same transition that publishes it to the UI");
+assert.match(taxiDriverLuaSource,
+  /if not offer then offer = createOfferFromRouteCache\(requestedType\) end/,
+  "A failed live generator must restore a compatible dispatcher offer from the map cache");
+assert.match(taxiDriverLuaSource,
+  /local function beginSearching[\s\S]*?routeCache\.ensureCurrentMapFile/,
+  "Starting dispatcher search must immediately create or migrate the current map cache file");
+assert.match(routePlannerLuaSource,
+  /pcall\(scenetree\.findClassObjects[\s\S]*?pcall\(sitesManager\.getCurrentLevelSitesFiles[\s\S]*?logSemanticFallback/,
+  "Broken semantic triggers, sites, or POIs must not disable road-graph order generation");
 assert.match(persistenceLuaSource, /unlimitedRouteDistance\s*=\s*false/,
   "Unlimited route generation must remain opt-in by default");
 assert.match(routePlannerLuaSource,
@@ -367,6 +395,18 @@ assert.match(autopilotLuaSource,
 assert.match(autopilotLuaSource,
   /stock_route_done[\s\S]*?reachedGameplayRadius[\s\S]*?stockAi\s*=\s*true[\s\S]*?customPerception\s*=\s*false[\s\S]*?customRecovery\s*=\s*false/,
   "The experiment must report whether native Route Done actually entered the gameplay trigger");
+assert.match(autopilotLuaSource,
+  /local function stopNative\(vehicle, park\)[\s\S]*?park and "ai\.setMode\('stop'\)"[\s\S]*?function service:park/,
+  "A completed player route must use BeamNG stop mode so it brakes, parks, and disables native AI");
+assert.match(taxiDriverLuaSource,
+  /function M\.onAutopilotRouteDone[\s\S]*?state\.phase == phases\.toDestination[\s\S]*?autopilot:park\(vehicle, "destinationRouteDone"\)/,
+  "Final native Route Done must immediately start the parked AI handoff");
+assert.match(taxiDriverLuaSource,
+  /local function beginSearching[\s\S]*?autopilot:isEnabled\(\)[\s\S]*?autopilot:park\(vehicle, "searchingWithoutRoute"\)/,
+  "Searching without an active order must never leave the previous AI route running");
+assert.match(taxiDriverLuaSource,
+  /updateTripCooldowns[\s\S]*?trip_cancelled_by_passenger[\s\S]*?beginSearching\("Passenger cancelled the order"\)[\s\S]*?beginSearching\("Passenger did not arrive"\)/,
+  "Passenger cancellation and no-show events must use the parked search transition");
 assert.doesNotMatch(autopilotLuaSource, /taxiDriverAutopilotRecovery\.start|allowReverse|spatialGraph|routeForwardTurn/,
   "No custom maneuver controller may remain reachable from the player AI service");
 if (false) {

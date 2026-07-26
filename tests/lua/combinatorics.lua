@@ -16,6 +16,7 @@ local vehicleScanGuard = require("taxiDriver/vehicleScanGuard")
 local vehicleControl = dofile("lua/ge/extensions/taxiDriver/vehicleControl.lua")
 local delivery = dofile("lua/ge/extensions/taxiDriver/delivery.lua")
 local routePlanner = dofile("lua/ge/extensions/taxiDriver/routePlanner.lua")
+local routeCache = dofile("lua/ge/extensions/taxiDriver/routeCache.lua")
 local autopilotModule = dofile("lua/ge/extensions/taxiDriver/autopilot.lua")
 local aiLoggerModule = dofile("lua/ge/extensions/taxiDriver/aiLogger.lua")
 local networkAddress = dofile("lua/ge/extensions/taxiDriver/networkAddress.lua")
@@ -139,6 +140,59 @@ assert(routePlanner.isDistanceAllowed(25000, 1000, 25000))
 assert(not routePlanner.isDistanceAllowed(25001, 1000, 25000))
 assert(routePlanner.isDistanceAllowed(250000, 1000, nil))
 assert(not routePlanner.isDistanceAllowed(999, 1000, nil))
+assert(routeCache.cacheDirectory == "/settings/TaxiDriver/route_cache")
+assert(routeCache.filenamePart("West Coast, USA", "map") == "west_coast_usa")
+assert(routeCache.schemaVersion == 2 and routeCache.maximumRoutes == 96)
+local cachedOfferSource = {
+  passengerName = "Cache Passenger",
+  isDelivery = false,
+  pickup = {
+    pos = {x = 10, y = 20, z = 3}, dir = {x = 1, y = 0, z = 0},
+    nodeA = "a", nodeB = "b", routeDistance = 850
+  },
+  destination = {
+    pos = {x = 110, y = 220, z = 4}, dir = {x = 0, y = 1, z = 0},
+    nodeA = "c", nodeB = "d", routeDistance = 7200
+  },
+  stops = {},
+  rideDistance = 7200,
+  totalEtaMinutes = 12,
+  baseFare = 100,
+  ratingAdjustedFare = 110,
+  estimatedFare = 120
+}
+local serializedCachedOffer = routeCache.serializeOffer(
+  cachedOfferSource, {x = 0, y = 0, z = 0})
+assert(serializedCachedOffer and serializedCachedOffer.pickup.routeDistance == 850)
+local sanitizedCachedOffer = routeCache.sanitizeOffer(serializedCachedOffer)
+assert(sanitizedCachedOffer and sanitizedCachedOffer.destination.nodeB == "d")
+assert(routeCache.routeKey(sanitizedCachedOffer):find("passenger", 1, true))
+local originalRouteCacheFs, originalJsonReadFile, originalJsonWriteFile =
+  FS, jsonReadFile, jsonWriteFile
+local originalLevelIdentifier = getCurrentLevelIdentifier
+local routeCacheFiles = {}
+FS = {
+  directoryExists = function() return true end,
+  directoryCreate = function() return true end,
+  fileExists = function(_, path) return routeCacheFiles[path] ~= nil end
+}
+jsonReadFile = function(path) return routeCacheFiles[path] end
+jsonWriteFile = function(path, data)
+  routeCacheFiles[path] = data
+  return true
+end
+getCurrentLevelIdentifier = function() return "west_coast_usa" end
+assert(routeCache.ensureCurrentMapFile())
+local routeCacheDescriptor = routeCache.getCurrentDescriptor()
+assert(routeCacheFiles[routeCacheDescriptor.filePath])
+assert(routeCache.appendOffer(cachedOfferSource, {x = 0, y = 0, z = 0}))
+local restoredRouteOffers = routeCache.loadOffers()
+assert(#restoredRouteOffers == 1)
+assert(restoredRouteOffers[1].passengerName == "Cache Passenger")
+assert(routeCacheFiles[routeCacheDescriptor.filePath].routes[1].rideDistance == 7200)
+FS, jsonReadFile, jsonWriteFile = originalRouteCacheFs, originalJsonReadFile,
+  originalJsonWriteFile
+getCurrentLevelIdentifier = originalLevelIdentifier
 
 local orientedMap = map
 local orientedNodes = {
@@ -268,6 +322,17 @@ assert(orientedCommands[#orientedCommands]:find(
   'path={"gpsA","gpsB","gpsC"}', 1, true))
 assert(not orientedCommands[#orientedCommands]:find('"loop1"', 1, true))
 strictGpsAutopilot:disable(orientedVehicle, "test")
+orientedCommands = {}
+local parkingAutopilot = autopilotModule.new({
+  phases = orientedPhases, arrivalRadius = 14,
+  getSpeedKmh = function() return 2 end
+})
+assert(parkingAutopilot:enable(orientedVehicle, "toDestination", orientedTarget))
+parkingAutopilot:park(orientedVehicle, "destinationRouteDone")
+assert(not parkingAutopilot:isEnabled())
+assert(orientedCommands[#orientedCommands]:find("ai.setMode('stop')", 1, true))
+assert(not orientedCommands[#orientedCommands]:find(
+  "ai.setMode('disabled')", 1, true))
 map = orientedMap
 
 if false then

@@ -355,7 +355,7 @@ function M.new(options)
     return result
   end
 
-  local function stopNative(vehicle)
+  local function stopNative(vehicle, park)
     return queue(vehicle, table.concat({
       "if extensions.taxiDriverAutopilotRecovery then ",
       "extensions.taxiDriverAutopilotRecovery.stop();",
@@ -371,7 +371,8 @@ function M.new(options)
       "electrics.set_right_signal(false,false);",
       "ai.setRecoverOnCrash(false);",
       "ai.setSpeed(nil); ai.setSpeedMode('off');",
-      "ai.setAvoidCars('on'); ai.driveInLane('on'); ai.setMode('disabled')"
+      "ai.setAvoidCars('on'); ai.driveInLane('on');",
+      park and "ai.setMode('stop')" or "ai.setMode('disabled')"
     }))
   end
 
@@ -539,9 +540,9 @@ function M.new(options)
     return false
   end
 
-  function service:disable(vehicle, reason)
+  function service:disable(vehicle, reason, park)
     local wasEnabled = runtime.enabled
-    if wasEnabled then stopNative(vehicle) end
+    if wasEnabled then stopNative(vehicle, park == true) end
     runtime.enabled = false
     runtime.suspended = false
     runtime.status = "off"
@@ -562,6 +563,10 @@ function M.new(options)
       logger.info("autopilot", "stock_ai_disabled", {reason = runtime.reason})
       if trace and type(trace.stop) == "function" then trace:stop(runtime.reason) end
     end
+  end
+
+  function service:park(vehicle, reason)
+    self:disable(vehicle, reason or "routeCompleted", true)
   end
 
   function service:toggle(vehicle, phase, target)
