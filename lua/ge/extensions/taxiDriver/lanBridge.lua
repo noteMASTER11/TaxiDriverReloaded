@@ -233,43 +233,33 @@ local function isValidToken(value)
 end
 
 local function routedLanAddress()
-  -- Connecting a UDP socket does not send a packet. The OS only resolves the
+  -- Connecting a UDP socket does not send a packet. Windows only resolves the
   -- route and assigns the local interface, which gives us a fallback when the
-  -- BeamNG adapter list is incomplete. This relies on standard POSIX/BSD
-  -- socket semantics and is expected to behave the same on Windows and Linux.
-  local lastError = ""
+  -- BeamNG adapter list is incomplete.
   for _, destination in ipairs({"1.1.1.1", "8.8.8.8", "192.0.2.1"}) do
     local udp = socketLib.udp()
     if udp then
       pcall(function() udp:settimeout(0) end)
-      local connectedOk, connected, connectError = pcall(function()
+      local connectedOk, connected = pcall(function()
         return udp:setpeername(destination, 53)
       end)
       local address = nil
       if connectedOk and connected then
-        local nameOk, value, nameError = pcall(function() return udp:getsockname() end)
-        if nameOk and value then
-          address = networkAddress.normalizeIPv4(value)
-          if not address then lastError = "getsockname returned " .. tostring(value) end
-        else
-          lastError = tostring(nameError or value or "getsockname failed")
-        end
-      else
-        lastError = tostring(connectError or connected or "setpeername failed")
+        local nameOk, value = pcall(function() return udp:getsockname() end)
+        if nameOk then address = networkAddress.normalizeIPv4(value) end
       end
       closeSocket(udp)
       if networkAddress.isLanIPv4(address) then return address end
     end
   end
-  logger.info("lan", "route_discovery", {address = "", error = lastError})
   return nil
 end
 
 local function canBindAddress(address)
-  local ok, listener, bindError = pcall(function() return socketLib.bind(address, 0, 1) end)
-  if ok and listener then closeSocket(listener); return true, "" end
+  local ok, listener = pcall(function() return socketLib.bind(address, 0, 1) end)
+  if ok and listener then closeSocket(listener); return true end
   closeSocket(listener)
-  return false, tostring(bindError or (not ok and listener) or "unknown")
+  return false
 end
 
 local function adapterAddresses()
@@ -296,7 +286,7 @@ local function hostnameAddresses()
       if type(entry) == "table" and entry.family == "inet" then
         results[#results + 1] = {
           ipv4Addr = entry.addr,
-          description = "Hostname " .. hostname
+          description = "Windows hostname " .. hostname
         }
       end
     end
@@ -320,13 +310,10 @@ end
 
 local function selectLanAddress(nativeAddress)
   local routedAddress = routedLanAddress()
-  if routedAddress then logger.info("lan", "route_discovery", {address = routedAddress}) end
+  logger.info("lan", "route_discovery", {address = routedAddress or ""})
   local adapters = adapterAddresses()
   for _, entry in ipairs(hostnameAddresses()) do
     adapters[#adapters + 1] = entry
-  end
-  if manualAddressOverride ~= "" then
-    logger.info("lan", "manual_address", {value = manualAddressOverride})
   end
   local address, candidates = networkAddress.select({
     adapters = adapters,
@@ -340,7 +327,6 @@ local function selectLanAddress(nativeAddress)
     logger.info("lan", "address_candidate", {
       address = candidate.address,
       bindable = candidate.bindable,
-      bindReason = candidate.bindReason or "",
       description = candidate.description,
       penalty = candidate.penalty,
       score = candidate.score,
@@ -805,12 +791,9 @@ function M.setPerformanceOptions(options)
   if not externalMapEnabled then pendingRoadChunk = 0 end
 end
 
--- On platforms where BeamNG's own address discovery is unusable (e.g. its
--- Lua sandbox blocks both outbound socket connect() and io.open() on native
--- Linux builds, leaving only loopback-only sources), a user-supplied address
--- is the only way LAN sharing can work at all. It is still validated as a
--- private LAN IPv4 and bind-tested like every other candidate, and it is
--- never trusted blindly -- it just outranks the automatic sources.
+-- User-supplied override for platforms where automatic LAN address
+-- discovery is unavailable or unreliable. Still validated and bind-tested
+-- like every other candidate; it just outranks the automatic sources.
 function M.setManualAddress(value)
   manualAddressOverride = tostring(value or ""):gsub("%s+", "")
 end
@@ -823,7 +806,6 @@ function M.getStatus()
     bridgeError = bridgeError,
     address = chosenAddress,
     port = port,
-    -- do not log this URL verbatim -- it embeds the session token
     url = enabled and ("http://" .. chosenAddress .. ":" .. port ..
       externalEntryPoint .. "?token=" .. sessionToken .. "&v=" .. externalUiRevision) or ""
   }

@@ -24,8 +24,7 @@ end
 local virtualMarkers = {
   "virtualbox", "vmware", "hyper-v", "default switch", "loopback",
   "openvpn", "wireguard", "tailscale", "zerotier", "hamachi",
-  "tap-windows", "tunnel", "bluetooth", "vethernet",
-  "docker", "podman", "veth", "br-"
+  "tap-windows", "tunnel", "bluetooth", "vethernet"
 }
 
 local function adapterPenalty(description)
@@ -86,18 +85,14 @@ function M.select(options)
     if candidate.sources.route then score = score + 90 end
     if candidate.sources.saved then score = score + 15 end
     if description:find("wi%-fi") or description:find("wireless", 1, true) or
-      description:find("wlan", 1, true) or description:find("802%.11") or
-      description:match("^wlp%d") then
+      description:find("wlan", 1, true) or description:find("802%.11") then
       score = score + 80
     elseif description:find("ethernet", 1, true) or
-      description:find("gigabit", 1, true) or
-      description:match("^eth%d") or description:match("^en[ops]") then
+      description:find("gigabit", 1, true) then
       score = score + 55
     end
     candidate.penalty = adapterPenalty(description)
-    local bindableOk, bindReason = canBind(candidate.address)
-    candidate.bindable = bindableOk == true
-    candidate.bindReason = bindReason
+    candidate.bindable = canBind(candidate.address) == true
     candidate.score = candidate.bindable and (score - candidate.penalty) or -10000
   end
 
