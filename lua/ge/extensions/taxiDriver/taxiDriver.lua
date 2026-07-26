@@ -117,6 +117,9 @@ local realisticFuel = {
   repairSuppressResetExpiresAt = nil,
   repairPlateFixVehicleId = nil,
   repairPlateFixExpiresAt = nil,
+  repairRestoreTanksVehicleId = nil,
+  repairRestoreTanksData = nil,
+  repairRestoreTanksExpiresAt = nil,
   repairing = {
     active = false,
     completing = false,
@@ -1549,6 +1552,18 @@ function realisticFuel.repairVehiclePhysically(vehicle, callback)
     -- so it's queued here and fired once the vehicle settles, below.
     realisticFuel.repairPlateFixVehicleId = vehicleId
     realisticFuel.repairPlateFixExpiresAt = (os.clock() or 0) + 20
+    -- be:reloadVehicle also refills the tank and resets the gear, and the
+    -- recovery call below is known to refill it again -- restoring the
+    -- pre-repair energy levels is therefore deferred to the same
+    -- scannerBecameReady checkpoint as the plate fix (rather than done
+    -- immediately here), so it's guaranteed to be the last thing applied
+    -- and isn't clobbered by recovery's own refill. Otherwise repairing
+    -- would incidentally hand out free fuel too.
+    if type(preservedTanks) == "table" then
+      realisticFuel.repairRestoreTanksVehicleId = vehicleId
+      realisticFuel.repairRestoreTanksData = preservedTanks
+      realisticFuel.repairRestoreTanksExpiresAt = (os.clock() or 0) + 20
+    end
 
     -- "0" is the local player slot (same convention as be:getPlayerVehicleID(0)
     -- above), not a vehicle ID -- reloadVehicle has no vehicle-ID overload.
@@ -1558,20 +1573,14 @@ function realisticFuel.repairVehiclePhysically(vehicle, callback)
       realisticFuel.repairSuppressResetExpiresAt = nil
       realisticFuel.repairPlateFixVehicleId = nil
       realisticFuel.repairPlateFixExpiresAt = nil
+      realisticFuel.repairRestoreTanksVehicleId = nil
+      realisticFuel.repairRestoreTanksData = nil
+      realisticFuel.repairRestoreTanksExpiresAt = nil
       if type(callback) == "function" then callback(false) end
       return
     end
 
     local restoredVehicle = getObjectByID(vehicleId)
-    -- be:reloadVehicle also refills the tank and resets the gear; restore
-    -- the pre-repair energy levels so repairing doesn't incidentally hand
-    -- out free fuel too.
-    if restoredVehicle and type(preservedTanks) == "table" then
-      for _, tank in ipairs(preservedTanks) do
-        vehicleBridgeGuard.execute(
-          restoredVehicle, "setEnergyStorageEnergy", tank.name, tank.currentEnergy)
-      end
-    end
     -- be:reloadVehicle preserves whatever position/orientation the vehicle
     -- had, including flipped/upside-down -- confirmed in-game. recovery
     -- .startRecovering()/stopRecovering() (vehicle-side) is the same pair of
@@ -4240,6 +4249,20 @@ function M.onUpdate(dtReal, dtSim)
         pcall(function() core_vehicles.setPlateText(false, plateVehicleId) end)
       end
     end
+    if realisticFuel.repairRestoreTanksVehicleId then
+      local tanksVehicleId = realisticFuel.repairRestoreTanksVehicleId
+      local preservedTanks = realisticFuel.repairRestoreTanksData
+      realisticFuel.repairRestoreTanksVehicleId = nil
+      realisticFuel.repairRestoreTanksData = nil
+      realisticFuel.repairRestoreTanksExpiresAt = nil
+      local tanksVehicle = getObjectByID(tanksVehicleId)
+      if tanksVehicle and type(preservedTanks) == "table" then
+        for _, tank in ipairs(preservedTanks) do
+          vehicleBridgeGuard.execute(
+            tanksVehicle, "setEnergyStorageEnergy", tank.name, tank.currentEnergy)
+        end
+      end
+    end
     realisticFuel.dashboardEnergyTimer = 0
     local stableVehicle = state.active and state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
     runtimeBoundary:call(
@@ -4285,6 +4308,12 @@ function M.onUpdate(dtReal, dtSim)
     (os.clock() or 0) > (realisticFuel.repairPlateFixExpiresAt or 0) then
     realisticFuel.repairPlateFixVehicleId = nil
     realisticFuel.repairPlateFixExpiresAt = nil
+  end
+  if realisticFuel.repairRestoreTanksVehicleId and
+    (os.clock() or 0) > (realisticFuel.repairRestoreTanksExpiresAt or 0) then
+    realisticFuel.repairRestoreTanksVehicleId = nil
+    realisticFuel.repairRestoreTanksData = nil
+    realisticFuel.repairRestoreTanksExpiresAt = nil
   end
   local fleetOk, fleetDelta, fleetHudDirty = runtimeBoundary:call(
     "fleet.update", fleet.update, fleet, dtReal, dtSim, state.balance)
