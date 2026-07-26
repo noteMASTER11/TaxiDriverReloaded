@@ -1606,9 +1606,6 @@ function realisticFuel.finishRepair()
 
     state.balance = roundMoney(math.max(0, (tonumber(state.balance) or 0) - session.cost))
     shiftTracking:recordRepairCost(session.cost)
-    if trip then
-      trip.repairCost = roundMoney((trip.repairCost or 0) + session.cost)
-    end
     realisticFuel.recordBalanceHistory()
     local completedCost = session.cost
     realisticFuel.resetRepairing()
