@@ -20,6 +20,7 @@ local vehicleBridgeGuard = require("taxiDriver/vehicleBridgeGuard")
 local persistence = require("taxiDriver/persistence")
 local vehicleControl = require("taxiDriver/vehicleControl")
 local routePlanner = require("taxiDriver/routePlanner")
+local routeCache = require("taxiDriver/routeCache")
 local offerPlan = require("taxiDriver/offerPlan")
 local shiftTracker = require("taxiDriver/shiftTracker")
 local shiftHistory = require("taxiDriver/shiftHistory")
@@ -31,7 +32,7 @@ local hudPublisher = require("taxiDriver/hudPublisher")
 local logger = require("taxiDriver/logger")
 local runtimeBoundary = require("taxiDriver/faultBoundary").new({retrySeconds = 1})
 local aiLoggerModule = require("taxiDriver/aiLogger")
-local modVersion = "3.4.1-rc"
+local modVersion = "3.4.2-rc"
 local fleet = require("taxiDriver/fleetManager").new({modVersion = modVersion})
 local logTag = "taxiDriver"
 local supportedLanguages = taxiConfig.supportedLanguages
@@ -179,6 +180,7 @@ local offerGeneration = {
   nextJob = nil,
   recentRoutes = {}
 }
+local routeCacheFailureLogged = false
 local nextOfferId = 1
 local routePlanning = routePlanner.new({
   minimumDrivability = runtimeConfig.minimumDrivability,
@@ -1857,11 +1859,73 @@ local function createDiverseOffer(requestedType, generationFailureCount, strictE
   -- cannot be achieved after several incremental generation attempts.
   return fallback, fallbackError
 end
+
+local function reportRouteCacheFailure(message)
+  if routeCacheFailureLogged then return end
+  routeCacheFailureLogged = true
+  log("W", logTag, "Dispatcher route cache unavailable: " .. tostring(message))
+end
+
+local function cachePublishedOffer(offer)
+  if not offer then return end
+  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or
+    getPlayerVehicle()
+  local origin = vehicle and vehicle:getPosition() or nil
+  local ok, saved = pcall(routeCache.appendOffer, offer, origin)
+  if not ok or not saved then
+    reportRouteCacheFailure(ok and "offer validation or JSON write failed" or saved)
+  end
+end
+
+local function createOfferFromRouteCache(requestedType)
+  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or
+    getPlayerVehicle()
+  if not vehicle then return nil end
+  local references = {}
+  for _, offer in ipairs(offers) do references[#references + 1] = offer end
+  if trip then references[#references + 1] = trip end
+  if nextOffer then references[#references + 1] = nextOffer end
+  local ok, selected = pcall(routeCache.restoreBest, {
+    requestedType = requestedType,
+    offerId = nextOfferId,
+    vehiclePos = vehicle:getPosition(),
+    calculateDistance = calculateRouteDistance,
+    calculatePickupWait = rideRules.calculatePickupWaitSeconds,
+    isDiverse = function(candidate)
+      return routeDiversity.isDiverse(
+        candidate,
+        references,
+        offerGeneration.recentRoutes,
+        offerConfig,
+        false
+      )
+    end
+  })
+  if not ok then reportRouteCacheFailure(selected); return nil end
+  if not selected then return nil end
+  nextOfferId = nextOfferId + 1
+  logger.warn("routeCache", "dispatcher_offer_restored", {
+    offerId = selected.id,
+    requestedType = requestedType,
+    pickupDistance = selected.pickup.routeDistance,
+    cacheSavedAt = selected.cacheSavedAt
+  })
+  return selected
+end
+
 local function scheduleNextOffer()
   offerTimer = offerPlan.randomRange(offerConfig.intervalMin, offerConfig.intervalMax)
 end
 local function beginSearching(message)
+  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  if autopilot:isEnabled() then autopilot:park(vehicle, "searchingWithoutRoute") end
   physicalPickup:clear()
+  setVehicleForcedStop(vehicle, false)
+  routeCacheFailureLogged = false
+  local cacheOk, cacheReady = pcall(routeCache.ensureCurrentMapFile)
+  if not cacheOk or not cacheReady then
+    reportRouteCacheFailure(cacheOk and "unable to initialize map cache" or cacheReady)
+  end
   hideNativeMinimap()
   clearNavigation()
   restoreNavigationVisualSettings()
@@ -1925,6 +1989,7 @@ local function addOffer(dtSim)
     errorMessage = offer
     offer = nil
   end
+  if not offer then offer = createOfferFromRouteCache(requestedType) end
 
   if offer then
     if requestedType == "multiStop" and not offer.isMultiStop then
@@ -1932,6 +1997,7 @@ local function addOffer(dtSim)
     end
     rememberOfferStops(offer)
     table.insert(offers, offer)
+    cachePublishedOffer(offer)
     offerGeneration.failures = 0
     state.message = string.format("Доступно заказов: %d", #offers)
     notifyHud()
@@ -1960,6 +2026,12 @@ local function startAcceptedOffer(selected)
   offerGeneration.poolRequestedType = nil
 
   local pickupDistance = calculateRouteDistance(vehicle:getPosition(), selected.pickup.pos)
+  if not pickupDistance and selected.cachedRoute then
+    pickupDistance = math.max(
+      tonumber(selected.pickup.routeDistance) or 0,
+      vehicle:getPosition():distance(selected.pickup.pos)
+    )
+  end
   if not pickupDistance then return false, "Не удалось построить маршрут к пассажиру" end
   selected.pickup.routeDistance = pickupDistance
   selected.pickupWaitLimit = selected.isDelivery and 0 or
@@ -2073,7 +2145,12 @@ local function updateNextOfferOpportunity(dtSim)
   if status == "pending" then return end
   offerGeneration.nextJob = nil
   if status == "error" then
-    recordNextOfferError(generatedOffer)
+    errorMessage = generatedOffer
+    generatedOffer = nil
+  end
+  if not generatedOffer then generatedOffer = createOfferFromRouteCache(nil) end
+  if not generatedOffer and status == "error" then
+    recordNextOfferError(errorMessage)
     return
   end
   trip.nextOfferFailureCount = 0
@@ -2082,6 +2159,7 @@ local function updateNextOfferOpportunity(dtSim)
     nextOffer = generatedOffer
     nextOfferTimer = offerConfig.nextOfferDuration
     nextOfferAccepted = false
+    cachePublishedOffer(generatedOffer)
     notifyHud()
   else
     scheduleNextOfferRetry()
@@ -2279,6 +2357,8 @@ end
 
 local function beginAlighting()
   if not trip then return end
+  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  if autopilot:isEnabled() then autopilot:park(vehicle, "destinationReached") end
   hideNativeMinimap()
   clearNavigation()
   restoreNavigationVisualSettings()
@@ -2286,7 +2366,6 @@ local function beginAlighting()
   state.message = trip.isDelivery and "Unloading cargo" or
     "Открываем пассажирскую дверь"
   phaseTimer = runtimeConfig.alightingDuration
-  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
   if trip.isDelivery then
     trip.cargoDoorTriggerId = toggleCargoAccess(vehicle, trip.cargoDoorTriggerId)
   else
@@ -3166,7 +3245,11 @@ function M.onAutopilotRouteDone(vehicleId)
     })
     return false
   end
-  return autopilot:onRouteDone(vehicle, getAutopilotTarget())
+  local completed = autopilot:onRouteDone(vehicle, getAutopilotTarget())
+  if completed and state.phase == phases.toDestination then
+    autopilot:park(vehicle, "destinationRouteDone")
+  end
+  return completed
 end
 function M.resumeShift(shiftId)
   if state.active then return false end

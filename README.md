@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.1-rc"><img src="https://img.shields.io/badge/release-v3.4.1--RC-ffd11a?style=flat-square" alt="Release v3.4.1-rc"></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.2-rc"><img src="https://img.shields.io/badge/release-v3.4.2--RC-ffd11a?style=flat-square" alt="Release v3.4.2-rc"></a>
   <img src="https://img.shields.io/badge/BeamNG.drive-0.38.6-f28c28?style=flat-square" alt="BeamNG.drive 0.38.6">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.1-rc"><strong>Download 3.4.1 RC</strong></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.2-rc"><strong>Download 3.4.2 RC</strong></a>
 </p>
 
 ---
 
-> **3.4.1 RC:** AI Driver now delegates steering and road travel to BeamNG's native vehicle AI, verifies real arrival at the gameplay target, and adds a smooth traffic guard for following and curved collision paths. Optional strict GPS routing follows the displayed shortest route. Fleet workers use the same protection at a reduced update rate. Random Events now have individual switches and probabilities, physical passenger/cargo pickups, trip-history details, and an opt-in native police-stop event. Existing 3.4.0 Beta saves remain compatible.
+> **3.4.2 RC:** Completed and cancelled AI trips now end with a smooth native stop, parking brake, and AI shutdown. Dispatcher offers shown in the UI are persisted per map and can be restored when live map modules or semantic route sources fail. Existing `3.4.1-rc` saves remain compatible.
 
 TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
@@ -217,9 +217,21 @@ Settings, profile details, and driver progress are stored separately outside the
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\vehicles.json
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\shiftshistory.json
 %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\lan.json
+%LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\TaxiDriver\route_cache\routes_[map-name]_[map-id].json
 ```
 
 `difficulty.json` contains the Custom difficulty sliders and individual penalty switches. It can be copied between installations and shared as a player-made difficulty preset. Invalid or unsupported files are replaced with safe defaults.
+
+The displayed `%LOCALAPPDATA%` prefix represents BeamNG's active user folder. If
+the user folder was moved in the BeamNG Launcher, `route_cache` and all other
+TaxiDriver data follow it automatically. The per-map route cache is created as
+soon as dispatcher search starts. Every offer published to the UI appends its
+pickup, optional stops, destination, distances, and fare metadata to `routes`.
+If live generation later fails because semantic sites, POIs, or another
+community module are broken, the dispatcher can restore a compatible saved
+route. A separate in-memory road-graph sampler remains the lower-level fallback
+for discovering new stops; JSON `routes` contains only complete offers that
+actually reached the UI.
 
 If any file is missing, invalid, or uses an unsupported schema, safe defaults for that file are restored and saved automatically.
 
@@ -231,6 +243,7 @@ All application sounds—including clicks, online/offline cues, passenger messag
 
 - `persistence.lua` owns settings, difficulty, profile, progress schemas, validation, and JSON I/O;
 - `routePlanner.lua` owns road-graph routing, semantic stop discovery, level caches, and recently used stops;
+- `routeCache.lua` persists UI-published dispatcher routes and restores compatible offers when live generation fails;
 - `autopilot.lua` validates the player vehicle, selects legal or strict-GPS graph nodes, dispatches native BeamNG AI, and verifies physical arrival;
 - `taxiDriverStockAiObserver.lua` adds smooth following, steering-arc traffic prediction, target-aligned final braking, and native `Route Done` observation;
 - `aiLogger.lua` writes opt-in, crash-readable AI navigation and vehicle telemetry journals;
@@ -251,7 +264,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Installation
 
-1. Download `taxidriver.zip` from the [3.4.1 RC release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.1-rc).
+1. Download `taxidriver.zip` from the [3.4.2 RC release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.2-rc).
 2. Place the archive directly in:
 
    ```text

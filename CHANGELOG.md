@@ -1,5 +1,43 @@
 # Changelog
 
+## 3.4.2 RC — Parked AI and Resilient Route Cache
+
+This patch release addresses two player-reported failure modes after `3.4.1-rc`: native AI remaining active after a route or cancelled order, and dispatcher generation becoming unavailable when map-provided semantic data fails.
+
+### AI completion and cancelled-order parking
+
+- Final native `Route Done` now hands the vehicle to BeamNG's `stop` mode instead of merely leaving the previous AI route active.
+- BeamNG completes the deceleration, applies the parking brake at its stationary threshold, restores the normal gearbox mode, and disables native AI.
+- Entering dispatcher search is now a route-ending invariant. Passenger cancellation, no-show, passenger collision, an empty order pool, and other transitions back to search stop an active AI route before clearing the trip.
+- The shared search transition also releases TaxiDriver's temporary pickup forced-stop input so a cancelled pickup cannot keep the next route permanently braked.
+- Arrival processing retains a second parked handoff as a fallback when physical arrival is detected without a usable native completion callback.
+
+### UI-published dispatcher route cache
+
+- Added `routeCache.lua` with a versioned, map-scoped JSON history under `/settings/TaxiDriver/route_cache`.
+- Dispatcher search creates or migrates the current map file immediately.
+- Every regular pool offer and floating next-order offer is appended in the same transition that publishes it to the UI.
+- Cached records contain the complete route shown to the player: pickup, optional stops, destination, per-leg distances, order type, passenger/cargo properties, timing, and fare metadata.
+- Cache files follow BeamNG's active user folder, including installations moved away from `%LOCALAPPDATA%`.
+- Route histories are sanitized, endpoint-deduplicated, bounded to 96 records per map, and assigned fresh IDs when restored.
+- If live generation fails, the dispatcher selects a compatible cached passenger or delivery route, prefers the requested subtype and diverse nearby pickups, refreshes pickup distance when routing is available, and publishes it through the normal UI path.
+- Cached offers can still be accepted when live distance lookup is unavailable; the known route distance is retained without understating direct pickup distance.
+
+### Map-module fault isolation and routing fallback
+
+- Bus-stop triggers, Sites files, parking spots, and POIs are enumerated through independent protected calls so one malformed community module cannot abort all order generation.
+- BeamNG `Route` distance failures fall back to direct graph-path distance and emit at most one warning per level session.
+- A semantic-independent in-memory road-edge sampler remains available for discovering new stops. Persistent JSON is reserved for complete offers that actually reached the UI.
+- Invalid cached numbers, coordinates, malformed node identifiers, map IDs, schemas, and incomplete records are discarded instead of entering gameplay.
+
+### Validation and compatibility
+
+- Passed the LuaJIT gameplay combinatorics suite, including dispatcher JSON creation, UI-offer persistence, route restoration, native parking commands, Fleet lifecycle, and 500 deferred respawns.
+- Passed 357 responsive native/Connected Phone UI states across every supported locale and HiDPI rendering.
+- Built and verified a deterministic 60-entry archive.
+- Existing `3.4.1-rc` settings, profile, progress, reviews, vehicle history, shift history, Fleet records, and LAN identity remain compatible.
+- UI cache revision remains `341-rc`; no browser-cached UI asset changed in this patch.
+
 ## 3.4.1 RC — Native AI Driver and Dynamic Events
 
 This release candidate contains every change made after `3.4.0-beta`. It replaces the overextended predictive driving experiment with a smaller adapter around BeamNG's native vehicle AI, adds traffic-aware protection for the player and hired Fleet vehicles, and expands Random Events and physical pickups.
