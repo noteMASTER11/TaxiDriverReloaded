@@ -1562,17 +1562,26 @@ function realisticFuel.repairVehiclePhysically(vehicle, callback)
       return
     end
 
+    local restoredVehicle = getObjectByID(vehicleId)
     -- be:reloadVehicle also refills the tank and resets the gear; restore
     -- the pre-repair energy levels so repairing doesn't incidentally hand
     -- out free fuel too.
-    if type(preservedTanks) == "table" then
-      local restoredVehicle = getObjectByID(vehicleId)
-      if restoredVehicle then
-        for _, tank in ipairs(preservedTanks) do
-          vehicleBridgeGuard.execute(
-            restoredVehicle, "setEnergyStorageEnergy", tank.name, tank.currentEnergy)
-        end
+    if restoredVehicle and type(preservedTanks) == "table" then
+      for _, tank in ipairs(preservedTanks) do
+        vehicleBridgeGuard.execute(
+          restoredVehicle, "setEnergyStorageEnergy", tank.name, tank.currentEnergy)
       end
+    end
+    -- be:reloadVehicle preserves whatever position/orientation the vehicle
+    -- had, including flipped/upside-down -- confirmed in-game. recovery
+    -- .startRecovering()/stopRecovering() (vehicle-side) is the same pair of
+    -- calls BeamNG's own "Recover Vehicle" (Home key) runs, placing the
+    -- vehicle upright at its last tracked safe position; since repair only
+    -- runs while the vehicle is nearly stationary, that position is right
+    -- where it already is.
+    if restoredVehicle and type(restoredVehicle.queueLuaCommand) == "function" then
+      restoredVehicle:queueLuaCommand(
+        "if recovery then recovery.startRecovering() recovery.stopRecovering() end")
     end
     if type(callback) == "function" then callback(true) end
   end
