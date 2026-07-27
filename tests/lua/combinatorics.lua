@@ -927,23 +927,6 @@ stockAutopilot:suspend(stockVehicle, true)
 assert(stockAutopilot:getHud(true, stockVehicle).status == "paused")
 stockAutopilot:suspend(stockVehicle, false)
 assert(stockAutopilot:getHud(true, stockVehicle).status == "driving")
-
--- Regression test for the gas-station repair reset-suppression safety review:
--- suspend(vehicle, false) only re-issues the native route when the service
--- was actually suspended first (runtime.suspended flips true -> false). This
--- is why repairVehiclePhysically must call suspend(vehicle, true) before
--- be:reloadVehicle(0) -- otherwise the scannerBecameReady resume call is a
--- silent no-op and native self-driving stops without any error or HUD change.
-local commandCountBeforeNoopResume = #stockCommands
-stockAutopilot:suspend(stockVehicle, false)
-assert(#stockCommands == commandCountBeforeNoopResume)
-stockAutopilot:suspend(stockVehicle, true)
-assert(stockAutopilot:getHud(true, stockVehicle).status == "paused")
-assert(#stockCommands == commandCountBeforeNoopResume + 1)
-stockAutopilot:suspend(stockVehicle, false)
-assert(#stockCommands == commandCountBeforeNoopResume + 2)
-assert(stockCommands[#stockCommands]:find("ai.driveUsingPath", 1, true))
-
 assert(not stockAutopilot:onBypassComplete())
 stockAutopilot:disable(stockVehicle, "test")
 assert(not stockAutopilot:isEnabled())

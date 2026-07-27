@@ -1566,14 +1566,6 @@ function realisticFuel.repairVehiclePhysically(vehicle, callback)
       realisticFuel.repairRestoreTanksExpiresAt = (os.clock() or 0) + 20
     end
 
-    -- Suspend autopilot before the reload, same as every other reset path
-    -- (see onUiChangedState above). Without this, the scannerBecameReady
-    -- resume call below is a no-op if autopilot was enabled and not already
-    -- suspended: suspend(vehicle, false) only re-issues the native route when
-    -- runtime.suspended was true, so native self-driving would silently stop
-    -- after a repair instead of resuming.
-    autopilot:suspend(vehicle, true)
-
     -- "0" is the local player slot (same convention as be:getPlayerVehicleID(0)
     -- above), not a vehicle ID -- reloadVehicle has no vehicle-ID overload.
     local ok = pcall(function() be:reloadVehicle(0) end)
@@ -4282,6 +4274,13 @@ function M.onUpdate(dtReal, dtSim)
         stableVehicle, trip.cargoWeightKg or 0)
     end
     runtimeBoundary:call("autopilot.resume", autopilot.suspend, autopilot, stableVehicle, false)
+    -- Repair-triggered resets never suspend autopilot (unlike the
+    -- vehicle-config-menu path above, which the suspend(false) call handles),
+    -- so suspend(false) alone is a no-op for them. markRouteDirty -- the same
+    -- primitive the godMode reset-survival branch already uses -- forces the
+    -- next autopilot:update() tick to reissue the native route regardless of
+    -- prior suspend state, covering that case too.
+    runtimeBoundary:call("autopilot.repairResume", autopilot.markRouteDirty, autopilot)
   end
   runtimeBoundary:call(
     "realisticFuel.dashboard", realisticFuel.updateDashboardEnergy, dtSim)
