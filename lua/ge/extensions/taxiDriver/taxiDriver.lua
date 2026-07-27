@@ -1994,6 +1994,17 @@ local function preparePassengerRideMetrics()
   trip.speedingEpisodeDisposition = nil
 end
 
+-- Shared by both the godMode reset-survival branch (handleVehicleReset) and
+-- the repair-reload settle checkpoint (scannerBecameReady in M.onUpdate):
+-- reapplies the delivery cargo-mass modifier to a reacquired vehicle object,
+-- since neither an ordinary reset nor a repair reload is guaranteed to leave
+-- it in place.
+local function reapplyDeliveryCargoMass(vehicle)
+  if vehicle and trip and trip.isDelivery then
+    delivery.applyVehicleMass(vehicle, trip.cargoWeightKg or 0)
+  end
+end
+
 local function stopModeInternal(message, showNotification, notificationKey)
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
   physicalPickup:clear()
@@ -4268,11 +4279,7 @@ function M.onUpdate(dtReal, dtSim)
     local stableVehicle = state.active and state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
     runtimeBoundary:call(
       "telemetry.resume", setTelemetryEnabled, stableVehicle, state.active == true)
-    if stableVehicle and trip and trip.isDelivery then
-      runtimeBoundary:call(
-        "delivery.restoreMass", delivery.applyVehicleMass,
-        stableVehicle, trip.cargoWeightKg or 0)
-    end
+    runtimeBoundary:call("delivery.restoreMass", reapplyDeliveryCargoMass, stableVehicle)
     runtimeBoundary:call("autopilot.resume", autopilot.suspend, autopilot, stableVehicle, false)
     -- Repair-triggered resets never suspend autopilot (unlike the
     -- vehicle-config-menu path above, which the suspend(false) call handles),
@@ -4418,9 +4425,7 @@ local function handleVehicleReset(vehicleId)
   if state.active and vehicleId and vehicleId == tonumber(state.activeVehicleId) then
     if userSettings.godMode == true then
       realisticFuel.dashboardEnergyTimer = 0
-      if trip and trip.isDelivery then
-        delivery.applyVehicleMass(getObjectByID(vehicleId), trip.cargoWeightKg or 0)
-      end
+      reapplyDeliveryCargoMass(getObjectByID(vehicleId))
       autopilot:markRouteDirty()
       notifyHud()
       return
