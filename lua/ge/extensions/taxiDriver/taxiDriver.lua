@@ -1566,6 +1566,14 @@ function realisticFuel.repairVehiclePhysically(vehicle, callback)
       realisticFuel.repairRestoreTanksExpiresAt = (os.clock() or 0) + 20
     end
 
+    -- Suspend autopilot before the reload, same as every other reset path
+    -- (see onUiChangedState above). Without this, the scannerBecameReady
+    -- resume call below is a no-op if autopilot was enabled and not already
+    -- suspended: suspend(vehicle, false) only re-issues the native route when
+    -- runtime.suspended was true, so native self-driving would silently stop
+    -- after a repair instead of resuming.
+    autopilot:suspend(vehicle, true)
+
     -- "0" is the local player slot (same convention as be:getPlayerVehicleID(0)
     -- above), not a vehicle ID -- reloadVehicle has no vehicle-ID overload.
     local ok = pcall(function() be:reloadVehicle(0) end)
