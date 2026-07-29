@@ -1,5 +1,11 @@
 local M = {}
 
+local attentionMarkerFactory = nil
+do
+  local ok, factory = pcall(require, "scenario/raceMarkers/attention")
+  if ok and type(factory) == "function" then attentionMarkerFactory = factory end
+end
+
 local function clamp(value, minimum, maximum)
   return math.max(minimum, math.min(maximum, tonumber(value) or minimum))
 end
@@ -14,9 +20,12 @@ function M.new(options)
   local originalDrawPlayer = nil
   local wrappedDrawPlayer = nil
   local zoomMultiplier = nil
+  local lastTransform = nil
   local visualOverrideActive = false
   local originalGroundmarkers = nil
   local originalArrows = nil
+  local destinationMarker = nil
+  local destinationMarkerSerial = 0
 
   local function restoreDynamicZoom()
     if ui_apps_minimap_vehicles and originalDrawPlayer and
@@ -30,23 +39,48 @@ function M.new(options)
     if not visualOverrideActive then return end
     settings.setValue("showNavigationGroundmarkers", originalGroundmarkers)
     settings.setValue("showNavigationArrows", originalArrows)
+    if core_groundMarkers and core_groundMarkers.onSettingsChanged then
+      core_groundMarkers.onSettingsChanged()
+    end
     visualOverrideActive = false
     originalGroundmarkers, originalArrows = nil, nil
   end
 
   local function applyVisualSettings()
-    if not options.isRouteGuidanceHidden or not options.isRouteGuidanceHidden() then
-      restoreVisualSettings()
-      return
-    end
     if not visualOverrideActive then
       originalGroundmarkers = settings.getValue("showNavigationGroundmarkers") ~= false
       originalArrows = settings.getValue("showNavigationArrows") ~= false
       visualOverrideActive = true
     end
-    settings.setValue("showNavigationGroundmarkers", false)
-    settings.setValue("showNavigationArrows", false)
-    if core_groundMarkerArrows then core_groundMarkerArrows.clearArrows() end
+    local visible = not options.isRouteGuidanceHidden or not options.isRouteGuidanceHidden()
+    settings.setValue("showNavigationGroundmarkers", visible)
+    settings.setValue("showNavigationArrows", visible)
+    if core_groundMarkers and core_groundMarkers.onSettingsChanged then
+      core_groundMarkers.onSettingsChanged()
+    elseif not visible and core_groundMarkerArrows then
+      core_groundMarkerArrows.clearArrows()
+    end
+  end
+
+  local function clearDestinationMarker()
+    if destinationMarker and destinationMarker.clearMarkers then
+      destinationMarker:clearMarkers()
+    end
+    destinationMarker = nil
+  end
+
+  local function setDestinationMarker(pos)
+    clearDestinationMarker()
+    if not attentionMarkerFactory or not pos then return end
+    destinationMarkerSerial = destinationMarkerSerial + 1
+    local ok, marker = pcall(attentionMarkerFactory,
+      "taxiDriverDestination" .. tostring(destinationMarkerSerial))
+    if not ok or not marker then return end
+    destinationMarker = marker
+    marker:createMarkers()
+    marker:setToCheckpoint({pos = vec3(pos) + vec3(0, 0, 2), radius = 1.5})
+    marker:setMode("default")
+    marker:show()
   end
 
   local function installDynamicZoom()
@@ -84,6 +118,7 @@ function M.new(options)
 
   function service:clearNavigation()
     if core_groundMarkers then core_groundMarkers.setPath(nil) end
+    clearDestinationMarker()
   end
 
   function service:restoreNavigationVisualSettings()
@@ -92,12 +127,26 @@ function M.new(options)
 
   function service:setNavigationTarget(target)
     if not core_groundMarkers or not target or not target.pos then return end
+    local guidanceVisible = not options.isRouteGuidanceHidden or
+      not options.isRouteGuidanceHidden()
     applyVisualSettings()
     core_groundMarkers.setPath(target.pos, {
       clearPathOnReachingTarget = false,
       cutOffDrivability = tonumber(options.minimumDrivability) or 0
     })
+    -- BeamNG 0.39 creates the floating-arrow pool at the end of setPath even
+    -- when showNavigationArrows is false, so the disabled state must win last.
+    if not guidanceVisible and core_groundMarkerArrows then
+      core_groundMarkerArrows.clearArrows()
+    end
+    setDestinationMarker(target.pos)
     if options.onRouteChanged then options.onRouteChanged() end
+  end
+
+  function service:onPreRender(dtReal, dtSim)
+    if destinationMarker and destinationMarker.update then
+      destinationMarker:update(dtReal or 0, dtSim or 0)
+    end
   end
 
   function service:hideMinimap()
@@ -117,7 +166,7 @@ function M.new(options)
         ui_apps_minimap_minimap.onMinimapSettingsChanged()
       end
     end
-    originalMode, owned = nil, false
+    originalMode, owned, lastTransform = nil, false, nil
   end
 
   function service:canShow(allowFleet)
@@ -126,7 +175,9 @@ function M.new(options)
   end
 
   function service:setAppVisibility(visible)
-    appVisible = visible == true
+    local nextVisible = visible == true
+    if appVisible == nextVisible then return end
+    appVisible = nextVisible
     if not appVisible then
       self:hideMinimap()
     elseif not uiBlocked then
@@ -151,6 +202,12 @@ function M.new(options)
     if not self:canShow(allowFleet) then self:hideMinimap(); return end
     x, y, width, height = tonumber(x), tonumber(y), tonumber(width), tonumber(height)
     if not x or not y or not width or not height or width <= 0 or height <= 0 then return end
+    x, y = clamp(x, 0, 1), clamp(y, 0, 1)
+    width, height = clamp(width, 0, 1), clamp(height, 0, 1)
+    if lastTransform and math.abs(lastTransform[1] - x) < 0.00001 and
+      math.abs(lastTransform[2] - y) < 0.00001 and
+      math.abs(lastTransform[3] - width) < 0.00001 and
+      math.abs(lastTransform[4] - height) < 0.00001 then return end
     if not ui_apps_minimap_minimap then extensions.load("ui_apps_minimap_minimap") end
     if not ui_apps_minimap_minimap then return end
     if not owned then
@@ -160,8 +217,8 @@ function M.new(options)
       owned = true
     end
     installDynamicZoom()
-    ui_apps_minimap_minimap.setDrawTransform(
-      clamp(x, 0, 1), clamp(y, 0, 1), clamp(width, 0, 1), clamp(height, 0, 1))
+    lastTransform = {x, y, width, height}
+    ui_apps_minimap_minimap.setDrawTransform(x, y, width, height)
   end
 
   function service:setOcclusions(values, allowFleet)

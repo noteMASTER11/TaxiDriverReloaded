@@ -86,6 +86,7 @@ end
 M.aiDriverPresetOrder = {"novice", "cautious", "balanced", "assertive", "racer", "custom"}
 
 M.aiDriverDefaults = {
+  enabled = false,
   aggressionPercent = 40,
   followingTimeGap = 2.3,
   minimumFollowingDistance = 4,
@@ -113,9 +114,9 @@ M.aiDriverPresets = {
     obeySpeedLimits = true, laneDiscipline = true
   },
   assertive = {
-    aggressionPercent = 60, followingTimeGap = 1.8, minimumFollowingDistance = 3,
-    brakingDeceleration = 4.5, trafficWaitSeconds = 2,
-    obeySpeedLimits = false, laneDiscipline = true
+    aggressionPercent = 50, followingTimeGap = 1.9, minimumFollowingDistance = 3.2,
+    brakingDeceleration = 4.2, trafficWaitSeconds = 2,
+    obeySpeedLimits = true, laneDiscipline = true
   },
   racer = {
     aggressionPercent = 85, followingTimeGap = 1.3, minimumFollowingDistance = 2,
@@ -136,6 +137,7 @@ function M.sanitizeAiDriver(source)
   local obeySpeedLimits = values.obeySpeedLimits
   if obeySpeedLimits == nil then obeySpeedLimits = values.obeyTrafficRules ~= false end
   return {
+    enabled = source.enabled == true,
     preset = preset,
     aggressionPercent = clamp(tonumber(values.aggressionPercent) or base.aggressionPercent, 30, 100),
     followingTimeGap = clamp(tonumber(values.followingTimeGap) or base.followingTimeGap, 1, 4),
@@ -268,7 +270,10 @@ M.runtime = {
   minPickupDistance = 400,
   maxPickupDistance = 3500,
   arrivalRadius = 14,
-  maxArrivalSpeedKmh = 4,
+  passengerPickupRadius = 10,
+  -- Arrival checks allow only a small wheel-speed sensor epsilon. Passenger
+  -- and cargo state changes must never begin while the vehicle is rolling.
+  maxArrivalSpeedKmh = 0.5,
   averageCitySpeedKmh = 40,
   minimumDrivability = 0.7,
   hudUpdateInterval = 0.2,

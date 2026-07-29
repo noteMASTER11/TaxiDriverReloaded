@@ -1,10 +1,10 @@
 <style>
-  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=341-rc");
-  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=341-rc");
+  @import url("/ui/modules/apps/TaxiDriverHUD/app.css?v=342-flatplus");
+  @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=342-flatplus");
 </style>
 
 <div class="taxi-shell" ng-if="externalPhoneMode || !vehicleConfigSuspended" ng-class="{'taxi-shell--minimized': !externalPhoneMode && phoneMinimized, 'taxi-shell--super-minimized': !externalPhoneMode && phoneSuperMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
-  <div class="taxi-shell__scale-stage" ng-class="getUiScaleClass()" ng-style="getUiScaleStyle()">
+  <div class="taxi-shell__scale-stage" ng-class="getUiScaleClass()">
   <button type="button" class="taxi-shell__remote-toggle" ng-if="!externalPhoneMode && state.lan.connected > 0" ng-click="hud.toggleLocalPhone()" aria-label="{{ localPhoneOpen ? t('externalHideLocal') : t('externalShowLocal') }}">
     <span>&#128241;</span><i ng-if="state.nextOffer"></i>
   </button>
@@ -93,15 +93,15 @@
     <div class="taxi-appbar">
       <div class="taxi-appbar__logo">T</div>
       <div class="taxi-appbar__title">
-        <strong>{{ profileOpen ? (profileDraft.fullName || 'John Doe') : (fleetOpen ? t('fleetTitle') : 'TaxiDriver') }}</strong>
+        <strong ng-attr-title="{{ profileOpen ? (profileDraft.fullName || 'John Doe') : (fleetOpen ? t('fleetTitle') : 'TaxiDriver') }}">{{ profileOpen ? (profileDraft.fullName || 'John Doe') : (fleetOpen ? t('fleetTitle') : 'TaxiDriver') }}</strong>
         <span>{{ fuelStationOpen ? (state.fuelStation.magic ? t('magicFuelTitle') : (state.fuelStation.name || t('refuelTitle'))) : (settingsOpen ? t('settingsTitle') : (profileOpen ? t('profileTitle') : (fleetOpen ? (state.fleet.activeDrivers + ' ' + t('fleetActiveDrivers')) : (state.active ? getPhaseLabel() : t('appSubtitle'))))) }}</span>
       </div>
       <div class="taxi-appbar__live" ng-if="state.active && !settingsOpen && !profileOpen && !fuelStationOpen">{{ t('online') }}</div>
-      <button type="button" class="taxi-appbar__fuel" ng-if="state.active && state.realisticMode && !settingsOpen && !profileOpen && !fuelStationOpen" ng-click="hud.handleFuelAction()" aria-label="{{ t('refuelAction') }}">{{ t('refuelAction') }}</button>
-      <button class="taxi-appbar__profile" ng-class="{'taxi-appbar__profile--active': profileOpen}" ng-click="hud.toggleProfile()" aria-label="{{ t('profileTitle') }}">
+      <button type="button" class="taxi-appbar__fuel taxi-action taxi-action--secondary" ng-class="{'taxi-appbar__fuel--warning': state.vehicleEnergy.available && state.vehicleEnergy.percent <= 15}" ng-if="state.active && state.realisticMode && !settingsOpen && !profileOpen && !fuelStationOpen" ng-click="hud.handleFuelAction()" aria-label="{{ t('refuelAction') }}"><span>{{ t('refuelAction') }}</span></button>
+      <button type="button" class="taxi-appbar__profile taxi-action taxi-action--tertiary" ng-class="{'taxi-appbar__profile--active': profileOpen}" ng-click="hud.toggleProfile()" aria-label="{{ t('profileTitle') }}">
         {{ (state.driverProfile && state.driverProfile.avatar) || driverProfile.avatar || '🙂' }}
       </button>
-      <button class="taxi-appbar__settings" ng-click="hud.toggleSettings()" aria-label="Settings">
+      <button type="button" class="taxi-appbar__settings taxi-action taxi-action--tertiary" ng-click="hud.toggleSettings()" aria-label="Settings">
         <span ng-if="!settingsOpen">&#9881;</span><span ng-if="settingsOpen">&#215;</span>
       </button>
     </div>
@@ -128,11 +128,20 @@
         <strong ng-class="{'taxi-settings__status--pending': !settingsSaved}">{{ settingsSaved ? t('settingsApplied') : t('settingsSaving') }}</strong>
       </div>
 
+      <nav class="taxi-settings__nav" aria-label="{{ t('settingsTitle') }}">
+        <button type="button" ng-repeat="item in settingsNavigation track by item.key"
+          ng-class="{'taxi-settings__nav-active': settingsSections[item.key], 'taxi-settings__nav-danger': item.danger}"
+          ng-attr-aria-current="{{ settingsSections[item.key] ? 'page' : undefined }}"
+          ng-click="hud.toggleSettingsSection(item.key)">
+          <span>{{ item.icon }}</span><strong>{{ t(item.label) }}</strong><i aria-hidden="true">&#8250;</i>
+        </button>
+      </nav>
+
       <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.general}">
-        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('general')">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" ng-click="hud.toggleSettingsSection('general')" ng-attr-aria-expanded="{{ settingsSections.general }}" aria-controls="taxi-settings-general">
           <span class="taxi-settings__group-icon">Aa</span><strong>{{ t('settingsGeneral') }}</strong><i>{{ settingsSections.general ? '-' : '+' }}</i>
         </button>
-        <div class="taxi-settings__group-body" ng-if="settingsSections.general">
+        <div id="taxi-settings-general" class="taxi-settings__group-body" ng-if="settingsSections.general">
           <div class="taxi-settings__section">
             <div class="taxi-settings__label">{{ t('language') }}</div>
             <div class="taxi-settings__help">{{ t('languageHelp') }}</div>
@@ -168,10 +177,10 @@
       </section>
 
       <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.gameplay}">
-        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('gameplay')">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" ng-click="hud.toggleSettingsSection('gameplay')" ng-attr-aria-expanded="{{ settingsSections.gameplay }}" aria-controls="taxi-settings-gameplay">
           <span class="taxi-settings__group-icon">!</span><strong>{{ t('settingsGameplay') }}</strong><i>{{ settingsSections.gameplay ? '-' : '+' }}</i>
         </button>
-        <div class="taxi-settings__group-body" ng-if="settingsSections.gameplay">
+        <div id="taxi-settings-gameplay" class="taxi-settings__group-body" ng-if="settingsSections.gameplay">
           <div class="taxi-settings__section">
             <div class="taxi-settings__label">{{ t('difficulty') }}</div>
             <div class="taxi-settings__help">{{ t('difficultyHelp') }}</div>
@@ -226,10 +235,10 @@
       </section>
 
       <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.randomEvents}">
-        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('randomEvents')">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" ng-click="hud.toggleSettingsSection('randomEvents')" ng-attr-aria-expanded="{{ settingsSections.randomEvents }}" aria-controls="taxi-settings-random-events">
           <span class="taxi-settings__group-icon">⚡</span><strong>{{ t('randomEvents') }}</strong><i>{{ settingsSections.randomEvents ? '-' : '+' }}</i>
         </button>
-        <div class="taxi-settings__group-body" ng-if="settingsSections.randomEvents">
+        <div id="taxi-settings-random-events" class="taxi-settings__group-body" ng-if="settingsSections.randomEvents">
           <div class="taxi-settings__section">
             <label class="taxi-settings__switch-row">
               <span class="taxi-settings__switch-copy"><strong>{{ t('randomEventsEnabled') }}</strong><span>{{ t('randomEventsSettingsHelp') }}</span></span>
@@ -257,10 +266,18 @@
       </section>
 
       <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.aiDriver}">
-        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('aiDriver')">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" ng-click="hud.toggleSettingsSection('aiDriver')" ng-attr-aria-expanded="{{ settingsSections.aiDriver }}" aria-controls="taxi-settings-ai-driver">
           <span class="taxi-settings__group-icon">AI</span><strong>{{ t('settingsAiDriver') }}</strong><i>{{ settingsSections.aiDriver ? '-' : '+' }}</i>
         </button>
-        <div class="taxi-settings__group-body" ng-if="settingsSections.aiDriver">
+        <div id="taxi-settings-ai-driver" class="taxi-settings__group-body" ng-if="settingsSections.aiDriver">
+          <div class="taxi-settings__section taxi-settings__section--ai-master">
+            <label class="taxi-settings__switch-row taxi-settings__switch-row--warning">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('aiDriverEnabled') }}</strong><span>{{ t('aiDriverEnabledHelp') }}</span></span>
+              <input type="checkbox" ng-model="settings.aiDriver.enabled" ng-change="hud.aiDriverToggleChanged()"><span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <div class="taxi-settings__ai-disabled" ng-if="!settings.aiDriver.enabled">{{ t('aiDriverDisabledHelp') }}</div>
+          <div class="taxi-settings__ai-options" ng-if="settings.aiDriver.enabled">
           <div class="taxi-settings__section">
             <div class="taxi-settings__label">{{ t('aiPreset') }}</div>
             <div class="taxi-settings__help">{{ t('aiPresetHelp') }}</div>
@@ -320,14 +337,15 @@
               </label>
             </div>
           </div>
+          </div>
         </div>
       </section>
 
       <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.fleet}">
-        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('fleet')">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" ng-click="hud.toggleSettingsSection('fleet')" ng-attr-aria-expanded="{{ settingsSections.fleet }}" aria-controls="taxi-settings-fleet">
           <span class="taxi-settings__group-icon">F</span><strong>{{ t('settingsFleet') }}</strong><i>{{ settingsSections.fleet ? '-' : '+' }}</i>
         </button>
-        <div class="taxi-settings__group-body" ng-if="settingsSections.fleet">
+        <div id="taxi-settings-fleet" class="taxi-settings__group-body" ng-if="settingsSections.fleet">
           <div class="taxi-settings__section">
             <label class="taxi-settings__switch-row">
               <span class="taxi-settings__switch-copy"><strong>{{ t('fleetEnabled') }}</strong><span>{{ t('fleetEnabledHelp') }}</span></span>
@@ -371,10 +389,10 @@
       </section>
 
       <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.navigation}">
-        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('navigation')">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" ng-click="hud.toggleSettingsSection('navigation')" ng-attr-aria-expanded="{{ settingsSections.navigation }}" aria-controls="taxi-settings-navigation">
           <span class="taxi-settings__group-icon">&#8594;</span><strong>{{ t('settingsNavigation') }}</strong><i>{{ settingsSections.navigation ? '-' : '+' }}</i>
         </button>
-        <div class="taxi-settings__group-body" ng-if="settingsSections.navigation">
+        <div id="taxi-settings-navigation" class="taxi-settings__group-body" ng-if="settingsSections.navigation">
           <div class="taxi-settings__section">
             <label class="taxi-settings__switch-row">
               <span class="taxi-settings__switch-copy"><strong>{{ t('routeGuidance') }}</strong><span>{{ t('routeGuidanceHelp') }}</span></span>
@@ -397,10 +415,10 @@
       </section>
 
       <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.audio}">
-        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('audio')">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" ng-click="hud.toggleSettingsSection('audio')" ng-attr-aria-expanded="{{ settingsSections.audio }}" aria-controls="taxi-settings-audio">
           <span class="taxi-settings__group-icon">&#9835;</span><strong>{{ t('settingsAudio') }}</strong><i>{{ settingsSections.audio ? '-' : '+' }}</i>
         </button>
-        <div class="taxi-settings__group-body" ng-if="settingsSections.audio">
+        <div id="taxi-settings-audio" class="taxi-settings__group-body" ng-if="settingsSections.audio">
           <div class="taxi-settings__section">
             <div class="taxi-settings__label"><span>{{ t('appVolume') }}</span><span>{{ getAppVolumePercent() }}%</span></div>
             <div class="taxi-settings__help">{{ t('appVolumeHelp') }}</div>
@@ -431,10 +449,10 @@
       </section>
 
       <section class="taxi-settings__group" ng-class="{'taxi-settings__group--open': settingsSections.connectivity}">
-        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('connectivity')">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" ng-click="hud.toggleSettingsSection('connectivity')" ng-attr-aria-expanded="{{ settingsSections.connectivity }}" aria-controls="taxi-settings-connectivity">
           <span class="taxi-settings__group-icon">&#128241;</span><strong>{{ t('settingsConnectivity') }}</strong><i>{{ settingsSections.connectivity ? '-' : '+' }}</i>
         </button>
-        <div class="taxi-settings__group-body" ng-if="settingsSections.connectivity">
+        <div id="taxi-settings-connectivity" class="taxi-settings__group-body" ng-if="settingsSections.connectivity">
           <div class="taxi-settings__section">
             <label class="taxi-settings__switch-row">
               <span class="taxi-settings__switch-copy"><strong>{{ t('externalPhone') }}</strong><span>{{ t('externalPhoneHelp') }}</span></span>
@@ -485,10 +503,10 @@
       </section>
 
       <section class="taxi-settings__group taxi-settings__group--danger" ng-class="{'taxi-settings__group--open': settingsSections.cheats}">
-        <button type="button" class="taxi-settings__group-head" ng-click="hud.toggleSettingsSection('cheats')">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" ng-click="hud.toggleSettingsSection('cheats')" ng-attr-aria-expanded="{{ settingsSections.cheats }}" aria-controls="taxi-settings-cheats">
           <span class="taxi-settings__group-icon">!</span><strong>{{ t('settingsCheats') }}</strong><i>{{ settingsSections.cheats ? '-' : '+' }}</i>
         </button>
-        <div class="taxi-settings__group-body" ng-if="settingsSections.cheats">
+        <div id="taxi-settings-cheats" class="taxi-settings__group-body" ng-if="settingsSections.cheats">
           <p class="taxi-settings__danger-help">{{ t('cheatZoneHelp') }}</p>
           <div class="taxi-settings__cheat-stats">
             <span>{{ t('cheatCurrentRating') }} <strong>{{ state.rating | number:2 }}</strong></span>
@@ -551,7 +569,7 @@
       <div class="taxi-profile__hero">
         <div class="taxi-profile__hero-avatar">{{ profileDraft.avatar }}</div>
         <div class="taxi-profile__hero-copy">
-          <span>{{ profileProgress.completedRides || 0 }} {{ t('rides') }} · {{ formatMoney(profileProgress.balance) }}</span>
+          <span ng-attr-title="{{ profileProgress.completedRides || 0 }} {{ t('rides') }} · {{ formatMoneyFull(profileProgress.balance) }}">{{ formatAggregateNumber(profileProgress.completedRides) }} {{ t('rides') }} · {{ formatMoney(profileProgress.balance) }}</span>
         </div>
         <div class="taxi-profile__hero-rating">{{ profileProgress.rating | number:2 }} ★</div>
       </div>
@@ -596,13 +614,13 @@
             <div class="taxi-review__ratings"><strong>{{ t('orderRating') }} 5.00 ★</strong><span>{{ t('profileRating') }} 5.00 ★</span></div>
           </div>
           <div class="taxi-review-wrap" ng-repeat="review in getPagedReviews() track by review.id" ng-class="{'taxi-review-wrap--open': expandedReviewId === review.id}">
-            <button type="button" class="taxi-review" ng-click="hud.toggleReviewDetails(review)" ng-attr-aria-expanded="{{ expandedReviewId === review.id }}">
+            <button type="button" class="taxi-review taxi-disclosure taxi-action taxi-action--tertiary" ng-click="hud.toggleReviewDetails(review)" ng-attr-aria-expanded="{{ expandedReviewId === review.id }}" ng-attr-aria-controls="taxi-review-details-{{ review.id }}">
               <span class="taxi-review__emoji">{{ review.emoji }}</span>
               <span class="taxi-review__copy"><strong>{{ (review.outcome === 'delivery' || review.outcome === 'deliveryAbandonment') ? t('deliveryOrder') : review.passengerName }}</strong><span>{{ formatReviewDate(review.timestamp) }} · {{ formatMoney(review.fare) }}</span><b ng-if="review.usedAutopilot">AI · {{ t('aiAssisted') }}</b></span>
               <span class="taxi-review__ratings"><strong ng-class="'taxi-review__order-rating--' + getReviewRatingClass(review)">{{ t('orderRating') }} {{ review.orderRating | number:2 }} ★</strong><span>{{ t('profileRating') }} {{ review.rating | number:2 }} ★</span></span>
-              <i class="taxi-review__expand">{{ expandedReviewId === review.id ? '−' : '+' }}</i>
+              <i class="taxi-review__expand" aria-hidden="true"></i>
             </button>
-            <div class="taxi-review-details" ng-if="expandedReviewId === review.id">
+            <div class="taxi-review-details" ng-if="expandedReviewId === review.id" ng-attr-id="taxi-review-details-{{ review.id }}">
               <div class="taxi-review-details__summary">
                 <span><small>{{ t('tripHistoryOutcome') }}</small><strong>{{ t('tripOutcome_' + review.outcome) }}</strong></span>
                 <span><small>{{ t('tripHistoryFare') }}</small><strong>{{ formatMoney(review.fare) }}</strong></span>
@@ -627,9 +645,9 @@
             </div>
           </div>
           <div class="taxi-profile__pager" ng-if="profileReviews.length">
-            <button type="button" ng-click="hud.previousReviewPage()" ng-disabled="reviewPage <= 1">‹</button>
+            <button type="button" class="taxi-action taxi-action--secondary" ng-click="hud.previousReviewPage()" ng-disabled="reviewPage <= 1" aria-label="{{ t('reviewPage', {current: reviewPage - 1, total: getReviewPageCount()}) }}">‹</button>
             <span>{{ t('reviewPage', {current: reviewPage, total: getReviewPageCount()}) }}</span>
-            <button type="button" ng-click="hud.nextReviewPage()" ng-disabled="reviewPage >= getReviewPageCount()">›</button>
+            <button type="button" class="taxi-action taxi-action--secondary" ng-click="hud.nextReviewPage()" ng-disabled="reviewPage >= getReviewPageCount()" aria-label="{{ t('reviewPage', {current: reviewPage + 1, total: getReviewPageCount()}) }}">›</button>
           </div>
         </div>
 
@@ -653,7 +671,7 @@
           <div class="taxi-ai-ride-counter">
             <span>AI</span>
             <div><strong>{{ t('aiRideTrend') }}</strong><small>{{ t('aiRideCount') }}</small></div>
-            <b>{{ profileProgress.aiRideCount || 0 }}</b>
+            <b ng-attr-title="{{ profileProgress.aiRideCount || 0 }}">{{ formatAggregateNumber(profileProgress.aiRideCount) }}</b>
           </div>
         </div>
 
@@ -677,8 +695,8 @@
               <span>{{ formatOdometer(vehicle.distanceMeters) }}</span>
             </div>
             <div class="taxi-vehicle-history__stats">
-              <span>{{ t('vehicleTrips') }}<strong>{{ vehicle.completedRides || 0 }}</strong></span>
-              <span>{{ t('vehicleAiTrips') }}<strong>{{ vehicle.aiRides || 0 }}</strong></span>
+              <span>{{ t('vehicleTrips') }}<strong ng-attr-title="{{ vehicle.completedRides || 0 }}">{{ formatCount(vehicle.completedRides) }}</strong></span>
+              <span>{{ t('vehicleAiTrips') }}<strong ng-attr-title="{{ vehicle.aiRides || 0 }}">{{ formatCount(vehicle.aiRides) }}</strong></span>
               <span>{{ t('vehicleIncome') }}<strong>{{ formatMoney(vehicle.income) }}</strong></span>
               <span>{{ t('averageIncome') }}<strong>{{ formatMoney(vehicle.averageIncome) }}</strong></span>
               <span>{{ t('averageRating') }}<strong>{{ vehicle.averageRating | number:2 }} ★</strong></span>
@@ -692,12 +710,13 @@
         </div>
         <div class="taxi-profile__panel taxi-profile__panel--shifts" ng-if="profileTab === 'shifts'">
           <div class="taxi-profile__empty" ng-if="!state.shiftHistory.items.length">{{ t('noShiftHistory') }}</div>
-          <button type="button" class="taxi-shift-card" ng-repeat="shift in state.shiftHistory.items track by shift.id" ng-click="hud.resumeShift(shift.id)" ng-disabled="state.active || state.shiftHistory.restoring">
+          <button type="button" class="taxi-shift-card" ng-repeat="shift in state.shiftHistory.items | limitTo:shiftHistoryVisibleCount track by shift.id" ng-click="hud.resumeShift(shift.id)" ng-disabled="state.active || state.shiftHistory.restoring">
             <div class="taxi-shift-card__preview"><span>&#128663;</span><img ng-if="shift.preview" ng-src="{{ shift.preview }}" alt="{{ shift.vehicleName }}" onerror="this.style.display='none'"></div>
-            <div class="taxi-shift-card__copy"><strong>{{ shift.vehicleName }}</strong><small>{{ formatShiftDate(shift.lastSavedAt || shift.startedAt) }}</small><div><span>{{ shift.rides }} {{ t('rides') }}</span><span ng-if="shift.aiRides">AI {{ shift.aiRides }}</span><span>{{ formatMoney(shift.netIncome) }}</span><span>{{ shift.energyPercent | number:0 }}%</span></div></div>
+            <div class="taxi-shift-card__copy"><strong ng-attr-title="{{ shift.vehicleName }}">{{ shift.vehicleName }}</strong><small>{{ formatShiftDate(shift.lastSavedAt || shift.startedAt) }}</small><div><span ng-attr-title="{{ shift.rides || 0 }}">{{ formatCount(shift.rides) }} {{ t('rides') }}</span><span ng-if="shift.aiRides" ng-attr-title="{{ shift.aiRides }}">AI {{ formatCount(shift.aiRides) }}</span><span ng-attr-title="{{ formatMoneyFull(shift.netIncome) }}">{{ formatMoney(shift.netIncome) }}</span><span>{{ shift.energyPercent | number:0 }}%</span></div></div>
             <i ng-if="state.shiftHistory.restoringId !== shift.id">&#8250;</i>
             <div class="taxi-shift-card__loading" ng-if="state.shiftHistory.restoringId === shift.id"><span></span>{{ t('restoringShift') }}</div>
           </button>
+          <button type="button" class="taxi-shift-history__more" ng-if="shiftHistoryVisibleCount < state.shiftHistory.items.length" ng-click="hud.loadMoreShifts()">{{ t('showMoreShifts', {shown: shiftHistoryVisibleCount, total: state.shiftHistory.items.length}) }}</button>
         </div>
       </div>
     </div>
@@ -710,20 +729,20 @@
           <span>{{ t('arrival') }}</span><strong>{{ getArrivalTime(state.etaMinutes) }}</strong><small>{{ formatEta(state.etaMinutes) }} · {{ formatDistance(state.distanceToTarget) }}</small>
         </div>
         <div class="taxi-map__speed" ng-class="{'taxi-map__speed--warning': overspeedWarningActive}" ng-if="state.active && state.speedLimit > 0">{{ formatSpeedValue(state.speedLimit) }}</div>
-        <button type="button" class="taxi-map__autopilot" ng-if="state.active && (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination' || state.phase === 'toFuelStation')" ng-class="{'taxi-map__autopilot--active': state.autopilot.enabled, 'taxi-map__autopilot--recovering': state.autopilot.status === 'recovering'}" ng-click="hud.toggleAutopilot()" ng-disabled="!state.autopilot.available">
+        <button type="button" class="taxi-map__autopilot" ng-if="settings.aiDriver.enabled && state.active && (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination' || state.phase === 'toFuelStation')" ng-class="{'taxi-map__autopilot--active': state.autopilot.enabled, 'taxi-map__autopilot--recovering': state.autopilot.status === 'recovering'}" ng-click="hud.toggleAutopilot()" ng-disabled="!state.autopilot.available">
           <strong>AI</strong><span>{{ t(state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable') }}</span>
         </button>
         <div class="taxi-fleet__map-status"><i>F</i><strong>{{ state.fleet.activeDrivers }}</strong><span>{{ t('fleetActiveDrivers') }}</span></div>
       </div>
       <div class="taxi-fleet__panel">
        <div class="taxi-fleet__head">
-        <button type="button" ng-click="hud.toggleFleet()" aria-label="{{ t('back') }}">&#8249;</button>
+        <button type="button" class="taxi-action taxi-action--tertiary" ng-click="hud.toggleFleet()" aria-label="{{ t('back') }}">&#8249;</button>
         <div><h2>{{ t('fleetTitle') }}</h2><p>{{ t('fleetSubtitle') }}</p></div>
-        <span>{{ state.fleet.activeDrivers }}/{{ state.fleet.maxDrivers }}</span>
+        <span ng-attr-title="{{ state.fleet.activeDrivers }}/{{ state.fleet.maxDrivers }}">{{ state.fleet.activeDrivers }}/{{ state.fleet.maxDrivers }}</span>
       </div>
       <div class="taxi-fleet__scroll">
         <div class="taxi-fleet__stats">
-          <span><small>{{ t('fleetTrips') }}</small><strong>{{ state.fleet.stats.rides || 0 }}</strong></span>
+          <span><small>{{ t('fleetTrips') }}</small><strong ng-attr-title="{{ state.fleet.stats.rides || 0 }}">{{ formatAggregateNumber(state.fleet.stats.rides) }}</strong></span>
           <span><small>{{ t('fleetGross') }}</small><strong>{{ formatMoney(state.fleet.stats.grossRevenue) }}</strong></span>
           <span><small>{{ t('fleetProfit') }}</small><strong ng-class="{'taxi-fleet__negative': state.fleet.stats.netProfit < 0}">{{ formatMoney(state.fleet.stats.netProfit) }}</strong></span>
         </div>
@@ -731,26 +750,26 @@
         <section class="taxi-fleet__section" ng-if="state.fleet.drivers.length">
           <h3>{{ t('fleetActiveDrivers') }}</h3>
           <article class="taxi-fleet__driver" ng-repeat="driver in state.fleet.drivers track by driver.id">
-            <div class="taxi-fleet__vehicle"><div><span>&#128663;</span><img ng-if="driver.preview" ng-src="{{ driver.preview }}" alt="{{ driver.name }}"></div><p><strong>{{ driver.name }}</strong><small>{{ driver.status === 'unpaid' ? t('fleetUnpaid') : (driver.jobType === 'delivery' ? t('fleetDelivery') : t('fleetPassenger')) }}</small></p><i></i></div>
+            <div class="taxi-fleet__vehicle"><div><span>&#128663;</span><img ng-if="driver.preview" ng-src="{{ driver.preview }}" alt="{{ driver.name }}"></div><p><strong ng-attr-title="{{ driver.name }}">{{ driver.name }}</strong><small>{{ driver.status === 'unpaid' ? t('fleetUnpaid') : (driver.jobType === 'delivery' ? t('fleetDelivery') : t('fleetPassenger')) }}</small></p><i></i></div>
             <div class="taxi-fleet__progress"><span ng-style="{'width': (driver.progress * 100) + '%'}"></span></div>
-            <div class="taxi-fleet__driver-stats"><span>{{ driver.stats.rides || 0 }} {{ t('rides') }}</span><span>{{ formatDistance(driver.remainingMeters) }}</span><span>{{ formatMoney(driver.stats.ownerRevenue) }}</span></div>
-            <button type="button" class="taxi-fleet__dismiss" ng-click="hud.fleetCommand('dismiss', {id: driver.id})">{{ t('fleetDismiss') }}</button>
+            <div class="taxi-fleet__driver-stats"><span ng-attr-title="{{ driver.stats.rides || 0 }}">{{ formatCount(driver.stats.rides) }} {{ t('rides') }}</span><span ng-attr-title="{{ driver.remainingMeters }} m">{{ formatDistance(driver.remainingMeters) }}</span><span ng-attr-title="{{ formatMoneyFull(driver.stats.ownerRevenue) }}">{{ formatMoney(driver.stats.ownerRevenue) }}</span></div>
+            <button type="button" class="taxi-fleet__dismiss taxi-action taxi-action--danger-secondary" ng-click="hud.fleetCommand('dismiss', {id: driver.id})">{{ t('fleetDismiss') }}</button>
           </article>
         </section>
         <section class="taxi-fleet__section">
           <h3>{{ t('fleetSpawnVehicle') }}</h3>
           <p class="taxi-fleet__hint">{{ t('fleetSpawnHelp') }}</p>
           <div class="taxi-fleet__empty" ng-if="!state.fleet.garage.length">{{ t('fleetNoGarageCars') }}</div>
-          <button type="button" class="taxi-fleet__candidate" ng-repeat="vehicle in state.fleet.garage track by vehicle.key" ng-disabled="!state.fleet.canAffordHire || state.fleet.activeDrivers >= state.fleet.maxDrivers || !state.fleet.enabled" ng-click="hud.fleetCommand('hireGarage', vehicle)">
-            <div><span>&#128663;</span><img ng-if="vehicle.preview" ng-src="{{ vehicle.preview }}" alt="{{ vehicle.name }}"></div><p><strong>{{ vehicle.name }}</strong><small>{{ vehicle.completedRides || 0 }} {{ t('rides') }}</small></p><b>{{ formatMoney(state.fleet.hiringFee) }}</b>
+          <button type="button" class="taxi-fleet__candidate taxi-action taxi-action--secondary" ng-repeat="vehicle in state.fleet.garage track by vehicle.key" ng-disabled="!state.fleet.canAffordHire || state.fleet.activeDrivers >= state.fleet.maxDrivers || !state.fleet.enabled" ng-click="hud.fleetCommand('hireGarage', vehicle)">
+            <div><span>&#128663;</span><img ng-if="vehicle.preview" ng-src="{{ vehicle.preview }}" alt="{{ vehicle.name }}"></div><p><strong ng-attr-title="{{ vehicle.name }}">{{ vehicle.name }}</strong><small ng-attr-title="{{ vehicle.completedRides || 0 }}">{{ formatCount(vehicle.completedRides) }} {{ t('rides') }}</small></p><b>{{ t('fleetHire') }} · {{ formatMoney(state.fleet.hiringFee) }}</b>
           </button>
         </section>
         <section class="taxi-fleet__section">
           <h3>{{ t('fleetRecruitTraffic') }}</h3>
           <p class="taxi-fleet__hint">{{ t('fleetRecruitHelp') }}</p>
           <div class="taxi-fleet__empty" ng-if="!state.fleet.trafficCandidates.length">{{ t('fleetNoTrafficCars') }}</div>
-          <button type="button" class="taxi-fleet__candidate taxi-fleet__candidate--traffic" ng-repeat="vehicle in state.fleet.trafficCandidates track by vehicle.vehicleId" ng-disabled="!state.fleet.canAffordHire || state.fleet.activeDrivers >= state.fleet.maxDrivers || !state.fleet.enabled" ng-click="hud.fleetCommand('hireTraffic', {vehicleId: vehicle.vehicleId})">
-            <div><span>&#9679;</span></div><p><strong>{{ vehicle.name }}</strong><small>{{ formatDistance(vehicle.distance) }}</small></p><b>{{ t('fleetHire') }}</b>
+          <button type="button" class="taxi-fleet__candidate taxi-fleet__candidate--traffic taxi-action taxi-action--secondary" ng-repeat="vehicle in state.fleet.trafficCandidates track by vehicle.vehicleId" ng-disabled="!state.fleet.canAffordHire || state.fleet.activeDrivers >= state.fleet.maxDrivers || !state.fleet.enabled" ng-click="hud.fleetCommand('hireTraffic', {vehicleId: vehicle.vehicleId})">
+            <div><span>&#9679;</span></div><p><strong ng-attr-title="{{ vehicle.name }}">{{ vehicle.name }}</strong><small>{{ formatDistance(vehicle.distance) }}</small></p><b>{{ t('fleetHire') }}</b>
           </button>
         </section>
       </div>
@@ -769,66 +788,65 @@
             <img ng-if="state.currentVehicle.preview" ng-src="{{ state.currentVehicle.preview }}" alt="{{ state.currentVehicle.name }}" onerror="this.style.display='none'">
           </div>
           <div class="taxi-home__vehicle-copy">
-            <strong>{{ state.currentVehicle.name }}</strong>
+            <strong ng-attr-title="{{ state.currentVehicle.name }}">{{ state.currentVehicle.name }}</strong>
             <span>{{ formatOdometer(state.currentVehicle.distanceMeters) }}</span>
             <span ng-if="state.vehicleEnergy.available">{{ formatDashboardEnergy() }} · ≈ {{ formatEnergyRange(state.vehicleEnergy.estimatedRangeKm) }}</span>
           </div>
         </button>
         <div class="taxi-home__modes">
-        <label class="taxi-home__realistic taxi-home__realistic--fuel" ng-class="{'taxi-home__realistic--active': settings.realisticMode}">
+        <label class="taxi-home__realistic taxi-home__realistic--fuel" ng-class="{'taxi-home__realistic--active': settings.realisticMode}" ng-attr-title="{{ t('realisticMode') }}">
           <span class="taxi-home__realistic-icon">⛽</span>
           <strong>{{ t('realisticMode') }}</strong>
-          <small>5% / EV 30%</small>
-          <input type="checkbox" ng-model="settings.realisticMode" ng-change="hud.toggleRealisticMode()">
+          <input type="checkbox" ng-model="settings.realisticMode" ng-change="hud.toggleRealisticMode()" ng-attr-aria-label="{{ t('realisticMode') }}">
           <span class="taxi-home__realistic-switch"></span>
         </label>
-        <label class="taxi-home__realistic taxi-home__realistic--events" ng-class="{'taxi-home__realistic--active': settings.randomEventsEnabled}">
+        <label class="taxi-home__realistic taxi-home__realistic--events" ng-class="{'taxi-home__realistic--active': settings.randomEventsEnabled}" ng-attr-title="{{ t('randomEvents') }}">
           <span class="taxi-home__realistic-icon">⚡</span>
           <strong>{{ t('randomEvents') }}</strong>
-          <small>{{ t('randomEventsShort') }}</small>
-          <input type="checkbox" ng-model="settings.randomEventsEnabled" ng-change="hud.toggleRandomEvents()">
+          <input type="checkbox" ng-model="settings.randomEventsEnabled" ng-change="hud.toggleRandomEvents()" ng-attr-aria-label="{{ t('randomEvents') }}">
           <span class="taxi-home__realistic-switch"></span>
         </label>
         </div>
         <div class="taxi-home__last-shift" ng-if="state.shift.last.rides > 0">
           <strong>{{ t('lastShift') }}</strong>
-          <span>{{ t('rides') }} <b>{{ state.shift.last.rides }}</b></span>
-          <span>{{ t('netIncome') }} <b>{{ formatMoney(state.shift.last.netIncome) }}</b></span>
+          <span>{{ t('rides') }} <b ng-attr-title="{{ state.shift.last.rides }}">{{ formatCount(state.shift.last.rides) }}</b></span>
+          <span>{{ t('netIncome') }} <b ng-attr-title="{{ formatMoneyFull(state.shift.last.netIncome) }}">{{ formatMoney(state.shift.last.netIncome) }}</b></span>
           <span>{{ t('averageRating') }} <b>{{ state.shift.last.averageRating | number:2 }} ★</b></span>
         </div>
         <div class="taxi-home__actions">
-          <button class="taxi-start" ng-click="hud.startMode()">{{ t('newShift') }}</button>
-          <button class="taxi-fleet-button" ng-click="hud.toggleFleet()">{{ t('fleetTitle') }} <span ng-if="state.fleet.activeDrivers">{{ state.fleet.activeDrivers }}</span></button>
-          <button class="taxi-shift-history-button" ng-click="hud.toggleShiftHistory()" ng-disabled="!state.shiftHistory.items.length || state.shiftHistory.restoring">
-            {{ t('previousShift') }}
-            <span ng-if="state.shiftHistory.items.length">{{ state.shiftHistory.items.length }}</span>
+          <button type="button" class="taxi-start taxi-action taxi-action--primary" ng-class="{'taxi-start--intro': newShiftSheenActive}" ng-click="hud.startMode()">{{ t('newShift') }}</button>
+          <button type="button" class="taxi-fleet-button taxi-action taxi-action--secondary" ng-click="hud.toggleFleet()"><span class="taxi-action-label" ng-attr-title="{{ t('fleetTitle') }}">{{ t('fleetTitle') }}</span><span class="taxi-count-badge" ng-if="state.fleet.activeDrivers" ng-attr-title="{{ state.fleet.activeDrivers }}">{{ formatCount(state.fleet.activeDrivers) }}</span></button>
+          <button type="button" class="taxi-shift-history-button taxi-action taxi-action--secondary" ng-click="hud.toggleShiftHistory()" ng-disabled="!state.shiftHistory.items.length || state.shiftHistory.restoring">
+            <span class="taxi-action-label" ng-attr-title="{{ t('previousShift') }}">{{ t('previousShift') }}</span>
+            <span class="taxi-count-badge" ng-if="state.shiftHistory.items.length" ng-attr-title="{{ state.shiftHistory.items.length }}">{{ formatCount(state.shiftHistory.items.length) }}</span>
           </button>
         </div>
         <div class="taxi-home__stats">
-          <span>{{ t('balance') }}<br><b>{{ formatMoney(state.balance) }}</b></span>
-          <span>{{ t('rides') }}<br><b>{{ state.completedRides }}</b></span>
+          <span>{{ t('balance') }}<br><b ng-attr-title="{{ formatMoneyFull(state.balance) }}">{{ formatMoney(state.balance) }}</b></span>
+          <span>{{ t('rides') }}<br><b ng-attr-title="{{ state.completedRides }}">{{ formatCount(state.completedRides) }}</b></span>
           <span>{{ t('rating') }}<br><b>{{ state.rating | number:2 }} ★</b></span>
         </div>
       </div>
       <div class="taxi-home__content taxi-shift-history" ng-if="shiftHistoryOpen">
         <div class="taxi-shift-history__head">
-          <button type="button" ng-click="hud.toggleShiftHistory()" ng-disabled="state.shiftHistory.restoring" aria-label="{{ t('back') }}">&#8249;</button>
+          <button type="button" class="taxi-action taxi-action--tertiary" ng-click="hud.toggleShiftHistory()" ng-disabled="state.shiftHistory.restoring" aria-label="{{ t('back') }}">&#8249;</button>
           <div><h2>{{ t('shiftHistoryTitle') }}</h2><p>{{ t('shiftHistoryHelp') }}</p></div>
         </div>
         <div class="taxi-shift-history__list">
-          <button type="button" class="taxi-shift-card" ng-repeat="shift in state.shiftHistory.items track by shift.id" ng-click="hud.resumeShift(shift.id)" ng-disabled="state.shiftHistory.restoring">
+          <button type="button" class="taxi-shift-card" ng-repeat="shift in state.shiftHistory.items | limitTo:shiftHistoryVisibleCount track by shift.id" ng-click="hud.resumeShift(shift.id)" ng-disabled="state.shiftHistory.restoring">
             <div class="taxi-shift-card__preview">
               <span>&#128663;</span>
               <img ng-if="shift.preview" ng-src="{{ shift.preview }}" alt="{{ shift.vehicleName }}" onerror="this.style.display='none'">
             </div>
             <div class="taxi-shift-card__copy">
-              <strong>{{ shift.vehicleName }}</strong>
+              <strong ng-attr-title="{{ shift.vehicleName }}">{{ shift.vehicleName }}</strong>
               <small>{{ formatShiftDate(shift.lastSavedAt || shift.startedAt) }}</small>
-              <div><span>{{ shift.energyPercent | number:1 }}%</span><span>{{ t('rides') }} {{ shift.rides || 0 }}</span><span>{{ formatMoney(shift.netIncome) }}</span></div>
+              <div><span>{{ shift.energyPercent | number:1 }}%</span><span ng-attr-title="{{ shift.rides || 0 }}">{{ t('rides') }} {{ formatCount(shift.rides) }}</span><span ng-attr-title="{{ formatMoneyFull(shift.netIncome) }}">{{ formatMoney(shift.netIncome) }}</span></div>
             </div>
             <i ng-if="state.shiftHistory.restoringId !== shift.id">&#8250;</i>
             <div class="taxi-shift-card__loading" ng-if="state.shiftHistory.restoringId === shift.id"><span></span>{{ t('restoringShift') }}</div>
           </button>
+          <button type="button" class="taxi-shift-history__more" ng-if="shiftHistoryVisibleCount < state.shiftHistory.items.length" ng-click="hud.loadMoreShifts()">{{ t('showMoreShifts', {shown: shiftHistoryVisibleCount, total: state.shiftHistory.items.length}) }}</button>
         </div>
       </div>
     </div>
@@ -860,7 +878,7 @@
             <div class="taxi-order-card__top">
               <div class="taxi-order-card__avatar">{{ offer.isDelivery ? '📦' : getInitials(offer.passengerName) }}</div>
               <div class="taxi-order-card__name">
-                <strong>{{ getOfferName(offer) }}</strong>
+                <strong ng-attr-title="{{ getOfferName(offer) }}">{{ getOfferName(offer) }}</strong>
                 <span ng-if="!offer.isDelivery">{{ t('toPassenger') }} {{ formatEta(offer.pickupEtaMinutes) }} · {{ t('pickupWindow', {time: formatCountdown(offer.pickupWaitSeconds)}) }}</span>
                 <span ng-if="offer.isDelivery">{{ t('toCargo') }} {{ formatEta(offer.pickupEtaMinutes) }} · {{ t('longDistance') }}</span>
               </div>
@@ -876,7 +894,7 @@
             <div class="taxi-order-card__metrics">
               <div class="taxi-order-card__metric"><span>{{ t('trip') }}</span><b>{{ formatEta(offer.etaMinutes) }}</b></div>
               <div class="taxi-order-card__metric"><span>{{ t('distance') }}</span><b>{{ formatDistance(offer.rideDistance) }}</b></div>
-              <div class="taxi-order-card__metric taxi-order-card__metric--fare"><span>{{ t('payment') }}</span><b>{{ formatMoney(offer.estimatedFare) }}</b></div>
+              <div class="taxi-order-card__metric taxi-order-card__metric--fare"><span>{{ t('payment') }}</span><b ng-attr-title="{{ formatMoneyFull(offer.estimatedFare) }}">{{ formatMoneyFull(offer.estimatedFare) }}</b></div>
             </div>
             <div class="taxi-order-card__rush" ng-if="offer.isRush">
               {{ t('rushDeliver', {time: formatCountdown(offer.timeLimitMinutes * 60)}) }} · {{ t('bonus') }} {{ formatMoney(offer.bonusAmount) }}
@@ -887,13 +905,13 @@
               <span ng-if="offer.cargoWeightBonusPercent > 0"> · {{ t('bonus') }} +{{ offer.cargoWeightBonusPercent | number:0 }}%</span>
             </div>
             <div class="taxi-order-card__rating-bonus" ng-if="offer.ratingBonusPercent > 0">{{ t('ratingBonusLine', {percent: formatBonusPercent(offer.ratingBonusPercent), amount: formatMoney(offer.ratingBonusAmount)}) }}</div>
-            <button class="taxi-order-card__accept" ng-click="hud.acceptOrder(offer.id)">{{ t('accept') }}</button>
+            <button type="button" class="taxi-order-card__accept taxi-action taxi-action--primary" ng-click="hud.acceptOrder(offer.id)">{{ t('accept') }}</button>
           </div>
         </div>
 
         <div class="taxi-orders__footer">
           <span>{{ t('offersDynamic', {count: state.offers.length, target: state.offerTargetCount}) }}</span>
-          <button type="button" class="taxi-offline-hold taxi-offline-hold--compact" ng-mousedown="hud.beginOfflineHold($event)" ng-mouseup="hud.cancelOfflineHold()" ng-mouseleave="hud.cancelOfflineHold()">
+          <button type="button" class="taxi-offline-hold taxi-offline-hold--compact taxi-action taxi-action--danger-secondary" ng-mousedown="hud.beginOfflineHold($event)" ng-mouseup="hud.cancelOfflineHold()" ng-mouseleave="hud.cancelOfflineHold()">
             <span class="taxi-offline-hold__fill" ng-style="{'width': offlineHoldProgress + '%'}"></span>
             <span class="taxi-offline-hold__copy"><span>{{ t('holdOffline') }}</span></span>
           </button>
@@ -967,7 +985,7 @@
           <small>{{ formatEta(state.etaMinutes) }} · {{ formatDistance(state.distanceToTarget) }}</small>
         </div>
         <div class="taxi-map__speed" ng-class="{'taxi-map__speed--warning': overspeedWarningActive}" ng-if="state.speedLimit > 0">{{ formatSpeedValue(state.speedLimit) }}</div>
-        <button type="button" class="taxi-map__autopilot" ng-class="{'taxi-map__autopilot--active': state.autopilot.enabled, 'taxi-map__autopilot--recovering': state.autopilot.status === 'recovering'}" ng-click="hud.toggleAutopilot()" ng-disabled="!state.autopilot.available" title="{{ t(state.autopilot.available ? (state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable') : 'autopilotUnavailable') }}">
+        <button type="button" class="taxi-map__autopilot" ng-if="settings.aiDriver.enabled" ng-class="{'taxi-map__autopilot--active': state.autopilot.enabled, 'taxi-map__autopilot--recovering': state.autopilot.status === 'recovering'}" ng-click="hud.toggleAutopilot()" ng-disabled="!state.autopilot.available" title="{{ t(state.autopilot.available ? (state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable') : 'autopilotUnavailable') }}">
           <strong>AI</strong>
           <span>{{ t(state.autopilot.status === 'recovering' ? 'autopilotRecovering' : (state.autopilot.status === 'waitingTraffic' ? 'autopilotWaitingTraffic' : (state.autopilot.status === 'waitingSignal' ? 'autopilotWaiting' : (state.autopilot.status === 'planning' ? 'autopilotPlanning' : (state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable'))))) }}</span>
         </button>
@@ -997,7 +1015,7 @@
           <div class="taxi-fuel-route__stat"><span>{{ t('arrival') }}</span><strong>{{ getArrivalTime(state.etaMinutes) }}</strong></div>
           <div class="taxi-fuel-route__stat"><span>{{ t('balance') }}</span><strong>{{ formatMoney(state.balance) }}</strong></div>
         </div>
-        <button type="button" class="taxi-fuel-route__cancel" ng-click="hud.cancelFuelRoute()">{{ t('cancelFuelRoute') }}</button>
+        <button type="button" class="taxi-fuel-route__cancel taxi-action taxi-action--secondary" ng-click="hud.cancelFuelRoute()">{{ t('cancelFuelRoute') }}</button>
       </div>
     </div>
 
@@ -1011,7 +1029,7 @@
           <small>{{ formatEta(state.etaMinutes) }} · {{ formatDistance(state.distanceToTarget) }}</small>
         </div>
         <div class="taxi-map__speed" ng-class="{'taxi-map__speed--warning': overspeedWarningActive}" ng-if="state.speedLimit > 0">{{ formatSpeedValue(state.speedLimit) }}</div>
-        <button type="button" class="taxi-map__autopilot" ng-class="{'taxi-map__autopilot--active': state.autopilot.enabled, 'taxi-map__autopilot--recovering': state.autopilot.status === 'recovering'}" ng-click="hud.toggleAutopilot()" ng-disabled="!state.autopilot.available" title="{{ t(state.autopilot.available ? (state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable') : 'autopilotUnavailable') }}">
+        <button type="button" class="taxi-map__autopilot" ng-if="settings.aiDriver.enabled" ng-class="{'taxi-map__autopilot--active': state.autopilot.enabled, 'taxi-map__autopilot--recovering': state.autopilot.status === 'recovering'}" ng-click="hud.toggleAutopilot()" ng-disabled="!state.autopilot.available" title="{{ t(state.autopilot.available ? (state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable') : 'autopilotUnavailable') }}">
           <strong>AI</strong>
           <span>{{ t(state.autopilot.status === 'recovering' ? 'autopilotRecovering' : (state.autopilot.status === 'waitingTraffic' ? 'autopilotWaitingTraffic' : (state.autopilot.status === 'waitingSignal' ? 'autopilotWaiting' : (state.autopilot.status === 'planning' ? 'autopilotPlanning' : (state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable'))))) }}</span>
         </button>
@@ -1022,7 +1040,7 @@
         <div class="taxi-sheet__heading">
           <div class="taxi-sheet__avatar">{{ state.isDelivery ? '📦' : getInitials(state.passengerName) }}</div>
           <div class="taxi-sheet__heading-text">
-            <strong>{{ state.isDelivery ? t('deliveryOrder') : (state.passengerName || getPhaseLabel()) }}</strong>
+            <strong ng-attr-title="{{ state.isDelivery ? t('deliveryOrder') : (state.passengerName || getPhaseLabel()) }}">{{ state.isDelivery ? t('deliveryOrder') : (state.passengerName || getPhaseLabel()) }}</strong>
             <span>{{ getPhaseLabel() }} · {{ getStatusText() }}</span>
           </div>
           <div class="taxi-sheet__distance">{{ formatDistance(state.distanceToTarget) }}</div>
@@ -1102,19 +1120,24 @@
         <div class="taxi-trip-notice taxi-trip-notice--fuel" ng-if="state.vehicleEnergy.available" ng-class="{'taxi-trip-notice--good': state.fuelEnoughForTrip, 'taxi-trip-notice--danger': !state.fuelEnoughForTrip}">{{ state.fuelEnoughForTrip ? t('fuelEnough') : t('fuelNotEnough') }}</div>
         <div class="taxi-trip-notice taxi-trip-notice--event" ng-if="state.tripEvent.kind === 'fragileCargo'">{{ t('fragileCargo') }}</div>
 
+        <button type="button" class="taxi-trip-primary-action taxi-offline-hold taxi-action taxi-action--danger-secondary" ng-mousedown="hud.beginOfflineHold($event)" ng-mouseup="hud.cancelOfflineHold()" ng-mouseleave="hud.cancelOfflineHold()">
+          <span class="taxi-offline-hold__fill" ng-style="{'width': offlineHoldProgress + '%'}"></span>
+          <span class="taxi-offline-hold__copy"><span>{{ t('holdOffline') }}</span></span>
+        </button>
+
         <div class="taxi-metrics">
-          <div class="taxi-metric taxi-metric--fare"><span>{{ t('projectedPayout') }}</span><strong>{{ formatMoney(state.adjustedFare + state.tipAmount) }}</strong></div>
-          <div class="taxi-metric"><span>{{ t('estimate') }}</span><strong>{{ formatMoney(state.estimatedFare) }}</strong></div>
+          <div class="taxi-metric taxi-metric--fare"><span>{{ t('projectedPayout') }}</span><strong ng-attr-title="{{ formatMoneyFull(state.adjustedFare + state.tipAmount) }}">{{ formatMoneyFull(state.adjustedFare + state.tipAmount) }}</strong></div>
+          <div class="taxi-metric"><span>{{ t('estimate') }}</span><strong ng-attr-title="{{ formatMoneyFull(state.estimatedFare) }}">{{ formatMoneyFull(state.estimatedFare) }}</strong></div>
           <div class="taxi-metric taxi-metric--penalty"><span>{{ state.isDelivery ? t('cargoDamage') : t('reduction') }}</span><strong>−{{ state.penaltyPercent | number:1 }}%</strong></div>
         </div>
 
         <div class="taxi-penalty-log">
-          <button type="button" class="taxi-penalty-log__header" ng-click="penaltiesExpanded = !penaltiesExpanded">
+          <button type="button" class="taxi-penalty-log__header taxi-disclosure taxi-action taxi-action--tertiary" ng-click="penaltiesExpanded = !penaltiesExpanded" ng-attr-aria-expanded="{{ penaltiesExpanded }}" aria-controls="taxi-penalty-events">
             <strong>{{ t('violationSummary', {count: state.penaltyEvents.length, amount: formatMoney(getPenaltyFareLoss())}) }}</strong>
             <span>{{ penaltiesExpanded ? '−' : '+' }}</span>
           </button>
-          <div class="taxi-penalty-log__empty" ng-if="penaltiesExpanded && !state.penaltyEvents.length">{{ state.isDelivery ? t('noCargoDamage') : t('noViolations') }}</div>
-          <div class="taxi-penalty-log__events" ng-if="penaltiesExpanded && state.penaltyEvents.length">
+          <div id="taxi-penalty-events" class="taxi-penalty-log__empty" ng-if="penaltiesExpanded && !state.penaltyEvents.length">{{ state.isDelivery ? t('noCargoDamage') : t('noViolations') }}</div>
+          <div id="taxi-penalty-events" class="taxi-penalty-log__events" ng-if="penaltiesExpanded && state.penaltyEvents.length">
             <div class="taxi-penalty-event" ng-repeat="event in state.penaltyEvents track by event.id">
               <div class="taxi-penalty-event__icon">!</div>
               <div class="taxi-penalty-event__text"><strong>{{ getPenaltyLabel(event) }}</strong><span>{{ getPenaltyDetail(event) }}</span></div>
@@ -1139,9 +1162,9 @@
           <div class="taxi-ride-footer__bottom">
             <div class="taxi-ride-footer__stats">
               <div class="taxi-ride-footer__stat"><span>{{ t('balance') }}</span><strong>{{ formatMoney(state.balance) }}</strong></div>
-              <div class="taxi-ride-footer__stat"><span>{{ t('rides') }}</span><strong>{{ state.completedRides }}</strong></div>
+              <div class="taxi-ride-footer__stat"><span>{{ t('rides') }}</span><strong ng-attr-title="{{ state.completedRides }}">{{ formatCount(state.completedRides) }}</strong></div>
             </div>
-            <button type="button" class="taxi-offline-hold" ng-mousedown="hud.beginOfflineHold($event)" ng-mouseup="hud.cancelOfflineHold()" ng-mouseleave="hud.cancelOfflineHold()">
+            <button type="button" class="taxi-offline-hold taxi-action taxi-action--danger-secondary" ng-mousedown="hud.beginOfflineHold($event)" ng-mouseup="hud.cancelOfflineHold()" ng-mouseleave="hud.cancelOfflineHold()">
               <span class="taxi-offline-hold__fill" ng-style="{'width': offlineHoldProgress + '%'}"></span>
               <span class="taxi-offline-hold__copy"><span>{{ t('holdOffline') }}</span></span>
             </button>
@@ -1154,7 +1177,7 @@
       <div class="taxi-fuel__head">
         <div class="taxi-fuel__icon">⛽</div>
         <div class="taxi-fuel__title"><strong>{{ state.fuelStation.magic ? t('magicFuelTitle') : (state.fuelStation.name || t('refuelTitle')) }}</strong></div>
-        <button type="button" class="taxi-fuel__close" ng-click="hud.closeFuelStation()" ng-disabled="state.fuelStation.refueling.active" aria-label="{{ t('refuelClose') }}">×</button>
+        <button type="button" class="taxi-fuel__close taxi-action taxi-action--tertiary" ng-click="hud.closeFuelStation()" ng-disabled="state.fuelStation.refueling.active" aria-label="{{ t('refuelClose') }}">×</button>
       </div>
       <div class="taxi-fuel__magic" ng-if="state.fuelStation.magic">
         <strong>{{ t('magicFuelNoStations') }}</strong>
@@ -1181,7 +1204,7 @@
             <span class="taxi-fuel__selector-thumb" ng-style="{'left': getRefuelSelectionPercent() + '%'}"></span>
             <input class="taxi-fuel__range" type="range" min="0" ng-attr-max="{{ getRefuelMaximum() }}" step="0.1" ng-model="refuel.amount" ng-change="hud.updateRefuelAmount()" ng-disabled="!state.fuelStation.vehicleStopped">
           </div>
-          <div class="taxi-fuel__selection-meta"><span>{{ t('refuelAvailable') }} · {{ getFuelDisplayQuantity(getRefuelMaximum(), getSelectedFuelOption()) | number:1 }} {{ getFuelDisplayUnit(getSelectedFuelOption()) }}</span><strong>{{ formatMoney(getRefuelCost()) }}</strong></div>
+          <div class="taxi-fuel__selection-meta"><span>{{ t('refuelAvailable') }} · {{ getFuelDisplayQuantity(getRefuelMaximum(), getSelectedFuelOption()) | number:1 }} {{ getFuelDisplayUnit(getSelectedFuelOption()) }}</span><strong ng-attr-title="{{ formatMoneyFull(getRefuelCost()) }}">{{ formatMoneyFull(getRefuelCost()) }}</strong></div>
           <div class="taxi-fuel__projection"><span>{{ t('projectedRange') }}</span><strong>≈ {{ formatEnergyRange(getProjectedFuelRange()) }}</strong><small ng-if="state.distanceToTarget > 0" ng-class="{'is-good': isProjectedFuelEnough(), 'is-danger': !isProjectedFuelEnough()}">{{ isProjectedFuelEnough() ? t('fuelEnough') : t('fuelNotEnough') }}</small></div>
         </div>
         <div class="taxi-fuel__progress" ng-show="state.fuelStation.refueling.active">
@@ -1190,7 +1213,7 @@
         </div>
       </div>
       <div class="taxi-fuel__empty" ng-if="!state.fuelStation.options.length">…</div>
-      <button type="button" class="taxi-fuel__buy" ng-click="hud.purchaseFuel()" ng-disabled="state.fuelStation.refueling.active || !state.fuelStation.vehicleStopped || !getSelectedFuelOption() || refuel.amount <= 0">
+      <button type="button" class="taxi-fuel__buy taxi-action taxi-action--primary" ng-click="hud.purchaseFuel()" ng-disabled="state.fuelStation.refueling.active || !state.fuelStation.vehicleStopped || !getSelectedFuelOption() || refuel.amount <= 0">
         <span ng-if="state.fuelStation.refueling.active">{{ t('refuelProgress') }} · {{ state.fuelStation.refueling.progress * 100 | number:0 }}%</span>
         <span ng-if="!state.fuelStation.refueling.active && !state.fuelStation.vehicleStopped">{{ t('refuelStayStopped') }}</span>
         <span ng-if="!state.fuelStation.refueling.active && state.fuelStation.vehicleStopped && getSelectedFuelOption() && getSelectedFuelOption().missingQuantity <= 0.01">{{ t('refuelFull') }}</span>
@@ -1199,11 +1222,11 @@
       </button>
     </div>
 
-    <div class="taxi-offline-confirm" ng-if="offlineConfirmOpen">
-      <div class="taxi-offline-confirm__card">
+    <div class="taxi-offline-confirm" ng-if="offlineConfirmOpen" role="dialog" aria-modal="true" aria-labelledby="taxi-offline-confirm-title" aria-describedby="taxi-offline-confirm-description">
+      <div class="taxi-offline-confirm__card" tabindex="-1">
         <div class="taxi-offline-confirm__icon">⚠️</div>
-        <h2>{{ state.deliveryOnboard ? t('offlineDeliveryTitle') : t('offlineConfirmTitle') }}</h2>
-        <p>{{ state.deliveryOnboard ? t('offlineDeliveryDesc') : t('offlineConfirmDesc') }}</p>
+        <h2 id="taxi-offline-confirm-title">{{ state.deliveryOnboard ? t('offlineDeliveryTitle') : t('offlineConfirmTitle') }}</h2>
+        <p id="taxi-offline-confirm-description">{{ state.deliveryOnboard ? t('offlineDeliveryDesc') : t('offlineConfirmDesc') }}</p>
         <div class="taxi-offline-confirm__penalty">{{ t('offlinePenaltyWarning', {percent: formatBonusPercent(state.offlinePenaltyExtraPercent), rating: formatRating(state.offlinePenaltyFinalRating)}) }}</div>
         <div class="taxi-offline-confirm__actions">
           <button type="button" class="taxi-offline-confirm__cancel" ng-click="hud.cancelOfflineConfirmation()">{{ t('cancel') }}</button>
@@ -1212,11 +1235,11 @@
       </div>
     </div>
 
-    <div class="taxi-offline-confirm taxi-police-confirm" ng-if="policeCheckConfirmOpen">
-      <div class="taxi-offline-confirm__card">
+    <div class="taxi-offline-confirm taxi-police-confirm" ng-if="policeCheckConfirmOpen" role="dialog" aria-modal="true" aria-labelledby="taxi-police-confirm-title" aria-describedby="taxi-police-confirm-description">
+      <div class="taxi-offline-confirm__card" tabindex="-1">
         <div class="taxi-offline-confirm__icon">🚓</div>
-        <h2>{{ t('policeCheckEnableTitle') }}</h2>
-        <p>{{ t('policeCheckEnableDesc') }}</p>
+        <h2 id="taxi-police-confirm-title">{{ t('policeCheckEnableTitle') }}</h2>
+        <p id="taxi-police-confirm-description">{{ t('policeCheckEnableDesc') }}</p>
         <div class="taxi-offline-confirm__actions">
           <button type="button" class="taxi-offline-confirm__cancel" ng-click="hud.cancelPoliceCheckEnable()">{{ t('cancel') }}</button>
           <button type="button" class="taxi-offline-confirm__confirm" ng-click="hud.confirmPoliceCheckEnable()">{{ t('policeCheckEnableConfirm') }}</button>
@@ -1224,9 +1247,21 @@
       </div>
     </div>
 
+    <div class="taxi-offline-confirm taxi-ai-confirm" ng-if="aiDriverConfirmOpen" role="dialog" aria-modal="true" aria-labelledby="taxi-ai-confirm-title" aria-describedby="taxi-ai-confirm-description">
+      <div class="taxi-offline-confirm__card" tabindex="-1">
+        <div class="taxi-offline-confirm__icon">AI</div>
+        <h2 id="taxi-ai-confirm-title">{{ t('aiDriverConfirmTitle') }}</h2>
+        <p id="taxi-ai-confirm-description">{{ t('aiDriverConfirmDesc') }}</p>
+        <div class="taxi-offline-confirm__actions">
+          <button type="button" class="taxi-offline-confirm__cancel" ng-click="hud.cancelAiDriverEnable()">{{ t('cancel') }}</button>
+          <button type="button" class="taxi-offline-confirm__confirm" ng-click="hud.confirmAiDriverEnable()">{{ t('aiDriverConfirmEnable') }}</button>
+        </div>
+      </div>
+    </div>
+
     <div class="taxi-next-offer" ng-if="shouldShowNextOffer()">
       <div class="taxi-next-offer__card">
-        <button type="button" class="taxi-next-offer__close" ng-if="!state.nextOffer.accepted" ng-click="hud.dismissNextOffer(state.nextOffer.id)" title="{{ t('dismissNextOffer') }}" aria-label="{{ t('dismissNextOffer') }}">&times;</button>
+        <button type="button" class="taxi-next-offer__close taxi-action taxi-action--tertiary" ng-if="!state.nextOffer.accepted" ng-click="hud.dismissNextOffer(state.nextOffer.id)" title="{{ t('dismissNextOffer') }}" aria-label="{{ t('dismissNextOffer') }}">&times;</button>
         <div class="taxi-next-offer__eyebrow">{{ t('nextOfferTitle') }}</div>
         <div class="taxi-next-offer__head">
           <div class="taxi-next-offer__avatar">{{ state.nextOffer.isDelivery ? '📦' : getInitials(state.nextOffer.passengerName) }}</div>
@@ -1244,12 +1279,12 @@
         <div class="taxi-next-offer__metrics">
           <div class="taxi-next-offer__metric"><span>{{ state.nextOffer.isDelivery ? t('cargoWeight') : t('pickupDeadline') }}</span><strong>{{ state.nextOffer.isDelivery ? formatCargoWeight(state.nextOffer.cargoWeightKg) : formatCountdown(state.nextOffer.pickupWaitSeconds) }}</strong></div>
           <div class="taxi-next-offer__metric"><span>{{ t('distance') }}</span><strong>{{ formatDistance(state.nextOffer.rideDistance) }}</strong></div>
-          <div class="taxi-next-offer__metric taxi-next-offer__metric--fare"><span>{{ t('payment') }}</span><strong>{{ formatMoney(state.nextOffer.estimatedFare) }}</strong></div>
+          <div class="taxi-next-offer__metric taxi-next-offer__metric--fare"><span>{{ t('payment') }}</span><strong ng-attr-title="{{ formatMoneyFull(state.nextOffer.estimatedFare) }}">{{ formatMoneyFull(state.nextOffer.estimatedFare) }}</strong></div>
         </div>
         <div class="taxi-next-offer__meta taxi-next-offer__meta--multi" ng-if="state.nextOffer.isMultiStop">{{ t('multiStopSummary', {count: state.nextOffer.stopCount, time: formatCountdown(state.nextOffer.stopWaitSeconds)}) }}</div>
         <div class="taxi-next-offer__meta taxi-next-offer__meta--rating" ng-if="state.nextOffer.ratingBonusPercent > 0">{{ t('ratingBonusLine', {percent: formatBonusPercent(state.nextOffer.ratingBonusPercent), amount: formatMoney(state.nextOffer.ratingBonusAmount)}) }}</div>
         <div class="taxi-next-offer__countdown" ng-if="!state.nextOffer.accepted"><span ng-style="{'width': (nextOfferUiRemaining / state.nextOffer.duration * 100) + '%'}"></span></div>
-        <button type="button" class="taxi-next-offer__accept" ng-if="!state.nextOffer.accepted" ng-click="hud.acceptNextOffer(state.nextOffer.id)">{{ t('accept') }}</button>
+        <button type="button" class="taxi-next-offer__accept taxi-action taxi-action--primary" ng-if="!state.nextOffer.accepted" ng-click="hud.acceptNextOffer(state.nextOffer.id)">{{ t('accept') }}</button>
         <div class="taxi-next-offer__accepted" ng-if="state.nextOffer.accepted">{{ t('nextOfferAccepted') }}</div>
       </div>
     </div>

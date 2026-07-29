@@ -2,7 +2,7 @@
 [SIZE=7][COLOR=#D39E00][B]TaxiDriver Reloaded[/B][/COLOR][/SIZE]
 [SIZE=5][B]Free Roam passenger, delivery, fleet, and driver-progression systems[/B][/SIZE]
 
-[COLOR=#777777]Current documented version: 3.2.1 Beta · Target game version: BeamNG.drive 0.38.6[/COLOR]
+[COLOR=#777777]Current documented version: 4.0.0 RC · Target game version: BeamNG.drive 0.39[/COLOR]
 
 [URL='https://github.com/noteMASTER11/TaxiDriverReloaded/releases'][B]Releases[/B][/URL] · [URL='https://github.com/noteMASTER11/TaxiDriverReloaded'][B]Source code[/B][/URL] · [URL='https://github.com/noteMASTER11/TaxiDriverReloaded/wiki'][B]Wiki[/B][/URL]
 [/CENTER]
@@ -332,7 +332,7 @@ TaxiDriver follows BeamNG's [B]Interface Volume[/B] setting. If every UI App app
 [*]Fuel, battery, and station support depends on energy-storage data exposed by the vehicle and map.
 [*]AI behavior depends on native controller, lane, traffic-signal, and road-graph information.
 [*]Some community vehicles and maps do not expose every value used by the mod.
-[*]The current documented target is BeamNG.drive 0.38.6.
+[*]The current documented target is BeamNG.drive 0.39.
 [/LIST]
 
 [HR][/HR]

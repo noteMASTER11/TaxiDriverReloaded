@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.2-rc"><img src="https://img.shields.io/badge/release-v3.4.2--RC-ffd11a?style=flat-square" alt="Release v3.4.2-rc"></a>
-  <img src="https://img.shields.io/badge/BeamNG.drive-0.38.6-f28c28?style=flat-square" alt="BeamNG.drive 0.38.6">
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.0-rc"><img src="https://img.shields.io/badge/release-v4.0.0--RC-ffd11a?style=flat-square" alt="Release v4.0.0-rc"></a>
+  <img src="https://img.shields.io/badge/BeamNG.drive-0.39-f28c28?style=flat-square" alt="BeamNG.drive 0.39">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.2-rc"><strong>Download 3.4.2 RC</strong></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.0-rc"><strong>Download 4.0.0 RC</strong></a>
 </p>
 
 ---
 
-> **3.4.2 RC:** Completed and cancelled AI trips now end with a smooth native stop, parking brake, and AI shutdown. Dispatcher offers shown in the UI are persisted per map and can be restored when live map modules or semantic route sources fail. Existing `3.4.1-rc` saves remain compatible.
+> **4.0.0 RC:** Rebuilt the driver interface around a compact high-contrast visual system, introduced the BeamNG 0.39 AI Driver engine with asynchronous routing and a bounded safety supervisor, and completed the compatibility pass for BeamNG.drive 0.39. AI Driver remains experimental and disabled by default. Existing `3.4.2-rc` saves remain compatible.
 
 TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
@@ -99,7 +99,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Relaxed passengers may ignore some penalty events; sensitive passengers react more strongly to poor driving.
 - A passenger who becomes critically dissatisfied can demand an immediate stop and end the ride early.
 - Optional Random Events have individual switches and probabilities for cancellation, destination changes, additional stops, conditional tips, fragile cargo, passenger no-shows, VIP quiet rides, forgotten items, temporary reroutes, and an opt-in native police stop.
-- Passenger pickups can spawn BeamNG's unicycle character and cargo pickups can spawn a small cardboard box. A passenger walks to the stopped taxi after a horn signal; the system falls back to the logical pickup flow if the physical prop cannot be created.
+- Passenger pickup is logical within a dedicated 10-metre trigger at low speed; it no longer spawns a walking dummy or requires a horn sequence. Cargo pickups can still use a small physical cardboard box and fall back safely when the prop cannot be created.
 
 ### Shift overview
 
@@ -113,13 +113,14 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 ### Optional AI driver
 
 - **Experimental:** AI Driver is a practical TaxiDriver adapter around BeamNG's built-in vehicle AI, not a separate autonomous-driving implementation.
+- AI Driver is disabled by default. Its settings require an explicit experimental-feature confirmation; while disabled, all player AI controls are hidden and the Lua runtime rejects activation.
 - Hand an active passenger, delivery, or refueling route to native `ai.driveUsingPath` from the map overlay and take control back at any time.
 - The default autonomous route follows the legal direction of the target road edge and may choose a valid route that differs from the displayed ground markers.
 - Enable **Strict GPS route** to send the exact displayed shortest GPS node sequence to the vehicle AI. If that path is temporarily unavailable, TaxiDriver falls back to its legal autonomous route instead of disabling control.
 - Native `Route Done` is checked against the physical gameplay target. Premature completion triggers an immediate route rebuild from the current road segment with a bounded retry count.
 - A lightweight Vehicle Lua traffic guard observes nearby vehicles, maintains a configurable time and bumper gap, predicts intersections with the current steering arc, and applies jerk-limited speed reduction. Immediate braking is reserved for an unavoidable collision.
-- Final-target braking activates only when the vehicle is aligned with the target-side travel direction. Pickup succeeds within seven metres only after a complete stop.
-- At an AI passenger pickup, the taxi stops, emits two 600 ms horn pulses, waits for the physical boarding event, and starts the passenger leg only after boarding completes.
+- Final-target braking activates only when the vehicle is aligned with the target-side travel direction. Passenger pickup succeeds inside the 10-metre logical trigger only at the 0.5 km/h wheel-speed sensor tolerance.
+- If a cancellation or no-show returns the player to dispatcher search, an active AI Driver parks the vehicle and releases native AI control.
 - Presets configure native aggression, following time, minimum distance, comfortable braking, traffic wait time, speed-limit compliance, and lane discipline. Custom exposes the same focused controls.
 - The player-vehicle guard rejects NPC IDs, and native crash recovery/teleport is disabled for the player's car so boarding cannot despawn or relocate it.
 - Refueling is never started automatically. Open **Refuel** first and enable AI on the refueling route when you want the vehicle to drive there.
@@ -149,6 +150,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 
 ### Navigation built for the phone
 
+- The driver UI uses a flat high-contrast black, white, and BeamNG-orange visual system with compact spacing sized for 100% scale on a 1080p display.
 - A rectangular native minimap appears only during active driving phases.
 - The native minimap adapts to speed, while Connected Phone uses a closer, smoother, phone-specific zoom curve that preserves local road detail.
 - ETA is calculated using a city-driving reference speed of **40 km/h**.
@@ -264,7 +266,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Installation
 
-1. Download `taxidriver.zip` from the [3.4.2 RC release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v3.4.2-rc).
+1. Download `taxidriver.zip` from the [4.0.0 RC release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.0-rc).
 2. Place the archive directly in:
 
    ```text
@@ -279,7 +281,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Compatibility
 
-- Target game version: **BeamNG.drive 0.38.6**.
+- Target game version: **BeamNG.drive 0.39**.
 - Designed for official and community maps with a usable road network.
 - Best results are obtained on maps with detailed road, building, and bus-stop data.
 - Vehicle door animation is best-effort and depends on the selected vehicle.
