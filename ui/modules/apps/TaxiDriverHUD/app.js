@@ -2918,7 +2918,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           }
           externalPollInFlight = true;
           bngApi.engineLua(
-            `if taxiDriver_taxiDriver then return taxiDriver_taxiDriver.pollExternalState(${externalRoadRevision}, ${Number(externalMapData.revision) || 0}) end`,
+            `taxiDriver_taxiDriver and taxiDriver_taxiDriver.pollExternalState(${externalRoadRevision}, ${Number(externalMapData.revision) || 0})`,
             (data) => {
               externalPollInFlight = false;
               if (data && data.available !== false) {
