@@ -1,5 +1,6 @@
 local M = {}
 local logger = require("taxiDriver/logger")
+local aiDriverRoute = require("taxiDriver/aiDriverRoute")
 
 local function number(value, fallback)
   value = tonumber(value)
@@ -40,165 +41,6 @@ local function serializePath(nodes)
   return "{" .. table.concat(values, ",") .. "}"
 end
 
-local function orientedTargetEdge(target)
-  if not target or not target.nodeA or not target.nodeB or not target.dir or
-    not map or type(map.getMap) ~= "function" then return nil end
-  local mapData = map.getMap()
-  local nodes = mapData and mapData.nodes
-  local nodeA, nodeB = nodes and nodes[target.nodeA], nodes and nodes[target.nodeB]
-  if not (nodeA and nodeB and nodeA.pos and nodeB.pos) then return nil end
-  local link = (nodeA.links and nodeA.links[target.nodeB]) or
-    (nodeB.links and nodeB.links[target.nodeA])
-  if not link then return nil end
-  local edgeX = number(nodeB.pos.x, 0) - number(nodeA.pos.x, 0)
-  local edgeY = number(nodeB.pos.y, 0) - number(nodeA.pos.y, 0)
-  local directionX, directionY =
-    number(target.dir.x, 0), number(target.dir.y, 0)
-  if edgeX * directionX + edgeY * directionY >= 0 then
-    return tostring(target.nodeA), tostring(target.nodeB)
-  end
-  return tostring(target.nodeB), tostring(target.nodeA)
-end
-
-local function nodeDistance(nodes, first, second)
-  local a, b = nodes and nodes[first], nodes and nodes[second]
-  if not (a and b and a.pos and b.pos) then return 1 end
-  return math.max(0.1, distance(a.pos, b.pos))
-end
-
-local function heapPush(heap, entry)
-  local index = #heap + 1
-  heap[index] = entry
-  while index > 1 do
-    local parent = math.floor(index * 0.5)
-    if heap[parent].cost <= entry.cost then break end
-    heap[index] = heap[parent]
-    index = parent
-  end
-  heap[index] = entry
-end
-
-local function heapPop(heap)
-  local root = heap[1]
-  if not root then return nil end
-  local tail = table.remove(heap)
-  if #heap == 0 then return root end
-  local index = 1
-  while true do
-    local left, right = index * 2, index * 2 + 1
-    if left > #heap then break end
-    local child = right <= #heap and heap[right].cost < heap[left].cost and
-      right or left
-    if heap[child].cost >= tail.cost then break end
-    heap[index] = heap[child]
-    index = child
-  end
-  heap[index] = tail
-  return root
-end
-
-local function edgeKey(previous, current)
-  return tostring(previous) .. "\0" .. tostring(current)
-end
-
-local function edgeAllowsDirection(_, _, toNode, data)
-  -- Match BeamNG graphpath's legal-direction test. Lane strings are often
-  -- absent on otherwise valid bidirectional roads, so a zero lane count must
-  -- not make the whole road unreachable.
-  return not (data and data.oneWay and data.inNode == toNode)
-end
-
-local function currentRoadDirection(vehicle, nodes)
-  if not vehicle or not map or type(map.findClosestRoad) ~= "function" then
-    return nil
-  end
-  local first, second = map.findClosestRoad(vehicle:getPosition())
-  first, second = tostring(first or ""), tostring(second or "")
-  if first == "" or second == "" or not (nodes[first] and nodes[second]) then
-    return nil
-  end
-  local direction = type(vehicle.getDirectionVector) == "function" and
-    vehicle:getDirectionVector() or nil
-  if not direction then
-    local velocity = type(vehicle.getVelocity) == "function" and vehicle:getVelocity() or nil
-    direction = velocity
-  end
-  local firstPos, secondPos = nodes[first].pos, nodes[second].pos
-  if not (direction and firstPos and secondPos) then return first, second end
-  local edgeX = number(secondPos.x, 0) - number(firstPos.x, 0)
-  local edgeY = number(secondPos.y, 0) - number(firstPos.y, 0)
-  local dot = edgeX * number(direction.x, 0) + edgeY * number(direction.y, 0)
-  if dot >= 0 then return first, second end
-  return second, first
-end
-
--- Find the shortest legal path in directed-edge space. A node-only shortest
--- path may reach the target edge from its wrong end and make native AI perform
--- an immediate U-turn through opposing traffic. Tracking (previous,current)
--- lets a route revisit the same junction from another road while explicitly
--- forbidding a reversal on the edge it just traversed.
-local function directedApproachRoute(vehicle, approachNode, departureNode)
-  if not vehicle or not map or type(map.getMap) ~= "function" or
-    type(map.getGraphpath) ~= "function" then return nil end
-  local mapData, graph = map.getMap(), map.getGraphpath()
-  local nodes = mapData and mapData.nodes
-  local roads = graph and graph.graph
-  if not (nodes and roads and roads[approachNode] and roads[departureNode]) then
-    return nil
-  end
-  local behindNode, forwardNode = currentRoadDirection(vehicle, nodes)
-  if not (behindNode and forwardNode and roads[forwardNode]) then return nil end
-
-  local startKey = edgeKey(behindNode, forwardNode)
-  local costs, parents, states = {[startKey] = 0}, {[startKey] = false}, {
-    [startKey] = {previous = behindNode, current = forwardNode}
-  }
-  local heap, visited, goalKey = {}, {}, nil
-  heapPush(heap, {cost = 0, key = startKey})
-  local expanded, maximumExpanded = 0, 60000
-
-  while #heap > 0 and expanded < maximumExpanded do
-    local entry = heapPop(heap)
-    if entry and not visited[entry.key] and entry.cost == costs[entry.key] then
-      visited[entry.key] = true
-      expanded = expanded + 1
-      local state = states[entry.key]
-      if state.current == approachNode and state.previous ~= departureNode then
-        goalKey = entry.key
-        break
-      end
-      for child, data in pairs(roads[state.current] or {}) do
-        child = tostring(child)
-        if child ~= state.previous and roads[child] and
-          edgeAllowsDirection(graph, state.current, child, data) then
-          local childKey = edgeKey(state.current, child)
-          local edgeLength = number(data and data.len,
-            nodeDistance(nodes, state.current, child))
-          local newCost = entry.cost + math.max(0.1, edgeLength)
-          if costs[childKey] == nil or newCost < costs[childKey] then
-            costs[childKey] = newCost
-            parents[childKey] = entry.key
-            states[childKey] = {previous = state.current, current = child}
-            heapPush(heap, {cost = newCost, key = childKey})
-          end
-        end
-      end
-    end
-  end
-  if not goalKey then return nil end
-
-  local reversed, cursor = {}, goalKey
-  while cursor do
-    reversed[#reversed + 1] = states[cursor].current
-    cursor = parents[cursor]
-  end
-  local result = {}
-  for index = #reversed, 1, -1 do appendUnique(result, reversed[index]) end
-  appendUnique(result, departureNode)
-  if #result < 2 then return nil end
-  return result, behindNode, forwardNode, expanded
-end
-
 local function vehicleSpeedKmh(vehicle, callback)
   if type(callback) == "function" then
     local ok, value = pcall(callback, vehicle)
@@ -211,41 +53,67 @@ local function vehicleSpeedKmh(vehicle, callback)
   return math.sqrt(x * x + y * y + z * z) * 3.6
 end
 
+local sessionCounter = 0
+
+local function nextSessionId(vehicle)
+  sessionCounter = sessionCounter + 1
+  local vehicleId = vehicle and type(vehicle.getID) == "function" and
+    number(vehicle:getID(), 0) or 0
+  local stamp = type(os.clockhp) == "function" and os.clockhp() or os.clock()
+  return string.format("%d-%d-%d", vehicleId,
+    math.floor(math.max(0, number(stamp, 0)) * 1000), sessionCounter)
+end
+
 function M.new(options)
   options = type(options) == "table" and options or {}
   local phases = options.phases or {}
   local trace = options.trace
+  local route = aiDriverRoute.new({
+    minimumDrivability = options.minimumDrivability,
+    getRoutePath = options.getRoutePath
+  })
   local service = {}
   local runtime = {
     enabled = false,
     suspended = false,
     status = "off",
     reason = "",
-    target = nil,
-    targetKey = "",
-    routeNodes = {},
+    sessionId = "",
+    sequence = 0,
+    routeRevision = 0,
+    routeRequestPending = false,
     routeDirty = false,
     routeDone = false,
     routeDoneDistance = nil,
     routeDoneRetryCount = 0,
-    orientedApproach = false,
-    approachNode = nil,
-    departureNode = nil,
+    routeNodes = {},
+    routeSource = "",
+    routeDiagnostics = nil,
+    target = nil,
+    targetKey = "",
+    phase = nil,
+    vehicleId = nil,
     targetDistance = nil,
     lastPosition = nil,
     movedDistance = 0,
     stationarySeconds = 0,
+    stuckRecoveryAttempt = 0,
+    stuckRecoveryPosition = nil,
     elapsed = 0,
     commandCount = 0,
+    parking = nil,
+    traceActive = false,
     profile = {
       aggression = 0.4,
       followingTimeGap = 2.3,
       minimumFollowingDistance = 4,
       brakingDeceleration = 3.5,
+      predictiveWarningScale = 1,
       trafficWaitSeconds = 3,
       obeySpeedLimits = true,
       laneDiscipline = true,
-      strictGpsRoute = false
+      strictGpsRoute = false,
+      allowOvertaking = true
     }
   }
 
@@ -254,7 +122,7 @@ function M.new(options)
       phase == phases.toDestination or phase == phases.toFuelStation
   end
 
-  local function targetKey(phase, target)
+  local function makeTargetKey(phase, target)
     local pos = target and target.pos
     return table.concat({
       tostring(phase or ""), tostring(target and target.nodeA or ""),
@@ -271,181 +139,162 @@ function M.new(options)
     return true
   end
 
+  local function resolveVehicle(vehicle)
+    local sessionOwnsVehicle = runtime.vehicleId ~= nil and
+      (runtime.enabled or runtime.parking ~= nil or runtime.status == "planning" or
+        runtime.status == "driving" or runtime.status == "paused" or
+        runtime.status == "parking")
+    if sessionOwnsVehicle and vehicle and type(vehicle.getID) == "function" then
+      local ok, id = pcall(vehicle.getID, vehicle)
+      if ok and tonumber(id) == runtime.vehicleId then return vehicle end
+    end
+    if runtime.vehicleId and type(getObjectByID) == "function" then
+      local ok, result = pcall(getObjectByID, runtime.vehicleId)
+      if ok then return result end
+    end
+    -- Never transfer an active AI session to a newly supplied vehicle. If the
+    -- original object disappeared, the caller must enter the parking fault
+    -- path instead of sending commands to the replacement player vehicle.
+    return sessionOwnsVehicle and nil or vehicle
+  end
+
+  local function vehicleId(vehicle)
+    return vehicle and type(vehicle.getID) == "function" and
+      tonumber(vehicle:getID()) or nil
+  end
+
   local function isCurrentPlayerVehicle(vehicle)
     if not vehicle then return false end
     if type(options.isPlayerVehicle) == "function" then
       local ok, result = pcall(options.isPlayerVehicle, vehicle)
       if ok and result ~= nil then return result == true end
     end
-    local vehicleId = type(vehicle.getID) == "function" and tonumber(vehicle:getID()) or nil
+    local id = vehicleId(vehicle)
     local playerId = be and type(be.getPlayerVehicleID) == "function" and
       tonumber(be:getPlayerVehicleID(0)) or nil
-    if vehicleId and playerId then return vehicleId == playerId end
+    if id and playerId then return id == playerId end
     if type(vehicle.isPlayerControlled) == "function" then
       local ok, result = pcall(vehicle.isPlayerControlled, vehicle)
       if ok then return result == true end
     end
-    -- Headless tests and older BeamNG builds may expose neither API. Identity
-    -- is then guarded by the GE gameplay orchestrator before this module runs.
+    -- Headless tests do not expose BeamNG's player APIs. The gameplay
+    -- orchestrator owns the identity guard in that environment.
     return true
   end
 
-  local function readNativeRoute(target)
-    local result = {}
-    local path = type(options.getRoutePath) == "function" and options.getRoutePath() or {}
-    for _, entry in ipairs(type(path) == "table" and path or {}) do
-      -- Ground-marker paths contain coordinate-only tables at both ends.
-      -- Passing those tables through tostring produces "table: 0x..." node
-      -- identifiers and crashes BeamNG's ai.lua with targetPos/egoSeg == nil.
+  local function nextSequence()
+    runtime.sequence = runtime.sequence + 1
+    return runtime.sequence
+  end
+
+  local function cancelRouteRequest(reason)
+    if runtime.routeRequestPending and route and type(route.cancel) == "function" then
+      local ok, errorMessage = pcall(route.cancel, route)
+      if not ok then
+        logger.warn("autopilot", "route_cancel_failed", {
+          sessionId = runtime.sessionId,
+          routeRevision = runtime.routeRevision,
+          reason = reason,
+          error = tostring(errorMessage)
+        })
+      end
+    end
+    runtime.routeRequestPending = false
+  end
+
+  local function routeStatus()
+    if not route or type(route.getStatus) ~= "function" then return nil end
+    local ok, result = pcall(route.getStatus, route)
+    return ok and type(result) == "table" and result or nil
+  end
+
+  local function normalizedPath(result, target)
+    local source = type(result) == "table" and
+      (result.path or result.nodes or result.wpTargetList) or nil
+    local nodes = {}
+    for _, entry in ipairs(type(source) == "table" and source or {}) do
       if type(entry) == "table" then
-        appendUnique(result, entry.wp)
+        appendUnique(nodes, entry.wp or entry.node or entry.id)
       elseif type(entry) == "string" or type(entry) == "number" then
-        appendUnique(result, entry)
+        appendUnique(nodes, entry)
       end
     end
-    if target then
-      if #result == 0 then appendUnique(result, target.nodeA) end
-      appendUnique(result, target.nodeB)
+    -- Capability fallback for sparse or community map planners. The dedicated
+    -- route service remains authoritative; this only preserves a valid target
+    -- edge when it reports success without an expanded waypoint list.
+    if #nodes < 2 and target then
+      appendUnique(nodes, target.nodeA)
+      appendUnique(nodes, target.nodeB)
     end
-    return result
+    return nodes
   end
 
-  local function routeForTarget(vehicle, target)
-    local approachNode, departureNode = orientedTargetEdge(target)
-    if runtime.profile.strictGpsRoute then
-      local gpsRoute = readNativeRoute()
-      if #gpsRoute >= 2 then
-        return gpsRoute, approachNode ~= nil, approachNode, departureNode,
-          nil, nil, nil, "gps"
-      end
-      logger.warn("autopilot", "strict_gps_route_unavailable", {
-        approachNode = approachNode, departureNode = departureNode
-      })
-    end
-    if approachNode and departureNode then
-      local route, behindNode, forwardNode, expanded =
-        directedApproachRoute(vehicle, approachNode, departureNode)
-      if route then
-        return route, true, approachNode, departureNode,
-          behindNode, forwardNode, expanded, "autonomous"
-      end
-      logger.warn("autopilot", "legal_approach_route_unavailable", {
-        approachNode = approachNode, departureNode = departureNode
-      })
-      return {}, true, approachNode, departureNode
-    end
-    return readNativeRoute(target), false, nil, nil
-  end
-
-  local function fallbackRoute(vehicle, target)
-    local result = {}
-    if not vehicle or not target or not target.pos or not map or
-      type(map.findClosestRoad) ~= "function" or type(map.getGraphpath) ~= "function" then
-      return result
-    end
-    local startA, startB = map.findClosestRoad(vehicle:getPosition())
-    local destination = target.nodeB or target.nodeA
-    local graph = map.getGraphpath()
-    if not graph or type(graph.getPath) ~= "function" or not destination then return result end
-    local ok, path = pcall(graph.getPath, graph, startB or startA, destination)
-    if not ok or type(path) ~= "table" then return result end
-    appendUnique(result, startB or startA)
-    for _, node in ipairs(path) do appendUnique(result, node) end
-    appendUnique(result, destination)
-    return result
-  end
-
-  local function stopNative(vehicle, park)
-    return queue(vehicle, table.concat({
-      "if extensions.taxiDriverAutopilotRecovery then ",
-      "extensions.taxiDriverAutopilotRecovery.stop();",
-      "extensions.taxiDriverAutopilotRecovery.unwatchRouteDone();",
-      "extensions.taxiDriverAutopilotRecovery.setGearboxOverride(false) end;",
-      "if extensions and extensions.unload then ",
-      "extensions.unload('taxiDriverAutopilotRecovery') end;",
-      "if extensions.taxiDriverStockAiObserver then ",
-      "extensions.taxiDriverStockAiObserver.unwatch() end;",
-      "if extensions and extensions.unload then ",
-      "extensions.unload('taxiDriverStockAiObserver') end;",
-      "electrics.set_left_signal(false,false);",
-      "electrics.set_right_signal(false,false);",
-      "ai.setRecoverOnCrash(false);",
-      "ai.setSpeed(nil); ai.setSpeedMode('off');",
-      "ai.setAvoidCars('on'); ai.driveInLane('on');",
-      park and "ai.setMode('stop')" or "ai.setMode('disabled')"
-    }))
-  end
-
-  local function issueNativeRoute(vehicle, reason)
-    if not runtime.enabled or runtime.suspended or not vehicle or not runtime.target then
-      return false
-    end
-    if not isCurrentPlayerVehicle(vehicle) then
-      runtime.status = "playerVehicleChanged"
-      runtime.reason = "notCurrentPlayerVehicle"
-      logger.warn("autopilot", "player_vehicle_guard_rejected_route")
-      return false
-    end
-    local nodes, oriented, approachNode, departureNode,
-      behindNode, forwardNode, expanded, routeSource =
-      routeForTarget(vehicle, runtime.target)
-    if #nodes < 2 and not oriented then nodes = fallbackRoute(vehicle, runtime.target) end
-    if #nodes < 2 then
-      runtime.status = "routeUnavailable"
-      runtime.reason = "nativeRouteUnavailable"
-      logger.warn("autopilot", "stock_route_unavailable")
-      return false
-    end
-    local laneMode = oriented and "on" or (runtime.profile.laneDiscipline and "on" or "off")
-    local command = table.concat({
-      "if extensions.taxiDriverAutopilotRecovery then ",
-      "extensions.taxiDriverAutopilotRecovery.stop();",
-      "extensions.taxiDriverAutopilotRecovery.unwatchRouteDone();",
-      "extensions.taxiDriverAutopilotRecovery.setGearboxOverride(false) end;",
-      "if extensions and extensions.unload then ",
-      "extensions.unload('taxiDriverAutopilotRecovery') end;",
-      "extensions.load('taxiDriverStockAiObserver');",
-      "if extensions.taxiDriverStockAiObserver then ",
-      "extensions.taxiDriverStockAiObserver.watch({followingTimeGap=",
-      string.format("%.2f", runtime.profile.followingTimeGap),
+  local function observerConfig(sequence)
+    local target = runtime.target or {}
+    local pos, dir = target.pos or {}, target.dir or {}
+    return table.concat({
+      "{sessionId=", quote(runtime.sessionId),
+      ",routeRevision=", tostring(runtime.routeRevision),
+      ",sequence=", tostring(sequence),
+      ",followingTimeGap=", string.format("%.2f", runtime.profile.followingTimeGap),
       ",minimumGap=", string.format("%.2f", runtime.profile.minimumFollowingDistance),
       ",brakingDeceleration=", string.format("%.2f", runtime.profile.brakingDeceleration),
+      ",predictiveWarningScale=", string.format("%.2f", runtime.profile.predictiveWarningScale),
       ",routeSpeedMode=", quote(runtime.profile.obeySpeedLimits and "legal" or "off"),
-      ",targetX=", string.format("%.3f", number(runtime.target.pos.x, 0)),
-      ",targetY=", string.format("%.3f", number(runtime.target.pos.y, 0)),
-      ",targetZ=", string.format("%.3f", number(runtime.target.pos.z, 0)),
-      ",targetDirX=", string.format("%.4f", number(runtime.target.dir and runtime.target.dir.x, 0)),
-      ",targetDirY=", string.format("%.4f", number(runtime.target.dir and runtime.target.dir.y, 0)),
+      ",allowOvertaking=", runtime.profile.allowOvertaking and "true" or "false",
+      ",targetX=", string.format("%.3f", number(pos.x, 0)),
+      ",targetY=", string.format("%.3f", number(pos.y, 0)),
+      ",targetZ=", string.format("%.3f", number(pos.z, 0)),
+      ",targetDirX=", string.format("%.4f", number(dir.x, 0)),
+      ",targetDirY=", string.format("%.4f", number(dir.y, 0)),
       ",arrivalRadius=", string.format("%.2f", number(options.arrivalRadius, 14)),
-      ",maximumArrivalSpeed=", string.format("%.3f",
-        number(options.maxArrivalSpeedKmh, 4) * 0.75 / 3.6),
-      "}) end;",
-      "electrics.set_left_signal(false,false);",
-      "electrics.set_right_signal(false,false);",
-      "ai.setMode('disabled');",
-      -- Native traffic AI normally teleports a stuck/crashed NPC through
-      -- map.safeTeleport. That recovery must never be enabled for the player's
-      -- vehicle: stopping for boarding is otherwise mistaken for a crash.
-      "ai.setRecoverOnCrash(false);",
-      "ai.setAvoidCars('on'); ai.driveInLane('on');",
-      "mapmgr.enableTracking();",
-      "ai.setParameters({awarenessForceCoef=0.45,trafficWaitTime=",
-      string.format("%.2f", runtime.profile.trafficWaitSeconds),
-      ",edgeDist=0,enableElectrics=true});",
-      "ai.driveUsingPath({",
-      "path=", serializePath(nodes),
+      -- The order state machine may tolerate a small sensor epsilon, but the
+      -- AI speed target itself must be a complete stop.
+      ",maximumArrivalSpeed=0",
+      "}"
+    })
+  end
+
+  local function issueNativeRoute(vehicle, nodes, result, reason)
+    vehicle = resolveVehicle(vehicle)
+    if not runtime.enabled or runtime.suspended or not vehicle or
+      not isCurrentPlayerVehicle(vehicle) or #nodes < 2 then return false end
+
+    local sequence = nextSequence()
+    local laneMode = runtime.profile.laneDiscipline and "on" or "off"
+    local command = table.concat({
+      "extensions.load('taxiDriverStockAiObserver');",
+      "local taxiObserver=extensions.taxiDriverStockAiObserver;",
+      "if taxiObserver and type(taxiObserver.unwatch)=='function' then taxiObserver.unwatch() end;",
+      "if extensions.taxiDriverTelemetry then extensions.taxiDriverTelemetry.setForcedStop(false) end;",
+      "electrics.set_left_signal(false,false);electrics.set_right_signal(false,false);",
+      "if ai and type(ai.driveUsingPath)=='function' then ",
+      "ai.driveUsingPath({wpTargetList=", serializePath(nodes),
       ",noOfLaps=1,aggression=", string.format("%.2f", runtime.profile.aggression),
-      ",avoidCars='on',driveInLane=",
-      quote(laneMode),
+      ",avoidCars='on',driveInLane=", quote(laneMode),
       ",routeSpeedMode=", quote(runtime.profile.obeySpeedLimits and "legal" or "off"),
-      "});",
-      "ai.setRecoverOnCrash(false)"
+      ",targetSpeedSmootherRate=7,lookAheadKv=0.65,",
+      "understeerThrottleControl='on',oversteerThrottleControl='on',",
+      "throttleTcs='on',abBrakeControl='on',underSteerBrakeControl='on'});",
+      -- BeamNG 0.39 applies these reliably after driveUsingPath initializes the
+      -- native route. Every optional call is capability-gated for older builds.
+      "if type(ai.setParameters)=='function' then ai.setParameters({",
+      "awarenessForceCoef=0.35,trafficWaitTime=",
+      string.format("%.2f", runtime.profile.trafficWaitSeconds),
+      ",edgeDist=0,enableElectrics=true,targetSpeedSmootherRate=7}) end;",
+      "if type(ai.setRacing)=='function' then ai.setRacing(false) end;",
+      "if type(ai.setRecoverOnCrash)=='function' then ai.setRecoverOnCrash(false) end;",
+      "if taxiObserver and type(taxiObserver.watch)=='function' then taxiObserver.watch(",
+      observerConfig(sequence), ") end;",
+      "else if taxiObserver and type(taxiObserver.fail)=='function' then taxiObserver.fail(",
+      observerConfig(sequence), ",'nativeAiUnavailable') end end"
     })
     if not queue(vehicle, command) then return false end
+
     runtime.routeNodes = nodes
-    runtime.orientedApproach = oriented
-    runtime.approachNode = approachNode
-    runtime.departureNode = departureNode
+    runtime.routeSource = type(result) == "table" and
+      tostring(result.source or "beamngRoute") or "beamngRoute"
+    runtime.routeDiagnostics = type(result) == "table" and result.diagnostics or nil
     runtime.routeDirty = false
     runtime.routeDone = false
     runtime.routeDoneDistance = nil
@@ -454,38 +303,306 @@ function M.new(options)
     runtime.commandCount = runtime.commandCount + 1
     runtime.lastPosition = copyPosition(vehicle:getPosition())
     runtime.stationarySeconds = 0
-    logger.info("autopilot", "stock_route_started", {
-      nodes = #nodes, reason = reason, commandCount = runtime.commandCount,
-      customPerception = false, customRecovery = false, trafficGuard = true,
+    logger.info("autopilot", "route_started", {
+      sessionId = runtime.sessionId,
+      routeRevision = runtime.routeRevision,
+      sequence = sequence,
+      nodes = #nodes,
+      source = runtime.routeSource,
+      reason = reason,
+      commandCount = runtime.commandCount,
       aggression = runtime.profile.aggression,
-      followingTimeGap = runtime.profile.followingTimeGap,
       laneDiscipline = runtime.profile.laneDiscipline,
-      strictGpsRoute = runtime.profile.strictGpsRoute,
-      routeSource = routeSource or "fallback",
-      legalApproach = oriented,
-      orientedApproach = oriented,
-      approachNode = approachNode,
-      departureNode = departureNode,
-      currentBehindNode = behindNode,
-      currentForwardNode = forwardNode,
-      routeSearchExpanded = expanded,
-      routePreview = table.concat(nodes, " > "),
-      routeDoneRetryCount = runtime.routeDoneRetryCount
+      allowOvertaking = runtime.profile.allowOvertaking
     })
     return true
   end
 
+  local function completeTrace(reason)
+    if not runtime.traceActive then return end
+    runtime.traceActive = false
+    if trace and type(trace.stop) == "function" then trace:stop(reason) end
+  end
+
+  local function commitPark(vehicle)
+    vehicle = resolveVehicle(vehicle)
+    if not vehicle or not runtime.parking or runtime.parking.commitSent then return false end
+    local sequence = nextSequence()
+    local command = table.concat({
+      "local taxiObserver=extensions.taxiDriverStockAiObserver;",
+      "if taxiObserver and type(taxiObserver.commitPark)=='function' then ",
+      "taxiObserver.commitPark({sessionId=", quote(runtime.sessionId),
+      ",routeRevision=", tostring(runtime.routeRevision),
+      ",sequence=", tostring(sequence), "});",
+      "else ",
+      "if input and type(input.event)=='function' then ",
+      "input.event('throttle',0,FILTER_AI,nil,nil,nil,'taxiDriverAiParking');",
+      "input.event('brake',1,FILTER_AI,nil,nil,nil,'taxiDriverAiParking');",
+      "input.event('parkingbrake',1,FILTER_AI,nil,nil,nil,'taxiDriverAiParking') end;",
+      "if ai and type(ai.setMode)=='function' then ai.setMode('disabled') end end"
+    })
+    if not queue(vehicle, command) then return false end
+    runtime.parking.commitSent = true
+    runtime.parking.commitSequence = sequence
+    logger.info("autopilot", "parking_commit_requested", {
+      sessionId = runtime.sessionId,
+      routeRevision = runtime.routeRevision,
+      sequence = sequence,
+      reason = runtime.parking.reason
+    })
+    return true
+  end
+
+  local function finalizePark(vehicle, confirmation)
+    if not runtime.parking then return end
+    vehicle = resolveVehicle(vehicle)
+    local sequence = nextSequence()
+    if vehicle then
+      queue(vehicle, table.concat({
+        "if ai then ",
+        "if type(ai.setRacing)=='function' then ai.setRacing(false) end;",
+        "if type(ai.setPullOver)=='function' then ai.setPullOver(false) end;",
+        "if type(ai.setRecoverOnCrash)=='function' then ai.setRecoverOnCrash(false) end;",
+        "if type(ai.setSpeed)=='function' then ai.setSpeed(nil) end;",
+        "if type(ai.setSpeedMode)=='function' then ai.setSpeedMode('off') end;",
+        "if type(ai.setMode)=='function' then ai.setMode('disabled') end end;",
+        "local taxiObserver=extensions.taxiDriverStockAiObserver;",
+        "if taxiObserver and type(taxiObserver.onParkFinalized)=='function' then ",
+        "taxiObserver.onParkFinalized({sessionId=", quote(runtime.sessionId),
+        ",routeRevision=", tostring(runtime.routeRevision),
+        ",sequence=", tostring(sequence), "}) end"
+      }))
+    end
+    local reason = runtime.parking.reason
+    runtime.parking = nil
+    runtime.enabled = false
+    runtime.suspended = false
+    runtime.status = "parked"
+    runtime.reason = reason
+    runtime.routeRequestPending = false
+    runtime.routeDirty = false
+    runtime.routeDone = true
+    logger.info("autopilot", "parked", {
+      sessionId = runtime.sessionId,
+      routeRevision = runtime.routeRevision,
+      sequence = sequence,
+      reason = reason,
+      confirmation = confirmation
+    })
+    completeTrace(reason)
+  end
+
+  local function requestPark(vehicle, reason)
+    vehicle = resolveVehicle(vehicle)
+    if runtime.parking then return true end
+    cancelRouteRequest("parking")
+    runtime.enabled = false
+    runtime.suspended = false
+    runtime.status = "parking"
+    runtime.reason = tostring(reason or "requested")
+    runtime.routeDirty = false
+    runtime.parking = {
+      reason = runtime.reason,
+      elapsed = 0,
+      stationarySeconds = 0,
+      commandElapsed = 0,
+      commitSent = false
+    }
+    if not vehicle then
+      runtime.status = "fault"
+      runtime.reason = "parkingVehicleMissing"
+      logger.error("autopilot", "parking_vehicle_missing", {
+        sessionId = runtime.sessionId,
+        routeRevision = runtime.routeRevision,
+        reason = reason,
+        vehicleId = runtime.vehicleId
+      })
+      completeTrace(runtime.reason)
+      return false
+    end
+    local sequence = nextSequence()
+    local command = table.concat({
+      "local taxiObserver=extensions.taxiDriverStockAiObserver;",
+      "if taxiObserver and type(taxiObserver.requestPark)=='function' then ",
+      "taxiObserver.requestPark({sessionId=", quote(runtime.sessionId),
+      ",routeRevision=", tostring(runtime.routeRevision),
+      ",sequence=", tostring(sequence), ",reason=", quote(runtime.reason), "}) end;",
+      "if ai then ",
+      "if type(ai.setRacing)=='function' then ai.setRacing(false) end;",
+      "if type(ai.setPullOver)=='function' then ai.setPullOver(false) end;",
+      "if type(ai.setRecoverOnCrash)=='function' then ai.setRecoverOnCrash(false) end;",
+      -- Never release native control while the vehicle may still be moving.
+      "if type(ai.setMode)=='function' then ai.setMode('stop') end end"
+    })
+    if not queue(vehicle, command) then
+      runtime.status = "fault"
+      runtime.reason = "parkingCommandRejected"
+      logger.error("autopilot", "parking_command_rejected", {
+        sessionId = runtime.sessionId,
+        routeRevision = runtime.routeRevision,
+        sequence = sequence
+      })
+      completeTrace(runtime.reason)
+      return false
+    end
+    logger.info("autopilot", "parking_requested", {
+      sessionId = runtime.sessionId,
+      routeRevision = runtime.routeRevision,
+      sequence = sequence,
+      reason = runtime.reason,
+      speedKmh = vehicleSpeedKmh(vehicle, options.getSpeedKmh)
+    })
+    return true
+  end
+
+  local function routeFailure(vehicle, reason, fields)
+    runtime.routeRequestPending = false
+    runtime.status = "routeUnavailable"
+    runtime.reason = tostring(reason or "routeUnavailable")
+    fields = type(fields) == "table" and fields or {}
+    fields.sessionId = runtime.sessionId
+    fields.routeRevision = runtime.routeRevision
+    fields.reason = runtime.reason
+    logger.error("autopilot", "route_failed", fields)
+    requestPark(vehicle, runtime.reason)
+  end
+
+  local function requestRoute(vehicle, reason)
+    vehicle = resolveVehicle(vehicle)
+    if not runtime.enabled or runtime.suspended then return false end
+    if not vehicle or not isCurrentPlayerVehicle(vehicle) then
+      requestPark(vehicle, "routeVehicleUnavailable")
+      return false
+    end
+    if not runtime.target or not runtime.target.pos then
+      requestPark(vehicle, "routeTargetUnavailable")
+      return false
+    end
+
+    cancelRouteRequest("superseded")
+    runtime.routeRevision = runtime.routeRevision + 1
+    local requestedRevision = runtime.routeRevision
+    local requestedSession = runtime.sessionId
+    local requestedVehicleId = vehicleId(vehicle)
+    local requestedTarget = runtime.target
+    local requestedTargetKey = runtime.targetKey
+    runtime.routeRequestPending = true
+    runtime.routeDirty = false
+    runtime.status = "planning"
+    runtime.reason = tostring(reason or "")
+    logger.info("autopilot", "route_requested", {
+      sessionId = requestedSession,
+      routeRevision = requestedRevision,
+      reason = reason,
+      vehicleId = requestedVehicleId
+    })
+
+    local callbackCalled = false
+    local function onRoute(success, result, errorMessage)
+      callbackCalled = true
+      if requestedSession ~= runtime.sessionId or
+        requestedRevision ~= runtime.routeRevision or
+        requestedVehicleId ~= runtime.vehicleId then
+        logger.warn("autopilot", "stale_route_callback_ignored", {
+          sessionId = requestedSession,
+          activeSessionId = runtime.sessionId,
+          routeRevision = requestedRevision,
+          activeRouteRevision = runtime.routeRevision
+        })
+        return false
+      end
+      runtime.routeRequestPending = false
+      if success ~= true or type(result) ~= "table" then
+        routeFailure(resolveVehicle(nil), errorMessage or
+          (type(result) == "string" and result or "routePlannerRejected"), {
+            plannerStatus = routeStatus()
+          })
+        return false
+      end
+      if result.routeRevision ~= nil and
+        tonumber(result.routeRevision) ~= requestedRevision then
+        logger.warn("autopilot", "route_result_revision_mismatch", {
+          sessionId = requestedSession,
+          routeRevision = requestedRevision,
+          resultRouteRevision = result.routeRevision
+        })
+        routeFailure(resolveVehicle(nil), "routeResultRevisionMismatch", {
+          resultRouteRevision = result.routeRevision
+        })
+        return false
+      end
+      if runtime.targetKey ~= requestedTargetKey then
+        logger.warn("autopilot", "stale_route_target_ignored", {
+          sessionId = requestedSession,
+          routeRevision = requestedRevision,
+          requestedTargetKey = requestedTargetKey,
+          activeTargetKey = runtime.targetKey
+        })
+        return false
+      end
+      local nodes = normalizedPath(result, requestedTarget)
+      if #nodes < 2 then
+        routeFailure(resolveVehicle(nil), "routePathEmpty", {
+          source = result.source,
+          plannerStatus = routeStatus()
+        })
+        return false
+      end
+      local activeVehicle = resolveVehicle(nil)
+      if not activeVehicle or not isCurrentPlayerVehicle(activeVehicle) or
+        not runtime.enabled or runtime.suspended then
+        logger.warn("autopilot", "route_result_no_longer_applicable", {
+          sessionId = requestedSession,
+          routeRevision = requestedRevision,
+          vehiclePresent = activeVehicle ~= nil,
+          enabled = runtime.enabled,
+          suspended = runtime.suspended
+        })
+        if runtime.enabled and not runtime.suspended and not runtime.parking then
+          requestPark(activeVehicle, "routeResultNoLongerApplicable")
+        end
+        return false
+      end
+      if not issueNativeRoute(activeVehicle, nodes, result, reason) then
+        routeFailure(activeVehicle, "nativeRouteCommandRejected", {
+          source = result.source,
+          nodes = #nodes
+        })
+        return false
+      end
+      return true
+    end
+
+    local ok, accepted = pcall(route.request, route, vehicle, requestedTarget,
+      requestedRevision, onRoute)
+    if not ok or accepted == false then
+      runtime.routeRequestPending = false
+      routeFailure(vehicle, ok and "routeRequestRejected" or tostring(accepted), {
+        requestError = ok and nil or tostring(accepted)
+      })
+      return false
+    end
+    -- Synchronous route services are permitted. If their callback already
+    -- rejected the route, expose that failure to enable/resume immediately.
+    return not callbackCalled or runtime.status == "driving"
+  end
+
   function service:configure(profile)
     profile = type(profile) == "table" and profile or {}
+    local aggression = clamp(number(profile.aggressionPercent, 40) / 100, 0.3, 0.85)
+    local predictiveWarningScale = aggression <= 0.35 and 1.15 or
+      aggression <= 0.45 and 1 or 0.9
     runtime.profile = {
-      aggression = clamp(number(profile.aggressionPercent, 40) / 100, 0.3, 1),
+      aggression = aggression,
+      predictiveWarningScale = predictiveWarningScale,
       followingTimeGap = clamp(number(profile.followingTimeGap, 2.3), 1, 4),
       minimumFollowingDistance = clamp(number(profile.minimumFollowingDistance, 4), 2, 10),
       brakingDeceleration = clamp(number(profile.brakingDeceleration, 3.5), 2, 8),
       trafficWaitSeconds = clamp(number(profile.trafficWaitSeconds, 3), 1, 10),
       obeySpeedLimits = profile.obeySpeedLimits ~= false,
       laneDiscipline = profile.laneDiscipline ~= false,
-      strictGpsRoute = profile.strictGpsRoute == true
+      strictGpsRoute = profile.strictGpsRoute == true,
+      allowOvertaking = profile.allowOvertaking ~= false
     }
   end
 
@@ -494,6 +611,11 @@ function M.new(options)
 
   function service:isEnabled()
     return runtime.enabled == true
+  end
+
+  function service:isParked()
+    return runtime.enabled ~= true and runtime.parking == nil and
+      runtime.status == "parked"
   end
 
   function service:isTargetAligned(vehicle, target)
@@ -511,66 +633,80 @@ function M.new(options)
   end
 
   function service:enable(vehicle, phase, target)
-    if runtime.enabled then return true end
+    vehicle = resolveVehicle(vehicle)
+    if runtime.enabled and not runtime.parking then return true end
     if not vehicle or not isCurrentPlayerVehicle(vehicle) or
       not isDrivingPhase(phase) or not target or not target.pos then
       runtime.reason = "unavailable"
       return false
     end
+
+    cancelRouteRequest("newSession")
     runtime.enabled = true
     runtime.suspended = false
     runtime.status = "planning"
     runtime.reason = ""
-    runtime.target = target
-    runtime.targetKey = targetKey(phase, target)
+    runtime.sessionId = nextSessionId(vehicle)
+    runtime.sequence = 0
+    runtime.routeRevision = 0
+    runtime.routeRequestPending = false
     runtime.routeDirty = false
     runtime.routeDone = false
     runtime.routeDoneDistance = nil
     runtime.routeDoneRetryCount = 0
-    runtime.elapsed = 0
+    runtime.routeNodes = {}
+    runtime.routeSource = ""
+    runtime.routeDiagnostics = nil
+    runtime.target = target
+    runtime.phase = phase
+    runtime.targetKey = makeTargetKey(phase, target)
+    runtime.vehicleId = vehicleId(vehicle)
+    runtime.targetDistance = distance(vehicle:getPosition(), target.pos)
+    runtime.lastPosition = copyPosition(vehicle:getPosition())
     runtime.movedDistance = 0
     runtime.stationarySeconds = 0
+    runtime.stuckRecoveryAttempt = 0
+    runtime.stuckRecoveryPosition = nil
+    runtime.elapsed = 0
     runtime.commandCount = 0
-    if trace and type(trace.start) == "function" then trace:start(vehicle, phase, target) end
-    if issueNativeRoute(vehicle, "enabled") then
-      logger.info("autopilot", "stock_ai_enabled", {phase = phase})
-      return true
+    runtime.parking = nil
+    runtime.traceActive = false
+    if trace and type(trace.start) == "function" then
+      runtime.traceActive = trace:start(vehicle, phase, target) == true
     end
+    logger.info("autopilot", "session_started", {
+      sessionId = runtime.sessionId,
+      vehicleId = runtime.vehicleId,
+      phase = phase
+    })
+    if requestRoute(vehicle, "enabled") then return true end
     runtime.enabled = false
     return false
   end
 
   function service:disable(vehicle, reason, park)
-    local wasEnabled = runtime.enabled
-    if wasEnabled then stopNative(vehicle, park == true) end
-    runtime.enabled = false
-    runtime.suspended = false
-    runtime.status = "off"
-    runtime.reason = tostring(reason or "")
-    runtime.target = nil
-    runtime.targetKey = ""
-    runtime.routeNodes = {}
-    runtime.routeDirty = false
-    runtime.routeDone = false
-    runtime.routeDoneDistance = nil
-    runtime.routeDoneRetryCount = 0
-    runtime.orientedApproach = false
-    runtime.approachNode = nil
-    runtime.departureNode = nil
-    runtime.lastPosition = nil
-    runtime.stationarySeconds = 0
-    if wasEnabled then
-      logger.info("autopilot", "stock_ai_disabled", {reason = runtime.reason})
-      if trace and type(trace.stop) == "function" then trace:stop(runtime.reason) end
+    vehicle = resolveVehicle(vehicle)
+    local wasActive = runtime.enabled or runtime.parking ~= nil or
+      runtime.status == "planning" or runtime.status == "driving" or
+      runtime.status == "paused"
+    if not wasActive then
+      runtime.enabled = false
+      runtime.suspended = false
+      runtime.reason = tostring(reason or runtime.reason or "")
+      return false
     end
+    -- Disabling while moving is always a controlled stop. The legacy park
+    -- argument is retained for API compatibility but no longer permits a
+    -- direct transition to native disabled mode.
+    return requestPark(vehicle, reason or (park and "parkRequested" or "disabled"))
   end
 
   function service:park(vehicle, reason)
-    self:disable(vehicle, reason or "routeCompleted", true)
+    return requestPark(resolveVehicle(vehicle), reason or "routeCompleted")
   end
 
   function service:toggle(vehicle, phase, target)
-    if runtime.enabled then
+    if runtime.enabled or runtime.parking then
       self:disable(vehicle, "driver")
       return false
     end
@@ -579,41 +715,147 @@ function M.new(options)
 
   function service:suspend(vehicle, value)
     value = value == true
-    if not runtime.enabled or runtime.suspended == value then return end
+    vehicle = resolveVehicle(vehicle)
+    if not runtime.enabled or runtime.parking or runtime.suspended == value then return end
     runtime.suspended = value
     if value then
+      cancelRouteRequest("suspended")
       runtime.status = "paused"
-      stopNative(vehicle)
+      runtime.reason = "suspended"
+      local sequence = nextSequence()
+      queue(vehicle, table.concat({
+        "local taxiObserver=extensions.taxiDriverStockAiObserver;",
+        "if taxiObserver and type(taxiObserver.pause)=='function' then taxiObserver.pause({sessionId=",
+        quote(runtime.sessionId), ",routeRevision=", tostring(runtime.routeRevision),
+        ",sequence=", tostring(sequence), "}) end;",
+        "if ai and type(ai.setMode)=='function' then ai.setMode('stop') end"
+      }))
+      logger.info("autopilot", "suspended", {
+        sessionId = runtime.sessionId,
+        routeRevision = runtime.routeRevision,
+        sequence = sequence
+      })
     else
       runtime.status = "planning"
-      issueNativeRoute(vehicle, "resumed")
+      runtime.reason = "resumed"
+      requestRoute(vehicle, "resumed")
     end
   end
 
   function service:markRouteDirty()
-    if not runtime.enabled then return end
+    if not runtime.enabled or runtime.parking then return end
+    cancelRouteRequest("routeDirty")
     runtime.routeDirty = true
     runtime.routeDone = false
     runtime.status = runtime.suspended and "paused" or "planning"
   end
 
+  local function parkingConfirmed(observation)
+    if type(observation) ~= "table" then return false end
+    return observation.parked == true or observation.parkingConfirmed == true or
+      observation.mode == "parked" or observation.status == "parked"
+  end
+
+  local function updateParking(vehicle, dt)
+    if not runtime.parking then return false end
+    vehicle = resolveVehicle(vehicle)
+    if not vehicle then
+      runtime.status = "fault"
+      runtime.reason = "parkingVehicleLost"
+      logger.error("autopilot", "parking_vehicle_lost", {
+        sessionId = runtime.sessionId,
+        routeRevision = runtime.routeRevision,
+        vehicleId = runtime.vehicleId
+      })
+      completeTrace(runtime.reason)
+      return false
+    end
+
+    dt = math.max(0, number(dt, 0))
+    runtime.parking.elapsed = runtime.parking.elapsed + dt
+    runtime.parking.commandElapsed = runtime.parking.commandElapsed + dt
+    local speed = vehicleSpeedKmh(vehicle, options.getSpeedKmh)
+    if speed <= 0.5 then
+      runtime.parking.stationarySeconds = runtime.parking.stationarySeconds + dt
+    else
+      runtime.parking.stationarySeconds = 0
+    end
+
+    local observation = type(options.getSafetyObservation) == "function" and
+      options.getSafetyObservation() or nil
+    if parkingConfirmed(observation) then
+      finalizePark(vehicle, "telemetry")
+      return true
+    end
+    if runtime.parking.stationarySeconds >= 0.6 and
+      not runtime.parking.commitSent then
+      commitPark(vehicle)
+    end
+    if runtime.parking.commitSent and
+      runtime.parking.stationarySeconds >= 1.5 and
+      runtime.parking.commandElapsed >= 2 then
+      -- Never report success from elapsed time alone. Reissue the idempotent
+      -- parking transaction until telemetry confirms P/N and the handbrake.
+      runtime.parking.commandElapsed = 0
+      runtime.parking.commitSent = false
+      logger.warn("autopilot", "parking_ack_pending", {
+        sessionId = runtime.sessionId,
+        routeRevision = runtime.routeRevision,
+        speedKmh = speed,
+        elapsed = runtime.parking.elapsed
+      })
+      commitPark(vehicle)
+    end
+    if speed > 0.5 and runtime.parking.commandElapsed >= 2 then
+      runtime.parking.commandElapsed = 0
+      local sequence = nextSequence()
+      queue(vehicle, table.concat({
+        "local taxiObserver=extensions.taxiDriverStockAiObserver;",
+        "if taxiObserver and type(taxiObserver.requestPark)=='function' then taxiObserver.requestPark({sessionId=",
+        quote(runtime.sessionId), ",routeRevision=", tostring(runtime.routeRevision),
+        ",sequence=", tostring(sequence), ",reason=", quote(runtime.parking.reason), "}) end;",
+        "if ai and type(ai.setMode)=='function' then ai.setMode('stop') end"
+      }))
+      logger.warn("autopilot", "parking_stop_reasserted", {
+        sessionId = runtime.sessionId,
+        routeRevision = runtime.routeRevision,
+        sequence = sequence,
+        speedKmh = speed
+      })
+    end
+    return false
+  end
+
   function service:update(vehicle, phase, target, dt)
-    if not runtime.enabled or runtime.suspended then return false end
+    vehicle = resolveVehicle(vehicle)
+    if runtime.parking then return updateParking(vehicle, dt) end
+    if not runtime.enabled then return false end
     if not vehicle or not isCurrentPlayerVehicle(vehicle) then
-      self:disable(vehicle, "playerVehicleChanged")
+      requestPark(vehicle, "playerVehicleChanged")
       return false
     end
     if not target or not target.pos or not isDrivingPhase(phase) then
+      requestPark(vehicle, not target and "targetLost" or "phaseLost")
       return false
     end
-    local key = targetKey(phase, target)
+    if runtime.vehicleId ~= vehicleId(vehicle) then
+      requestPark(vehicle, "vehicleIdentityChanged")
+      return false
+    end
+    if runtime.suspended then return false end
+
+    local key = makeTargetKey(phase, target)
     if key ~= runtime.targetKey then
+      cancelRouteRequest("targetChanged")
       runtime.target = target
+      runtime.phase = phase
       runtime.targetKey = key
       runtime.routeDirty = true
       runtime.routeDoneRetryCount = 0
     end
-    if runtime.routeDirty then issueNativeRoute(vehicle, "routeChanged") end
+    if runtime.routeDirty and not runtime.routeRequestPending then
+      requestRoute(vehicle, "routeChanged")
+    end
 
     dt = math.max(0, number(dt, 0))
     runtime.elapsed = runtime.elapsed + dt
@@ -628,46 +870,145 @@ function M.new(options)
     else
       runtime.stationarySeconds = 0
     end
-    if runtime.routeDone then
-      runtime.status = "routeDone"
-    elseif runtime.status ~= "routeUnavailable" then
-      runtime.status = "driving"
+    if runtime.stuckRecoveryAttempt > 0 and runtime.stuckRecoveryPosition and
+      distance(position, runtime.stuckRecoveryPosition) >= 3 then
+      logger.info("autopilot", "stuck_recovery_succeeded", {
+        sessionId = runtime.sessionId,
+        routeRevision = runtime.routeRevision,
+        attempt = runtime.stuckRecoveryAttempt
+      })
+      runtime.stuckRecoveryAttempt = 0
+      runtime.stuckRecoveryPosition = nil
+    end
+    if runtime.status ~= "routeUnavailable" and not runtime.routeRequestPending then
+      runtime.status = runtime.routeDone and "routeDone" or "driving"
+    end
+
+    -- Proximity is authoritative when the native route callback is absent.
+    -- Eight metres keeps passenger pickups inside their stricter 10 m trigger.
+    local completionRadius = math.min(8, math.max(2, number(options.arrivalRadius, 14)))
+    if runtime.targetDistance <= completionRadius and
+      speed <= math.max(0.5, number(options.maxArrivalSpeedKmh, 4)) then
+      runtime.routeDone = true
+      requestPark(vehicle, "targetReached")
+    end
+
+    -- Stock BeamNG taxi replans after making less than three metres of
+    -- progress for ten seconds. Use the same inexpensive watchdog, with a
+    -- longer grace period for ordinary traffic and a single recovery attempt.
+    -- It also clears native AI's stale parking brake after an intermediate
+    -- stop, which otherwise leaves some automatic/CVT vehicles in N forever.
+    local safety = type(options.getSafetyObservation) == "function" and
+      options.getSafetyObservation() or nil
+    local closeLead = type(safety) == "table" and
+      safety.leadConfirmed == true and
+      number(safety.leadGap, math.huge) <=
+        math.max(12, runtime.profile.minimumFollowingDistance * 2)
+    local safetyHold = type(safety) == "table" and
+      (safety.emergencyBraking == true or safety.safetyHolding == true or
+        closeLead)
+    local trafficAhead = type(safety) == "table" and
+      (safety.leadConfirmed == true or safety.obstacleDetected == true)
+    local stuckDelay = trafficAhead and 25 or
+      math.max(15, runtime.profile.trafficWaitSeconds + 12)
+    if closeLead and runtime.stationarySeconds >=
+      runtime.profile.trafficWaitSeconds then
+      runtime.status = "waitingTraffic"
+    end
+    if runtime.enabled and not runtime.parking and not runtime.routeRequestPending and
+      runtime.status == "driving" and not safetyHold and
+      runtime.targetDistance > completionRadius and
+      runtime.stationarySeconds >= stuckDelay then
+      runtime.stationarySeconds = 0
+      if runtime.stuckRecoveryAttempt < 1 then
+        runtime.stuckRecoveryAttempt = runtime.stuckRecoveryAttempt + 1
+        runtime.stuckRecoveryPosition = copyPosition(position)
+        logger.warn("autopilot", "stuck_recovery_requested", {
+          sessionId = runtime.sessionId,
+          routeRevision = runtime.routeRevision,
+          attempt = runtime.stuckRecoveryAttempt,
+          trafficAhead = trafficAhead,
+          targetDistance = runtime.targetDistance
+        })
+        return requestRoute(vehicle, "stuckRecovery")
+      end
+      logger.error("autopilot", "stuck_recovery_exhausted", {
+        sessionId = runtime.sessionId,
+        routeRevision = runtime.routeRevision,
+        attempts = runtime.stuckRecoveryAttempt,
+        targetDistance = runtime.targetDistance
+      })
+      requestPark(vehicle, "stuckAfterRecovery")
     end
     return false
   end
 
-  function service:onRouteDone(vehicle, target)
-    if not runtime.enabled or runtime.suspended then return false end
+  function service:onRouteDone(vehicle, target, sessionId, routeRevision)
+    vehicle = resolveVehicle(vehicle)
+    if not runtime.enabled or runtime.suspended or runtime.parking then return false end
+    if sessionId ~= nil and tostring(sessionId) ~= runtime.sessionId then
+      logger.warn("autopilot", "stale_route_done_session_ignored", {
+        sessionId = sessionId,
+        activeSessionId = runtime.sessionId
+      })
+      return false
+    end
+    if routeRevision ~= nil and tonumber(routeRevision) ~= runtime.routeRevision then
+      logger.warn("autopilot", "stale_route_done_revision_ignored", {
+        sessionId = runtime.sessionId,
+        routeRevision = routeRevision,
+        activeRouteRevision = runtime.routeRevision
+      })
+      return false
+    end
+    target = target or runtime.target
     runtime.routeDoneDistance = vehicle and target and target.pos and
       distance(vehicle:getPosition(), target.pos) or math.huge
-    local arrivalRadius = math.max(1, number(options.arrivalRadius, 14))
-    if runtime.routeDoneDistance > arrivalRadius and
+    local completionRadius = math.min(8,
+      math.max(2, number(options.arrivalRadius, 14)))
+    if runtime.routeDoneDistance > completionRadius and
       runtime.routeDoneRetryCount < 3 then
       runtime.routeDoneRetryCount = runtime.routeDoneRetryCount + 1
       runtime.routeDone = false
       runtime.status = "planning"
       runtime.reason = "prematureNativeRouteDone"
-      logger.warn("autopilot", "stock_route_done_before_target", {
+      logger.warn("autopilot", "route_done_before_target", {
+        sessionId = runtime.sessionId,
+        routeRevision = runtime.routeRevision,
         targetDistance = runtime.routeDoneDistance,
-        retry = runtime.routeDoneRetryCount,
-        orientedApproach = runtime.orientedApproach,
-        approachNode = runtime.approachNode,
-        departureNode = runtime.departureNode
+        retry = runtime.routeDoneRetryCount
       })
-      return issueNativeRoute(vehicle, "prematureRouteDone")
+      return requestRoute(vehicle, "prematureRouteDone")
+    end
+    if runtime.routeDoneDistance > completionRadius then
+      runtime.routeDone = false
+      runtime.status = "routeUnavailable"
+      runtime.reason = "routeDoneOutsideTarget"
+      logger.error("autopilot", "route_done_recovery_exhausted", {
+        sessionId = runtime.sessionId,
+        routeRevision = runtime.routeRevision,
+        targetDistance = runtime.routeDoneDistance,
+        completionRadius = completionRadius,
+        retries = runtime.routeDoneRetryCount
+      })
+      requestPark(vehicle, "routeDoneOutsideTarget")
+      return false
     end
     runtime.routeDone = true
     runtime.status = "routeDone"
     runtime.reason = "nativeRouteDone"
-    logger.info("autopilot", "stock_route_done", {
+    logger.info("autopilot", "route_done", {
+      sessionId = runtime.sessionId,
+      routeRevision = runtime.routeRevision,
       targetDistance = runtime.routeDoneDistance,
-      reachedGameplayRadius = runtime.routeDoneDistance <= arrivalRadius
+      reachedGameplayRadius = runtime.routeDoneDistance <= completionRadius
     })
+    requestPark(vehicle, "nativeRouteDone")
     return true
   end
 
   function service:onBypassComplete()
-    -- Stale callbacks from the removed custom controller are ignored.
+    -- Retained for callers from older savegames and Fleet callback routing.
     return false
   end
 
@@ -680,33 +1021,51 @@ function M.new(options)
       reason = runtime.reason,
       stuckSeconds = runtime.stationarySeconds,
       recoveryAttempt = 0,
-      stockAi = true
+      stockAi = true,
+      sessionId = runtime.sessionId,
+      routeRevision = runtime.routeRevision,
+      parking = runtime.parking ~= nil
     }
   end
 
   function service:getDiagnostics(vehicle, target, phase)
+    vehicle = resolveVehicle(vehicle)
+    target = target or runtime.target
     local targetDistance = vehicle and target and target.pos and
       distance(vehicle:getPosition(), target.pos) or runtime.targetDistance
     local safety = type(options.getSafetyObservation) == "function" and
       options.getSafetyObservation() or nil
     safety = type(safety) == "table" and safety or {}
+    local planner = routeStatus() or {}
     return {
       status = runtime.status,
       reason = runtime.reason,
-      phase = phase,
+      phase = phase or runtime.phase,
+      sessionId = runtime.sessionId,
+      sequence = runtime.sequence,
+      routeRevision = runtime.routeRevision,
+      routePending = runtime.routeRequestPending,
+      routeSource = runtime.routeSource,
+      routePlannerStatus = planner.status,
+      routePlannerReason = planner.error or planner.reason,
+      routeDiagnostics = runtime.routeDiagnostics,
+      targetKey = runtime.targetKey,
       targetDistance = targetDistance,
       routeNodeCount = #runtime.routeNodes,
       routeDone = runtime.routeDone == true,
       routeDoneDistance = runtime.routeDoneDistance,
       routeDoneRetryCount = runtime.routeDoneRetryCount,
-      orientedApproach = runtime.orientedApproach,
-      approachNode = runtime.approachNode,
-      departureNode = runtime.departureNode,
       stationarySeconds = runtime.stationarySeconds,
+      stuckRecoveryAttempt = runtime.stuckRecoveryAttempt,
       movedDistance = runtime.movedDistance,
       elapsed = runtime.elapsed,
       commandCount = runtime.commandCount,
       speedKmh = vehicleSpeedKmh(vehicle, options.getSpeedKmh),
+      parking = runtime.parking ~= nil,
+      parkingElapsed = runtime.parking and runtime.parking.elapsed or nil,
+      parkingStationarySeconds = runtime.parking and
+        runtime.parking.stationarySeconds or nil,
+      parkingCommitSent = runtime.parking and runtime.parking.commitSent or false,
       leadVehicleId = safety.obstacleId,
       leadGap = safety.obstacleDistance,
       leadSpeed = safety.leadSpeed,
@@ -723,6 +1082,8 @@ function M.new(options)
       targetApproachActive = safety.targetApproachActive == true,
       targetApproachDistance = safety.targetDistance,
       targetApproachSpeedCap = safety.targetSpeedCap,
+      controllerMode = safety.mode or safety.status,
+      controllerAge = safety.age,
       stockAi = true,
       trafficGuard = true,
       customPerception = false,

@@ -8,6 +8,10 @@
     html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #76808b; }
     body { display: grid; place-items: center; font-family: Arial, sans-serif; }
     .taxi-test-stage { width: var(--test-width, 520px); height: var(--test-height, 900px); overflow: hidden; }
+    .taxi-test-stage--motion-off *,
+    .taxi-test-stage--motion-off *::before,
+    .taxi-test-stage--motion-off *::after { animation: none!important; transition: none!important; }
+    .taxi-test-stage--motion-off .taxi-start::after { display: none!important; }
   </style>
   <script src="/beamng/angular/angular.js"></script>
   <script src="/beamng/qrcode.min.js"></script>

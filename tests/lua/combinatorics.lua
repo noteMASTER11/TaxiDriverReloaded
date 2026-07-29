@@ -17,6 +17,7 @@ local vehicleControl = dofile("lua/ge/extensions/taxiDriver/vehicleControl.lua")
 local delivery = dofile("lua/ge/extensions/taxiDriver/delivery.lua")
 local routePlanner = dofile("lua/ge/extensions/taxiDriver/routePlanner.lua")
 local routeCache = dofile("lua/ge/extensions/taxiDriver/routeCache.lua")
+local aiDriverRouteModule = dofile("lua/ge/extensions/taxiDriver/aiDriverRoute.lua")
 local autopilotModule = dofile("lua/ge/extensions/taxiDriver/autopilot.lua")
 local aiLoggerModule = dofile("lua/ge/extensions/taxiDriver/aiLogger.lua")
 local networkAddress = dofile("lua/ge/extensions/taxiDriver/networkAddress.lua")
@@ -79,6 +80,7 @@ local defaultAiDriver = taxiConfig.sanitizeAiDriver(nil)
 assert(defaultAiDriver.preset == "balanced")
 assert(defaultAiDriver.obeySpeedLimits == true and defaultAiDriver.laneDiscipline == true)
 assert(defaultAiDriver.strictGpsRoute == false)
+assert(defaultAiDriver.enabled == false)
 assert(defaultAiDriver.minimumFollowingDistance == 4 and defaultAiDriver.trafficWaitSeconds == 3)
 local legacyAiDriver = taxiConfig.sanitizeAiDriver({
   aggressionPercent = 42, obeyTrafficRules = false
@@ -94,6 +96,7 @@ local independentAiDriver = taxiConfig.sanitizeAiDriver({
 })
 assert(independentAiDriver.obeySpeedLimits == false and independentAiDriver.laneDiscipline == false)
 assert(independentAiDriver.strictGpsRoute == true)
+assert(independentAiDriver.enabled == false)
 assert(independentAiDriver.minimumFollowingDistance == 10)
 assert(independentAiDriver.trafficWaitSeconds == 1)
 assert(independentAiDriver.brakingDeceleration == 8)
@@ -108,6 +111,9 @@ for _, preset in ipairs(taxiConfig.aiDriverPresetOrder) do
     }).strictGpsRoute == true)
   end
 end
+assert(taxiConfig.sanitizeAiDriver({preset = "balanced", enabled = true}).enabled == true)
+assert(taxiConfig.runtime.passengerPickupRadius == 10 and
+  taxiConfig.runtime.maxArrivalSpeedKmh == 0.5)
 
 assert(routePlanner.isDistanceAllowed(25000, 1000, 25000))
 assert(not routePlanner.isDistanceAllowed(25001, 1000, 25000))
@@ -166,6 +172,86 @@ assert(routeCacheFiles[routeCacheDescriptor.filePath].routes[1].rideDistance == 
 FS, jsonReadFile, jsonWriteFile = originalRouteCacheFs, originalJsonReadFile,
   originalJsonWriteFile
 getCurrentLevelIdentifier = originalLevelIdentifier
+
+-- The stock BeamNG taxi drops route waypoints behind the cab. Our adapted
+-- normalizer must do that only for a short, unambiguous prefix.
+local trimOriginalMap = map
+local trimNodes = {
+  behind = {pos = {x = -5, y = 0, z = 0}},
+  ahead = {pos = {x = 5, y = 0, z = 0}},
+  farAhead = {pos = {x = 60, y = 0, z = 0}},
+  behindFar = {pos = {x = -12, y = 0, z = 0}},
+  targetA = {pos = {x = 100, y = 0, z = 0}},
+  targetB = {pos = {x = 110, y = 0, z = 0}}
+}
+local trimTargetEdge = {oneWay = false, drivability = 1}
+local trimRoads = {
+  targetA = {targetB = trimTargetEdge},
+  targetB = {targetA = trimTargetEdge}
+}
+map = {
+  getMap = function() return {nodes = trimNodes} end,
+  getGraphpath = function() return {graph = trimRoads} end,
+  findBestRoad = function() return "behind", "ahead" end
+}
+local trimVehicle = {
+  getPosition = function() return {x = 0, y = 0, z = 0} end,
+  getDirectionVector = function() return {x = 1, y = 0, z = 0} end
+}
+local trimTarget = {
+  pos = {x = 105, y = 0, z = 0}, dir = {x = 1, y = 0, z = 0},
+  nodeA = "targetA", nodeB = "targetB"
+}
+local function requestTrimmedPath(plannedPath)
+  local result, failure
+  local service = aiDriverRouteModule.new({
+    routeFactory = function()
+      return {
+        setRouteParams = function() end,
+        setupPathMultiJob = function(_, _, callback)
+          callback({path = plannedPath, distance = 100})
+        end
+      }
+    end
+  })
+  assert(service:request(trimVehicle, trimTarget, 1,
+    function(success, value, err)
+      if success then result = value else failure = err end
+    end))
+  assert(not failure and result)
+  return result
+end
+local trimmedRoute = requestTrimmedPath({
+  "behind", "ahead", "targetA", "targetB"
+})
+assert(trimmedRoute.path[1] == "ahead")
+assert(trimmedRoute.diagnostics.startPathTrim.trimmedCount == 1)
+assert(trimmedRoute.diagnostics.startPathTrim.reason ==
+  "currentRoadEdgeBehindEndpoint")
+
+-- A forward node beyond the 30 m prefix bound is not sufficient evidence to
+-- skip the first route node.
+map.findBestRoad = function() return "behind", "targetA" end
+local boundedRoute = requestTrimmedPath({
+  "behind", "farAhead", "targetA", "targetB"
+})
+assert(boundedRoute.path[1] == "behind")
+assert(boundedRoute.diagnostics.startPathTrim.trimmedCount == 0)
+
+-- Never consume an all-behind prefix without seeing a bounded forward node.
+local allBehindRoute = requestTrimmedPath({
+  "behindFar", "behind", "targetA", "targetB"
+})
+assert(allBehindRoute.path[1] == "behindFar")
+assert(allBehindRoute.diagnostics.startPathTrim.trimmedCount == 0)
+
+-- The target approach/departure suffix remains intact even on a three-node
+-- route; only the single unambiguous node before it may be removed.
+map.findBestRoad = function() return "behind", "targetA" end
+local suffixRoute = requestTrimmedPath({"behind", "targetA", "targetB"})
+assert(#suffixRoute.path == 2 and suffixRoute.path[1] == "targetA" and
+  suffixRoute.path[2] == "targetB")
+map = trimOriginalMap
 
 local orientedMap = map
 local orientedNodes = {
@@ -235,6 +321,8 @@ assert(orientedCommands[#orientedCommands]:find(
   'path={"targetA","targetB"}', 1, true))
 assert(orientedCommands[#orientedCommands]:find(
   "targetX=40.000,targetY=4.000,targetZ=0.000", 1, true))
+assert(orientedCommands[#orientedCommands]:find(
+  "maximumArrivalSpeed=0", 1, true))
 orientedPosition = {x = -60, y = 0, z = 0}
 assert(orientedAutopilot:onRouteDone(orientedVehicle, orientedTarget))
 assert(#orientedCommands == 2)
@@ -905,6 +993,7 @@ assert(stockCommands[1]:find("aggression=0.40", 1, true))
 assert(stockCommands[1]:find('routeSpeedMode="legal"', 1, true))
 assert(stockCommands[1]:find("followingTimeGap=2.30", 1, true))
 assert(stockCommands[1]:find("minimumGap=4.00", 1, true))
+assert(stockCommands[1]:find("predictiveWarningScale=1.00", 1, true))
 assert(stockCommands[1]:find("extensions.unload('taxiDriverAutopilotRecovery')", 1, true))
 assert(stockCommands[1]:find("taxiDriverStockAiObserver.watch({", 1, true))
 assert(not stockCommands[1]:find("taxiDriverAutopilotRecovery.start", 1, true))
@@ -1103,43 +1192,6 @@ local historyPenalties = tripHistory.sanitizePenalties({
 })
 assert(#historyPenalties == 2 and historyPenalties[1].penalty == 0.15)
 assert(#historyPenalties[2].detail == 180 and historyPenalties[2].fareAmount == 2.5)
-local physicalNoShow = physicalPickupModule.new()
-assert(physicalNoShow:start({
-  isDelivery = false, pickup = {pos = {}}, randomEvent = {kind = "passengerNoShow"}
-}))
-assert(not physicalNoShow:isReady())
-physicalNoShow:clear()
-assert(physicalNoShow:isReady())
-local hornCommands = {}
-local physicalPassenger = physicalPickupModule.new()
-physicalPassenger.kind, physicalPassenger.ready = "passenger", false
-local pickupPosition = {x = 0, y = 0, z = 0}
-function pickupPosition:distance() return 1.5 end
-local fakeTaxi = {
-  getID = function() return 77 end,
-  getPosition = function() return pickupPosition end,
-  queueLuaCommand = function(_, command) hornCommands[#hornCommands + 1] = command end
-}
-local savedPickupObjectLookup = getObjectByID
-physicalPassenger.objectId = 88
-getObjectByID = function(id)
-  return id == 88 and {getPosition = function() return pickupPosition end} or nil
-end
-assert(physicalPassenger:beginAiPickup(fakeTaxi))
-assert(physicalPassenger:isAiHold() and not physicalPassenger:beginAiPickup(fakeTaxi))
-assert(physicalPassenger.hornStage == -1 and
-  string.find(hornCommands[1], "stopPickupHonk", 1, true))
-physicalPassenger:update(fakeTaxi, {}, 0.1, 1.2)
-assert(physicalPassenger.hornStage == -1)
-physicalPassenger:update(fakeTaxi, {}, 0.1, 0.1)
-physicalPassenger:update(fakeTaxi, {}, 0.1, 0.1)
-physicalPassenger:update(fakeTaxi, {}, 0.1, 0.1)
-assert(physicalPassenger.hornStage == 1 and
-  string.find(hornCommands[#hornCommands], "startPickupHonk", 1, true))
-getObjectByID = savedPickupObjectLookup
-end)()
-
-;(function()
 local randomEventSettings = taxiConfig.sanitizeRandomEvents({
   cancellation = {enabled = false, chancePercent = 150},
   policeCheck = {enabled = true, chancePercent = 43.6, preloadConfirmed = true}
@@ -1345,12 +1397,15 @@ local commandVehicle = {queueLuaCommand = function(_, command)
 end}
 vehicleControl.setTelemetryEnabled(commandVehicle, true)
 vehicleControl.setTelemetryEnabled(commandVehicle, false)
+vehicleControl.setForcedStop(commandVehicle, false, true)
 delivery.applyVehicleMass(commandVehicle, 75)
 delivery.applyVehicleMass(commandVehicle, 0)
 assert(vehicleCommands[1]:find("extensions.load('taxiDriverTelemetry')", 1, true))
 assert(vehicleCommands[2]:find("extensions.unload('taxiDriverTelemetry')", 1, true))
-assert(vehicleCommands[3]:find("extensions.load('taxiDriverCargo')", 1, true))
-assert(vehicleCommands[4]:find("extensions.unload('taxiDriverCargo')", 1, true))
+assert(vehicleCommands[3]:find("setForcedStop(false)", 1, true))
+assert(vehicleCommands[3]:find("input.event('parkingbrake',1,'FILTER_AI'", 1, true))
+assert(vehicleCommands[4]:find("extensions.load('taxiDriverCargo')", 1, true))
+assert(vehicleCommands[5]:find("extensions.unload('taxiDriverCargo')", 1, true))
 local telemetryExtension = dofile("lua/vehicle/extensions/taxiDriverTelemetry.lua")
 telemetryExtension.onReset()
 
@@ -2032,19 +2087,35 @@ stockAiObserver.unwatch()
 input.state.steering.val = 0
 
 guardSpeedCalls = {}
+guardObjects[42].pos, guardObjects[42].vel =
+  guardVector(0, 0, 0), guardVector(12, 0, 0)
+guardObjects[88] = {
+  pos = guardVector(27, 2.05, 0), vel = guardVector(-12, 0, 0),
+  dirVec = guardVector(-1, 0, 0)
+}
+assert(stockAiObserver.watch())
+stockAiObserver.updateGFX(0.1)
+local imminentOncomingGuardState = stockAiObserver.getDebugState()
+assert(#guardSpeedCalls == 1 and guardSpeedCalls[1].value == 0)
+assert(imminentOncomingGuardState.emergencyBraking and
+  imminentOncomingGuardState.threatConfidence == 1 and
+  imminentOncomingGuardState.threatKind == "oncoming")
+stockAiObserver.unwatch()
+
+guardSpeedCalls = {}
 guardObjects[88] = nil
 guardObjects[42].pos, guardObjects[42].vel =
   guardVector(0, 0, 0), guardVector(15, 0, 0)
 assert(stockAiObserver.watch({
   targetX = 40, targetY = 4, targetZ = 0,
   targetDirX = 1, targetDirY = 0,
-  arrivalRadius = 14, maximumArrivalSpeed = 4 / 3.6
+  arrivalRadius = 14, maximumArrivalSpeed = 0
 }))
 stockAiObserver.updateGFX(0.1)
 local targetApproachState = stockAiObserver.getDebugState()
 assert(targetApproachState.targetApproachActive and
   not targetApproachState.safetyHolding)
-assert(targetApproachState.targetSpeedCap > 4 / 3.6 and
+assert(targetApproachState.targetSpeedCap > 0 and
   targetApproachState.targetSpeedCap < 15)
 assert(guardSpeedCalls[#guardSpeedCalls].value < 15)
 stockAiObserver.unwatch()
@@ -2053,11 +2124,77 @@ guardSpeedCalls = {}
 assert(stockAiObserver.watch({
   targetX = 40, targetY = 4, targetZ = 0,
   targetDirX = -1, targetDirY = 0,
-  arrivalRadius = 14, maximumArrivalSpeed = 4 / 3.6
+  arrivalRadius = 14, maximumArrivalSpeed = 0
 }))
 stockAiObserver.updateGFX(0.1)
 assert(not stockAiObserver.getDebugState().targetApproachActive)
 assert(#guardSpeedCalls == 0)
+stockAiObserver.unwatch()
+
+local parkingModes = {}
+local parkingControlState = {grb_bhv = "arcade", grb_mde = "D"}
+mainController.gearboxBehavior = "arcade"
+mainController.getState = function()
+  local result = {}
+  for key, value in pairs(parkingControlState) do result[key] = value end
+  return result
+end
+mainController.setState = function(data)
+  if data.grb_mde ~= nil then
+    parkingControlState.grb_mde = data.grb_mde
+    electrics.values.gear = data.grb_mde
+  elseif data.grb_idx ~= nil then
+    parkingControlState.grb_idx = data.grb_idx
+    electrics.values.gearIndex = data.grb_idx
+    -- BeamNG 0.39 manual controllers expose neutral as numeric gear=0.
+    electrics.values.gear = data.grb_idx
+  end
+end
+mainController.smartParkingBrake = function(value, filter)
+  input.state.parkingbrake.val = value
+  electrics.values.parkingbrake = value
+  recoveryInputs.parkingBrakeFilter = filter
+end
+ai.setMode = function(mode) parkingModes[#parkingModes + 1] = mode end
+input.state.throttle = {val = 0}
+input.state.brake = {val = 0}
+input.state.parkingbrake = {val = 0}
+electrics.values.wheelspeed = 1
+assert(stockAiObserver.watch())
+assert(stockAiObserver.requestPark())
+assert(mainController.gearboxBehavior == "realistic" and recoveryInputs.brake == 1)
+stockAiObserver.updateGFX(0.1)
+assert(recoveryInputs.brake == 1 and parkingModes[#parkingModes] == "stop")
+assert(not stockAiObserver.commitPark())
+electrics.values.wheelspeed = 0
+assert(stockAiObserver.commitPark())
+stockAiObserver.updateGFX(0.1)
+local automaticParkingState = stockAiObserver.getDebugState()
+assert(automaticParkingState.parked and automaticParkingState.parkingConfirmed and
+  automaticParkingState.parkingGearTarget == "P" and
+  automaticParkingState.parkingGearActual == "P" and
+  automaticParkingState.parkingBrakeConfirmed)
+assert(parkingControlState.grb_mde == "P" and
+  mainController.gearboxBehavior == "realistic" and
+  recoveryInputs.parkingBrakeFilter == "FILTER_DIRECT")
+assert(stockAiObserver.onParkFinalized() and recoveryInputs.brake == 0)
+stockAiObserver.unwatch()
+assert(mainController.gearboxBehavior == "arcade")
+
+parkingControlState = {grb_bhv = "realistic", grb_idx = 2}
+mainController.gearboxBehavior = "realistic"
+electrics.values.gearIndex = 2
+electrics.values.gear = "2"
+electrics.values.wheelspeed = 0
+assert(stockAiObserver.watch())
+assert(stockAiObserver.requestPark())
+assert(stockAiObserver.commitPark())
+stockAiObserver.updateGFX(0.1)
+local manualParkingState = stockAiObserver.getDebugState()
+assert(manualParkingState.parked and manualParkingState.parkingGearTarget == "N" and
+  manualParkingState.parkingGearActual == "N" and
+  parkingControlState.grb_idx == 0 and electrics.values.gear == 0 and
+  mainController.gearboxBehavior == "realistic")
 stockAiObserver.unwatch()
 
 local defaultFleet = taxiConfig.sanitizeFleet(nil)

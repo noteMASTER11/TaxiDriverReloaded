@@ -32,7 +32,7 @@ local hudPublisher = require("taxiDriver/hudPublisher")
 local logger = require("taxiDriver/logger")
 local runtimeBoundary = require("taxiDriver/faultBoundary").new({retrySeconds = 1})
 local aiLoggerModule = require("taxiDriver/aiLogger")
-local modVersion = "3.4.2-rc"
+local modVersion = "4.0.0-rc"
 local fleet = require("taxiDriver/fleetManager").new({modVersion = modVersion})
 local logTag = "taxiDriver"
 local supportedLanguages = taxiConfig.supportedLanguages
@@ -201,6 +201,7 @@ local autopilot = require("taxiDriver/autopilot").new({
   trace = aiLogger,
   isPlayerVehicle = function(vehicle) return vehicle and be:getPlayerVehicleID(0) == vehicle:getID() end,
   getSpeedKmh = getVehicleSpeedKmh,
+  minimumDrivability = runtimeConfig.minimumDrivability,
   arrivalRadius = runtimeConfig.arrivalRadius, maxArrivalSpeedKmh = runtimeConfig.maxArrivalSpeedKmh,
   getSpeedLimitKmh = function(vehicle) return vehicle and routePlanning.getNearestRoadSpeedLimit(vehicle:getPosition()) or nil end,
   getSafetyObservation = function() return telemetry.vehicleId == state.activeVehicleId and telemetry.autopilotController or nil end,
@@ -2057,7 +2058,7 @@ local function startAcceptedOffer(selected)
   trip.refueledQuantity = 0
   trip.fuelCost = 0
   trip.usedAutopilot = false
-  physicalPickup:start(trip)
+  if trip.isDelivery then physicalPickup:start(trip) else physicalPickup:clear() end
 
   state.phase = phases.toPickup
   state.message = trip.isDelivery and "Drive to the cargo" or
@@ -2098,7 +2099,8 @@ local function updateNextOfferLifetime(dtReal)
     duration = offerConfig.nextOfferDuration})
   nextOfferTimer = result.remaining; if not result.expired then return end
   local expiredId = nextOffer and nextOffer.id or nil; clearNextOffer()
-  if trip and state.phase == phases.toDestination then trip.nextOfferDisabled = true end
+  if trip and state.active and state.phase == phases.toDestination and
+    not trip.nextOfferDisabled then scheduleNextOfferRetry() end
   logger.info("nextOffer", "offer_closed_by_guard", {id = expiredId, reason = result.reason}); notifyHud()
 end
 local function recordNextOfferError(errorMessage)
@@ -2209,6 +2211,16 @@ local function beginBoarding()
   notifyHud()
 end
 
+local function stoppedForArrival(speedKmh)
+  if (tonumber(speedKmh) or math.huge) > runtimeConfig.maxArrivalSpeedKmh then
+    return false
+  end
+  -- A player-driven arrival only needs to be stationary. If AI Driver has
+  -- controlled this trip, wait for its verified P / N+handbrake handshake
+  -- before opening a door or advancing the order state.
+  return not trip or trip.usedAutopilot ~= true or autopilot:isParked()
+end
+
 local function updatePickupDeadline(dtSim)
   if not trip or trip.isDelivery or state.phase ~= phases.toPickup then return end
   local previousRemaining = trip.pickupTimeRemaining or trip.pickupWaitLimit or 0
@@ -2275,7 +2287,11 @@ end
 local function beginRide()
   if not trip then return end
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
-  setVehicleForcedStop(vehicle, false)
+  -- Boarding owns a direct-input brake while its timer runs. Releasing that
+  -- source used to overwrite the AI Driver's latched handbrake immediately
+  -- after it had parked and switched itself off at the pickup point.
+  setVehicleForcedStop(vehicle, false,
+    type(autopilot.isParked) == "function" and autopilot:isParked())
   if trip.isDelivery then
     toggleCargoAccess(vehicle, trip.cargoDoorTriggerId)
     delivery.applyVehicleMass(vehicle, trip.cargoWeightKg or 0)
@@ -2719,8 +2735,8 @@ local function updateRandomTripEvent(vehicle, dtSim)
     return true
   end
   local atPickup = state.phase == phases.toPickup and vehicle and
-    vehicle:getPosition():distance(trip.pickup.pos) <= runtimeConfig.arrivalRadius and
-    getVehicleSpeedKmh(vehicle) <= runtimeConfig.maxArrivalSpeedKmh
+    vehicle:getPosition():distance(trip.pickup.pos) <= runtimeConfig.passengerPickupRadius and
+    stoppedForArrival(getVehicleSpeedKmh(vehicle))
   if tripEvents.updateNoShow(event, atPickup, dtSim) then
     physicalPickup:clear()
     recordProgressEvent(trip.passengerName, "😐", 0, 0, "noShow", state.rating, 0,
@@ -3037,21 +3053,21 @@ local function updateActiveMode(dtSim)
   -- BeamNG is paused, so no offer, fare, boarding or passenger timer may move.
   if dtSim <= 0 then return end
   local speedKmh = getVehicleSpeedKmh(vehicle)
-  if state.phase == phases.toPickup and trip and not trip.isDelivery and autopilot:isEnabled() and
-    vehicle:getPosition():distance(trip.pickup.pos) <= math.min(7, runtimeConfig.arrivalRadius) and
-    autopilot:isTargetAligned(vehicle, trip.pickup) and
-    physicalPickup:beginAiPickup(vehicle) then setVehicleForcedStop(vehicle, true) end
-  local pickupResult = physicalPickup:update(vehicle, telemetry, dtSim, speedKmh)
-  if pickupResult == "hornAccepted" then showPhoneNotification("notify_passengerApproaching", {}, "info")
-  elseif pickupResult == "ready" then notifyHud()
-  elseif pickupResult == "passengerHit" then failPassengerHit(); return end
+  local waitingNoShowAtPickup = state.phase == phases.toPickup and trip and
+    not trip.isDelivery and trip.randomEvent and
+    trip.randomEvent.kind == "passengerNoShow" and
+    vehicle:getPosition():distance(trip.pickup.pos) <= runtimeConfig.passengerPickupRadius and
+    stoppedForArrival(speedKmh)
+  if waitingNoShowAtPickup and autopilot:isEnabled() then setVehicleForcedStop(vehicle, true) end
+  local pickupResult = trip and trip.isDelivery and physicalPickup:update(vehicle) or nil
+  if pickupResult == "ready" then notifyHud() end
   updateTripCooldowns(dtSim)
   if updateRandomTripEvent(vehicle, dtSim) then return end
   realisticFuel.updateStation(dtSim)
   realisticFuel.updatePassengerMood(dtSim)
   autopilot:suspend(vehicle,
     state.phase == phases.toFuelStation and realisticFuel.detour.arrived == true or
-    state.phase == phases.boarding or physicalPickup:isAiHold())
+    state.phase == phases.boarding or waitingNoShowAtPickup)
   local autopilotTarget = getAutopilotTarget()
   autopilot:update(vehicle, state.phase, autopilotTarget, dtSim)
   aiLogger:update(vehicle, state.phase, autopilotTarget,
@@ -3075,14 +3091,19 @@ local function updateActiveMode(dtSim)
       if offerTimer <= 0 then addOffer(dtSim) end
     end
   elseif state.phase == phases.toPickup and trip then
-    local pickupReached = vehicle:getPosition():distance(trip.pickup.pos) <= runtimeConfig.arrivalRadius and
-      speedKmh <= runtimeConfig.maxArrivalSpeedKmh
+    local pickupRadius = trip.isDelivery and runtimeConfig.arrivalRadius or
+      runtimeConfig.passengerPickupRadius
+    local pickupReached = vehicle:getPosition():distance(trip.pickup.pos) <= pickupRadius and
+      stoppedForArrival(speedKmh)
     if not pickupReached then updatePickupDeadline(dtSim) end
     if pickupReached then
-      if physicalPickup:isReady() then beginBoarding()
+      local passengerNoShow = not trip.isDelivery and trip.randomEvent and
+        trip.randomEvent.kind == "passengerNoShow"
+      if not trip.isDelivery and not passengerNoShow then beginBoarding()
+      elseif trip.isDelivery and physicalPickup:isReady() then beginBoarding()
+      elseif passengerNoShow then state.message = "Waiting for passenger"
       elseif trip.randomEvent and trip.randomEvent.kind ~= "passengerNoShow" then
-        state.message = trip.isDelivery and "Move closer to the cargo" or
-          physicalPickup:isAiHold() and "Waiting for passenger" or "Honk for the passenger"
+        state.message = "Move closer to the cargo"
       end
     end
   elseif state.phase == phases.boarding then
@@ -3094,7 +3115,7 @@ local function updateActiveMode(dtSim)
     if state.phase ~= phases.toStop then return end
     local stop = trip.stops and trip.stops[trip.currentStopIndex or 0] or nil
     if stop and vehicle:getPosition():distance(stop.pos) <= runtimeConfig.arrivalRadius and
-      getVehicleSpeedKmh(vehicle) <= runtimeConfig.maxArrivalSpeedKmh then
+      stoppedForArrival(getVehicleSpeedKmh(vehicle)) then
       beginStopWaiting()
     end
   elseif state.phase == phases.stopWaiting and trip then
@@ -3113,7 +3134,7 @@ local function updateActiveMode(dtSim)
     if state.phase ~= phases.toDestination then return end
     updateNextOfferOpportunitySafely(dtSim)
     if vehicle:getPosition():distance(trip.destination.pos) <= runtimeConfig.arrivalRadius and
-      getVehicleSpeedKmh(vehicle) <= runtimeConfig.maxArrivalSpeedKmh then
+      stoppedForArrival(getVehicleSpeedKmh(vehicle)) then
       beginAlighting()
     end
   elseif state.phase == phases.passengerStopDemand and trip then
@@ -3214,6 +3235,11 @@ end
 
 function M.toggleAutopilot()
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  if userSettings.aiDriver.enabled ~= true then
+    if autopilot:isEnabled() then autopilot:park(vehicle, "featureDisabled") end
+    notifyHud()
+    return false
+  end
   local wasEnabled = autopilot:isEnabled()
   local enabled = autopilot:toggle(vehicle, state.phase, getAutopilotTarget())
   if enabled and trip then trip.usedAutopilot = true end
@@ -3234,7 +3260,7 @@ function M.onAutopilotBypassComplete(vehicleId, success, reason)
   end
   return autopilot:onBypassComplete(vehicle, success == true, getAutopilotTarget(), reason)
 end
-function M.onAutopilotRouteDone(vehicleId)
+function M.onAutopilotRouteDone(vehicleId, sessionId, routeRevision)
   if tonumber(vehicleId) ~= tonumber(state.activeVehicleId) then
     return fleet:onRouteDone(vehicleId)
   end
@@ -3245,11 +3271,20 @@ function M.onAutopilotRouteDone(vehicleId)
     })
     return false
   end
-  local completed = autopilot:onRouteDone(vehicle, getAutopilotTarget())
+  local completed = autopilot:onRouteDone(
+    vehicle, getAutopilotTarget(), sessionId, routeRevision)
   if completed and state.phase == phases.toDestination then
     autopilot:park(vehicle, "destinationRouteDone")
   end
   return completed
+end
+
+-- BeamNG 0.39 emits this GE extension hook directly when the stock vehicle AI
+-- finishes its route. Keep the older TaxiDriver callback as the single
+-- implementation so legacy packages and the native hook share identical
+-- session validation, arrival checks and parking behaviour.
+function M.onAiRouteDone(vehicleId)
+  return M.onAutopilotRouteDone(vehicleId)
 end
 function M.resumeShift(shiftId)
   if state.active then return false end
@@ -3282,15 +3317,31 @@ function M.acceptNextOffer(offerId)
     notifyHud()
   end
 end
-function M.onRecalculatedRoute() if userSettings.aiDriver.strictGpsRoute then autopilot:markRouteDirty() end end
+function M.onRecalculatedRoute()
+  if userSettings.aiDriver.enabled == true and userSettings.aiDriver.strictGpsRoute then
+    autopilot:markRouteDirty()
+  end
+end
 function M.dismissNextOffer(offerId)
   local id = math.floor(tonumber(offerId) or -1)
   if not state.active or not nextOffer or nextOfferAccepted or nextOffer.id ~= id then return false end
-  clearNextOffer(); if trip then trip.nextOfferDisabled = true end
+  clearNextOffer()
+  if trip and state.phase == phases.toDestination and not trip.nextOfferDisabled then
+    scheduleNextOfferRetry()
+  end
   logger.info("nextOffer", "offer_dismissed_by_driver", {id = id}); notifyHud()
   return true
 end
-function M.expireNextOffer(offerId) return M.dismissNextOffer(offerId) end
+function M.expireNextOffer(offerId)
+  local id = math.floor(tonumber(offerId) or -1)
+  if not state.active or not nextOffer or nextOfferAccepted or nextOffer.id ~= id then return false end
+  clearNextOffer()
+  if trip and state.phase == phases.toDestination and not trip.nextOfferDisabled then
+    scheduleNextOfferRetry()
+  end
+  logger.info("nextOffer", "offer_expired_by_hud", {id = id}); notifyHud()
+  return true
+end
 
 function M.stopMode()
   if not state.active then
@@ -3409,6 +3460,10 @@ function M.saveSettings(incomingSettings)
   applyDifficulty(userSettings.difficulty); aiLogger:setEnabled(userSettings.aiDebugLogging == true)
   if userSettings.aiDebugLogging == true and autopilot:isEnabled() then aiLogger:start(state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil, state.phase, getAutopilotTarget()) end
   autopilot:configure(userSettings.aiDriver); autopilot:markRouteDirty(); fleet:configure(userSettings.fleet, userSettings.language)
+  if userSettings.aiDriver.enabled ~= true and autopilot:isEnabled() then
+    autopilot:park(state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil,
+      "featureDisabled")
+  end
   lanBridge.setPerformanceOptions(userSettings)
   lanBridge.setEnabled(userSettings.lanEnabled); if userSettings.randomEventsEnabled == true and userSettings.randomEvents.policeCheck.enabled == true then policeCheck:prepare() end
   writeUserSettings()
@@ -3610,11 +3665,29 @@ end
 function M.hideMinimap()
   hideNativeMinimap()
 end
+
+-- Read-only diagnostics entry point used by the in-engine MCP and support
+-- tooling. Returning the same state that feeds the HUD lets an automated test
+-- select a real dispatcher offer without adding test-only gameplay commands.
+function M.getDebugState()
+  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or
+    getPlayerVehicle()
+  local target = getAutopilotTarget()
+  return {
+    hud = buildHudState(true),
+    autopilot = autopilot:getDiagnostics(vehicle, target, state.phase),
+    controller = telemetry.vehicleId == state.activeVehicleId and
+      telemetry.autopilotController or nil
+  }
+end
 function M.onTelemetry(vehicleId, data)
   if vehicleId ~= state.activeVehicleId or type(data) ~= "table" then return end
   aiLogger:onVehicleTelemetry(data)
   telemetry.vehicleId = vehicleId
-  telemetry.autopilotController = type(data.autopilotController) == "table" and data.autopilotController or telemetry.autopilotController
+  -- An absent observer snapshot means the observer is no longer active. Do not
+  -- let an old collision threat or speed cap survive an AI shutdown/reload.
+  telemetry.autopilotController = type(data.autopilotController) == "table" and
+    data.autopilotController or nil
   telemetry.damage = tonumber(data.damage) or telemetry.damage
   telemetry.longitudinalG = tonumber(data.longitudinalG) or 0
   telemetry.lateralG = math.abs(tonumber(data.lateralG) or 0)
@@ -4024,7 +4097,13 @@ function M.onClientEndMission()
   runtimeBoundary:cleanup("shiftHistory.writeMission", shiftHistory.write)
   runtimeBoundary:cleanup("vehicleHistory.resetMission", vehicleHistory.resetTracking)
   runtimeBoundary:cleanup("navigation.restoreMission", restoreNavigationVisualSettings)
-end function M.onPreRender() if navigationUi:canRenderWorld() then fleet:drawWorldLabels(); autopilot:drawDebug() end end
+end function M.onPreRender(dtReal, dtSim)
+  navigationUi:onPreRender(dtReal, dtSim)
+  if navigationUi:canRenderWorld() then
+    fleet:drawWorldLabels()
+    autopilot:drawDebug()
+  end
+end
 
 function M.onExtensionUnloaded()
   runtimeBoundary:cleanup("physicalPickup.unload", physicalPickup.clear, physicalPickup)
