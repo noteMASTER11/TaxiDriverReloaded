@@ -31,6 +31,7 @@ local sessionToken = ""
 local statusChanged = false
 local mapTimer = 0
 local vehicleTimer = 0
+local debugPublishLogTimer = 0
 local externalView = "home"
 local externalVisible = true
 local externalMapEnabled = true
@@ -850,6 +851,19 @@ function M.update(dtReal)
   if not connected then return end
 
   if not canPublishNavigation() then return end
+
+  debugPublishLogTimer = debugPublishLogTimer + dtReal
+  if debugPublishLogTimer >= 2 then
+    debugPublishLogTimer = 0
+    local snapshot = vehicleSnapshot()
+    logger.info("lan", "debug_publish_tick", {
+      activeTransport = activeTransport,
+      authoritativePhase = authoritativePhase,
+      cachedRoadCount = cachedRoads and #cachedRoads or 0,
+      hasVehicleSnapshot = snapshot ~= nil,
+      pendingRoadChunk = pendingRoadChunk
+    })
+  end
 
   mapTimer = mapTimer + dtReal
   local newKey = currentMapKey()
