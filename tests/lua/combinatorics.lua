@@ -76,6 +76,33 @@ selectedNetworkAddress = networkAddress.select({
 })
 assert(selectedNetworkAddress == nil)
 
+-- A valid, bindable manual override must win over every automatic source.
+local manualOverAll = networkAddress.select({
+  adapters = {{ipv4Addr = "192.168.1.20", description = "Intel(R) Wi-Fi 6E AX211"}},
+  nativeAddress = "192.168.1.30",
+  routedAddress = "192.168.1.40",
+  savedAddress = "192.168.1.50",
+  manualAddress = "192.168.1.99",
+  canBind = function() return true end
+})
+assert(manualOverAll == "192.168.1.99")
+
+-- An invalid manual override (loopback/public/malformed) must be rejected,
+-- not silently swallowed into selecting an unrelated address.
+local manualLoopbackIgnored = networkAddress.select({
+  adapters = {}, nativeAddress = "192.168.1.30",
+  manualAddress = "127.0.0.1",
+  canBind = function() return true end
+})
+assert(manualLoopbackIgnored == "192.168.1.30")
+
+-- A manual override that fails the bind test must not be selected either.
+local manualUnbindable = networkAddress.select({
+  adapters = {}, manualAddress = "192.168.1.77",
+  canBind = function(address) return address ~= "192.168.1.77" end
+})
+assert(manualUnbindable == nil)
+
 local defaultAiDriver = taxiConfig.sanitizeAiDriver(nil)
 assert(defaultAiDriver.preset == "balanced")
 assert(defaultAiDriver.obeySpeedLimits == true and defaultAiDriver.laneDiscipline == true)

@@ -26,6 +26,7 @@ local externalHeartbeatAge = math.huge
 local connected = false
 local chosenAddress = "127.0.0.1"
 local savedAddressHint = ""
+local manualAddressOverride = ""
 local sessionToken = ""
 local statusChanged = false
 local mapTimer = 0
@@ -297,7 +298,7 @@ end
 
 local function candidateSources(candidate)
   local values = {}
-  for _, key in ipairs({"adapter", "native", "route", "saved"}) do
+  for _, key in ipairs({"adapter", "native", "route", "saved", "manual"}) do
     if candidate.sources and candidate.sources[key] then values[#values + 1] = key end
   end
   return table.concat(values, ",")
@@ -315,6 +316,7 @@ local function selectLanAddress(nativeAddress)
     nativeAddress = nativeAddress,
     routedAddress = routedAddress,
     savedAddress = savedAddressHint,
+    manualAddress = manualAddressOverride,
     canBind = canBindAddress
   })
   for _, candidate in ipairs(candidates or {}) do
@@ -762,6 +764,13 @@ function M.setPerformanceOptions(options)
     terrainEnabled = externalTerrainEnabled,
     vehicleRefreshInterval = vehicleRefreshInterval
   })
+end
+
+-- User-supplied override for platforms where automatic LAN address
+-- discovery is unavailable or unreliable. Still validated and bind-tested
+-- like every other candidate; it just outranks the automatic sources.
+function M.setManualAddress(value)
+  manualAddressOverride = tostring(value or ""):gsub("%s+", "")
 end
 
 function M.getStatus()

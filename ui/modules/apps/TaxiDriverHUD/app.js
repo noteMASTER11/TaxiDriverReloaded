@@ -247,6 +247,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         const initialRealisticMode = persisted.realisticMode === true;
         const initialRandomEventsEnabled = persisted.randomEventsEnabled === true;
         const initialLanEnabled = false;
+        const initialLanManualAddress = typeof persisted.lanManualAddress === "string"
+          ? persisted.lanManualAddress : "";
         const initialExternalMapEnabled = persisted.externalMapEnabled !== false;
         const initialExternalTerrainEnabled = persisted.externalTerrainEnabled !== false;
         const initialExternalMapQuality = ["eco", "balanced", "smooth"].includes(persisted.externalMapQuality)
@@ -399,6 +401,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           deliveryOrderSharePercent: initialDeliveryOrderShare,
           unlimitedRouteDistance: initialUnlimitedRouteDistance,
           lanEnabled: initialLanEnabled,
+          lanManualAddress: initialLanManualAddress,
           externalMapEnabled: initialExternalMapEnabled,
           externalTerrainEnabled: initialExternalTerrainEnabled,
           externalMapQuality: initialExternalMapQuality,
@@ -1169,6 +1172,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
               Number.isFinite(deliveryOrderSharePercent) ? deliveryOrderSharePercent : 50)),
             unlimitedRouteDistance: value.unlimitedRouteDistance === true,
             lanEnabled: value.lanEnabled === true,
+            lanManualAddress: typeof value.lanManualAddress === "string" ? value.lanManualAddress : "",
             externalMapEnabled: value.externalMapEnabled !== false,
             externalTerrainEnabled: value.externalTerrainEnabled !== false,
             externalMapQuality: ["eco", "balanced", "smooth"].includes(value.externalMapQuality)

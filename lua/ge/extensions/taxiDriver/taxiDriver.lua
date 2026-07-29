@@ -262,6 +262,7 @@ local function loadUserSettings()
   autopilot:configure(userSettings.aiDriver)
   fleet:configure(userSettings.fleet, userSettings.language)
   lanBridge.setPerformanceOptions(userSettings)
+  lanBridge.setManualAddress(userSettings.lanManualAddress)
 end
 local function roundMoney(value) return math.floor(value * 100 + 0.5) / 100 end
 local function trimText(value) return dataStore:trimText(value) end
@@ -3465,6 +3466,7 @@ function M.saveSettings(incomingSettings)
       "featureDisabled")
   end
   lanBridge.setPerformanceOptions(userSettings)
+  lanBridge.setManualAddress(userSettings.lanManualAddress)
   lanBridge.setEnabled(userSettings.lanEnabled); if userSettings.randomEventsEnabled == true and userSettings.randomEvents.policeCheck.enabled == true then policeCheck:prepare() end
   writeUserSettings()
 
