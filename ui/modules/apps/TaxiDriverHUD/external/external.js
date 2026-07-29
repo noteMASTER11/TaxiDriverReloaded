@@ -113,21 +113,15 @@
       // event subscription. The regular BeamNG Angular bootstrap does this in
       // angularModules.js, but this lightweight entry point intentionally skips
       // that bootstrap, so subscribe before requesting TaxiDriverHUDState.
-      // An empty filter used to mean "everything" pre-0.39; on 0.39 some
-      // guihooks.trigger events (TaxiDriverExternalVehicleState/RoadData/MapData)
-      // stopped arriving over this bridge while others (TaxiDriverHUDState/Patch)
-      // kept working, which looks like an implicit allow-list. List every event
-      // name this mod triggers explicitly so nothing depends on the default.
-      window.bridge.api.subscribeToEvents(JSON.stringify([
-        "TaxiDriverHUDState",
-        "TaxiDriverHUDPatch",
-        "TaxiDriverExternalVehicleState",
-        "TaxiDriverExternalRoadData",
-        "TaxiDriverExternalMapData",
-        "TaxiDriverProfileData",
-        "TaxiDriverUiSuspended",
-        "TaxiDriverMinimapInvalidated"
-      ]));
+      // subscribeToEvents actually configures StreamManager's vehicle-telemetry
+      // "streams" (a different concept from bridge.events' plain named-event
+      // pub/sub, which is how TaxiDriverHUDState/HUDPatch/VehicleChange etc.
+      // arrive with no subscription at all) - it is unrelated to the
+      // TaxiDriverExternalVehicleState/RoadData/MapData delivery problem this
+      // was an attempt to fix. A bare array is the wrong payload shape for it
+      // (0.39 logs "Wrong data stream request format" and rejects the call),
+      // so keep sending the pre-existing empty-object form.
+      window.bridge.api.subscribeToEvents("{}");
       setStep("runtime", "done", "Ready");
 
       setStep("assets", "active", "Caching");
