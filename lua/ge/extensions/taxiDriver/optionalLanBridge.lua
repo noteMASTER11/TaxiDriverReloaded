@@ -103,6 +103,10 @@ function M.requestExternalMap(...)
   return invoke(implementation, "requestExternalMap", nil, ...)
 end
 
+function M.pollExternalState(...)
+  return invoke(implementation, "pollExternalState", {available = false}, ...)
+end
+
 function M.setExternalView(...)
   return invoke(implementation, "setExternalView", false, ...)
 end

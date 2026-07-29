@@ -1502,6 +1502,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         let externalCameraRadius = null;
         let externalCameraZoomUpdatedAt = 0;
         let externalRoadRevision = 0;
+        let externalPollTimer = 0;
+        let externalPollInFlight = false;
         let externalRoads = [];
         let externalTerrainTiles = [];
         const externalRoadGrid = new Map();
@@ -2893,44 +2895,69 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           } else if (canRenderMinimap($scope.state)) scheduleMinimapUpdate();
           else hideMinimap(minimapVisible);
         });
-        $scope.$on("TaxiDriverExternalMapData", (_, data) => {
-          if (!externalPhoneMode || !data) return;
-          externalMapData = {
-            revision: Number(data.revision || 0),
-            route: Array.isArray(data.route) ? data.route : [],
-            roads: [],
-          };
-          // Compatibility with builds that published roads together with the route.
-          if (Array.isArray(data.roads)) addExternalRoads(data.roads, true);
-          scheduleMinimapUpdate();
-        });
-        $scope.$on("TaxiDriverExternalRoadData", (_, data) => {
-          if (!externalPhoneMode || !data) return;
-          const revision = Number(data.revision || 0);
-          const reset = data.reset === true || revision !== externalRoadRevision;
-          if (reset) externalRoadRevision = revision;
-          if (Array.isArray(data.terrainTiles)) setExternalTerrainTiles(data.terrainTiles);
-          addExternalRoads(data.roads, reset);
-          scheduleMinimapUpdate();
-        });
-        $scope.$on("TaxiDriverExternalVehicleState", (_, data) => {
-          if (!externalPhoneMode || !data) return;
-          const previous = externalVehicleState;
-          externalVehicleState = data;
-          const previousPosition = previous && previous.position || [];
-          const position = data.position || [];
-          const previousDirection = previous && previous.direction || [];
-          const direction = data.direction || [];
-          const moved = Math.hypot(
-            Number(position[0] || 0) - Number(previousPosition[0] || 0),
-            Number(position[1] || 0) - Number(previousPosition[1] || 0)
-          ) > 0.05;
-          const turned = Math.hypot(
-            Number(direction[0] || 0) - Number(previousDirection[0] || 0),
-            Number(direction[1] || 0) - Number(previousDirection[1] || 0)
-          ) > 0.001;
-          if (!previous || moved || turned) scheduleExternalMapDraw();
-        });
+        // BeamNG 0.39 stopped delivering the guihooks.trigger("TaxiDriverExternal...")
+        // pushes lanBridge.lua used to send this data (no error either side - the
+        // events just never arrive), so the external client polls for it instead,
+        // over the same bngApi.engineLua channel used for view/heartbeat calls.
+        const getExternalPollInterval = () => {
+          const quality = $scope.settings.externalMapQuality;
+          return quality === "eco" ? 500 : (quality === "smooth" ? 125 : 250);
+        };
+        const scheduleExternalPoll = () => {
+          if (uiShuttingDown || externalPollTimer) return;
+          externalPollTimer = setTimeout(() => {
+            externalPollTimer = 0;
+            pollExternalState();
+          }, getExternalPollInterval());
+        };
+        const pollExternalState = () => {
+          if (uiShuttingDown || !externalPhoneMode) return;
+          if (externalPollInFlight || !externalMapVisible()) {
+            scheduleExternalPoll();
+            return;
+          }
+          externalPollInFlight = true;
+          bngApi.engineLua(
+            `if taxiDriver_taxiDriver then return taxiDriver_taxiDriver.pollExternalState(${externalRoadRevision}, ${Number(externalMapData.revision) || 0}) end`,
+            (data) => {
+              externalPollInFlight = false;
+              if (data && data.available !== false) {
+                if (data.vehicle) {
+                  const previous = externalVehicleState;
+                  externalVehicleState = data.vehicle;
+                  const previousPosition = previous && previous.position || [];
+                  const position = data.vehicle.position || [];
+                  const previousDirection = previous && previous.direction || [];
+                  const direction = data.vehicle.direction || [];
+                  const moved = Math.hypot(
+                    Number(position[0] || 0) - Number(previousPosition[0] || 0),
+                    Number(position[1] || 0) - Number(previousPosition[1] || 0)
+                  ) > 0.05;
+                  const turned = Math.hypot(
+                    Number(direction[0] || 0) - Number(previousDirection[0] || 0),
+                    Number(direction[1] || 0) - Number(previousDirection[1] || 0)
+                  ) > 0.001;
+                  if (!previous || moved || turned) scheduleExternalMapDraw();
+                }
+                if (Array.isArray(data.roads)) {
+                  externalRoadRevision = Number(data.roadRevision || 0);
+                  if (Array.isArray(data.terrainTiles)) setExternalTerrainTiles(data.terrainTiles);
+                  addExternalRoads(data.roads, true);
+                  scheduleExternalMapDraw();
+                }
+                if (data.map) {
+                  externalMapData = {
+                    revision: Number(data.mapRevision || 0),
+                    route: Array.isArray(data.map.route) ? data.map.route : [],
+                    roads: [],
+                  };
+                  scheduleExternalMapDraw();
+                }
+              }
+              scheduleExternalPoll();
+            }
+          );
+        };
         $scope.$on("TaxiDriverProfileData", (_, data) => {
           if (!data) return;
           if (Array.isArray(data.avatarOptions) && data.avatarOptions.length) {
@@ -3041,8 +3068,10 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           uiShuttingDown = true;
           if (externalHeartbeatTimer) clearInterval(externalHeartbeatTimer);
           if (nativeHudHeartbeatTimer) clearInterval(nativeHudHeartbeatTimer);
+          if (externalPollTimer) clearTimeout(externalPollTimer);
           externalHeartbeatTimer = null;
           nativeHudHeartbeatTimer = null;
+          externalPollTimer = 0;
         };
         const handleHeartbeatPageHide = (event) => {
           if (!event || event.persisted !== true) stopHudHeartbeats();
@@ -3086,6 +3115,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             "if taxiDriver_taxiDriver then taxiDriver_taxiDriver.requestExternalHudState() end"
           );
           syncExternalView();
+          scheduleExternalPoll();
         } else {
           const sendNativeHudHeartbeat = () => {
             if (uiShuttingDown) return;

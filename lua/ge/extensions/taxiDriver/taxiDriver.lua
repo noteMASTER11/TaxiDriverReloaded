@@ -3492,6 +3492,13 @@ function M.requestExternalHudState()
   notifyHud()
 end
 
+-- Polled by the external client instead of relying on lanBridge's
+-- guihooks.trigger pushes, which BeamNG 0.39 stopped delivering to it.
+function M.pollExternalState(clientRoadRevision, clientMapRevision)
+  if vehicleScanGuard.isConfigurationOpen() then return {available = false} end
+  return lanBridge.pollExternalState(clientRoadRevision, clientMapRevision)
+end
+
 function M.setExternalPhoneView(view, visible, token)
   return lanBridge.setExternalView(view, visible, token)
 end
