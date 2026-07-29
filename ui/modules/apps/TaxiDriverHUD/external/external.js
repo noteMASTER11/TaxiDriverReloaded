@@ -11,7 +11,7 @@
   let completed = 0;
   let ready = false;
   let failed = false;
-  const assetRevision = "341-rc";
+  const assetRevision = "400-rc";
   window.TaxiDriverAssetRevision = assetRevision;
   const versionedAsset = (src) => `${src}${src.includes("?") ? "&" : "?"}v=${assetRevision}`;
 

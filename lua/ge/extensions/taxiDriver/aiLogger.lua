@@ -316,12 +316,15 @@ function M.new(options)
     end
 
     local controller = type(data.autopilotController) == "table" and data.autopilotController or {}
-    local mode = tostring(controller.mode or "inactive")
+    local mode = tostring(controller.supervisorMode or controller.mode or "inactive")
     if lastControllerMode and mode ~= lastControllerMode then
       write("controller_mode_changed", withContext({from = lastControllerMode, to = mode}), true)
     end
     lastControllerMode = mode
-    local safety = controller.safetyHolding == true
+    local maneuver = tostring(controller.selectedManeuver or "")
+    local safety = controller.safetyHolding == true or
+      controller.emergencyBraking == true or maneuver == "controlledBrake" or
+      maneuver == "emergencyBrake" or maneuver == "evasiveLaneChange"
     if safety ~= lastSafetyHolding then
       if safety then summary.safetyInterventions = summary.safetyInterventions + 1 end
       write(safety and "collision_safety_engaged" or "collision_safety_released", withContext({
@@ -331,7 +334,20 @@ function M.new(options)
         curvedPathRiskTime = optionalRound(controller.curvedPathRiskTime, 3),
         requestedDeceleration = optionalRound(controller.requestedDeceleration, 3),
         appliedDeceleration = optionalRound(controller.appliedDeceleration, 3),
-        emergencyBraking = controller.emergencyBraking == true
+        emergencyBraking = controller.emergencyBraking == true,
+        maneuver = maneuver ~= "" and maneuver or nil,
+        speedCapSource = controller.speedCapSource,
+        staticClearance = optionalRound(controller.staticClearance, 3),
+        staticMaxDistance = optionalRound(controller.staticMaxDistance, 3),
+        staticHitCount = controller.staticHitCount,
+        staticCenterClearance = optionalRound(controller.staticCenterClearance, 3),
+        threatId = controller.threatId, threatKind = controller.threatKind,
+        threatConfidence = optionalRound(controller.threatConfidence, 3),
+        ttc = optionalRound(controller.ttc, 3),
+        tCPA = optionalRound(controller.tCPA, 3), dCPA = optionalRound(controller.dCPA, 3),
+        threatLateral = optionalRound(controller.threatLateral, 3),
+        threatPredictedLateral = optionalRound(controller.threatPredictedLateral, 3),
+        threatLateralClearance = optionalRound(controller.threatLateralClearance, 3)
       }), safety)
       lastSafetyHolding = safety
     end
@@ -451,6 +467,27 @@ function M.new(options)
       record.requestedDeceleration = optionalRound(controller.requestedDeceleration, 3)
       record.appliedDeceleration = optionalRound(controller.appliedDeceleration, 3)
       record.emergencyBraking = controller.emergencyBraking == true
+      record.supervisorMode = controller.supervisorMode
+      record.selectedManeuver = controller.selectedManeuver
+      record.threatId = controller.threatId
+      record.threatKind = controller.threatKind
+      record.threatConfidence = optionalRound(controller.threatConfidence, 3)
+      record.ttc = optionalRound(controller.ttc, 3)
+      record.tCPA = optionalRound(controller.tCPA, 3)
+      record.dCPA = optionalRound(controller.dCPA, 3)
+      record.speedCap = optionalRound(controller.speedCap, 2)
+      record.speedCapSource = controller.speedCapSource
+      record.staticClearance = optionalRound(controller.staticClearance, 2)
+      record.staticMaxDistance = optionalRound(controller.staticMaxDistance, 2)
+      record.staticHitCount = controller.staticHitCount
+      record.staticCenterClearance = optionalRound(controller.staticCenterClearance, 2)
+      record.threatLateral = optionalRound(controller.threatLateral, 2)
+      record.threatPredictedLateral = optionalRound(controller.threatPredictedLateral, 2)
+      record.threatLateralClearance = optionalRound(controller.threatLateralClearance, 2)
+      record.overtaking = controller.overtaking == true
+      record.nativeRacing = controller.nativeRacing == true
+      record.scanVehicleCount = controller.scanVehicleCount
+      record.supervisorUpdateTimeUs = optionalRound(controller.updateTimeUs, 1)
       record.preflightFrontClearance = optionalRound(controller.preflightFrontClearance, 2)
       record.preflightRearClearance = optionalRound(controller.preflightRearClearance, 2)
     end

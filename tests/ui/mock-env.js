@@ -1,4 +1,42 @@
 (() => {
+  if (typeof window.QRCode === "undefined") {
+    const drawFinder = (context, cell, offsetX, offsetY) => {
+      context.fillStyle = "#111317";
+      context.fillRect(offsetX * cell, offsetY * cell, 7 * cell, 7 * cell);
+      context.fillStyle = "#ffffff";
+      context.fillRect((offsetX + 1) * cell, (offsetY + 1) * cell, 5 * cell, 5 * cell);
+      context.fillStyle = "#111317";
+      context.fillRect((offsetX + 2) * cell, (offsetY + 2) * cell, 3 * cell, 3 * cell);
+    };
+    const MockQRCode = function(target, options) {
+      const size = Math.max(116, Number(options && options.width) || 140);
+      const modules = 29;
+      const cell = Math.floor(size / modules);
+      const canvas = document.createElement("canvas");
+      canvas.width = modules * cell;
+      canvas.height = modules * cell;
+      const context = canvas.getContext("2d");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      let seed = String(options && options.text || "TaxiDriver").split("")
+        .reduce((value, character) => ((value * 33) ^ character.charCodeAt(0)) >>> 0, 2166136261);
+      context.fillStyle = "#111317";
+      for (let y = 0; y < modules; y += 1) {
+        for (let x = 0; x < modules; x += 1) {
+          const inFinder = (x < 8 && y < 8) || (x >= modules - 8 && y < 8) || (x < 8 && y >= modules - 8);
+          seed = (seed * 1664525 + 1013904223) >>> 0;
+          if (!inFinder && ((seed >>> 29) & 1)) context.fillRect(x * cell, y * cell, cell, cell);
+        }
+      }
+      drawFinder(context, cell, 0, 0);
+      drawFinder(context, cell, modules - 7, 0);
+      drawFinder(context, cell, 0, modules - 7);
+      target.appendChild(canvas);
+    };
+    MockQRCode.CorrectLevel = { M: 0 };
+    window.QRCode = MockQRCode;
+  }
+
   "use strict";
   const mockParams = new URLSearchParams(window.location.search);
   window.beamng = { ingame: mockParams.get("external") !== "1" };
@@ -98,7 +136,7 @@
       policeCheck: { enabled: false, chancePercent: 9, preloadConfirmed: false },
     },
     aiDriver: {
-      preset: "balanced", aggressionPercent: 40, followingTimeGap: 2.3,
+      enabled: false, preset: "balanced", aggressionPercent: 40, followingTimeGap: 2.3,
       minimumFollowingDistance: 4, brakingDeceleration: 3.5, trafficWaitSeconds: 3,
       obeySpeedLimits: true, laneDiscipline: true, strictGpsRoute: false,
     },

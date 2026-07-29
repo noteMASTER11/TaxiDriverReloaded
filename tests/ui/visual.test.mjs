@@ -26,6 +26,10 @@ const appHtmlSource = await fs.readFile(
   path.join(here, "../../ui/modules/apps/TaxiDriverHUD/app.html"),
   "utf8"
 );
+const appCssSource = await fs.readFile(
+  path.join(here, "../../ui/modules/apps/TaxiDriverHUD/app.css"),
+  "utf8"
+);
 const localeData = JSON.parse(await fs.readFile(
   path.join(here, "../../ui/modules/apps/TaxiDriverHUD/locales.json"),
   "utf8"
@@ -110,6 +114,10 @@ const autopilotLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/autopilot.lua"),
   "utf8"
 );
+const aiDriverRouteLuaSource = await fs.readFile(
+  path.join(here, "../../lua/ge/extensions/taxiDriver/aiDriverRoute.lua"),
+  "utf8"
+);
 const autopilotPerceptionLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/autopilotPerception.lua"),
   "utf8"
@@ -142,6 +150,45 @@ const optionalLanBridgeLuaSource = await fs.readFile(
   path.join(here, "../../lua/ge/extensions/taxiDriver/optionalLanBridge.lua"),
   "utf8"
 );
+const cssToken = (name) => {
+  const match = appCssSource.match(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, "i"));
+  assert.ok(match, `CSS token --${name} must be declared as a solid hex color`);
+  return match[1];
+};
+const relativeLuminance = (hex) => {
+  const channels = hex.slice(1).match(/../g).map((part) => parseInt(part, 16) / 255);
+  const linear = channels.map((value) => value <= 0.04045
+    ? value / 12.92
+    : ((value + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+};
+const contrastRatio = (foreground, background) => {
+  const a = relativeLuminance(foreground);
+  const b = relativeLuminance(background);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+};
+assert.doesNotMatch(appCssSource, /rgba?\(\s*255\s*,\s*209\s*,\s*26|#ffd11a/i,
+  "The retired yellow palette must never return");
+assert.doesNotMatch(appCssSource, /rgba\(\s*255\s*,\s*102\s*,\s*0/i,
+  "Brand orange must not be used as a translucent tinted surface");
+assert.doesNotMatch(appCssSource, /#9254e8|rgba\(\s*174\s*,\s*116\s*,\s*255|rgba\(\s*146\s*,\s*84\s*,\s*232/i,
+  "Fleet must use the shared neutral palette instead of a purple sub-theme");
+for (const value of ["#ff6600", "#ff7a24", "#e95600", "#4cd984", "#ffb020", "#ff5c68", "#5aa7ff"]) {
+  assert.equal((appCssSource.match(new RegExp(value, "gi")) || []).length, 1,
+    `${value} must be declared only once in the semantic token block`);
+}
+for (const [foreground, background, label] of [
+  [cssToken("td-text"), cssToken("td-bg"), "primary text"],
+  [cssToken("td-text-secondary"), cssToken("td-surface-1"), "secondary text"],
+  [cssToken("td-on-accent"), cssToken("td-accent"), "text on brand action"],
+  [cssToken("td-success"), cssToken("td-surface-1"), "success status"],
+  [cssToken("td-warning"), cssToken("td-surface-1"), "warning status"],
+  [cssToken("td-danger"), cssToken("td-surface-1"), "danger status"],
+  [cssToken("td-info"), cssToken("td-surface-1"), "navigation status"]
+]) {
+  assert.ok(contrastRatio(foreground, background) >= 4.5,
+    `${label} must meet the 4.5:1 driver-HMI contrast floor`);
+}
 assert.match(
   externalLoaderSource,
   /\.api\.subscribeToEvents\(\s*["']\{\}["']\s*\)/,
@@ -170,6 +217,9 @@ assert.match(loggerLuaSource, /setOperationFilter[\s\S]*?pcall\(operationFilter/
   "Extended operation logging must support filtering high-volume traffic events");
 assert.match(appJsSource, /pagehide[\s\S]*?beforeunload[\s\S]*?stopHudHeartbeats/,
   "HUD heartbeat timers must stop before late Angular teardown");
+assert.match(appJsSource,
+  /visibilitychange[\s\S]*?handleNativeHeartbeatVisibility[\s\S]*?blur[\s\S]*?suspendNativeHudHeartbeat[\s\S]*?focus[\s\S]*?resumeNativeHudHeartbeat/,
+  "Native HUD heartbeats must pause before CEF or the game window becomes unavailable");
 assert.match(taxiDriverLuaSource, /if not bestFacility then\s+realisticFuel\.openMagicStation\(currentVehicle\)/,
   "Missing compatible stations must open the magic refueling fallback");
 assert.match(taxiDriverLuaSource, /state\.completedRides\s*=\s*state\.completedRides\s*\+\s*1[\s\S]*?vehicleHistory\.recordRide\(\{/,
@@ -192,8 +242,26 @@ assert.match(taxiDriverLuaSource, /function M\.openVehicleSelector\(\)[\s\S]*?na
   "Vehicle card must hide the native map before opening BeamNG's vehicle selector");
 assert.match(navigationUiLuaSource, /function service:canShow\(allowFleet\)[\s\S]*?appVisible and not uiBlocked[\s\S]*?isRouteActive[\s\S]*?allowFleet == true/,
   "Native map updates must require a visible unobstructed UI, an active route, or the explicit Fleet map mode");
-assert.match(navigationUiLuaSource, /function service:setAppVisibility\(visible\)[\s\S]*?appVisible\s*=\s*visible\s*==\s*true[\s\S]*?TaxiDriverMinimapInvalidated/,
+assert.match(navigationUiLuaSource, /function service:setAppVisibility\(visible\)[\s\S]*?appVisible\s*=\s*nextVisible[\s\S]*?TaxiDriverMinimapInvalidated/,
   "Native map visibility must follow the actual CEF UI App visibility");
+assert.match(navigationUiLuaSource,
+  /local nextVisible = visible == true[\s\S]*?if appVisible == nextVisible then return end[\s\S]*?TaxiDriverMinimapInvalidated/,
+  "Repeated BeamNG 0.39 CEF visibility events must not invalidate an unchanged minimap");
+assert.match(navigationUiLuaSource,
+  /function service:setTransform[\s\S]*?lastTransform[\s\S]*?math\.abs\(lastTransform\[1\] - x\) < 0\.00001[\s\S]*?then return end[\s\S]*?setDrawTransform\(x, y, width, height\)/,
+  "Identical minimap transforms must be rejected before reaching TextureDraw");
+assert.match(navigationUiLuaSource,
+  /local visible = not options\.isRouteGuidanceHidden[\s\S]*?showNavigationGroundmarkers["'], visible\)[\s\S]*?showNavigationArrows["'], visible\)[\s\S]*?core_groundMarkers\.onSettingsChanged/,
+  "TaxiDriver's route-guidance toggle must explicitly apply both BeamNG 0.39 navigation settings");
+assert.match(navigationUiLuaSource,
+  /core_groundMarkers\.setPath\(target\.pos[\s\S]*?if not guidanceVisible and core_groundMarkerArrows then[\s\S]*?core_groundMarkerArrows\.clearArrows\(\)/,
+  "Disabled guidance must clear the arrow pool that BeamNG 0.39 recreates inside setPath");
+assert.match(navigationUiLuaSource,
+  /scenario\/raceMarkers\/attention[\s\S]*?setDestinationMarker[\s\S]*?marker:createMarkers\(\)[\s\S]*?marker:setToCheckpoint[\s\S]*?function service:onPreRender/,
+  "Every active route must own and animate a BeamNG 0.39 destination marker independently of setPath");
+assert.match(navigationUiLuaSource,
+  /function service:clearNavigation\(\)[\s\S]*?core_groundMarkers\.setPath\(nil\)[\s\S]*?clearDestinationMarker\(\)/,
+  "Clearing navigation must also remove TaxiDriver's destination marker");
 assert.match(taxiDriverLuaSource, /function M\.onUiChangedState\(to, from\)[\s\S]*?menu\.vehiclesnew[\s\S]*?menu\.appedit[\s\S]*?if isBlocking\(to\)[\s\S]*?navigationUi:setUiBlocked\(true\)[\s\S]*?elseif isBlocking\(from\)[\s\S]*?TaxiDriverMinimapInvalidated/,
   "Known BeamNG overlays must hide the native map without blocking unrelated intermediate UI states");
 assert.match(taxiDriverLuaSource, /function M\.openVehicleSelector\(\)[\s\S]*?navigationUi:setUiBlocked\(true\)/,
@@ -276,6 +344,18 @@ assert.doesNotMatch(taxiDriverLuaSource, /\bgetRoadLink\s*\(/,
   "The main extension must not call BeamNG's unavailable global getRoadLink function");
 assert.match(taxiDriverLuaSource, /userSettings\.randomEventsEnabled\s*==\s*true[\s\S]*?tripEvents\.create/,
   "Random trip events must be gated by their persisted mode toggle");
+assert.doesNotMatch(appHtmlSource,
+  /taxi-home__realistic--fuel[\s\S]*?<small>5% \/ EV 30%<\/small>/,
+  "Home must not show the fuel and EV percentages beside the mode toggle");
+assert.doesNotMatch(appHtmlSource,
+  /taxi-home__realistic--events[\s\S]*?<small>\{\{ t\('randomEventsShort'\) \}\}<\/small>/,
+  "Home must not show the optional-trip-surprises subtitle beside the events toggle");
+assert.match(appHtmlSource,
+  /taxi-home__realistic--fuel[\s\S]*?ng-attr-title="\{\{ t\('realisticMode'\) \}\}"[\s\S]*?ng-attr-aria-label="\{\{ t\('realisticMode'\) \}\}"/,
+  "The fuel mode toggle must retain localized title and accessible text");
+assert.match(appHtmlSource,
+  /taxi-home__realistic--events[\s\S]*?ng-attr-title="\{\{ t\('randomEvents'\) \}\}"[\s\S]*?ng-attr-aria-label="\{\{ t\('randomEvents'\) \}\}"/,
+  "The random-events toggle must retain localized title and accessible text");
 assert.match(hudPublisherLuaSource, /TaxiDriverHUDPatch/,
   "Periodic HUD updates must use compact delta packets");
 assert.match(hudPublisherLuaSource, /baseRevision[\s\S]*?revision[\s\S]*?clientNeedsSync/,
@@ -341,6 +421,8 @@ assert.match(taxiDriverLuaSource, /require\(["']taxiDriver\/autopilot["']\)\.new
   "The gameplay orchestrator must delegate autonomous driving to a focused module");
 assert.match(appJsSource, /autopilotValues[\s\S]*?setMinimapOcclusions/,
   "The native minimap layout must reserve an occlusion rectangle for the autopilot control");
+assert.doesNotMatch(appJsSource, /hudStateReceived\s*=\s*true;\s*lastMinimapRect\s*=\s*["']["']/,
+  "Periodic HUD telemetry must not rebuild the native minimap texture every frame");
 assert.match(appJsSource,
   /phoneSuperMinimized[\s\S]*?toggleSuperMinimized[\s\S]*?hideMinimap\(true\)/,
   "The button-only native UI stage must explicitly hide the minimap");
@@ -359,47 +441,103 @@ assert.match(navigationUiLuaSource, /setOcclusions[\s\S]*?taxiDriverAutopilot/,
 assert.doesNotMatch(autopilotLuaSource, /autopilotPerception|beginRecovery|planLocalBypass|castRayStatic/,
   "The stock-AI experiment must not execute predictive perception or custom recovery");
 assert.match(autopilotLuaSource,
-  /extensions\.unload\('taxiDriverAutopilotRecovery'\)[\s\S]*?taxiDriverStockAiObserver\.watch[\s\S]*?ai\.driveUsingPath[\s\S]*?runtime\.profile\.aggression[\s\S]*?runtime\.profile\.obeySpeedLimits/,
-  "The player vehicle must unload the custom controller and apply the selected native AI profile");
+  /aiDriverRoute\.new[\s\S]*?requestedRevision[\s\S]*?requestedSession[\s\S]*?pcall\(route\.request, route, vehicle/,
+  "The player AI must use the asynchronous route adapter and validate its session and revision");
+assert.match(autopilotLuaSource,
+  /ai\.driveUsingPath[\s\S]*?ai\.setParameters[\s\S]*?ai\.setRacing\(false\)[\s\S]*?ai\.setRecoverOnCrash\(false\)[\s\S]*?taxiObserver\.watch/,
+  "BeamNG 0.39 route initialization must precede the native profile and safety observer settings");
+assert.match(aiDriverRouteLuaSource,
+  /filterGraphNodes[\s\S]*?marker\.wp[\s\S]*?setupPathMultiJob[\s\S]*?generation\s*~=\s*runtime\.generation/,
+  "Route planning must be asynchronous, stale-safe, and serialize graph node IDs only");
+assert.match(aiDriverRouteLuaSource,
+  /trimStartPath[\s\S]*?maximumRemoval\s*=\s*math\.min\(3[\s\S]*?targetSuffixProtected[\s\S]*?cumulativeDistance\s*>\s*30/,
+  "Stock taxi start-path trimming must stay bounded and preserve the target suffix");
 assert.match(stockAiObserverLuaSource,
-  /mapmgr\.getObjects[\s\S]*?desiredGap\s*=\s*settings\.minimumGap[\s\S]*?followingTimeGap[\s\S]*?ai\.setSpeedMode\("limit"\)/,
+  /mapmgr\.getObjects[\s\S]*?tCPA[\s\S]*?dCPA[\s\S]*?followingTimeGap/,
   "The stock AI traffic guard must observe NPC vehicles and impose a following-speed limit");
 assert.match(stockAiObserverLuaSource,
-  /steeringAngle[\s\S]*?turnRadius[\s\S]*?minimumSeparation[\s\S]*?curvedPathRisk/,
-  "The traffic guard must predict NPC intersections with the current steering arc");
+  /math\.abs\(dz\)\s*<=\s*4[\s\S]*?kind\s*==\s*"oncoming"[\s\S]*?math\.abs\(candidate\.lateral\)\s*>\s*collisionCorridor[\s\S]*?stableThreatScans\s*\/\s*3/,
+  "Ordinary opposing-lane and vertically separated traffic must not become a predictive collision threat");
+assert.match(stockAiObserverLuaSource,
+  /local function scanStatic[\s\S]*?rayDistance\s*<\s*maximumDistance\s*-\s*0\.25[\s\S]*?not centerClearance and hitCount < 2[\s\S]*?staticStableScans\s*>=\s*2/,
+  "A clear static ray sentinel or one roadside ray must not brake the vehicle");
+assert.match(stockAiObserverLuaSource,
+  /local function applySpeedCaps[\s\S]*?safeAiCall\("setSpeedMode", "limit"\)/,
+  "The safety arbiter must apply its winner through the stock AI speed limiter");
+assert.match(stockAiObserverLuaSource,
+  /materiallyLimiting[\s\S]*?smoothedSpeedLimit\s*<\s*context\.speed\s*-\s*0\.3[\s\S]*?state\.safetyHolding/,
+  "A non-binding cap must not be reported as a braking intervention");
+assert.match(stockAiObserverLuaSource,
+  /tryEmergencyEvasion[\s\S]*?safeAiCall\("laneChange"[\s\S]*?threat\.kind\s*==\s*"oncoming"\s*and\s*1\.4/,
+  "The supervisor must brake predictively and use only native lane changes for a proven emergency escape");
 assert.match(fleetWorkerLuaSource,
-  /taxiDriverStockAiObserver\.watch[\s\S]*?followingTimeGap[\s\S]*?brakingDeceleration[\s\S]*?updateInterval[\s\S]*?trajectorySamples/,
+  /taxiDriverStockAiObserver\.watch[\s\S]*?followingTimeGap[\s\S]*?brakingDeceleration[\s\S]*?updateInterval/,
   "Fleet workers must run a lower-cost instance of the stock-AI traffic guard");
 assert.match(stockAiObserverLuaSource,
-  /jerkLimit\s*=\s*2\.5[\s\S]*?smoothedSpeedLimit\s*-\s*currentDeceleration\s*\*\s*updateInterval/,
-  "Traffic speed must use jerk-limited deceleration and reserve an immediate stop for an unavoidable collision");
+  /maximumTrackedVehicles\s*=\s*16[\s\S]*?updateP95Us[\s\S]*?adaptiveInterval\s*=\s*0\.05[\s\S]*?adaptiveInterval\s*=\s*0\.2/,
+  "The supervisor must bound nearby traffic and adapt its scan rate while measuring CPU cost");
 assert.match(stockAiObserverLuaSource,
-  /timeToCollision\s*<\s*0\.55[\s\S]*?requiredDeceleration\s*>=\s*8\.5/,
-  "Immediate braking must require critical TTC or physically excessive required deceleration");
-assert.match(autopilotLuaSource,
-  /orientedTargetEdge[\s\S]*?directedApproachRoute[\s\S]*?path=[\s\S]*?prematureNativeRouteDone[\s\S]*?stock_route_done_before_target/,
-  "Stock AI must approach the target edge in its legal direction and immediately replan a premature Route Done");
+  /road\.plusCount\s*<\s*2[\s\S]*?road\.minusCount\s*>\s*0[\s\S]*?road\.edge\.oneWay\s*~=\s*true[\s\S]*?remainingEdgeDistance\s*<\s*70/,
+  "Native racing may only overtake on an explicit one-way multilane segment away from a junction");
+assert.match(aiDriverRouteLuaSource,
+  /orientedTargetEdge[\s\S]*?setupPathMultiJob[\s\S]*?oneWayApproachWouldReverse[\s\S]*?bidirectionalPass/,
+  "Stock AI routes must reject a reversed one-way approach without adding a bidirectional U-turn");
 assert.match(stockAiObserverLuaSource,
-  /findTargetApproach[\s\S]*?alignment\s*<\s*0\.45[\s\S]*?maximumArrivalSpeed[\s\S]*?targetApproachActive/,
-  "Final approach braking must activate only after the vehicle aligns with the target-side travel direction");
+  /targetApproach[\s\S]*?maximumArrivalSpeed[\s\S]*?targetApproachActive/,
+  "Final approach braking must bring the vehicle into the gameplay arrival trigger");
+assert.match(stockAiObserverLuaSource,
+  /local cap\s*=\s*math\.sqrt\(2\s*\*\s*deceleration\s*\*\s*remaining\)[\s\S]*?parkingHandoffSpeed[\s\S]*?context\.absoluteSpeed\s*<=\s*parkingHandoffSpeed/,
+  "The arrival envelope must converge to zero before handing control to parking");
 assert.doesNotMatch(stockAiObserverLuaSource, /input\.event\("steering"/,
   "The traffic guard must leave steering and route selection to native BeamNG AI");
 assert.match(autopilotLuaSource,
-  /isCurrentPlayerVehicle[\s\S]*?be:getPlayerVehicleID\(0\)[\s\S]*?player_vehicle_guard_rejected_route/,
+  /isCurrentPlayerVehicle[\s\S]*?be:getPlayerVehicleID\(0\)[\s\S]*?route_result_no_longer_applicable/,
   "The player AI adapter must reject every vehicle except the current player vehicle");
 assert.doesNotMatch(autopilotLuaSource, /ai\.setRecoverOnCrash\(true\)/,
   "The player vehicle must never inherit NPC crash recovery or safe-teleport behavior");
 assert.match(autopilotLuaSource,
-  /coordinate-only tables[\s\S]*?appendUnique\(result, entry\.wp\)[\s\S]*?appendUnique\(result, target\.nodeB\)/,
-  "Native routes must discard coordinate-only endpoint tables before serializing BeamNG graph node IDs");
+  /local function requestPark[\s\S]*?ai\.setMode\('stop'\)[\s\S]*?stationarySeconds\s*>=\s*0\.6[\s\S]*?commitPark/,
+  "A completed route must stop under native AI before committing the parking brake");
+assert.match(stockAiObserverLuaSource,
+  /local function selectParkingGear[\s\S]*?grb_mde\s*=\s*"P"[\s\S]*?grb_idx\s*=\s*0[\s\S]*?local function updateParkingConfirmation[\s\S]*?parkingStableChecks\s*<\s*2[\s\S]*?parkingConfirmed\s*=\s*true/,
+  "Vehicle Lua must select P or neutral and acknowledge only verified parking");
+assert.match(stockAiObserverLuaSource,
+  /local function restoreParkingGearboxBehavior[\s\S]*?setGearboxMode[\s\S]*?parkingGearboxBehavior[\s\S]*?main\.setGearboxMode, "realistic"[\s\S]*?current\.grb_mde[\s\S]*?actual == "P"/,
+  "Arcade parking must hold visible P in Realistic and restore the user's behavior before the next route");
+assert.match(stockAiObserverLuaSource,
+  /local function holdParkingGearboxBehavior[\s\S]*?main\.setGearboxMode, "realistic"[\s\S]*?local function requestPark[\s\S]*?safeAiCall\("setMode", "stop"\)[\s\S]*?holdParkingGearboxBehavior\(\)[\s\S]*?parkingInput\("brake", 1\)[\s\S]*?local function commitPark[\s\S]*?safeAiCall\("setMode", "disabled"\)[\s\S]*?selectParkingGear/,
+  "Parking must switch Arcade out before braking, then disable AI and select a parking gear");
+assert.doesNotMatch(autopilotLuaSource, /stationaryFallback|parking_ack_fallback/,
+  "Parking must never be declared successful from a timeout alone");
 assert.match(autopilotLuaSource,
-  /stock_route_done[\s\S]*?reachedGameplayRadius[\s\S]*?stockAi\s*=\s*true[\s\S]*?customPerception\s*=\s*false[\s\S]*?customRecovery\s*=\s*false/,
-  "The experiment must report whether native Route Done actually entered the gameplay trigger");
+  /stuck_recovery_requested[\s\S]*?requestRoute\(vehicle, "stuckRecovery"\)[\s\S]*?stuck_recovery_exhausted[\s\S]*?requestPark\(vehicle, "stuckAfterRecovery"\)/,
+  "A stationary native route gets one bounded replan before a controlled parking fault");
 assert.match(autopilotLuaSource,
-  /local function stopNative\(vehicle, park\)[\s\S]*?park and "ai\.setMode\('stop'\)"[\s\S]*?function service:park/,
-  "A completed player route must use BeamNG stop mode so it brakes, parks, and disables native AI");
+  /closeLead[\s\S]*?minimumFollowingDistance\s*\*\s*2[\s\S]*?safetyHold[\s\S]*?closeLead/,
+  "The stuck watchdog must not replan or park while waiting behind close traffic");
+assert.match(autopilotLuaSource,
+  /completionRadius\s*=\s*math\.min\(8[\s\S]*?route_done_recovery_exhausted[\s\S]*?routeDoneOutsideTarget/,
+  "Native route completion outside the pickup-safe radius must never count as arrival");
+assert.match(stockAiObserverLuaSource,
+  /local function supervisorStep[\s\S]*?state\.supervisorMode\s*=\s*"cruise"[\s\S]*?applySpeedCaps/,
+  "Every safety scan must clear a stale emergency mode before arbitration");
+assert.match(stockAiObserverLuaSource,
+  /imminentOncomingOverlap[\s\S]*?threat\.ttc\s*<=\s*1\.1[\s\S]*?threat\.lateralClearance[\s\S]*?threat\.dCPA[\s\S]*?confidence\s*=\s*1/,
+  "A physically overlapping oncoming threat must brake immediately instead of waiting for three scans");
+assert.match(stockAiObserverLuaSource,
+  /warningTtc[\s\S]*?predictiveWarningScale[\s\S]*?emergencyTtc/,
+  "Driving presets may shift predictive warnings without weakening the common emergency barrier");
+assert.match(vehicleControlLuaSource,
+  /function M\.setForcedStop\(vehicle, enabled, preserveParkingBrake\)[\s\S]*?setForcedStop\(false\)[\s\S]*?input\.event\('parkingbrake',1,'FILTER_AI'/,
+  "Releasing the boarding brake must be able to preserve the parked AI handbrake");
 assert.match(taxiDriverLuaSource,
-  /function M\.onAutopilotRouteDone[\s\S]*?state\.phase == phases\.toDestination[\s\S]*?autopilot:park\(vehicle, "destinationRouteDone"\)/,
+  /local function beginRide[\s\S]*?autopilot\.isParked[\s\S]*?autopilot:isParked\(\)/,
+  "Starting the passenger leg must retain the handbrake after AI Driver parks and switches off");
+assert.match(taxiDriverLuaSource,
+  /local function stoppedForArrival[\s\S]*?runtimeConfig\.maxArrivalSpeedKmh[\s\S]*?trip\.usedAutopilot\s*~=\s*true\s*or\s*autopilot:isParked\(\)[\s\S]*?pickupReached[\s\S]*?stoppedForArrival\(speedKmh\)/,
+  "Boarding must wait for near-zero speed and the verified AI parking handshake");
+assert.match(taxiDriverLuaSource,
+  /function M\.onAutopilotRouteDone\(vehicleId, sessionId, routeRevision\)[\s\S]*?autopilot:onRouteDone[\s\S]*?function M\.onAiRouteDone/,
   "Final native Route Done must immediately start the parked AI handoff");
 assert.match(taxiDriverLuaSource,
   /local function beginSearching[\s\S]*?autopilot:isEnabled\(\)[\s\S]*?autopilot:park\(vehicle, "searchingWithoutRoute"\)/,
@@ -549,18 +687,23 @@ assert.match(appHtmlSource,
 assert.match(appHtmlSource,
   /policeCheckConfirmOpen[\s\S]*?policeCheckEnableDesc[\s\S]*?cancelPoliceCheckEnable[\s\S]*?confirmPoliceCheckEnable/,
   "Enabling the police event must require an explicit preload warning confirmation");
-assert.match(physicalPickupLuaSource,
-  /passengerInsideTaxi[\s\S]*?speedKmh\s*>=\s*4[\s\S]*?passengerHit[\s\S]*?hornStage\s*==\s*1[\s\S]*?0\.6[\s\S]*?hornStage\s*==\s*3[\s\S]*?0\.6/,
-  "Physical passengers must detect a moving taxi impact and AI pickup must emit two 600 ms horn pulses");
-assert.match(physicalPickupLuaSource,
-  /beginAiPickup[\s\S]*?aiHold\s*=\s*true[\s\S]*?hornStage[\s\S]*?-\s*1[\s\S]*?speedKmh\s*<=\s*0\.2[\s\S]*?stopStableTimer\s*>=\s*0\.25[\s\S]*?setHorn\(taxi,\s*true\)[\s\S]*?clear\(true\)/,
-  "AI passenger pickup must latch the target, stop fully, and only then begin the horn sequence");
-assert.match(telemetryLuaSource,
-  /pickupHonkStage\s*==\s*1[\s\S]*?>=\s*0\.6[\s\S]*?pickupHonkStage\s*==\s*2[\s\S]*?>=\s*0\.2[\s\S]*?>=\s*0\.6/,
-  "The vehicle-side horn sequencer must generate two reliable 600 ms pulses");
 assert.match(taxiDriverLuaSource,
-  /math\.min\(7,\s*runtimeConfig\.arrivalRadius\)[\s\S]*?isTargetAligned\(vehicle,\s*trip\.pickup\)[\s\S]*?beginAiPickup\(vehicle\)[\s\S]*?setVehicleForcedStop\(vehicle,\s*true\)[\s\S]*?autopilot:suspend[\s\S]*?phases\.boarding[\s\S]*?physicalPickup:isAiHold\(\)/,
-  "AI must latch a correctly oriented practical stop, stop before honking, and remain suspended throughout boarding");
+  /pickupRadius\s*=\s*trip\.isDelivery[\s\S]*?runtimeConfig\.passengerPickupRadius[\s\S]*?not trip\.isDelivery and not passengerNoShow then beginBoarding\(\)/,
+  "Passenger pickup must use the dedicated logical trigger while physical pickup remains delivery-only");
+assert.match(configLuaSource, /passengerPickupRadius\s*=\s*10/,
+  "The logical passenger pickup trigger must be exactly ten metres");
+assert.match(taxiDriverLuaSource,
+  /if trip\.isDelivery then physicalPickup:start\(trip\) else physicalPickup:clear\(\) end/,
+  "Passenger jobs must never spawn the physical dummy");
+assert.doesNotMatch(physicalPickupLuaSource, /unicycle|playerController|passengerInsideTaxi|pickupHonk/,
+  "The physical pickup module must not retain the walking passenger or horn workflow");
+assert.match(physicalPickupLuaSource, /cardboard_box[\s\S]*?order\.isDelivery ~= true/,
+  "Physical pickup must be limited to the optional delivery cargo prop");
+assert.doesNotMatch(telemetryLuaSource, /pickupHonk|startPickupHonk|stopPickupHonk/,
+  "Vehicle telemetry must not retain the removed beep-beep sequencer");
+assert.match(taxiDriverLuaSource,
+  /waitingNoShowAtPickup[\s\S]*?setVehicleForcedStop\(vehicle, true\)[\s\S]*?autopilot:suspend[\s\S]*?waitingNoShowAtPickup/,
+  "AI must stop and suspend while a no-show passenger event resolves at the pickup point");
 if (false) {
 assert.match(autopilotLuaSource,
   /target\.simpleApproach\s*==\s*true[\s\S]*?strategy\s*=\s*"simplePickup"[\s\S]*?completionRadius\s*=\s*config\.stopDistance/,
@@ -578,12 +721,24 @@ assert.match(autopilotLuaSource,
   /route_turn_signal_started[\s\S]*?upcomingRouteTurn[\s\S]*?turnSignalSeconds[\s\S]*?junctionPassed/,
   "AI route transitions must signal predictively and cancel the indicator after the junction");
 }
+assert.match(configLuaSource, /aiDriverDefaults\s*=\s*\{[\s\S]*?enabled\s*=\s*false/,
+  "AI Driver must be opt-in for new and upgraded settings");
+assert.match(appHtmlSource,
+  /aiDriverEnabled[\s\S]*?ng-model=["']settings\.aiDriver\.enabled["'][\s\S]*?aiDriverToggleChanged[\s\S]*?aiDriverConfirmOpen[\s\S]*?confirmAiDriverEnable/,
+  "AI Driver controls must be gated by an explicit experimental confirmation");
 assert.match(taxiDriverLuaSource,
-  /failPassengerHit[\s\S]*?math\.max\(1000,\s*state\.balance\s*\*\s*0\.25\)[\s\S]*?fareAmount\s*=\s*fine[\s\S]*?passengerHit/,
-  "Hitting a passenger must cancel the order, record it and charge a major fine");
+  /function M\.toggleAutopilot\(\)[\s\S]*?userSettings\.aiDriver\.enabled ~= true[\s\S]*?return false/,
+  "Lua must reject AI Driver activation while the master feature is disabled");
 assert.match(taxiDriverLuaSource,
-  /offer_closed_by_guard[\s\S]*?nextOfferDisabled\s*=\s*true|nextOfferDisabled\s*=\s*true[\s\S]*?offer_closed_by_guard/,
-  "An expired proposed order must not be regenerated during the same ending trip");
+  /updateNextOfferLifetime[\s\S]*?clearNextOffer\(\)[\s\S]*?scheduleNextOfferRetry\(\)[\s\S]*?offer_closed_by_guard/,
+  "An expired proposed order must schedule another offer during the same ending trip");
+assert.match(taxiDriverLuaSource,
+  /function M\.dismissNextOffer[\s\S]*?clearNextOffer\(\)[\s\S]*?scheduleNextOfferRetry\(\)[\s\S]*?offer_dismissed_by_driver/,
+  "Dismissing one proposed order must leave the remaining-trip offer queue active");
+assert.doesNotMatch(
+  taxiDriverLuaSource.match(/local function updateNextOfferLifetime[\s\S]*?(?=local function recordNextOfferError)/)?.[0] || "",
+  /nextOfferDisabled\s*=\s*true/,
+  "An ordinary offer timeout must not disable the remaining-trip offer queue");
 assert.match(policeCheckLuaSource,
   /createPoliceGroup[\s\S]*?Config Type[\s\S]*?preloadGroupName[\s\S]*?gap\s*=\s*1000[\s\S]*?instant\s*=\s*false/,
   "Police checks must preselect installed police content and preload it through a yielding job");
@@ -622,6 +777,10 @@ const locales = ["de", "en", "es", "fr", "it", "pl", "ru", "uk", "zh-CN"];
 const baselineScreenshots = new Set([
   "web-home-390x844.png",
   "web-orders-1024x768.png",
+  "game-trip-320x568.png",
+  "game-trip-360x640.png",
+  "web-trip-320x568.png",
+  "web-trip-360x640.png",
   "web-trip-390x844.png",
   "web-fuelRoute-390x844.png",
   "game-compact-320x568.png",
@@ -639,6 +798,12 @@ const baselineScreenshots = new Set([
   "web-magicFuel-390x844.png",
   "web-forcedExit-390x844.png",
   "web-fuel-390x844.png",
+  "web-extreme-home-390x844.png",
+  "web-extreme-shiftHistory-390x844.png",
+  "web-extreme-orders-1024x768.png",
+  "web-extreme-trip-390x844.png",
+  "web-extreme-fleet-390x844.png",
+  "game-extreme-compact-320x568.png",
   "hidpi-trip-390x844@2x.png",
   "external-loader-844x390.png",
 ]);
@@ -657,6 +822,7 @@ const harnessUrl = (scenario, viewport, options = {}) => {
   if (options.uiScale !== undefined) query.set("uiScale", String(options.uiScale));
   if (options.mockWebAudio) query.set("mockWebAudio", "1");
   if (options.extreme) query.set("extreme", "1");
+  query.set("motion", options.motion ? "1" : "0");
   if (options.realistic !== undefined) query.set("realistic", options.realistic ? "1" : "0");
   if (options.events !== undefined) query.set("events", options.events ? "1" : "0");
   if (options.unlimitedRoutes !== undefined) {
@@ -721,6 +887,17 @@ try {
       for (const scenario of scenarios) {
         await page.goto(harnessUrl(scenario, viewport, { external }));
         await waitForHarness(page);
+        if (scenario === "settingsConnection" && external) {
+          await page.waitForFunction(() => {
+            const target = document.querySelector(".taxi-lan__qr-code");
+            const image = target && target.querySelector("img");
+            const canvas = target && target.querySelector("canvas");
+            return Boolean(
+              (image && image.complete && image.naturalWidth > 0) ||
+              (canvas && canvas.width > 0 && canvas.height > 0)
+            );
+          });
+        }
         await assertVisualAudit(page, `${external ? "web" : "game"} ${scenario} ${viewport.width}x${viewport.height}`);
         if (external) {
           assert.equal(await page.locator(".taxi-shell__toggle").count(), 0,
@@ -733,6 +910,175 @@ try {
       await page.close();
     }
   }
+
+  const extremeStates = [
+    { scenario: "home", viewport: { width: 390, height: 844 }, external: true },
+    { scenario: "shiftHistory", viewport: { width: 390, height: 844 }, external: true },
+    { scenario: "orders", viewport: { width: 1024, height: 768 }, external: true },
+    { scenario: "trip", viewport: { width: 390, height: 844 }, external: true },
+    { scenario: "fleet", viewport: { width: 390, height: 844 }, external: true },
+    { scenario: "compact", viewport: { width: 320, height: 568 }, external: false },
+  ];
+  for (const stress of extremeStates) {
+    const page = await browser.newPage({ viewport: stress.viewport });
+    await page.goto(harnessUrl(stress.scenario, stress.viewport, {
+      external: stress.external, extreme: true,
+    }));
+    await waitForHarness(page);
+    await assertVisualAudit(page,
+      `extreme ${stress.external ? "web" : "game"} ${stress.scenario} ${stress.viewport.width}x${stress.viewport.height}`);
+    if (stress.scenario === "home") {
+      const formatterAudit = await page.evaluate(() => {
+        const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+        return {
+          exactCount: scope.formatCount(193),
+          boundedCount: scope.formatCount(1000),
+          compactMoney: scope.formatMoney(9876543.21),
+          signedMoney: scope.formatMoneyFull(-91.26),
+          historyBadge: document.querySelector(".taxi-shift-history-button .taxi-count-badge")?.textContent.trim(),
+        };
+      });
+      assert.equal(formatterAudit.exactCount, "193", "A three-digit shift count must remain exact");
+      assert.equal(formatterAudit.boundedCount, "999+", "Four-digit counts must use a bounded badge");
+      assert.equal(formatterAudit.compactMoney, "$9.88M", "Large aggregates must use compact K/M notation");
+      assert.equal(formatterAudit.signedMoney, "−$91.26", "Negative money must place the sign before the currency symbol");
+      assert.equal(formatterAudit.historyBadge, "193", "The Home history badge must visibly fit 193");
+    }
+    const prefix = stress.external ? "web" : "game";
+    await screenshot(page,
+      `${prefix}-extreme-${stress.scenario}-${stress.viewport.width}x${stress.viewport.height}.png`);
+    visualCount += 1;
+    await page.close();
+  }
+
+  const motionPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await motionPage.goto(harnessUrl("home", { width: 390, height: 844 }, {
+    external: true, motion: true,
+  }));
+  await waitForHarness(motionPage);
+  const homeMotion = await motionPage.evaluate(() => {
+    const home = getComputedStyle(document.querySelector(".taxi-home"));
+    const start = getComputedStyle(document.querySelector(".taxi-start"), "::after");
+    const infinite = document.getAnimations().filter((animation) =>
+      animation.effect && animation.effect.getTiming().iterations === Infinity
+    ).length;
+    return {
+      pageName: home.animationName,
+      pageDuration: home.animationDuration,
+      sheenName: start.animationName,
+      sheenDuration: start.animationDuration,
+      sheenIterations: start.animationIterationCount,
+      infinite,
+    };
+  });
+  assert.equal(homeMotion.pageName, "taxi-flat-page-in", "Parked screens must use the shared flat entry motion");
+  assert.equal(homeMotion.pageDuration, "0.2s", "Screen entry must stay within the 200 ms comfort budget");
+  assert.equal(homeMotion.sheenName, "taxi-start-sheen", "New shift must receive the startup sheen");
+  assert.equal(homeMotion.sheenDuration, "0.68s", "The startup sheen must stay brief");
+  assert.equal(homeMotion.sheenIterations, "1", "The startup sheen must never loop while idle");
+  assert.equal(homeMotion.infinite, 0, "The idle Home screen must not contain infinite decorative animations");
+  await motionPage.waitForFunction(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    return scope && scope.newShiftSheenActive === false;
+  });
+  await motionPage.locator(".taxi-appbar__settings").click();
+  await motionPage.waitForFunction(() => document.querySelector(".taxi-settings"));
+  const closedGroup = motionPage.locator(".taxi-settings__group:not(.taxi-settings__group--open) .taxi-settings__group-head").first();
+  await closedGroup.click();
+  const disclosure = await motionPage.locator(".taxi-settings__group--open .taxi-settings__group-body").last()
+    .evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { name: style.animationName, duration: style.animationDuration };
+    });
+  assert.equal(disclosure.name, "taxi-flat-disclosure-in", "Accordion bodies must use the shared disclosure motion");
+  assert.equal(disclosure.duration, "0.16s", "Accordion motion must remain short");
+  await motionPage.locator(".taxi-appbar__settings").click();
+  await motionPage.waitForFunction(() => document.querySelector(".taxi-start"));
+  assert.equal(await motionPage.locator(".taxi-start").evaluate((element) =>
+    getComputedStyle(element, "::after").animationName
+  ), "none", "Returning from Settings must not replay the New shift sheen");
+  await motionPage.close();
+
+  const reducedMotionPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await reducedMotionPage.emulateMedia({ reducedMotion: "reduce" });
+  await reducedMotionPage.goto(harnessUrl("home", { width: 390, height: 844 }, { external: true, motion: true }));
+  await waitForHarness(reducedMotionPage);
+  assert.equal(await reducedMotionPage.locator(".taxi-start").evaluate((element) =>
+    getComputedStyle(element, "::after").animationName
+  ), "none", "Reduced-motion users must not receive the startup sheen");
+  const reducedMotionScenarios = [
+    { scenario: "settingsAi", selectors: [".taxi-settings", ".taxi-settings__group-body"] },
+    { scenario: "nextOffer", selectors: [".taxi-trip-layout", ".taxi-next-offer__card"] },
+    { scenario: "overspeed", selectors: [".taxi-trip-layout", ".taxi-map__speed--warning"] },
+    { scenario: "compact", selectors: [".taxi-compact"] },
+  ];
+  for (const item of reducedMotionScenarios) {
+    await reducedMotionPage.goto(harnessUrl(item.scenario, { width: 390, height: 844 }, {
+      external: item.scenario !== "compact", motion: true,
+    }));
+    await waitForHarness(reducedMotionPage);
+    const audit = await reducedMotionPage.evaluate((selectors) => ({
+      running: document.getAnimations().length,
+      animated: selectors.flatMap((selector) => Array.from(document.querySelectorAll(selector)))
+        .filter((element) => {
+          const rect = element.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0 && getComputedStyle(element).animationName !== "none";
+        })
+        .map((element) => `${element.className}:${getComputedStyle(element).animationName}`),
+    }), item.selectors);
+    assert.equal(audit.running, 0, `${item.scenario}: reduced motion must stop every active animation`);
+    assert.deepEqual(audit.animated, [], `${item.scenario}: reduced motion left animated components`);
+  }
+  await reducedMotionPage.goto(harnessUrl("settingsAi", { width: 390, height: 844 }, {
+    external: true, motion: true,
+  }));
+  await waitForHarness(reducedMotionPage);
+  await reducedMotionPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    scope.$apply(() => scope.hud.requestAiDriverToggle());
+  });
+  assert.equal(await reducedMotionPage.locator(".taxi-offline-confirm__card").evaluate((element) =>
+    getComputedStyle(element).animationName
+  ), "none", "Reduced motion must disable modal entry animation");
+  await reducedMotionPage.close();
+
+  const nativeHeartbeatPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await nativeHeartbeatPage.goto(harnessUrl("home", { width: 390, height: 844 }));
+  await waitForHarness(nativeHeartbeatPage);
+  await nativeHeartbeatPage.evaluate(() => {
+    window.__taxiEngineLuaCommands = [];
+    window.dispatchEvent(new Event("blur"));
+  });
+  await nativeHeartbeatPage.waitForTimeout(2700);
+  assert.equal(await nativeHeartbeatPage.evaluate(() =>
+    (window.__taxiEngineLuaCommands || []).filter((command) => command.includes("hudClientHeartbeat")).length
+  ), 0, "Native HUD must not queue heartbeats while the game window is unavailable");
+  await nativeHeartbeatPage.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await nativeHeartbeatPage.waitForFunction(() =>
+    (window.__taxiEngineLuaCommands || []).some((command) => command.includes("hudClientHeartbeat"))
+  );
+  await nativeHeartbeatPage.close();
+
+  const wideSettingsPage = await browser.newPage({ viewport: { width: 1024, height: 768 } });
+  await wideSettingsPage.goto(harnessUrl("settingsConnection", { width: 1024, height: 768 }, {
+    external: true,
+  }));
+  await waitForHarness(wideSettingsPage);
+  assert.equal(await wideSettingsPage.locator(".taxi-settings__nav button:visible").count(), 9,
+    "Wide Settings must keep every category visible in a persistent sidebar");
+  assert.equal(await wideSettingsPage.locator(".taxi-settings__group-head:visible").count(), 0,
+    "Wide Settings must not duplicate accordion headers beside the sidebar");
+  const wideSettingsColumns = await wideSettingsPage.evaluate(() => {
+    const nav = document.querySelector(".taxi-settings__nav").getBoundingClientRect();
+    const body = document.querySelector(".taxi-settings__group--open .taxi-settings__group-body").getBoundingClientRect();
+    return { navRight: nav.right, bodyLeft: body.left };
+  });
+  assert.ok(wideSettingsColumns.bodyLeft >= wideSettingsColumns.navRight,
+    `Wide Settings content must remain independent from its category rail (${JSON.stringify(wideSettingsColumns)})`);
+  await wideSettingsPage.locator(".taxi-settings__nav button").filter({ hasText: "General" }).click();
+  assert.equal(await wideSettingsPage.locator(".taxi-settings__nav button:visible").count(), 9,
+    "Changing a wide Settings section must keep the category sidebar available");
+  await wideSettingsPage.close();
 
   const functionalPage = await browser.newPage({ viewport: { width: 520, height: 900 } });
   await functionalPage.goto(harnessUrl("settingsConnection", { width: 520, height: 900 }));
@@ -771,6 +1117,69 @@ try {
     "A failed Connected Phone start must not leave an empty white QR square");
   assert.match(lanFailureAudit.errorText, /No bindable LAN IPv4/);
   assert.equal(lanFailureAudit.statusError, true);
+
+  const aiOptInAudit = await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    scope.$apply(() => {
+      Object.keys(scope.settingsSections).forEach((key) => { scope.settingsSections[key] = false; });
+      scope.settingsSections.aiDriver = true;
+      scope.hud.requestAiDriverToggle();
+    });
+    return {
+      enabledBeforeConfirmation: scope.settings.aiDriver.enabled === true,
+      confirmationOpen: scope.aiDriverConfirmOpen,
+      optionsVisible: document.querySelectorAll(".taxi-settings__ai-options").length,
+    };
+  });
+  assert.deepEqual(aiOptInAudit, {
+    enabledBeforeConfirmation: false, confirmationOpen: true, optionsVisible: 0,
+  }, "AI Driver must remain disabled until its experimental warning is confirmed");
+  const aiDialog = functionalPage.locator(".taxi-ai-confirm");
+  assert.equal(await aiDialog.getAttribute("role"), "dialog",
+    "Confirmation overlays must expose dialog semantics");
+  assert.equal(await aiDialog.getAttribute("aria-modal"), "true",
+    "Confirmation overlays must identify themselves as modal");
+  await functionalPage.waitForFunction(() =>
+    document.activeElement?.classList.contains("taxi-offline-confirm__cancel")
+  );
+  await functionalPage.keyboard.press("Escape");
+  await functionalPage.waitForFunction(() => !document.querySelector(".taxi-ai-confirm"));
+  assert.equal(await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    return scope.settings.aiDriver.enabled;
+  }), false, "Escape must cancel the experimental AI confirmation");
+  await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    scope.$apply(() => scope.hud.requestAiDriverToggle());
+  });
+  await functionalPage.locator(".taxi-ai-confirm .taxi-offline-confirm__confirm").click();
+  assert.equal(await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    return scope.settings.aiDriver.enabled;
+  }), true, "AI Driver confirmation must enable its runtime setting");
+  const aiMasterToggle = functionalPage.locator(
+    '#taxi-settings-ai-driver input[ng-model="settings.aiDriver.enabled"]'
+  );
+  assert.equal(await aiMasterToggle.isChecked(), true,
+    "AI Driver master toggle must render ON after confirmation");
+  await aiMasterToggle.click({ force: true });
+  const aiDisableAudit = await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    return {
+      enabled: scope.settings.aiDriver.enabled,
+      confirmationOpen: scope.aiDriverConfirmOpen,
+      optionsVisible: document.querySelectorAll(".taxi-settings__ai-options").length,
+    };
+  });
+  assert.deepEqual(aiDisableAudit, {
+    enabled: false, confirmationOpen: false, optionsVisible: 0,
+  }, "Turning AI Driver off must update the model and hide its controls immediately");
+  assert.equal(await aiMasterToggle.isChecked(), false,
+    "AI Driver master toggle must render OFF after disabling");
+  await aiMasterToggle.click({ force: true });
+  await functionalPage.locator(".taxi-ai-confirm .taxi-offline-confirm__confirm").click();
+  assert.equal(await aiMasterToggle.isChecked(), true,
+    "AI Driver master toggle must return ON only after reconfirmation");
 
   const aiPresetAudit = await functionalPage.evaluate(() => {
     const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
@@ -1044,8 +1453,19 @@ try {
     const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
     scope.$apply(() => { scope.state.fleet.activeDrivers = 0; });
   });
+  assert.equal(await functionalPage.locator("button.taxi-map__autopilot").count(), 0,
+    "Active trip map must hide AI Driver while the experimental feature is disabled");
+  await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    scope.$apply(() => {
+      window.__taxiEngineLuaCommands = [];
+      scope.settings.aiDriver.enabled = true;
+      scope.state.settings.aiDriver.enabled = true;
+      scope.hud.settingsChanged();
+    });
+  });
   assert.equal(await functionalPage.locator("button.taxi-map__autopilot").count(), 1,
-    "Active trip map must expose one autopilot control");
+    "Active trip map must expose one autopilot control after opt-in");
   await functionalPage.waitForFunction(() =>
     (window.__taxiEngineLuaCommands || []).some((value) => value.includes("setMinimapOcclusions"))
   );
@@ -1100,8 +1520,17 @@ try {
 
   await functionalPage.goto(harnessUrl("fuelRoute", { width: 390, height: 844 }));
   await waitForHarness(functionalPage);
+  assert.equal(await functionalPage.locator("button.taxi-map__autopilot").count(), 0,
+    "Fuel detour map must hide AI Driver before opt-in");
+  await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    scope.$apply(() => {
+      scope.settings.aiDriver.enabled = true;
+      scope.state.settings.aiDriver.enabled = true;
+    });
+  });
   assert.equal(await functionalPage.locator("button.taxi-map__autopilot").count(), 1,
-    "Fuel detour map must retain the autopilot control");
+    "Fuel detour map must expose the autopilot control after opt-in");
   await functionalPage.evaluate(() => { window.__taxiEngineLuaCommands = []; });
   await functionalPage.locator("button.taxi-map__autopilot").click();
   assert.ok((await functionalPage.evaluate(() => window.__taxiEngineLuaCommands || []))
@@ -1112,8 +1541,8 @@ try {
   await waitForHarness(functionalPage);
   const nativeMapHeight = await functionalPage.locator(".taxi-trip-layout > .taxi-map")
     .evaluate((element) => element.getBoundingClientRect().height);
-  assert.ok(nativeMapHeight >= 290 && nativeMapHeight <= 300,
-    `Native trip map must retain its enlarged 295px block (${nativeMapHeight}px)`);
+  assert.ok(nativeMapHeight >= 235 && nativeMapHeight <= 245,
+    `Native trip map must use the compact 240px block (${nativeMapHeight}px)`);
   assert.ok((await functionalPage.evaluate(() => window.__taxiEngineLuaCommands || []))
     .some((value) => value.includes("setMinimapAppVisibility(true)")),
   "Native UI initialization must explicitly release stale Lua map visibility state");
@@ -1150,11 +1579,12 @@ try {
       bottomGap: Math.abs(screen.bottom - footer.bottom),
       footerHeight: footer.height,
       energyHeight: energy.height,
+      footerPosition: getComputedStyle(document.querySelector(".taxi-ride-footer")).position,
       fuelNoticeDisplay: getComputedStyle(fuelNotice).display,
     };
   });
-  assert.ok(emptyPenaltyFooter.bottomGap <= 2,
-    `Trip footer must remain pinned with no penalties (${JSON.stringify(emptyPenaltyFooter)})`);
+  assert.equal(emptyPenaltyFooter.footerPosition, "static",
+    `Trip footer must remain in normal flow and never cover ride data (${JSON.stringify(emptyPenaltyFooter)})`);
   assert.ok(emptyPenaltyFooter.footerHeight >= 100 && emptyPenaltyFooter.energyHeight >= 36,
     `Fuel status must not collapse with no penalties (${JSON.stringify(emptyPenaltyFooter)})`);
   assert.equal(emptyPenaltyFooter.fuelNoticeDisplay, "none",
@@ -1164,8 +1594,8 @@ try {
   await waitForHarness(functionalPage);
   const compactMapHeight = await functionalPage.locator(".taxi-compact__map")
     .evaluate((element) => element.getBoundingClientRect().height);
-  assert.ok(compactMapHeight >= 275 && compactMapHeight <= 285,
-    `Minimized native map must be approximately twice its former height (${compactMapHeight}px)`);
+  assert.ok(compactMapHeight >= 318 && compactMapHeight <= 344,
+    `Minimized native map must preserve a compact navigation-first block (${compactMapHeight}px)`);
   await functionalPage.evaluate(() => {
     window.__taxiEngineLuaCommands = [];
     angular.element(document).injector().get("$rootScope")
@@ -1208,6 +1638,9 @@ try {
   await functionalPage.waitForFunction(() =>
     document.querySelector(".taxi-shell__notification") !== null
   );
+  assert.notEqual(await functionalPage.locator(".taxi-shell__notification").evaluate((element) =>
+    getComputedStyle(element).animationIterationCount
+  ), "infinite", "Collapsed notifications must use a finite attention pulse");
   assert.equal(await functionalPage.locator(".taxi-shell--super-minimized").count(), 1,
     "A notification must not force button-only mode to expand");
   await functionalPage.locator(".taxi-shell__toggle--super").click();
@@ -1270,6 +1703,31 @@ try {
   assert.equal(await policeToggle.isChecked(), true,
     "Confirming the warning must enable the police event");
 
+  await functionalPage.goto(harnessUrl("orders", { width: 390, height: 844 }));
+  await waitForHarness(functionalPage);
+  const offlineHold = functionalPage.locator(".taxi-orders__footer .taxi-offline-hold");
+  await offlineHold.focus();
+  await functionalPage.keyboard.down("Space");
+  await functionalPage.waitForFunction(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    return scope.offlineHoldProgress > 0;
+  });
+  await functionalPage.keyboard.up("Space");
+  assert.equal(await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    return scope.offlineHoldProgress;
+  }), 0, "Offline hold must support keyboard press and release");
+  await offlineHold.dispatchEvent("pointerdown", { button: 0, pointerType: "touch" });
+  await functionalPage.waitForFunction(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    return scope.offlineHoldProgress > 0;
+  });
+  await offlineHold.dispatchEvent("pointerup", { button: 0, pointerType: "touch" });
+  assert.equal(await functionalPage.evaluate(() => {
+    const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
+    return scope.offlineHoldProgress;
+  }), 0, "Offline hold must support touch/pointer press and release");
+
   await functionalPage.goto(harnessUrl("nextOffer", { width: 520, height: 900 }));
   await waitForHarness(functionalPage);
   await functionalPage.evaluate(() => { window.__taxiEngineLuaCommands = []; });
@@ -1288,7 +1746,7 @@ try {
   await functionalPage.waitForFunction(() => document.querySelector(".taxi-next-offer"));
   await functionalPage.waitForFunction(() => !document.querySelector(".taxi-next-offer"), null, { timeout: 1500 });
   assert.ok((await functionalPage.evaluate(() => window.__taxiEngineLuaCommands || []))
-    .some((value) => value.includes("dismissNextOffer(901)")),
+    .some((value) => value.includes("expireNextOffer(901)")),
     "The local monotonic watchdog must close an offer even when no newer HUD tick arrives");
   await functionalPage.evaluate(() => window.__taxiSetState({ phase: "toDestination", nextOffer: {
     id: 901, passengerName: "Stale watchdog", accepted: false,
@@ -1297,6 +1755,26 @@ try {
   await functionalPage.waitForTimeout(250);
   assert.equal(await functionalPage.locator(".taxi-next-offer").count(), 0,
     "A stale packet must not flash an already expired offer back onto the screen");
+  await functionalPage.evaluate(() => window.__taxiSetState({ phase: "toDestination", nextOffer: {
+    id: 902, passengerName: "Second queued offer", accepted: false,
+    duration: 5, timeRemaining: 0.15, rideDistance: 1200, estimatedFare: 7,
+  } }));
+  await functionalPage.waitForFunction(() =>
+    document.querySelector(".taxi-next-offer")?.textContent.includes("Second queued offer")
+  );
+  await functionalPage.waitForFunction(() => !document.querySelector(".taxi-next-offer"), null, { timeout: 1500 });
+  assert.ok((await functionalPage.evaluate(() => window.__taxiEngineLuaCommands || []))
+    .some((value) => value.includes("expireNextOffer(902)")),
+    "A replacement offer must keep its own timer and expire independently");
+  await functionalPage.evaluate(() => window.__taxiSetState({ phase: "toDestination", nextOffer: {
+    id: 903, passengerName: "Third queued offer", accepted: false,
+    duration: 5, timeRemaining: 5, rideDistance: 1400, estimatedFare: 9,
+  } }));
+  await functionalPage.waitForFunction(() =>
+    document.querySelector(".taxi-next-offer")?.textContent.includes("Third queued offer")
+  );
+  assert.equal(await functionalPage.locator(".taxi-next-offer").count(), 1,
+    "The proposed-order slot must continue displaying offers after multiple expirations");
   await functionalPage.close();
 
   const iphoneAudioPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -1369,48 +1847,55 @@ try {
     await page.close();
   }
 
+  const tripScaleCases = [
+    ...[100, 140, 150, 180].map((uiScale) => ({ viewport: { width: 390, height: 844 }, uiScale })),
+    ...[100, 150, 180].map((uiScale) => ({ viewport: { width: 320, height: 568 }, uiScale })),
+  ];
   for (const external of [false, true]) {
-    const measuredWidths = new Map();
-    for (const uiScale of [80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180]) {
-      const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-      await page.goto(harnessUrl("trip", { width: 390, height: 844 }, { external, uiScale }));
+    for (const scaleCase of tripScaleCases) {
+      const { viewport, uiScale } = scaleCase;
+      const page = await browser.newPage({ viewport });
+      await page.goto(harnessUrl("trip", viewport, { external, uiScale }));
       await waitForHarness(page);
-      await assertVisualAudit(page, `uiScale ${uiScale} ${external ? "web" : "game"}`);
+      await assertVisualAudit(page,
+        `uiScale ${uiScale} ${external ? "web" : "game"} ${viewport.width}x${viewport.height}`);
       const geometry = await page.evaluate(() => {
         const rect = (selector) => {
           const value = document.querySelector(selector).getBoundingClientRect();
           return { left: value.left, top: value.top, right: value.right, bottom: value.bottom,
             width: value.width, height: value.height };
         };
+        const stage = document.querySelector(".taxi-shell__scale-stage");
         return {
           shell: rect(".taxi-shell"),
           stage: rect(".taxi-shell__scale-stage"),
-          logo: rect(".taxi-appbar__logo"),
-          settings: rect(".taxi-appbar__settings"),
           map: rect(".taxi-map"),
+          stageClass: stage.className,
+          inlineZoom: stage.style.zoom,
+          computedZoom: Number.parseFloat(getComputedStyle(stage).zoom) || 1,
+          horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
         };
       });
+      const expectedTier = uiScale >= 160 ? "accessibility"
+        : (uiScale >= 140 ? "large" : (uiScale >= 110 ? "reduced" : "regular"));
       assert.ok(Math.abs(geometry.stage.width - geometry.shell.width) < 1 &&
         Math.abs(geometry.stage.height - geometry.shell.height) < 1,
-      `Scaled stage must fill its viewport at ${uiScale}% (${JSON.stringify(geometry)})`);
+      `Scale stage must fill its viewport at ${uiScale}% without composition scaling (${JSON.stringify(geometry)})`);
+      assert.equal(geometry.inlineZoom, "", `Scale ${uiScale}% must not set inline zoom`);
+      assert.equal(geometry.computedZoom, 1, `Scale ${uiScale}% must not use CSS zoom`);
+      assert.match(geometry.stageClass, new RegExp(`(?:^|\\s)taxi-ui-scale--${uiScale}(?:\\s|$)`),
+        `Scale ${uiScale}% must expose its exact scale class`);
+      assert.match(geometry.stageClass, new RegExp(`(?:^|\\s)taxi-ui-tier--${expectedTier}(?:\\s|$)`),
+        `Scale ${uiScale}% must expose the ${expectedTier} reflow tier`);
+      assert.equal(geometry.horizontalOverflow, false,
+        `Scale ${uiScale}% must not introduce document horizontal overflow`);
       assert.ok(geometry.map.left >= geometry.shell.left - 1 &&
         geometry.map.right <= geometry.shell.right + 1,
       `Scaled map must stay inside its viewport at ${uiScale}% (${JSON.stringify(geometry)})`);
-      measuredWidths.set(uiScale, { logo: geometry.logo.width, settings: geometry.settings.width });
-      if ([80, 100, 180].includes(uiScale)) {
-        await screenshot(page, `scale-${uiScale}-${external ? "web" : "game"}-trip-390x844.png`);
-      }
+      await screenshot(page,
+        `scale-${uiScale}-${external ? "web" : "game"}-trip-${viewport.width}x${viewport.height}.png`);
       visualCount += 1;
       await page.close();
-    }
-    const base = measuredWidths.get(100);
-    for (const uiScale of [80, 180]) {
-      const measured = measuredWidths.get(uiScale);
-      const ratio = uiScale / 100;
-      assert.ok(Math.abs(measured.logo / base.logo - ratio) < 0.03,
-        `Logo geometry must scale to ${uiScale}% (${JSON.stringify(measuredWidths)})`);
-      assert.ok(Math.abs(measured.settings / base.settings - ratio) < 0.03,
-        `Control geometry must scale to ${uiScale}% (${JSON.stringify(measuredWidths)})`);
     }
   }
 
@@ -1422,9 +1907,17 @@ try {
     const scope = angular.element(document.querySelector("taxi-driver-hud")).scope();
     return scope && scope.getUiScalePercent() === 100;
   });
-  assert.equal(await legacyScalePage.locator(".taxi-shell__scale-stage").evaluate((element) =>
-    Number.parseFloat(getComputedStyle(element).zoom)
-  ), 1, "Legacy fontBoost 2 must migrate to the new 100% full-interface scale");
+  const legacyScalePresentation = await legacyScalePage.locator(".taxi-shell__scale-stage").evaluate((element) => ({
+    className: element.className,
+    inlineZoom: element.style.zoom,
+    computedZoom: Number.parseFloat(getComputedStyle(element).zoom) || 1,
+  }));
+  assert.equal(legacyScalePresentation.inlineZoom, "", "Legacy fontBoost migration must not set inline zoom");
+  assert.equal(legacyScalePresentation.computedZoom, 1, "Legacy fontBoost migration must not use CSS zoom");
+  assert.match(legacyScalePresentation.className, /(?:^|\s)taxi-ui-scale--100(?:\s|$)/,
+    "Legacy fontBoost 2 must migrate to the exact 100% scale class");
+  assert.match(legacyScalePresentation.className, /(?:^|\s)taxi-ui-tier--regular(?:\s|$)/,
+    "Legacy fontBoost 2 must use the regular reflow tier");
   await legacyScalePage.close();
 
   for (const hidpi of [

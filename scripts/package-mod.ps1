@@ -47,6 +47,7 @@ finally {
 $requiredEntries = @(
   "lua/ge/extensions/taxiDriver/taxiDriver.lua",
   "lua/ge/extensions/taxiDriver/autopilot.lua",
+  "lua/ge/extensions/taxiDriver/aiDriverRoute.lua",
   "lua/ge/extensions/taxiDriver/aiLogger.lua",
   "lua/ge/extensions/taxiDriver/networkAddress.lua",
   "lua/ge/extensions/taxiDriver/nextOfferGuard.lua",
@@ -81,7 +82,8 @@ $requiredEntries = @(
   "ui/modules/apps/TaxiDriverHUD/app.html",
   "ui/modules/apps/TaxiDriverHUD/app.js",
   "ui/modules/apps/TaxiDriverHUD/locales.json",
-  "mod_info/TaxiDriver/info.json"
+  "mod_info/TaxiDriver/info.json",
+  "mod_info/TaxiDriver/icon.jpg"
 )
 $readArchive = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
 try {
@@ -94,7 +96,7 @@ try {
   if ($entries | Where-Object FullName -like "lua/vehicle/extensions/auto/taxiDriver*") {
     throw "TaxiDriver vehicle extensions must remain lazy-loaded, not automatic"
   }
-  if ($entries.Count -ne 61) {
+  if ($entries.Count -ne 63) {
     throw "Unexpected archive entry count: $($entries.Count)"
   }
 }
