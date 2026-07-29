@@ -188,24 +188,49 @@ local function acceptProxyClients()
   end
 end
 
+local maxProxyDrainPasses = 64
+
+-- Relays one connection's pending bytes in both directions. Returns whether
+-- any bytes actually moved (so the caller knows whether draining further is
+-- still making progress) and whether the connection should be closed.
+local function relayProxyConnection(connection)
+  local beforeLength = #connection.toUpstream + #connection.toClient
+  local clientRead = connection.clientClosed or
+    receiveProxyData(connection.client, connection, "toUpstream")
+  local upstreamRead = clientRead and (connection.upstreamClosed or
+    receiveProxyData(connection.upstream, connection, "toClient"))
+  local upstreamWrite = upstreamRead and
+    sendProxyData(connection.upstream, connection, "toUpstream")
+  local clientWrite = upstreamWrite and
+    sendProxyData(connection.client, connection, "toClient")
+  local finished = (connection.clientClosed and connection.toUpstream == "") or
+    (connection.upstreamClosed and connection.toClient == "")
+  local afterLength = #connection.toUpstream + #connection.toClient
+  return afterLength ~= beforeLength, not clientWrite or finished
+end
+
 local function updateLanProxy()
   if not lanListener then return end
   acceptProxyClients()
-  for index = #proxyConnections, 1, -1 do
-    local connection = proxyConnections[index]
-    local clientRead = connection.clientClosed or
-      receiveProxyData(connection.client, connection, "toUpstream")
-    local upstreamRead = clientRead and (connection.upstreamClosed or
-      receiveProxyData(connection.upstream, connection, "toClient"))
-    local upstreamWrite = upstreamRead and
-      sendProxyData(connection.upstream, connection, "toUpstream")
-    local clientWrite = upstreamWrite and
-      sendProxyData(connection.client, connection, "toClient")
-    local finished = (connection.clientClosed and connection.toUpstream == "") or
-      (connection.upstreamClosed and connection.toClient == "")
-    if not clientWrite or finished then
-      closeProxyConnection(connection)
-      table.remove(proxyConnections, index)
+  -- A single one-shot pass per frame only forwards up to proxyReadSize bytes
+  -- per connection per frame; a bursty payload (e.g. a road/map chunk) that
+  -- has already arrived in the OS socket buffer would then trickle out over
+  -- many frames instead of being relayed immediately. Keep draining each
+  -- connection in the same frame until nothing more moves.
+  local madeProgress = true
+  local pass = 0
+  while madeProgress and pass < maxProxyDrainPasses do
+    madeProgress = false
+    pass = pass + 1
+    for index = #proxyConnections, 1, -1 do
+      local connection = proxyConnections[index]
+      local progressed, shouldClose = relayProxyConnection(connection)
+      if shouldClose then
+        closeProxyConnection(connection)
+        table.remove(proxyConnections, index)
+      elseif progressed then
+        madeProgress = true
+      end
     end
   end
 end
