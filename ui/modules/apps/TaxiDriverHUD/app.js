@@ -25,7 +25,13 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
       scope: true,
       controllerAs: "hud",
       controller: function ($scope, $element) {
-        const externalPhoneMode = typeof beamng !== "undefined" && beamng.ingame === false;
+        // window.TaxiDriverExternalPhoneMode is set by external.js, which only ever
+        // bootstraps this app for the Connected Phone browser client. Prefer it over
+        // beamng.ingame: that flag's availability/timing for external WS clients has
+        // shifted across BeamNG versions (e.g. 0.39's UI/menu engine rewrite), and a
+        // silent misdetection here disables the external map canvases with no error.
+        const externalPhoneMode = window.TaxiDriverExternalPhoneMode === true ||
+          (typeof beamng !== "undefined" && beamng.ingame === false);
         const externalSessionToken = externalPhoneMode
           ? (new URLSearchParams(window.location.search).get("token") || "").replace(/[^a-fA-F0-9]/g, "")
           : "";

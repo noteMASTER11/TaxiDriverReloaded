@@ -13,6 +13,10 @@
   let failed = false;
   const assetRevision = "341-rc";
   window.TaxiDriverAssetRevision = assetRevision;
+  // Set unconditionally: this bootstrap only ever runs for the Connected Phone
+  // browser client, never for the in-game phone, so this is a reliable signal
+  // independent of BeamNG's own beamng.ingame flag (see app.js).
+  window.TaxiDriverExternalPhoneMode = true;
   const versionedAsset = (src) => `${src}${src.includes("?") ? "&" : "?"}v=${assetRevision}`;
 
   const setStep = (name, status, label) => {
