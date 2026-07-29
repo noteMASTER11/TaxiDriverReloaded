@@ -184,49 +184,24 @@ local function acceptProxyClients()
   end
 end
 
-local maxProxyDrainPasses = 64
-
--- Relays one connection's pending bytes in both directions. Returns whether
--- any bytes actually moved (so the caller knows whether draining further is
--- still making progress) and whether the connection should be closed.
-local function relayProxyConnection(connection)
-  local beforeLength = #connection.toUpstream + #connection.toClient
-  local clientRead = connection.clientClosed or
-    receiveProxyData(connection.client, connection, "toUpstream")
-  local upstreamRead = clientRead and (connection.upstreamClosed or
-    receiveProxyData(connection.upstream, connection, "toClient"))
-  local upstreamWrite = upstreamRead and
-    sendProxyData(connection.upstream, connection, "toUpstream")
-  local clientWrite = upstreamWrite and
-    sendProxyData(connection.client, connection, "toClient")
-  local finished = (connection.clientClosed and connection.toUpstream == "") or
-    (connection.upstreamClosed and connection.toClient == "")
-  local afterLength = #connection.toUpstream + #connection.toClient
-  return afterLength ~= beforeLength, not clientWrite or finished
-end
-
 local function updateLanProxy()
   if not lanListener then return end
   acceptProxyClients()
-  -- A single one-shot pass per frame only forwards up to proxyReadSize bytes
-  -- per connection per frame; a bursty payload (e.g. a road/map chunk) that
-  -- has already arrived in the OS socket buffer would then trickle out over
-  -- many frames instead of being relayed immediately. Keep draining each
-  -- connection in the same frame until nothing more moves.
-  local madeProgress = true
-  local pass = 0
-  while madeProgress and pass < maxProxyDrainPasses do
-    madeProgress = false
-    pass = pass + 1
-    for index = #proxyConnections, 1, -1 do
-      local connection = proxyConnections[index]
-      local progressed, shouldClose = relayProxyConnection(connection)
-      if shouldClose then
-        closeProxyConnection(connection)
-        table.remove(proxyConnections, index)
-      elseif progressed then
-        madeProgress = true
-      end
+  for index = #proxyConnections, 1, -1 do
+    local connection = proxyConnections[index]
+    local clientRead = connection.clientClosed or
+      receiveProxyData(connection.client, connection, "toUpstream")
+    local upstreamRead = clientRead and (connection.upstreamClosed or
+      receiveProxyData(connection.upstream, connection, "toClient"))
+    local upstreamWrite = upstreamRead and
+      sendProxyData(connection.upstream, connection, "toUpstream")
+    local clientWrite = upstreamWrite and
+      sendProxyData(connection.client, connection, "toClient")
+    local finished = (connection.clientClosed and connection.toUpstream == "") or
+      (connection.upstreamClosed and connection.toClient == "")
+    if not clientWrite or finished then
+      closeProxyConnection(connection)
+      table.remove(proxyConnections, index)
     end
   end
 end
@@ -726,22 +701,18 @@ function M.externalHeartbeat(token, view, visible)
   return true
 end
 
--- BeamNG 0.39 stopped forwarding this mod's guihooks.trigger("TaxiDriverExternal...")
--- pushes to the external (non-CEF) Connected Phone client, with no error on either
--- side - so this no longer pushes anything. It just makes sure the cached map/road
--- data starts (re)building as soon as publishing becomes relevant, so it's ready by
--- the time the client's next M.pollExternalState() call arrives.
+-- BeamNG 0.39 does not forward this mod's guihooks.trigger("TaxiDriverExternal...")
+-- events to the external (non-CEF) Connected Phone client, so this just warms the
+-- cache; M.pollExternalState() is what the client actually reads from.
 function M.requestExternalMap()
   if not enabled or not canPublishNavigation() then return end
   if not cachedMap then rebuildMap() end
   if not cachedRoads or roadLevelKey ~= currentRoadLevelKey() then beginRoadRebuild() end
 end
 
--- Pull-based replacement for the above: the external client polls this instead of
--- waiting for a push, since guihooks.trigger delivery to it is unreliable on 0.39.
--- Road/terrain data is only included when the client's known revision is stale,
--- since it can be large and rarely changes; vehicle position is cheap and always
--- included.
+-- Polled by the external client in place of the push above. Road/terrain data is only
+-- included when the client's known revision is stale, since it can be large and rarely
+-- changes; vehicle position is cheap and always included.
 function M.pollExternalState(clientRoadRevision, clientMapRevision)
   if not enabled or not canPublishNavigation() then return {available = false} end
   local knownRoadRevision = tonumber(clientRoadRevision) or -1
