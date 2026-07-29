@@ -20,7 +20,7 @@ function M.setTelemetryEnabled(vehicle, enabled)
   end
 end
 
-function M.setForcedStop(vehicle, enabled)
+function M.setForcedStop(vehicle, enabled, preserveParkingBrake)
   if not vehicle then return end
   if enabled then
     vehicle:queueLuaCommand(
@@ -28,9 +28,14 @@ function M.setForcedStop(vehicle, enabled)
       "if extensions.taxiDriverTelemetry then extensions.taxiDriverTelemetry.setForcedStop(true) end"
     )
   else
-    vehicle:queueLuaCommand(
+    local command =
       "if extensions.taxiDriverTelemetry then extensions.taxiDriverTelemetry.setForcedStop(false) end"
-    )
+    if preserveParkingBrake == true then
+      command = command ..
+        "; if input and type(input.event)=='function' then " ..
+        "input.event('parkingbrake',1,'FILTER_AI',nil,nil,nil,'taxiDriverAiParking') end"
+    end
+    vehicle:queueLuaCommand(command)
   end
 end
 

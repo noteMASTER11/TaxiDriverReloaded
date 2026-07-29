@@ -1,5 +1,62 @@
 # Changelog
 
+## 4.0.0 RC — New Driver UI and BeamNG 0.39 AI Engine
+
+This release candidate is the BeamNG.drive 0.39 compatibility release. It replaces the driver-facing visual system, rebuilds the experimental player AI around the current 0.39 routing and vehicle-AI capabilities, and closes navigation and dispatcher regressions found during live in-game testing.
+
+### New compact driver UI
+
+- Reworked the native UI App and Connected Phone interface into a flat, high-contrast black, white, and BeamNG-orange visual system.
+- Reduced the default window to 340 × 650 px and the supported minimum to 300 × 500 px so the app remains usable at 100% scale on a 1080p display.
+- Replaced stacked card borders with spacing, neutral surfaces, and intentional dividers while retaining visible control boundaries, pressed feedback, focus states, and modal depth.
+- Added bounded entry and interaction motion, including a one-time `New shift` sheen, switch/progress transitions, and reduced-motion handling.
+- Rebuilt the driving hierarchy around route, ETA, destination, passenger or cargo state, and immediate warnings. Secondary metrics are removed at very small sizes instead of overlapping controls.
+- Added overflow-safe formatting and stress fixtures for 193 shifts, long translated names, six-digit counts, large balances, long distances, and 180% UI scaling.
+- Removed the long fuel/EV and optional-surprise captions from the Home switches; their meaning remains available in the corresponding settings.
+- Added explicit UI confirmation before enabling AI Driver. The feature defaults to off, its route button is absent while disabled, and turning the master switch off now immediately updates both the runtime and the visual control.
+
+### BeamNG 0.39 AI Driver engine
+
+- Added a dedicated asynchronous adapter around BeamNG 0.39's `gameplay/route/route` planner. Superseded jobs are cancelled by generation, coordinate-only markers are filtered, and a bounded graph-path fallback is retained for sparse maps.
+- Routes preserve the legal direction of the target road, protect the final approach/departure nodes, avoid an immediate reverse through a one-way edge, and trim only a short, unambiguous waypoint prefix behind the vehicle.
+- BeamNG's stock vehicle AI remains responsible for steering, throttle, lane following, ordinary obstacle avoidance, and traffic lights. TaxiDriver supplies route ownership and a bounded speed/manoeuvre supervisor instead of a second full driving controller.
+- The supervisor samples at an adaptive 50–200 ms interval, tracks at most 16 nearby vehicles, confirms threats across scans, and distinguishes ordinary oncoming traffic from a genuine collision corridor.
+- Following uses time gap, minimum bumper gap, closing speed, comfortable deceleration, and jerk-limited speed caps. A clear static ray is no longer misread as an obstacle on an empty road.
+- Overtaking is permitted only after a persistent slow lead is confirmed on an explicit same-direction multi-lane one-way road, with front/rear gaps, rear TTC, junction distance, road width, and static clearance checked first.
+- Emergency lane-change evasion is considered only for a confirmed oncoming collision that cannot be stopped for, and only when both the road boundary and predicted dynamic corridor are clear. Otherwise the supervisor brakes.
+- Arrival now targets a full stop; the gameplay state accepts only a 0.5 km/h wheel-speed sensor tolerance. Passenger pickup uses a 10-metre logical trigger without the walking dummy or horn sequence.
+- Route completion, cancellation, no-show, failed pickup, AI master-switch shutdown, and other route-ending transitions share a verified parking hand-off. Automatics select Park; manual gearboxes select Neutral; both apply the parking brake before native AI is released.
+- Rebalanced the Assertive preset to remain speed-limit compliant by default. Cautious and Balanced remain the recommended profiles; AI Driver is still experimental and disabled by default.
+
+### BeamNG 0.39 navigation and dispatcher fixes
+
+- Restored the route-arrow setting against both BeamNG 0.39 ground-marker controls and clear the regenerated arrow pool while guidance is disabled.
+- Restored the in-world destination marker independently from the ground-arrow path.
+- Removed the flashing white rectangle around the orange minimap vehicle marker by making map-transform invalidation idempotent across repeated CEF visibility events.
+- Fixed the floating next-order lifecycle after 80% trip progress. Expiring or dismissing one offer clears only that card and schedules the next proposal instead of disabling the queue for the rest of the trip.
+- Added a regression sequence covering multiple independently expiring and replacement offers without stale-card flashing.
+
+### Compatibility and validation
+
+- Target game version: **BeamNG.drive 0.39**.
+- Existing settings, profile, progress, reviews, route cache, vehicle history, shift history, Fleet data, and LAN identity remain compatible with `3.4.2-rc`.
+- External UI cache revision is `400-rc`, preventing 3.x browser assets from mixing with this UI rewrite.
+- LuaJIT compiled all 41 Lua source and test files; the primary `taxiDriver.lua` main chunk also passed the LuaJIT local/size constraint.
+- Passed 355 responsive native/Connected Phone UI states, including every locale, HiDPI, extreme-value layouts, sequential proposed orders, and the AI master-toggle cycle.
+- Passed the LAN HTTP subnet bridge, loopback response, WebSocket Upgrade, and bidirectional transport self-tests.
+- Built and inspected the required 62-entry release archive; the final checksum is recorded on the GitHub Release.
+
+### Acknowledgements
+
+Thank you to the BeamNG developers for the official MCP server introduced with BeamNG.drive 0.39. It made rapid, AI-assisted in-game control, telemetry inspection, log analysis, UI verification, and repeatable mod test runs possible, dramatically shortening the feedback loop for this release.
+
+### Known limitations
+
+- AI Driver remains an experimental assistant, not a safety-certified autonomous-driving system. Vehicle controllers, incomplete road graphs, community maps, and unusual traffic layouts can still produce poor native-AI decisions.
+- Safe overtaking requires explicit lane metadata and is intentionally unavailable on ambiguous or opposing-traffic roads.
+- Emergency evasion is conservative and used only when braking is predicted to be insufficient and a checked escape corridor exists.
+- This build is published as a prerelease while the new UI and BeamNG 0.39 AI behavior receive wider testing across vehicles, maps, display layouts, and community content.
+
 ## 3.4.2 RC — Parked AI and Resilient Route Cache
 
 This patch release addresses two player-reported failure modes after `3.4.1-rc`: native AI remaining active after a route or cancelled order, and dispatcher generation becoming unavailable when map-provided semantic data fails.

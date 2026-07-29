@@ -11,7 +11,7 @@
   let completed = 0;
   let ready = false;
   let failed = false;
-  const assetRevision = "341-rc";
+  const assetRevision = "400-rc";
   window.TaxiDriverAssetRevision = assetRevision;
   // Set unconditionally: this bootstrap only ever runs for the Connected Phone
   // browser client, never for the in-game phone, so this is a reliable signal
