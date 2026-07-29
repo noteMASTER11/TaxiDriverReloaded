@@ -113,7 +113,21 @@
       // event subscription. The regular BeamNG Angular bootstrap does this in
       // angularModules.js, but this lightweight entry point intentionally skips
       // that bootstrap, so subscribe before requesting TaxiDriverHUDState.
-      window.bridge.api.subscribeToEvents("{}");
+      // An empty filter used to mean "everything" pre-0.39; on 0.39 some
+      // guihooks.trigger events (TaxiDriverExternalVehicleState/RoadData/MapData)
+      // stopped arriving over this bridge while others (TaxiDriverHUDState/Patch)
+      // kept working, which looks like an implicit allow-list. List every event
+      // name this mod triggers explicitly so nothing depends on the default.
+      window.bridge.api.subscribeToEvents(JSON.stringify([
+        "TaxiDriverHUDState",
+        "TaxiDriverHUDPatch",
+        "TaxiDriverExternalVehicleState",
+        "TaxiDriverExternalRoadData",
+        "TaxiDriverExternalMapData",
+        "TaxiDriverProfileData",
+        "TaxiDriverUiSuspended",
+        "TaxiDriverMinimapInvalidated"
+      ]));
       setStep("runtime", "done", "Ready");
 
       setStep("assets", "active", "Caching");
