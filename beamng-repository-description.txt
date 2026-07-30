@@ -2,7 +2,7 @@
 [SIZE=7][COLOR=#D39E00][B]TaxiDriver Reloaded[/B][/COLOR][/SIZE]
 [SIZE=5][B]Free Roam passenger, delivery, fleet, and driver-progression systems[/B][/SIZE]
 
-[COLOR=#777777]Current documented version: 4.0.0 RC · Target game version: BeamNG.drive 0.39[/COLOR]
+[COLOR=#777777]Current documented version: 4.0.1 · Target game version: BeamNG.drive 0.39[/COLOR]
 
 [URL='https://github.com/noteMASTER11/TaxiDriverReloaded/releases'][B]Releases[/B][/URL] · [URL='https://github.com/noteMASTER11/TaxiDriverReloaded'][B]Source code[/B][/URL] · [URL='https://github.com/noteMASTER11/TaxiDriverReloaded/wiki'][B]Wiki[/B][/URL]
 [/CENTER]

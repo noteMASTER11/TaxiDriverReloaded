@@ -32,7 +32,7 @@ internal static class Program
             var identity = await WaitForIdentityAsync(configPath, cancellation.Token);
             var baseUri = new Uri($"http://{identity.Address}:8085");
             var appUri = new Uri(baseUri,
-                $"{TargetPath}?token={Uri.EscapeDataString(identity.Token)}&v=400-rc");
+                $"{TargetPath}?token={Uri.EscapeDataString(identity.Token)}&v=401");
             using var handler = new SocketsHttpHandler { UseProxy = false };
             using var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
             var html = await GetRequiredTextWithRetryAsync(http, appUri, cancellation.Token);
@@ -42,16 +42,16 @@ internal static class Program
             var assets = new[]
             {
                 "/ui/entrypoints/main/comms.js",
-                "/ui/modules/apps/TaxiDriverHUD/external/loader.css?v=400-rc",
-                "/ui/modules/apps/TaxiDriverHUD/external/external.js?v=400-rc",
-                "/ui/modules/apps/TaxiDriverHUD/external/sounds-data.js?v=400-rc",
-                "/ui/modules/apps/TaxiDriverHUD/app.html?v=400-rc",
-                "/ui/modules/apps/TaxiDriverHUD/app.css?v=400-rc",
-                "/ui/modules/apps/TaxiDriverHUD/app.js?v=400-rc",
-                "/ui/modules/apps/TaxiDriverHUD/locales.json?v=400-rc",
-                "/ui/lib/ext/tiny-emitter/tinyemitter.js?v=400-rc",
-                "/ui/lib/ext/angular/angular.js?v=400-rc",
-                "/ui/lib/ext/qrcode.min.js?v=400-rc"
+                "/ui/modules/apps/TaxiDriverHUD/external/loader.css?v=401",
+                "/ui/modules/apps/TaxiDriverHUD/external/external.js?v=401",
+                "/ui/modules/apps/TaxiDriverHUD/external/sounds-data.js?v=401",
+                "/ui/modules/apps/TaxiDriverHUD/app.html?v=401",
+                "/ui/modules/apps/TaxiDriverHUD/app.css?v=401",
+                "/ui/modules/apps/TaxiDriverHUD/app.js?v=401",
+                "/ui/modules/apps/TaxiDriverHUD/locales.json?v=401",
+                "/ui/lib/ext/tiny-emitter/tinyemitter.js?v=401",
+                "/ui/lib/ext/angular/angular.js?v=401",
+                "/ui/lib/ext/qrcode.min.js?v=401"
             };
             foreach (var asset in assets)
             {

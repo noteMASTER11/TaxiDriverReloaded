@@ -9,13 +9,12 @@ local wsUtils = require("utils/wsUtils")
 local port = 8085
 local protocolName = "bng-ext-app-v1"
 local externalEntryPoint = "/ui/modules/apps/TaxiDriverHUD/external/index.html"
-local externalUiRevision = "400-rc"
+local externalUiRevision = "401"
 local connectionFilePath = "/settings/TaxiDriver/lan.json"
 local heartbeatTimeout = 8.0
 local mapRefreshInterval = 1.5
 local vehicleRefreshInterval = 0.25
 local maximumRoadSegments = 50000
-local roadChunkSize = 750
 local maximumProxyClients = 24
 local proxyAcceptPerFrame = 8
 local proxyReadSize = 32768
@@ -27,10 +26,10 @@ local externalHeartbeatAge = math.huge
 local connected = false
 local chosenAddress = "127.0.0.1"
 local savedAddressHint = ""
+local manualAddressOverride = ""
 local sessionToken = ""
 local statusChanged = false
 local mapTimer = 0
-local vehicleTimer = 0
 local externalView = "home"
 local externalVisible = true
 local externalMapEnabled = true
@@ -45,8 +44,6 @@ local roadLevelKey = ""
 local roadRevision = 0
 local cachedRoads = nil
 local cachedTerrainTiles = nil
-local pendingRoadChunk = 0
-local pendingRoadChunkCount = 0
 local roadBuildJob = nil
 local roadBuildKey = ""
 local socketLib = require("socket.socket")
@@ -301,7 +298,7 @@ end
 
 local function candidateSources(candidate)
   local values = {}
-  for _, key in ipairs({"adapter", "native", "route", "saved"}) do
+  for _, key in ipairs({"adapter", "native", "route", "saved", "manual"}) do
     if candidate.sources and candidate.sources[key] then values[#values + 1] = key end
   end
   return table.concat(values, ",")
@@ -319,6 +316,7 @@ local function selectLanAddress(nativeAddress)
     nativeAddress = nativeAddress,
     routedAddress = routedAddress,
     savedAddress = savedAddressHint,
+    manualAddress = manualAddressOverride,
     canBind = canBindAddress
   })
   for _, candidate in ipairs(candidates or {}) do
@@ -530,8 +528,6 @@ local function rebuildMap()
   mapKey = currentMapKey()
 end
 
-local queueRoadPublish
-
 local function beginRoadRebuild()
   local nextKey = currentRoadLevelKey()
   if roadBuildJob and roadBuildKey == nextKey then return end
@@ -565,41 +561,7 @@ local function stepRoadRebuild()
   local mapFields = {roads = #cachedRoads, terrainTiles = #cachedTerrainTiles}
   if #cachedRoads > 0 then logger.info("lan", "map_prepared", mapFields)
   else logger.warn("lan", "map_empty", mapFields) end
-  queueRoadPublish()
   return true
-end
-
-queueRoadPublish = function()
-  pendingRoadChunk = 1
-  pendingRoadChunkCount = math.max(1,
-    math.ceil(#(cachedRoads or {}) / roadChunkSize))
-end
-
-local function publishNextRoadChunk()
-  if pendingRoadChunk < 1 or not cachedRoads then return end
-  local firstIndex = (pendingRoadChunk - 1) * roadChunkSize + 1
-  local lastIndex = math.min(#cachedRoads, firstIndex + roadChunkSize - 1)
-  local chunk = {}
-  for index = firstIndex, lastIndex do
-    chunk[#chunk + 1] = cachedRoads[index]
-  end
-  guihooks.trigger("TaxiDriverExternalRoadData", {
-    revision = roadRevision,
-    chunkIndex = pendingRoadChunk,
-    chunkCount = pendingRoadChunkCount,
-    totalRoads = #cachedRoads,
-    reset = pendingRoadChunk == 1,
-    complete = pendingRoadChunk >= pendingRoadChunkCount,
-    terrainTiles = pendingRoadChunk == 1 and cachedTerrainTiles or nil,
-    roads = chunk
-  })
-  pendingRoadChunk = pendingRoadChunk + 1
-  if pendingRoadChunk > pendingRoadChunkCount then pendingRoadChunk = 0 end
-end
-
-local function publishMap()
-  if not cachedMap then rebuildMap() end
-  guihooks.trigger("TaxiDriverExternalMapData", cachedMap or {})
 end
 
 local function setConnected(value)
@@ -626,10 +588,8 @@ local function applyExternalView(view, visible, wasPublishing)
   local normalizedView = normalizeExternalView(view)
   if wasPublishing == nil then wasPublishing = canPublishNavigation() end
   local normalizedVisible = visible == true and normalizedView ~= "hidden"
-  local changed = externalView ~= normalizedView or externalVisible ~= normalizedVisible
   externalView = normalizedView
   externalVisible = normalizedVisible
-  if changed then vehicleTimer = 0 end
   if not wasPublishing and canPublishNavigation() then M.requestExternalMap() end
 end
 
@@ -721,8 +681,6 @@ function M.stop()
   cachedTerrainTiles = nil
   mapKey = ""
   roadLevelKey = ""
-  pendingRoadChunk = 0
-  pendingRoadChunkCount = 0
   roadBuildJob = nil
   roadBuildKey = ""
   statusChanged = true
@@ -745,15 +703,36 @@ function M.externalHeartbeat(token, view, visible)
   return true
 end
 
+-- BeamNG 0.39 does not forward this mod's guihooks.trigger("TaxiDriverExternal...")
+-- events to the external (non-CEF) Connected Phone client, so this just warms the
+-- cache; M.pollExternalState() is what the client actually reads from.
 function M.requestExternalMap()
   if not enabled or not canPublishNavigation() then return end
+  if not cachedMap then rebuildMap() end
   if not cachedRoads or roadLevelKey ~= currentRoadLevelKey() then beginRoadRebuild() end
-  publishMap()
-  if cachedRoads then
-    queueRoadPublish()
-    publishNextRoadChunk()
+end
+
+-- Polled by the external client in place of the push above. Road/terrain data is only
+-- included when the client's known revision is stale, since it can be large and rarely
+-- changes; vehicle position is cheap and always included.
+function M.pollExternalState(clientRoadRevision, clientMapRevision)
+  if not enabled or not canPublishNavigation() then return {available = false} end
+  local knownRoadRevision = tonumber(clientRoadRevision) or -1
+  local knownMapRevision = tonumber(clientMapRevision) or -1
+  local result = {
+    available = true,
+    vehicle = vehicleSnapshot() or {},
+    roadRevision = roadRevision,
+    mapRevision = mapRevision
+  }
+  if knownRoadRevision ~= roadRevision and cachedRoads then
+    result.roads = cachedRoads
+    result.terrainTiles = cachedTerrainTiles or {}
   end
-  guihooks.trigger("TaxiDriverExternalVehicleState", vehicleSnapshot() or {})
+  if knownMapRevision ~= mapRevision and cachedMap then
+    result.map = cachedMap
+  end
+  return result
 end
 
 function M.setExternalView(view, visible, token)
@@ -776,7 +755,6 @@ function M.setPerformanceOptions(options)
     cachedRoads = nil
     cachedTerrainTiles = nil
     roadLevelKey = ""
-    pendingRoadChunk = 0
     roadBuildJob = nil
     roadBuildKey = ""
   end
@@ -786,7 +764,13 @@ function M.setPerformanceOptions(options)
     terrainEnabled = externalTerrainEnabled,
     vehicleRefreshInterval = vehicleRefreshInterval
   })
-  if not externalMapEnabled then pendingRoadChunk = 0 end
+end
+
+-- User-supplied override for platforms where automatic LAN address
+-- discovery is unavailable or unreliable. Still validated and bind-tested
+-- like every other candidate; it just outranks the automatic sources.
+function M.setManualAddress(value)
+  manualAddressOverride = tostring(value or ""):gsub("%s+", "")
 end
 
 function M.getStatus()
@@ -826,12 +810,13 @@ function M.update(dtReal)
 
   if not canPublishNavigation() then return end
 
+  -- Keeps cachedMap/cachedRoads warm so M.pollExternalState() can answer the
+  -- external client's poll immediately instead of blocking on a rebuild.
   mapTimer = mapTimer + dtReal
   local newKey = currentMapKey()
   if not cachedMap or (mapTimer >= mapRefreshInterval and newKey ~= mapKey) then
     mapTimer = 0
     rebuildMap()
-    publishMap()
   end
 
   local newRoadLevelKey = currentRoadLevelKey()
@@ -839,13 +824,6 @@ function M.update(dtReal)
     beginRoadRebuild()
   end
   stepRoadRebuild()
-  publishNextRoadChunk()
-
-  vehicleTimer = vehicleTimer + dtReal
-  if vehicleTimer >= vehicleRefreshInterval then
-    vehicleTimer = 0
-    guihooks.trigger("TaxiDriverExternalVehicleState", vehicleSnapshot() or {})
-  end
 end
 
 function M.setState(state)

@@ -7,6 +7,7 @@ local loadError = ""
 local requestedEnabled = false
 local pendingPerformance = nil
 local pendingState = nil
+local pendingManualAddress = nil
 
 local function invoke(service, name, fallback, ...)
   local callback = service and service[name] or nil
@@ -36,6 +37,9 @@ local function ensureLoaded()
     invoke(implementation, "setPerformanceOptions", nil, pendingPerformance)
   end
   if pendingState then invoke(implementation, "setState", nil, pendingState) end
+  if pendingManualAddress then
+    invoke(implementation, "setManualAddress", nil, pendingManualAddress)
+  end
   return implementation
 end
 
@@ -57,6 +61,13 @@ function M.setPerformanceOptions(options)
   pendingPerformance = type(options) == "table" and options or {}
   if implementation then
     invoke(implementation, "setPerformanceOptions", nil, pendingPerformance)
+  end
+end
+
+function M.setManualAddress(value)
+  pendingManualAddress = tostring(value or "")
+  if implementation then
+    invoke(implementation, "setManualAddress", nil, pendingManualAddress)
   end
 end
 
@@ -101,6 +112,10 @@ end
 
 function M.requestExternalMap(...)
   return invoke(implementation, "requestExternalMap", nil, ...)
+end
+
+function M.pollExternalState(...)
+  return invoke(implementation, "pollExternalState", {available = false}, ...)
 end
 
 function M.setExternalView(...)

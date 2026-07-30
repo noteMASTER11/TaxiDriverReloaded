@@ -113,6 +113,7 @@ function M.new(options)
       deliveryOrderSharePercent = 50,
       unlimitedRouteDistance = false,
       lanEnabled = false,
+      lanManualAddress = "",
       externalMapEnabled = true,
       externalTerrainEnabled = true,
       externalMapQuality = "balanced",
@@ -172,6 +173,7 @@ function M.new(options)
     result.deliveryOrderSharePercent = clamp(tonumber(source.deliveryOrderSharePercent) or result.deliveryOrderSharePercent, 0, 100)
     result.unlimitedRouteDistance = source.unlimitedRouteDistance == true
     result.lanEnabled = false
+    result.lanManualAddress = tostring(source.lanManualAddress or ""):sub(1, 64):gsub("%s+", "")
     result.externalMapEnabled = source.externalMapEnabled ~= false
     result.externalTerrainEnabled = source.externalTerrainEnabled ~= false
     local externalMapQuality = tostring(source.externalMapQuality or "balanced")

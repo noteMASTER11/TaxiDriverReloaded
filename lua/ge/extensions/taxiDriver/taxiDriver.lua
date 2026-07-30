@@ -33,7 +33,7 @@ local hudPublisher = require("taxiDriver/hudPublisher")
 local logger = require("taxiDriver/logger")
 local runtimeBoundary = require("taxiDriver/faultBoundary").new({retrySeconds = 1})
 local aiLoggerModule = require("taxiDriver/aiLogger")
-local modVersion = "4.0.0-rc"
+local modVersion = "4.0.1"
 local fleet = require("taxiDriver/fleetManager").new({modVersion = modVersion})
 local logTag = "taxiDriver"
 local supportedLanguages = taxiConfig.supportedLanguages
@@ -285,6 +285,7 @@ local function loadUserSettings()
   autopilot:configure(userSettings.aiDriver)
   fleet:configure(userSettings.fleet, userSettings.language)
   lanBridge.setPerformanceOptions(userSettings)
+  lanBridge.setManualAddress(userSettings.lanManualAddress)
 end
 local function roundMoney(value) return math.floor(value * 100 + 0.5) / 100 end
 local function trimText(value) return dataStore:trimText(value) end
@@ -3874,6 +3875,7 @@ function M.saveSettings(incomingSettings)
       "featureDisabled")
   end
   lanBridge.setPerformanceOptions(userSettings)
+  lanBridge.setManualAddress(userSettings.lanManualAddress)
   lanBridge.setEnabled(userSettings.lanEnabled); if userSettings.randomEventsEnabled == true and userSettings.randomEvents.policeCheck.enabled == true then policeCheck:prepare() end
   writeUserSettings()
 
@@ -3954,6 +3956,13 @@ end
 function M.requestExternalHudState()
   if vehicleScanGuard.isConfigurationOpen() then return end
   notifyHud()
+end
+
+-- Polled by the external client instead of relying on lanBridge's
+-- guihooks.trigger pushes, which BeamNG 0.39 stopped delivering to it.
+function M.pollExternalState(clientRoadRevision, clientMapRevision)
+  if vehicleScanGuard.isConfigurationOpen() then return {available = false} end
+  return lanBridge.pollExternalState(clientRoadRevision, clientMapRevision)
 end
 
 function M.setExternalPhoneView(view, visible, token)
