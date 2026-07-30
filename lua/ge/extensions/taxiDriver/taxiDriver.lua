@@ -660,7 +660,7 @@ function realisticFuel.buildRepairHud()
     damagePercent = realisticFuel.repairLastDamagePercent or 0
   end
   local price = repairing.active and repairing.cost or
-    repairPricing.calculateRepairPrice(damagePercent, taxiConfig.repair)
+    (state.realisticMode and repairPricing.calculateRepairPrice(damagePercent, taxiConfig.repair) or 0)
   return {
     available = available == true,
     id = realisticFuel.repairStation and realisticFuel.repairStation.id or "",
@@ -1499,11 +1499,14 @@ function realisticFuel.purchaseRepair()
       return
     end
 
-    local price = repairPricing.calculateRepairPrice(damagePercent, taxiConfig.repair)
-    local availableBalance = roundMoney(math.max(0, tonumber(state.balance) or 0))
-    if availableBalance < price then
-      showPhoneNotification("notify_repairNoMoney", {}, "warning")
-      return
+    local price = state.realisticMode and
+      repairPricing.calculateRepairPrice(damagePercent, taxiConfig.repair) or 0
+    if price > 0 then
+      local availableBalance = roundMoney(math.max(0, tonumber(state.balance) or 0))
+      if availableBalance < price then
+        showPhoneNotification("notify_repairNoMoney", {}, "warning")
+        return
+      end
     end
 
     realisticFuel.repairing = {
