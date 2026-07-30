@@ -542,6 +542,7 @@
             </label>
           </div>
           <button type="button" class="taxi-settings__cheat-action" ng-click="hud.cheatAddRandomReview()">{{ t('cheatRandomReview') }}</button>
+          <button type="button" class="taxi-settings__cheat-action" ng-click="hud.cheatRepairVehicle()">{{ t('cheatRepairVehicle') }}</button>
           <div class="taxi-settings__cheat-card">
             <div class="taxi-settings__label">{{ t('cheatAddMoney') }}</div>
             <div class="taxi-settings__money-grid">
@@ -1173,11 +1174,11 @@
       </div>
     </div>
 
-    <div class="taxi-fuel" ng-class="{'taxi-fuel--magic': state.fuelStation.magic}" ng-if="fuelStationOpen && state.fuelStation.available">
+    <div class="taxi-fuel" ng-class="{'taxi-fuel--magic': state.fuelStation.magic}" ng-if="fuelStationOpen && (state.fuelStation.available || state.repairStation.available)">
       <div class="taxi-fuel__head">
         <div class="taxi-fuel__icon">⛽</div>
-        <div class="taxi-fuel__title"><strong>{{ state.fuelStation.magic ? t('magicFuelTitle') : (state.fuelStation.name || t('refuelTitle')) }}</strong></div>
-        <button type="button" class="taxi-fuel__close taxi-action taxi-action--tertiary" ng-click="hud.closeFuelStation()" ng-disabled="state.fuelStation.refueling.active" aria-label="{{ t('refuelClose') }}">×</button>
+        <div class="taxi-fuel__title"><strong>{{ state.fuelStation.available ? (state.fuelStation.magic ? t('magicFuelTitle') : (state.fuelStation.name || t('refuelTitle'))) : t('repairTitle') }}</strong></div>
+        <button type="button" class="taxi-fuel__close taxi-action taxi-action--tertiary" ng-click="hud.closeFuelStation()" ng-disabled="state.fuelStation.refueling.active || state.repairStation.repairing.active" aria-label="{{ t('refuelClose') }}">×</button>
       </div>
       <div class="taxi-fuel__magic" ng-if="state.fuelStation.magic">
         <strong>{{ t('magicFuelNoStations') }}</strong>
@@ -1213,13 +1214,28 @@
         </div>
       </div>
       <div class="taxi-fuel__empty" ng-if="!state.fuelStation.options.length">…</div>
-      <button type="button" class="taxi-fuel__buy taxi-action taxi-action--primary" ng-click="hud.purchaseFuel()" ng-disabled="state.fuelStation.refueling.active || !state.fuelStation.vehicleStopped || !getSelectedFuelOption() || refuel.amount <= 0">
+      <button type="button" class="taxi-fuel__buy taxi-action taxi-action--primary" ng-click="hud.purchaseFuel()" ng-disabled="state.fuelStation.refueling.active || state.repairStation.repairing.active || !state.fuelStation.vehicleStopped || !getSelectedFuelOption() || refuel.amount <= 0">
         <span ng-if="state.fuelStation.refueling.active">{{ t('refuelProgress') }} · {{ state.fuelStation.refueling.progress * 100 | number:0 }}%</span>
         <span ng-if="!state.fuelStation.refueling.active && !state.fuelStation.vehicleStopped">{{ t('refuelStayStopped') }}</span>
         <span ng-if="!state.fuelStation.refueling.active && state.fuelStation.vehicleStopped && getSelectedFuelOption() && getSelectedFuelOption().missingQuantity <= 0.01">{{ t('refuelFull') }}</span>
         <span ng-if="!state.fuelStation.refueling.active && state.fuelStation.vehicleStopped && getSelectedFuelOption() && getSelectedFuelOption().missingQuantity > 0.01 && getRefuelMaximum() <= 0">{{ t('refuelNoMoney') }}</span>
         <span ng-if="!state.fuelStation.refueling.active && state.fuelStation.vehicleStopped && (!getSelectedFuelOption() || (getSelectedFuelOption().missingQuantity > 0.01 && getRefuelMaximum() > 0))">{{ t('refuelBuy') }}</span>
       </button>
+
+      <div class="taxi-fuel__repair" ng-if="state.repairStation.available">
+        <div class="taxi-fuel__metric"><span>{{ t('repairDamage') }}</span><strong>{{ state.repairStation.damagePercent | number:0 }}%</strong></div>
+        <div class="taxi-fuel__metric" ng-if="state.repairStation.canRepair"><span>{{ t('repairPrice') }}</span><strong>{{ formatMoney(state.repairStation.price) }}</strong></div>
+        <div class="taxi-fuel__progress" ng-show="state.repairStation.repairing.active">
+          <div class="taxi-fuel__progress-track"><span ng-style="{'width': (state.repairStation.repairing.progress * 100) + '%'}"></span></div>
+          <div class="taxi-fuel__progress-meta"><span>{{ state.repairStation.repairing.progress * 100 | number:0 }}%</span><span>{{ t('refuelRemaining') }} · {{ state.repairStation.repairing.remainingSeconds | number:1 }} s</span></div>
+        </div>
+        <button type="button" class="taxi-fuel__buy" ng-if="state.repairStation.canRepair" ng-click="hud.purchaseRepair()" ng-disabled="state.repairStation.repairing.active || state.fuelStation.refueling.active || !state.repairStation.vehicleStopped || state.repairStation.balance < state.repairStation.price">
+          <span ng-if="state.repairStation.repairing.active">{{ t('repairProgress') }} · {{ state.repairStation.repairing.progress * 100 | number:0 }}%</span>
+          <span ng-if="!state.repairStation.repairing.active && !state.repairStation.vehicleStopped">{{ t('refuelStayStopped') }}</span>
+          <span ng-if="!state.repairStation.repairing.active && state.repairStation.vehicleStopped && state.repairStation.balance < state.repairStation.price">{{ t('repairNoMoney') }}</span>
+          <span ng-if="!state.repairStation.repairing.active && state.repairStation.vehicleStopped && state.repairStation.balance >= state.repairStation.price">{{ t('repairBuy') }}</span>
+        </button>
+      </div>
     </div>
 
     <div class="taxi-offline-confirm" ng-if="offlineConfirmOpen" role="dialog" aria-modal="true" aria-labelledby="taxi-offline-confirm-title" aria-describedby="taxi-offline-confirm-description">
