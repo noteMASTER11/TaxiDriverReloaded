@@ -27,6 +27,16 @@ local nextOfferGuard = dofile("lua/ge/extensions/taxiDriver/nextOfferGuard.lua")
 local taxiConfig = dofile("lua/ge/extensions/taxiDriver/config.lua")
 local repairPricing = dofile("lua/ge/extensions/taxiDriver/repairPricing.lua")
 
+-- This file is one flat script (no functions besides the module requires
+-- above), so every top-level `local` stays in scope, and thus counts against
+-- LuaJIT's 200-active-local-per-chunk limit, all the way to EOF unless it is
+-- explicitly scoped off. The `do...end` blocks below close each independent
+-- assertion group's locals immediately after that group runs, freeing their
+-- slots for the next one; without them the combined test additions from
+-- multiple branches eventually push the chunk over the limit and it fails
+-- to load at all. Each wrapped block was verified to have no references
+-- outside its own range, so this only changes variable lifetime, not
+-- behavior.
 do
 local guardedOffer = {id = 71}
 local guarded = nextOfferGuard.update(guardedOffer, 0.2, false, 0.25,
