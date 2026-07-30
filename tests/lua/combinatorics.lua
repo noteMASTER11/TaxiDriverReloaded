@@ -12,7 +12,9 @@ local shiftTracker = dofile("lua/ge/extensions/taxiDriver/shiftTracker.lua")
 local shiftHistory = dofile("lua/ge/extensions/taxiDriver/shiftHistory.lua")
 local offerGenerator = dofile("lua/ge/extensions/taxiDriver/offerGenerator.lua")
 local hudPublisher = dofile("lua/ge/extensions/taxiDriver/hudPublisher.lua")
+do
 local vehicleScanGuard = require("taxiDriver/vehicleScanGuard")
+end
 local vehicleControl = dofile("lua/ge/extensions/taxiDriver/vehicleControl.lua")
 local delivery = dofile("lua/ge/extensions/taxiDriver/delivery.lua")
 local routePlanner = dofile("lua/ge/extensions/taxiDriver/routePlanner.lua")
@@ -25,6 +27,7 @@ local nextOfferGuard = dofile("lua/ge/extensions/taxiDriver/nextOfferGuard.lua")
 local taxiConfig = dofile("lua/ge/extensions/taxiDriver/config.lua")
 local repairPricing = dofile("lua/ge/extensions/taxiDriver/repairPricing.lua")
 
+do
 local guardedOffer = {id = 71}
 local guarded = nextOfferGuard.update(guardedOffer, 0.2, false, 0.25,
   {active = true, hasTrip = true, phase = "toDestination", duration = 5})
@@ -38,6 +41,7 @@ assert(not guarded.expired and guarded.remaining == 4)
 guarded = nextOfferGuard.update(guardedOffer, 0, true, 10,
   {active = true, hasTrip = true, phase = "complete", duration = 5})
 assert(not guarded.expired)
+end
 
 assert(networkAddress.normalizeIPv4("IPv4 192.168.1.209 preferred") == "192.168.1.209")
 assert(networkAddress.normalizeIPv4("999.168.1.1") == nil)
@@ -49,6 +53,7 @@ assert(networkAddress.isLanIPv4("100.64.1.2"))
 assert(not networkAddress.isLanIPv4("127.0.0.1"))
 assert(not networkAddress.isLanIPv4("169.254.1.2"))
 assert(not networkAddress.isLanIPv4("172.32.0.4"))
+do
 local selectedNetworkAddress, addressCandidates = networkAddress.select({
   adapters = {
     {ipv4Addr = "172.25.192.1", description = "Hyper-V Virtual Ethernet Adapter"},
@@ -76,8 +81,10 @@ selectedNetworkAddress = networkAddress.select({
   canBind = function() return false end
 })
 assert(selectedNetworkAddress == nil)
+end
 
 -- A valid, bindable manual override must win over every automatic source.
+do
 local manualOverAll = networkAddress.select({
   adapters = {{ipv4Addr = "192.168.1.20", description = "Intel(R) Wi-Fi 6E AX211"}},
   nativeAddress = "192.168.1.30",
@@ -87,35 +94,45 @@ local manualOverAll = networkAddress.select({
   canBind = function() return true end
 })
 assert(manualOverAll == "192.168.1.99")
+end
 
 -- An invalid manual override (loopback/public/malformed) must be rejected,
 -- not silently swallowed into selecting an unrelated address.
+do
 local manualLoopbackIgnored = networkAddress.select({
   adapters = {}, nativeAddress = "192.168.1.30",
   manualAddress = "127.0.0.1",
   canBind = function() return true end
 })
 assert(manualLoopbackIgnored == "192.168.1.30")
+end
 
 -- A manual override that fails the bind test must not be selected either.
+do
 local manualUnbindable = networkAddress.select({
   adapters = {}, manualAddress = "192.168.1.77",
   canBind = function(address) return address ~= "192.168.1.77" end
 })
 assert(manualUnbindable == nil)
+end
 
+do
 local defaultAiDriver = taxiConfig.sanitizeAiDriver(nil)
 assert(defaultAiDriver.preset == "balanced")
 assert(defaultAiDriver.obeySpeedLimits == true and defaultAiDriver.laneDiscipline == true)
 assert(defaultAiDriver.strictGpsRoute == false)
 assert(defaultAiDriver.enabled == false)
 assert(defaultAiDriver.minimumFollowingDistance == 4 and defaultAiDriver.trafficWaitSeconds == 3)
+end
+do
 local legacyAiDriver = taxiConfig.sanitizeAiDriver({
   aggressionPercent = 42, obeyTrafficRules = false
 })
 assert(legacyAiDriver.preset == "custom")
 assert(legacyAiDriver.aggressionPercent == 42)
 assert(legacyAiDriver.obeySpeedLimits == false)
+end
+do
 local independentAiDriver = taxiConfig.sanitizeAiDriver({
   preset = "custom", obeySpeedLimits = false, laneDiscipline = false,
   strictGpsRoute = true,
@@ -129,6 +146,7 @@ assert(independentAiDriver.minimumFollowingDistance == 10)
 assert(independentAiDriver.trafficWaitSeconds == 1)
 assert(independentAiDriver.brakingDeceleration == 8)
 assert(independentAiDriver.followingTimeGap == 1)
+end
 for _, preset in ipairs(taxiConfig.aiDriverPresetOrder) do
   local configured = taxiConfig.sanitizeAiDriver({preset = preset})
   assert(configured.preset == preset)
@@ -150,6 +168,7 @@ assert(not routePlanner.isDistanceAllowed(999, 1000, nil))
 assert(routeCache.cacheDirectory == "/settings/TaxiDriver/route_cache")
 assert(routeCache.filenamePart("West Coast, USA", "map") == "west_coast_usa")
 assert(routeCache.schemaVersion == 2 and routeCache.maximumRoutes == 96)
+do
 local cachedOfferSource = {
   passengerName = "Cache Passenger",
   isDelivery = false,
@@ -200,9 +219,11 @@ assert(routeCacheFiles[routeCacheDescriptor.filePath].routes[1].rideDistance == 
 FS, jsonReadFile, jsonWriteFile = originalRouteCacheFs, originalJsonReadFile,
   originalJsonWriteFile
 getCurrentLevelIdentifier = originalLevelIdentifier
+end
 
 -- The stock BeamNG taxi drops route waypoints behind the cab. Our adapted
 -- normalizer must do that only for a short, unambiguous prefix.
+do
 local trimOriginalMap = map
 local trimNodes = {
   behind = {pos = {x = -5, y = 0, z = 0}},
@@ -280,7 +301,9 @@ local suffixRoute = requestTrimmedPath({"behind", "targetA", "targetB"})
 assert(#suffixRoute.path == 2 and suffixRoute.path[1] == "targetA" and
   suffixRoute.path[2] == "targetB")
 map = trimOriginalMap
+end
 
+do
 local orientedMap = map
 local orientedNodes = {
   roadStart = {pos = {x = -100, y = 0, z = 0}, links = {}},
@@ -423,7 +446,9 @@ assert(orientedCommands[#orientedCommands]:find("ai.setMode('stop')", 1, true))
 assert(not orientedCommands[#orientedCommands]:find(
   "ai.setMode('disabled')", 1, true))
 map = orientedMap
+end
 
+do
 if false then
 local autopilotCommands = {}
 local autopilotPosition = {x = 0, y = 0, z = 0}
@@ -1066,11 +1091,13 @@ log = function(level, tag, message)
   logLines[#logLines + 1] = {level = level, tag = tag, message = message}
 end
 local debugLogging = true
+end
 local debugLogger = dofile("lua/ge/extensions/taxiDriver/logger.lua")
 debugLogger.setEnabledProvider(function() return debugLogging end)
 debugLogger.info("test", "enabled", {value = 1})
 assert(#logLines == 1 and logLines[1].message:find("[TaxiDriver]", 1, true))
 debugLogging = false
+do
 local sinkEvents = {}
 debugLogger.setEventSink(function(level, area, event)
   sinkEvents[#sinkEvents + 1] = {level = level, area = area, event = event}
@@ -1078,9 +1105,11 @@ end)
 debugLogger.info("test", "disabled")
 assert(#logLines == 1)
 assert(#sinkEvents == 1 and sinkEvents[1].event == "disabled")
+end
 debugLogger.warn("test", "warning_visible")
 assert(#logLines == 2 and logLines[2].level == "W")
 
+do
 local aiLogRecords = {}
 local aiLogWrites = {}
 local aiLogFlushes = 0
@@ -1158,9 +1187,11 @@ assert(richNavigationRecord and richNavigationRecord.leadRayConfirmed == true an
   richNavigationRecord.obstacleDetected == true)
 assert(aiEvents.ai_session_finished and #aiLogWrites == #aiLogRecords and
   aiLogFlushes >= #aiLogRecords and aiLogClosed)
+end
 
 math.randomseed(240717)
 
+do
 local orderTypes = {
   {name = "passenger", delivery = false, rush = false, multi = false},
   {name = "rush", delivery = false, rush = true, multi = false},
@@ -1195,7 +1226,9 @@ for _, realistic in ipairs({false, true}) do
     end
   end
 end
+end
 
+do
 local cancellation = {kind = "cancellation", triggerSeconds = 2, elapsed = 0}
 assert(not tripEvents.updateBeforePickup(cancellation, 1))
 assert(tripEvents.updateBeforePickup(cancellation, 1))
@@ -1363,7 +1396,9 @@ extensions = savedPoliceGlobals.extensions
 getPlayerVehicle = savedPoliceGlobals.getPlayerVehicle
 map = savedPoliceGlobals.map
 end)()
+end
 
+do
 local shifts = shiftTracker.new(nil)
 shifts:start()
 shifts:recordRide(20, 4.5, 2, true)
@@ -1378,7 +1413,9 @@ assert(not shifts:getHud().active)
 shifts:setAllRatings(3.25)
 assert(shifts:getHud().last.averageRating == 3.25)
 assert(shifts:getHud().last.ratingTotal == 3.25)
+end
 
+do
 local published = {}
 local function encode(value)
   local keys = {}
@@ -1434,9 +1471,11 @@ assert(vehicleCommands[3]:find("setForcedStop(false)", 1, true))
 assert(vehicleCommands[3]:find("input.event('parkingbrake',1,'FILTER_AI'", 1, true))
 assert(vehicleCommands[4]:find("extensions.load('taxiDriverCargo')", 1, true))
 assert(vehicleCommands[5]:find("extensions.unload('taxiDriverCargo')", 1, true))
+end
 local telemetryExtension = dofile("lua/vehicle/extensions/taxiDriverTelemetry.lua")
 telemetryExtension.onReset()
 
+do
 local detailLookups = 0
 local position = {x = 0, y = 0, z = 0}
 function position:distance() return 0 end
@@ -1496,9 +1535,11 @@ assert(shiftHistory.get(savedShiftId).energy.fuelPercent == 51)
 shiftHistory.setRestoring(savedShiftId)
 assert(shiftHistory.buildHud().restoringId == savedShiftId)
 shiftHistory.setRestoring(nil)
+end
 local vehicleHistory = dofile("lua/ge/extensions/taxiDriver/vehicleHistory.lua")
 vehicleHistory.load("test")
 assert(vehicleHistory.refreshCurrentVehicle())
+do
 local originalKey = vehicleHistory.getCurrentHud().key
 vehicle.partConfig = "/vehicles/etk800/live_parts_edit.pc"
 for _ = 1, 500 do
@@ -1506,10 +1547,12 @@ for _ = 1, 500 do
   assert(not vehicleHistory.update(0.016, 0))
   assert(vehicleHistory.getCurrentHud().key == originalKey)
 end
+end
 assert(detailLookups == 1)
 
 assert(not vehicleScanGuard.isSuspended())
 assert(vehicleScanGuard.onUiChangedState("menu.vehicleconfig.parts", "play"))
+do
 local staleGeneration = vehicleScanGuard.getGeneration()
 assert(vehicleScanGuard.isSuspended())
 assert(vehicleScanGuard.isConfigurationOpen())
@@ -1521,12 +1564,15 @@ assert(vehicleScanGuard.onUiChangedState("play", "menu.vehicleconfig.parts"))
 assert(vehicleScanGuard.isSuspended())
 assert(not vehicleScanGuard.isConfigurationOpen())
 assert(not vehicleScanGuard.isRequestCurrent(staleGeneration))
+end
 for _ = 1, 93 do vehicleScanGuard.update(0.016) end
 assert(vehicleScanGuard.isSuspended())
 assert(vehicleScanGuard.update(0.016))
 assert(not vehicleScanGuard.isSuspended())
+do
 local stableGeneration = vehicleScanGuard.getGeneration()
 assert(vehicleScanGuard.isRequestCurrent(stableGeneration))
+end
 assert(vehicleScanGuard.onVehicleLifecycle(42, 42))
 assert(vehicleScanGuard.isSuspended())
 assert(not vehicleScanGuard.onVehicleLifecycle(7, 42))
@@ -1564,6 +1610,7 @@ do
   assert(isolatedCleanupRan)
 end
 
+do
 local perceptionVehicle = {}
 local perceptionVehicleHeight = 1.5
 local perceptionDirection = {x = 1, y = 0, z = 0}
@@ -1589,7 +1636,9 @@ map = {
   }} end
 }
 castRayStatic = nil
+end
 local perceptionModule = dofile("lua/ge/extensions/taxiDriver/autopilotPerception.lua")
+do
 local perception = perceptionModule.new({followScanDistance = 80, bypassControllerSpeed = 7})
 local freeSpacePlan, freeSpaceReason = perception:planLocalBypass(perceptionVehicle, 91)
 assert(freeSpacePlan and freeSpaceReason == nil and
@@ -1802,8 +1851,10 @@ assert(parkedTrackingCommands[#parkedTrackingCommands] == "mapmgr.disableTrackin
 getAllVehicles = nil
 getObjectByID = perceptionGetObjectByID
 end
+end
 castRayStatic = nil
 
+do
 local recoveryInputs, recoveryCallbacks = {}, {}
 local safetyObjects = {}
 local recoveryPosition = {x = 0, y = 0, z = 0}
@@ -1843,6 +1894,7 @@ mainController.shiftToGearIndex = function(index)
 end
 controller = {mainController = mainController}
 guihooks = {trigger = function() end}
+end
 local recoveryController = dofile("lua/vehicle/extensions/taxiDriverAutopilotRecovery.lua")
 assert(recoveryController.watchRouteDone())
 recoveryController.setGearboxOverride(true)
@@ -1851,6 +1903,7 @@ recoveryController.setGearboxOverride(true)
 assert(gearboxCalls.modeCount == 1)
 guihooks.trigger("AIStatusChange", {status = "route done", category = "route"})
 assert(recoveryCallbacks[#recoveryCallbacks]:find("onAutopilotRouteDone(42)", 1, true))
+do
 local recoveryPoints = {
   {x = 6, y = 2, z = 0}, {x = 12, y = 4, z = 0}, {x = 27, y = 4, z = 0},
   {x = 36, y = 2, z = 0}, {x = 44, y = 0, z = 0}
@@ -1864,6 +1917,7 @@ assert(recoveryInputs.leftSignal and recoveryInputs.steering < 0 and recoveryInp
 for _, point in ipairs(recoveryPoints) do
   recoveryPosition = point
   recoveryController.updateGFX(0.1)
+end
 end
 assert(recoveryCallbacks[#recoveryCallbacks]:find("onAutopilotBypassComplete(42,true", 1, true))
 
@@ -1974,9 +2028,11 @@ safetyObjects[90] = {pos = {x = -7, y = 0, z = 0}, vel = {x = 0, y = 0, z = 0}}
 electrics.values.wheelspeed = -4
 electrics.values.gearIndex = -1
 recoveryController.updateGFX(0.1)
+do
 local rearDebug = recoveryController.getDebugState()
 assert(recoveryInputs.throttle == 1 and recoveryInputs.brake == 0 and
   rearDebug.reverseRayCount == 13 and rearDebug.reverseFanClearance ~= nil)
+end
 recoveryController.stop()
 
 recoveryCallbacks = {}
@@ -1990,6 +2046,7 @@ assert(recoveryCallbacks[#recoveryCallbacks]:find(
 safetyObjects = {}
 input.state.steering.val = 0
 electrics.values.wheelspeed = 0
+do
 local starterRequests = 0
 local engine = {starterMaxAV = 10, outputAV1 = 0}
 powertrain = {getDevicesByType = function() return {engine} end}
@@ -2002,14 +2059,18 @@ assert(gearboxCalls.modeCount == 1 and mainController.gearboxBehavior == "arcade
 recoveryController.updateGFX(0.1)
 assert(electrics.values.ignitionLevel == 3 and gearboxCalls.ignition and starterRequests == 1)
 engine.outputAV1 = 9
+end
 recoveryController.updateGFX(0.1)
 assert(electrics.values.ignitionLevel == 2)
 recoveryController.setGearboxOverride(false)
 assert(gearboxCalls.mode == "arcade" and gearboxCalls.modeCount == 1)
 assert(not gearboxCalls.directShifts)
+do
 local recoveryDebug = recoveryController.getDebugState()
 assert(type(recoveryDebug) == "table" and type(recoveryDebug.obstacleDetected) == "boolean")
+end
 
+do
 local function guardVector(x, y, z)
   if type(x) == "table" then x, y, z = x.x, x.y, x.z end
   local value = {x = x or 0, y = y or 0, z = z or 0}
@@ -2057,12 +2118,14 @@ ai = {
   setSpeedMode = function() end
 }
 guihooks = {trigger = function() end}
+end
 local stockAiObserver = dofile("lua/vehicle/extensions/taxiDriverStockAiObserver.lua")
 assert(stockAiObserver.watch({
   followingTimeGap = 2.3, minimumGap = 4, brakingDeceleration = 3.5
 }))
 for _ = 1, 6 do stockAiObserver.updateGFX(0.1) end
 assert(#guardSpeedCalls == 6)
+do
 local previousSpeed, previousDeceleration = 20, 0
 for _, call in ipairs(guardSpeedCalls) do
   assert(call.value <= previousSpeed)
@@ -2071,10 +2134,13 @@ for _, call in ipairs(guardSpeedCalls) do
   assert(deceleration - previousDeceleration <= 0.251)
   previousSpeed, previousDeceleration = call.value, deceleration
 end
+end
+do
 local smoothGuardState = stockAiObserver.getDebugState()
 assert(smoothGuardState.safetyHolding and not smoothGuardState.emergencyBraking)
 assert(smoothGuardState.appliedDeceleration > 0 and
   smoothGuardState.appliedDeceleration <= 3.5)
+end
 
 stockAiObserver.unwatch()
 guardSpeedCalls = {}
@@ -2082,10 +2148,12 @@ guardObjects[88].pos, guardObjects[88].vel =
   guardVector(6, 0, 0), guardVector(0, 0, 0)
 assert(stockAiObserver.watch())
 stockAiObserver.updateGFX(0.1)
+do
 local emergencyGuardState = stockAiObserver.getDebugState()
 assert(guardSpeedCalls[#guardSpeedCalls].value == 0)
 assert(emergencyGuardState.emergencyBraking and
   emergencyGuardState.appliedDeceleration == 8.5)
+end
 
 stockAiObserver.unwatch()
 guardSpeedCalls = {}
@@ -2093,9 +2161,11 @@ guardObjects[42].vel, guardObjects[88].vel =
   guardVector(10, 0, 0), guardVector(10, 0, 0)
 assert(stockAiObserver.watch())
 stockAiObserver.updateGFX(0.1)
+do
 local matchedSpeedGuardState = stockAiObserver.getDebugState()
 assert(guardSpeedCalls[#guardSpeedCalls].value == 10)
 assert(not matchedSpeedGuardState.emergencyBraking)
+end
 stockAiObserver.unwatch()
 
 guardSpeedCalls = {}
@@ -2106,10 +2176,12 @@ guardObjects[88] = {
 input.state.steering.val = 0.65
 assert(stockAiObserver.watch())
 stockAiObserver.updateGFX(0.1)
+do
 local curvedPathGuardState = stockAiObserver.getDebugState()
 assert(curvedPathGuardState.safetyHolding and
   curvedPathGuardState.curvedPathRisk and
   curvedPathGuardState.curvedPathRiskTime > 0)
+end
 assert(#guardSpeedCalls == 1 and guardSpeedCalls[1].value < 8)
 stockAiObserver.unwatch()
 input.state.steering.val = 0
@@ -2123,11 +2195,13 @@ guardObjects[88] = {
 }
 assert(stockAiObserver.watch())
 stockAiObserver.updateGFX(0.1)
+do
 local imminentOncomingGuardState = stockAiObserver.getDebugState()
 assert(#guardSpeedCalls == 1 and guardSpeedCalls[1].value == 0)
 assert(imminentOncomingGuardState.emergencyBraking and
   imminentOncomingGuardState.threatConfidence == 1 and
   imminentOncomingGuardState.threatKind == "oncoming")
+end
 stockAiObserver.unwatch()
 
 guardSpeedCalls = {}
@@ -2140,11 +2214,13 @@ assert(stockAiObserver.watch({
   arrivalRadius = 14, maximumArrivalSpeed = 0
 }))
 stockAiObserver.updateGFX(0.1)
+do
 local targetApproachState = stockAiObserver.getDebugState()
 assert(targetApproachState.targetApproachActive and
   not targetApproachState.safetyHolding)
 assert(targetApproachState.targetSpeedCap > 0 and
   targetApproachState.targetSpeedCap < 15)
+end
 assert(guardSpeedCalls[#guardSpeedCalls].value < 15)
 stockAiObserver.unwatch()
 
@@ -2159,6 +2235,7 @@ assert(not stockAiObserver.getDebugState().targetApproachActive)
 assert(#guardSpeedCalls == 0)
 stockAiObserver.unwatch()
 
+do
 local parkingModes = {}
 local parkingControlState = {grb_bhv = "arcade", grb_mde = "D"}
 mainController.gearboxBehavior = "arcade"
@@ -2223,12 +2300,17 @@ assert(manualParkingState.parked and manualParkingState.parkingGearTarget == "N"
   manualParkingState.parkingGearActual == "N" and
   parkingControlState.grb_idx == 0 and electrics.values.gear == 0 and
   mainController.gearboxBehavior == "realistic")
+end
 stockAiObserver.unwatch()
 
+do
 local defaultFleet = taxiConfig.sanitizeFleet(nil)
 assert(defaultFleet.aiPreset == "standard" and defaultFleet.passengerJobs and defaultFleet.deliveryJobs)
+end
+do
 local disabledFleetJobs = taxiConfig.sanitizeFleet({passengerJobs = false, deliveryJobs = false})
 assert(disabledFleetJobs.passengerJobs and not disabledFleetJobs.deliveryJobs)
+end
 assert(taxiConfig.sanitizeFleet({worldLabelDistance = 1}).worldLabelDistance == 50)
 assert(taxiConfig.sanitizeFleet({worldLabelDistance = 5000}).worldLabelDistance == 1000)
 for _, preset in ipairs({"careful", "standard", "fast"}) do
@@ -2244,6 +2326,7 @@ for _, preset in ipairs({"careful", "standard", "fast"}) do
   end
 end
 
+do
 local function fleetVector(x, y, z)
   if type(x) == "table" then x, y, z = x.x, x.y, x.z end
   local value = {x = tonumber(x) or 0, y = tonumber(y) or 0, z = tonumber(z) or 0}
@@ -2312,6 +2395,7 @@ map = {
   end
 }
 
+end
 do
 local nativeFleetWorker = dofile("lua/ge/extensions/taxiDriver/fleetWorker.lua")
 local nativeVehicle = mockFleetVehicle(303, "etk800", "base", fleetVector(0, 0, 0))
@@ -2371,6 +2455,7 @@ ui_apps_minimap_vehicles = nil
 ui_apps_minimap_utils = nil
 extensions = nil
 
+do
 local workerInstances = {}
 local workerFactory = {new = function()
   local worker = {arrived = false, enabled = false, configured = nil, suspended = false}
@@ -2386,7 +2471,9 @@ local workerFactory = {new = function()
   workerInstances[#workerInstances + 1] = worker
   return worker
 end}
+end
 local fleetManager = dofile("lua/ge/extensions/taxiDriver/fleetManager.lua")
+do
 local fleetService = fleetManager.new({modVersion = "test", workerFactory = workerFactory})
 fleetService:configure({
   aiPreset = "careful", ownerSharePercent = 40, hiringFee = 75,
@@ -2427,10 +2514,12 @@ assert(fleetService:onRouteDone(101) and fleetService:onBypassComplete(202, true
 local dismissed = fleetService:command("dismiss", {id = 2}, 850)
 assert(dismissed and trafficInserted)
 fleetService:shutdown()
+end
 assert(deletedVehicles[101])
 
 assert(repairPricing.calculateRepairPrice(0, taxiConfig.repair) == taxiConfig.repair.minimumRepairPrice)
 assert(repairPricing.calculateRepairPrice(-50, taxiConfig.repair) == taxiConfig.repair.minimumRepairPrice)
+do
 local repairAtMax = repairPricing.calculateRepairPrice(100, taxiConfig.repair)
 local repairRange = taxiConfig.repair.maximumRepairPrice - taxiConfig.repair.minimumRepairPrice
 assert(repairAtMax <= taxiConfig.repair.maximumRepairPrice and
@@ -2440,10 +2529,13 @@ local repairLow = repairPricing.calculateRepairPrice(10, taxiConfig.repair)
 local repairMid = repairPricing.calculateRepairPrice(40, taxiConfig.repair)
 local repairHigh = repairPricing.calculateRepairPrice(80, taxiConfig.repair)
 assert(repairLow < repairMid and repairMid < repairHigh and repairHigh <= repairAtMax)
+end
+do
 local customRepairConfig = {minimumRepairPrice = 20, maximumRepairPrice = 60, repairPriceScale = 10}
 local customLow = repairPricing.calculateRepairPrice(1, customRepairConfig)
 local customHigh = repairPricing.calculateRepairPrice(90, customRepairConfig)
 assert(customLow >= 20 and customLow < 30 and customHigh <= 60 and customHigh > 55)
+end
 assert(repairPricing.calculateRepairPrice(50, nil) > 0)
 assert(repairPricing.calculateRepairPrice(nil, taxiConfig.repair) == taxiConfig.repair.minimumRepairPrice)
 
