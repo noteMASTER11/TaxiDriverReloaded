@@ -1,5 +1,37 @@
 # Changelog
 
+## 4.0.1 — Connected Phone Map and LAN Reliability
+
+This patch restores the Connected Phone navigation map on BeamNG.drive 0.39 and adds a practical LAN-address fallback for platforms where the game cannot enumerate a usable network adapter.
+
+### Connected Phone map
+
+- External-phone mode is now identified explicitly by its dedicated bootstrap instead of depending only on BeamNG's changing `beamng.ingame` flag.
+- Replaced the external map's broken `guihooks.trigger` push channel with revision-aware polling over the working `bngApi.engineLua` bridge.
+- Vehicle position and heading are returned on every visible-map poll. The larger road network, terrain metadata, and route are transferred only when their revisions change.
+- Polling follows the selected map-performance profile: 2 Hz in ECO, 4 Hz in Balanced, and 8 Hz in Smooth.
+- The in-game phone continues to use its native map path and is not switched to the external-browser polling transport.
+
+### LAN fallback
+
+- Added an optional **Manual LAN IP** field for systems where BeamNG cannot discover a bindable private address automatically.
+- Manual addresses are normalized, restricted to private LAN IPv4 ranges, and bind-tested before use. Invalid, loopback, public, or unavailable addresses fall back to automatic discovery.
+- The value persists with the regular TaxiDriver settings, while Connected Phone itself remains disabled after startup until the player enables it.
+- Fixed the lazy optional LAN wrapper so the manual address reaches the bridge without a fatal missing-method error.
+
+### Compatibility
+
+- Target game version: **BeamNG.drive 0.39**.
+- Existing `4.0.0-rc` settings and persistent gameplay records remain compatible.
+- External UI cache revision is `401`; close the old phone tab and reopen the current Share URL after updating.
+- AI Driver, dispatcher, economy, and route-cache behavior are unchanged from `4.0.0-rc`.
+
+### Acknowledgements
+
+Special thanks to [JamDaBam](https://github.com/JamDaBam) for investigating the BeamNG 0.39 external-client regression, implementing and testing the Connected Phone polling fix in [PR #4](https://github.com/noteMASTER11/TaxiDriverReloaded/pull/4), and contributing the validated manual LAN-address fallback in [PR #1](https://github.com/noteMASTER11/TaxiDriverReloaded/pull/1). These fixes made this release possible.
+
+Release: [TaxiDriver Reloaded 4.0.1 — Connected Phone Map and LAN Reliability](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.1)
+
 ## 4.0.0 RC — New Driver UI and BeamNG 0.39 AI Engine
 
 This release candidate is the BeamNG.drive 0.39 compatibility release. It replaces the driver-facing visual system, rebuilds the experimental player AI around the current 0.39 routing and vehicle-AI capabilities, and closes navigation and dispatcher regressions found during live in-game testing.

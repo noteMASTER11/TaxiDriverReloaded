@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.0-rc"><img src="https://img.shields.io/badge/release-v4.0.0--RC-ffd11a?style=flat-square" alt="Release v4.0.0-rc"></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.1"><img src="https://img.shields.io/badge/release-v4.0.1-ff6600?style=flat-square" alt="Release v4.0.1"></a>
   <img src="https://img.shields.io/badge/BeamNG.drive-0.39-f28c28?style=flat-square" alt="BeamNG.drive 0.39">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.0-rc"><strong>Download 4.0.0 RC</strong></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.1"><strong>Download 4.0.1</strong></a>
 </p>
 
 ---
 
-> **4.0.0 RC:** Rebuilt the driver interface around a compact high-contrast visual system, introduced the BeamNG 0.39 AI Driver engine with asynchronous routing and a bounded safety supervisor, and completed the compatibility pass for BeamNG.drive 0.39. AI Driver remains experimental and disabled by default. Existing `3.4.2-rc` saves remain compatible.
+> **4.0.1:** Restores the Connected Phone map on BeamNG.drive 0.39 through revision-aware polling and adds a validated manual LAN address override for platforms where automatic discovery is unavailable. This release includes fixes contributed by [JamDaBam](https://github.com/JamDaBam). Existing `4.0.0-rc` saves remain compatible.
 
 TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
@@ -266,7 +266,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Installation
 
-1. Download `taxidriver.zip` from the [4.0.0 RC release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.0-rc).
+1. Download `taxidriver.zip` from the [4.0.1 release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.1).
 2. Place the archive directly in:
 
    ```text
