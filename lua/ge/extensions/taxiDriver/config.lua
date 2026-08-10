@@ -5,7 +5,7 @@ local M = {}
 M.supportedLanguages = {
   en = true, de = true, fr = true, es = true,
   it = true, pl = true, uk = true, ru = true,
-  ["zh-CN"] = true
+  ["zh-CN"] = true, ["pt-BR"] = true
 }
 
 local function clamp(value, minimum, maximum)
@@ -468,6 +468,15 @@ M.realisticFuel = {
     gasoline = 0.93,
     electricEnergy = 0.50
   }
+}
+
+M.repair = {
+  minimumRepairPrice = 5,
+  maximumRepairPrice = 250,
+  repairPriceScale = 45,
+  damagePercentScale = 4500,
+  minimumRepairableDamagePercent = 0.5,
+  repairDurationSeconds = 6
 }
 
 M.delivery = {

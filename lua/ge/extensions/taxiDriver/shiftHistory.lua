@@ -61,6 +61,7 @@ local function sanitizeSummary(source)
     aiRides = math.max(0, math.floor(tonumber(source.aiRides) or 0)),
     grossIncome = money(source.grossIncome),
     fuelCost = money(source.fuelCost),
+    repairCost = money(source.repairCost),
     penaltyLoss = money(source.penaltyLoss),
     netIncome = money(source.netIncome),
     averageRating = clamp(source.averageRating, 0, 5)

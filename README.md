@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.1"><img src="https://img.shields.io/badge/release-v4.0.1-ff6600?style=flat-square" alt="Release v4.0.1"></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.2"><img src="https://img.shields.io/badge/release-v4.0.2-ff6600?style=flat-square" alt="Release v4.0.2"></a>
   <img src="https://img.shields.io/badge/BeamNG.drive-0.39-f28c28?style=flat-square" alt="BeamNG.drive 0.39">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.1"><strong>Download 4.0.1</strong></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.2"><strong>Download 4.0.2</strong></a>
 </p>
 
 ---
 
-> **4.0.1:** Restores the Connected Phone map on BeamNG.drive 0.39 through revision-aware polling and adds a validated manual LAN address override for platforms where automatic discovery is unavailable. This release includes fixes contributed by [JamDaBam](https://github.com/JamDaBam). Existing `4.0.0-rc` saves remain compatible.
+> **4.0.2:** Adds safe vehicle repair at physical gas stations and Magic Fuel, improves AI Driver control hand-back and parking recovery, adds Brazilian Portuguese, and hardens the full in-game minimap renderer. Contributions by [JamDaBam](https://github.com/JamDaBam) and [SweetRlk](https://github.com/SweetRlk) are included. Existing `4.0.1` saves remain compatible.
 
 TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
@@ -76,7 +76,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Passenger-specific penalties do not apply: only collisions can damage the package.
 - Each impact can add **1–35% package damage**, proportionally reducing the delivery payout; cumulative damage is capped at 100%.
 - Package damage from 5% upward lowers the delivery review, reaching **1 star at 100% damage**.
-- Dedicated loading, unloading, cargo-weight, damage, progress, notification, and review states are available in all nine interface languages.
+- Dedicated loading, unloading, cargo-weight, damage, progress, notification, and review states are available in all ten interface languages.
 
 ### Universal and more believable destinations
 
@@ -108,7 +108,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Completed shifts are stored separately with their vehicle, preview, fuel/charge level, income, rating, and AI usage. A saved shift can restore its vehicle and energy state from the start screen or Driver Profile.
 - Active shift snapshots are refreshed every minute so ordinary game shutdown does not require a dedicated finish button.
 - Missing vehicle mods and zero-ride shifts are removed from selectable history.
-- The primary action is localized as **Start Shift** in all nine interface languages.
+- The primary action is localized as **Start Shift** in all ten interface languages.
 
 ### Optional AI driver
 
@@ -179,8 +179,9 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Enable **Realistic mode** on the start screen before going online.
 - Combustion vehicles begin the shift with 5% fuel; electric vehicles begin with 30% charge.
 - Stop at a compatible fuel station to open the in-phone refueling screen.
+- Repair vehicle damage from the same station screen. Repair cost follows current damage in Realistic Mode and is free outside Realistic Mode.
 - Use the persistent **Refuel** action to route to the nearest compatible station while browsing orders or during an active ride.
-- Maps without a compatible station open a clearly marked magic-fuel fallback that reuses the ordinary tank, wallet, slider, timing, and passenger-wait rules.
+- Maps without a compatible station open a clearly marked Magic Fuel fallback that reuses the ordinary refueling and repair rules.
 - Fuel routing temporarily takes priority without discarding the passenger, queued ride, or dispatcher state.
 - A fuel stop with a passenger aboard applies a small wait penalty balanced by difficulty, passenger Calmness, and driver rating.
 - Choose fuel or energy with a slider limited by tank capacity and the current TaxiDriver wallet balance.
@@ -207,7 +208,7 @@ Open the gear icon in the TaxiDriver phone to configure:
 
 Settings are grouped into expandable categories and apply automatically. The red Cheat Zone can set a rating, add test reviews or wallet funds, adjust new-order payouts, and reset driver statistics with confirmation.
 
-The interface includes English, German, French, Italian, Spanish, Polish, Russian, Ukrainian, and Simplified Chinese. English is used by default unless another language is explicitly remembered.
+The interface includes English, German, French, Italian, Spanish, Brazilian Portuguese, Polish, Russian, Ukrainian, and Simplified Chinese. English is used by default unless another language is explicitly remembered.
 
 Settings, profile details, and driver progress are stored separately outside the mod at:
 
@@ -266,7 +267,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Installation
 
-1. Download `taxidriver.zip` from the [4.0.1 release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.1).
+1. Download `taxidriver.zip` from the [4.0.2 release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.2).
 2. Place the archive directly in:
 
    ```text
