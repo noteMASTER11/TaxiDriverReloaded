@@ -24,6 +24,8 @@ function M.new(options)
   local activeMinimapTexture = nil
   local forceFullTextureClear = false
   local zoomMultiplier = nil
+  local lastReturnedScale = nil
+  local clearOnceSupported = nil
   local lastTransform = nil
   local visualOverrideActive = false
   local originalGroundmarkers = nil
@@ -45,7 +47,9 @@ function M.new(options)
     end
     originalSetMinimapState, wrappedSetMinimapState = nil, nil
     activeMinimapTexture, forceFullTextureClear = nil, false
+    clearOnceSupported = nil
     originalDrawPlayer, wrappedDrawPlayer, zoomMultiplier = nil, nil, nil
+    lastReturnedScale = nil
   end
 
   local function restoreVisualSettings()
@@ -108,12 +112,14 @@ function M.new(options)
         local result = originalSetState(...)
         local textureDraw = select(10, ...)
         if textureDraw and textureDraw.setClearFlag then
+          local textureChanged = activeMinimapTexture ~= textureDraw
           activeMinimapTexture = textureDraw
-          -- BeamNG 0.39 normally uses WhenDirty. On the larger full HUD texture,
-          -- the moving player primitive can leave a stale dirty rectangle around
-          -- the arrow. Full clearing is limited to the full TaxiDriver map; compact
-          -- mode retains the stock, cheaper dirty-region behaviour.
-          textureDraw:setClearFlag(forceFullTextureClear and "Always" or "WhenDirty")
+          if textureChanged then clearOnceSupported = nil end
+          -- BeamNG 0.39 computes the next scale at the end of drawPlayer(), after
+          -- roads and navigation have already been submitted with the old scale.
+          -- Keep normal dirty-region rendering here; drawPlayer schedules one full
+          -- clear specifically for the next frame when that scale actually changes.
+          textureDraw:setClearFlag("WhenDirty")
         end
         return result
       end
@@ -145,7 +151,21 @@ function M.new(options)
           zoomMultiplier = zoomMultiplier +
             (targetMultiplier - zoomMultiplier) * blend
         end
-        return baseScale * zoomMultiplier
+        local returnedScale = baseScale * zoomMultiplier
+        local scaleDelta = lastReturnedScale and math.abs(returnedScale - lastReturnedScale) or 0
+        local scaleChanged = lastReturnedScale ~= nil and scaleDelta > 0.00001
+        if forceFullTextureClear and scaleChanged and clearOnceSupported ~= false and
+          activeMinimapTexture and
+          type(activeMinimapTexture.clearOnceBeforeRender) == "function" then
+          local ok = pcall(function()
+            -- 0 is BeamNG's transparent clear color. The 0.39 binding requires
+            -- this numeric argument even when the primitive already has color 0.
+            return activeMinimapTexture:clearOnceBeforeRender(0)
+          end)
+          clearOnceSupported = ok
+        end
+        lastReturnedScale = returnedScale
+        return returnedScale
       end
       ui_apps_minimap_vehicles.drawPlayer = wrappedDrawPlayer
     end
