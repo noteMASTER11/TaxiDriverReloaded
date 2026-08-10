@@ -455,6 +455,18 @@ assert(not parkingAutopilot:isEnabled())
 assert(orientedCommands[#orientedCommands]:find("ai.setMode('stop')", 1, true))
 assert(not orientedCommands[#orientedCommands]:find(
   "ai.setMode('disabled')", 1, true))
+
+-- A park() call that can't resolve a vehicle (e.g. the vehicle briefly
+-- disappearing mid-parking, such as during a repair-triggered reload) must
+-- not leave the session permanently stuck: without clearing runtime.parking
+-- on that fault, every later toggle() would keep taking the disable() branch
+-- and never re-enable, hanging the AI Driver button forever.
+assert(parkingAutopilot:enable(orientedVehicle, "toDestination", orientedTarget))
+parkingAutopilot:park(nil, "vehicleMissingTest")
+assert(not parkingAutopilot:isEnabled())
+assert(parkingAutopilot:toggle(orientedVehicle, "toDestination", orientedTarget))
+assert(parkingAutopilot:isEnabled())
+parkingAutopilot:disable(orientedVehicle, "test")
 map = orientedMap
 end
 

@@ -68,6 +68,12 @@ function M.new(options)
   options = type(options) == "table" and options or {}
   local phases = options.phases or {}
   local trace = options.trace
+  -- Native route planning normally resolves in well under a second (see
+  -- "route calculated in X s" logs). A crashed or hung planner job never
+  -- invokes our completion callback, so without a watchdog a pending route
+  -- request has no other way to ever resolve, leaving the session stuck in
+  -- "planning" forever.
+  local routeRequestTimeoutSeconds = clamp(number(options.routeRequestTimeoutSeconds, 12), 3, 30)
   local route = aiDriverRoute.new({
     minimumDrivability = options.minimumDrivability,
     getRoutePath = options.getRoutePath
@@ -82,6 +88,7 @@ function M.new(options)
     sequence = 0,
     routeRevision = 0,
     routeRequestPending = false,
+    routeRequestElapsed = 0,
     routeDirty = false,
     routeDone = false,
     routeDoneDistance = nil,
@@ -144,18 +151,22 @@ function M.new(options)
       (runtime.enabled or runtime.parking ~= nil or runtime.status == "planning" or
         runtime.status == "driving" or runtime.status == "paused" or
         runtime.status == "parking")
-    if sessionOwnsVehicle and vehicle and type(vehicle.getID) == "function" then
+    -- No session currently owns a vehicle (e.g. a fresh enable() after the
+    -- previous session ended): trust whatever the caller supplied instead of
+    -- consulting a stale runtime.vehicleId left over from that prior session.
+    if not sessionOwnsVehicle then return vehicle end
+    if vehicle and type(vehicle.getID) == "function" then
       local ok, id = pcall(vehicle.getID, vehicle)
       if ok and tonumber(id) == runtime.vehicleId then return vehicle end
     end
-    if runtime.vehicleId and type(getObjectByID) == "function" then
+    if type(getObjectByID) == "function" then
       local ok, result = pcall(getObjectByID, runtime.vehicleId)
       if ok then return result end
     end
     -- Never transfer an active AI session to a newly supplied vehicle. If the
     -- original object disappeared, the caller must enter the parking fault
     -- path instead of sending commands to the replacement player vehicle.
-    return sessionOwnsVehicle and nil or vehicle
+    return nil
   end
 
   local function vehicleId(vehicle)
@@ -357,6 +368,14 @@ function M.new(options)
     if not runtime.parking then return end
     vehicle = resolveVehicle(vehicle)
     local sequence = nextSequence()
+    -- Every reason that reaches a full park (destination arrival, shift
+    -- stopped, feature disabled, driver toggle, faults, ...) is a genuine
+    -- handoff back to the player, not a temporary pause: mid-trip pauses
+    -- that resume the same AI session on their own (boarding, waiting at a
+    -- fuel-station detour) go through suspend()/resume, never park(). So
+    -- finalizing a park always hands full manual control back instead of
+    -- latching the parking brake with nothing left to ever release it again
+    -- outside of starting another AI route.
     if vehicle then
       queue(vehicle, table.concat({
         "if ai then ",
@@ -392,6 +411,52 @@ function M.new(options)
     completeTrace(reason)
   end
 
+  -- A driver-requested toggle while a park is still in progress (waiting for
+  -- the vehicle to become stationary, e.g. after a premature native "Route
+  -- Done" left it still moving) must be able to cancel immediately instead
+  -- of requestPark()'s usual idempotent no-op re-request -- otherwise a park
+  -- that keeps fighting the player's own driving can never be dismissed at
+  -- all. Unlike finalizePark(), this never assumes the vehicle is stationary:
+  -- it only releases AI control and pedal inputs, without selecting a
+  -- parking gear or setting the handbrake, since forcing either while still
+  -- moving would be unsafe/meaningless.
+  local function abortParking(vehicle, reason)
+    if not runtime.parking then return end
+    vehicle = resolveVehicle(vehicle)
+    local sequence = nextSequence()
+    if vehicle then
+      queue(vehicle, table.concat({
+        "if ai then ",
+        "if type(ai.setRacing)=='function' then ai.setRacing(false) end;",
+        "if type(ai.setPullOver)=='function' then ai.setPullOver(false) end;",
+        "if type(ai.setRecoverOnCrash)=='function' then ai.setRecoverOnCrash(false) end;",
+        "if type(ai.setSpeed)=='function' then ai.setSpeed(nil) end;",
+        "if type(ai.setSpeedMode)=='function' then ai.setSpeedMode('off') end;",
+        "if type(ai.setMode)=='function' then ai.setMode('disabled') end end;",
+        "local taxiObserver=extensions.taxiDriverStockAiObserver;",
+        "if taxiObserver and type(taxiObserver.abortParking)=='function' then ",
+        "taxiObserver.abortParking({sessionId=", quote(runtime.sessionId),
+        ",routeRevision=", tostring(runtime.routeRevision),
+        ",sequence=", tostring(sequence), "}) end"
+      }))
+    end
+    runtime.parking = nil
+    runtime.enabled = false
+    runtime.suspended = false
+    runtime.status = "parked"
+    runtime.reason = tostring(reason or "driver")
+    runtime.routeRequestPending = false
+    runtime.routeDirty = false
+    runtime.routeDone = true
+    logger.info("autopilot", "parking_aborted", {
+      sessionId = runtime.sessionId,
+      routeRevision = runtime.routeRevision,
+      sequence = sequence,
+      reason = runtime.reason
+    })
+    completeTrace(runtime.reason)
+  end
+
   local function requestPark(vehicle, reason)
     vehicle = resolveVehicle(vehicle)
     if runtime.parking then return true end
@@ -411,6 +476,10 @@ function M.new(options)
     if not vehicle then
       runtime.status = "fault"
       runtime.reason = "parkingVehicleMissing"
+      -- Clearing parking (rather than leaving it stuck non-nil) is required so
+      -- the next toggle() call falls through to enable() instead of being
+      -- permanently trapped in the disable()/no-op requestPark() branch.
+      runtime.parking = nil
       logger.error("autopilot", "parking_vehicle_missing", {
         sessionId = runtime.sessionId,
         routeRevision = runtime.routeRevision,
@@ -437,6 +506,7 @@ function M.new(options)
     if not queue(vehicle, command) then
       runtime.status = "fault"
       runtime.reason = "parkingCommandRejected"
+      runtime.parking = nil
       logger.error("autopilot", "parking_command_rejected", {
         sessionId = runtime.sessionId,
         routeRevision = runtime.routeRevision,
@@ -487,6 +557,7 @@ function M.new(options)
     local requestedTarget = runtime.target
     local requestedTargetKey = runtime.targetKey
     runtime.routeRequestPending = true
+    runtime.routeRequestElapsed = 0
     runtime.routeDirty = false
     runtime.status = "planning"
     runtime.reason = tostring(reason or "")
@@ -686,7 +757,17 @@ function M.new(options)
 
   function service:disable(vehicle, reason, park)
     vehicle = resolveVehicle(vehicle)
-    local wasActive = runtime.enabled or runtime.parking ~= nil or
+    if runtime.parking then
+      -- requestPark() below treats an already-in-progress park as an
+      -- idempotent no-op, so a fresh disable request needs abortParking()
+      -- instead to actually take effect -- otherwise a park that's still
+      -- waiting for the vehicle to stop (e.g. fighting the driver's own
+      -- input after a premature native "Route Done") could never be
+      -- cancelled by any of disable()'s callers at all.
+      abortParking(vehicle, reason)
+      return true
+    end
+    local wasActive = runtime.enabled or
       runtime.status == "planning" or runtime.status == "driving" or
       runtime.status == "paused"
     if not wasActive then
@@ -762,6 +843,7 @@ function M.new(options)
     if not vehicle then
       runtime.status = "fault"
       runtime.reason = "parkingVehicleLost"
+      runtime.parking = nil
       logger.error("autopilot", "parking_vehicle_lost", {
         sessionId = runtime.sessionId,
         routeRevision = runtime.routeRevision,
@@ -858,6 +940,17 @@ function M.new(options)
     end
 
     dt = math.max(0, number(dt, 0))
+    if runtime.routeRequestPending then
+      runtime.routeRequestElapsed = runtime.routeRequestElapsed + dt
+      if runtime.routeRequestElapsed >= routeRequestTimeoutSeconds then
+        routeFailure(vehicle, "routeRequestTimeout", {
+          elapsed = runtime.routeRequestElapsed
+        })
+        return false
+      end
+    else
+      runtime.routeRequestElapsed = 0
+    end
     runtime.elapsed = runtime.elapsed + dt
     local position = vehicle:getPosition()
     local moved = runtime.lastPosition and distance(position, runtime.lastPosition) or 0

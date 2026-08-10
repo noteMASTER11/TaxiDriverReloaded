@@ -36,6 +36,11 @@ local parkingCommitRequested = false
 local parkingStableChecks = 0
 local parkingGearTarget = nil
 local parkingGearboxBehavior = nil
+-- Captured once per drive session (in watch(), before AI ever touches the
+-- gearbox), as opposed to parkingGearboxBehavior which is only captured at
+-- the start of parking and can therefore already reflect a mode the native
+-- AI itself switched to while driving, not the player's true original mode.
+local originalGearboxBehavior = nil
 
 local capabilities = {}
 local settings = {
@@ -217,11 +222,21 @@ local function setParkingBrake(value)
   return parkingInput("parkingbrake", value)
 end
 
+-- main.gearboxBehavior only reflects the vehicle's compiled-in default; the
+-- "Q" hotkey's live, session-only override (BeamNG's own "Temporarily
+-- changed to ..." message) only shows up in getState()'s grb_bhv field. Read
+-- that first everywhere we need the mode actually in effect right now.
+local function currentGearboxBehavior(main, current)
+  main = main or mainController()
+  current = current or controllerState()
+  return tostring((current and current.grb_bhv) or (main and main.gearboxBehavior) or "")
+end
+
 local function restoreParkingGearboxBehavior()
   local main = mainController()
   if parkingGearboxBehavior and parkingGearboxBehavior ~= "" and main and
     type(main.setGearboxMode) == "function" and
-    tostring(main.gearboxBehavior or "") ~= parkingGearboxBehavior then
+    currentGearboxBehavior(main) ~= parkingGearboxBehavior then
     pcall(main.setGearboxMode, parkingGearboxBehavior)
   end
   parkingGearboxBehavior = nil
@@ -238,12 +253,12 @@ local function holdParkingGearboxBehavior()
   local current = controllerState()
   if not main or not current then return current end
   if parkingGearboxBehavior == nil then
-    parkingGearboxBehavior = tostring(main.gearboxBehavior or current.grb_bhv or "")
+    parkingGearboxBehavior = currentGearboxBehavior(main, current)
   end
   -- In Arcade, the brake input becomes reverse throttle around zero speed.
   -- Parking therefore owns Realistic behavior from the first braking frame,
   -- not only after the vehicle has already stopped.
-  if tostring(main.gearboxBehavior or current.grb_bhv or "") == "arcade" and
+  if currentGearboxBehavior(main, current) == "arcade" and
     type(main.setGearboxMode) == "function" then
     pcall(main.setGearboxMode, "realistic")
     current = controllerState() or current
@@ -319,6 +334,18 @@ local function readParkingGear()
   return actual, confirmed == true
 end
 
+local function debugLogGearbox(tag)
+  if type(log) ~= "function" then return end
+  local main = mainController()
+  local actual, confirmed = readParkingGear()
+  log("I", "taxiDriver.gearboxDebug", tag ..
+    " mode=" .. currentGearboxBehavior(main) ..
+    " originalGearboxBehavior=" .. tostring(originalGearboxBehavior) ..
+    " parkingGearTarget=" .. tostring(parkingGearTarget) ..
+    " actualGear=" .. tostring(actual) ..
+    " gearConfirmed=" .. tostring(confirmed))
+end
+
 local function updateParkingConfirmation()
   local speed = math.abs(number(electrics and electrics.values and
     electrics.values.wheelspeed, math.huge))
@@ -347,13 +374,22 @@ local function updateParkingConfirmation()
   return true
 end
 
+-- Only ever consulted by the stop/pause/park family below (requestPark,
+-- commitPark, onParkFinalized, abortParking, pause) -- nothing else in this
+-- file checks routeRevision. GE's runtime.routeRevision bumps on every route
+-- *attempt*, including failed ones, but the vehicle only learns the new
+-- number when a route actually succeeds (see watch()). After a failed retry
+-- (e.g. "asyncPathTooShort"), GE and the vehicle disagree on the current
+-- revision, so a stop/park/abort command carrying the newer number would be
+-- silently dropped here -- with nothing left to ever apply it. Since all
+-- five callers represent "stop what you're doing," not "continue this
+-- specific route," matching on sessionId alone is correct: it's always safe
+-- to actually stop when asked, regardless of which route generation asked.
 local function controlMatches(data)
   data = type(data) == "table" and data or {}
   if data.sessionId ~= nil and tostring(data.sessionId) ~= tostring(state.sessionId) then
     return false
   end
-  if data.routeRevision ~= nil and
-    number(data.routeRevision, -1) ~= number(state.routeRevision, -2) then return false end
   if data.sequence ~= nil then
     state.sequence = math.max(number(state.sequence, 0), number(data.sequence, 0))
   end
@@ -1294,16 +1330,111 @@ local function onParkFinalized(data)
   if not controlMatches(data) then return false end
   if not parkingConfirmed then return false end
   safeAiCall("setMode", "disabled")
-  selectParkingGear()
+  -- Every park finalization hands full manual control back to the player
+  -- (see finalizePark() in autopilot.lua for why). Restore the player's true
+  -- original gearbox mode, captured once in watch() before AI driving could
+  -- ever change it -- restoreParkingGearboxBehavior()'s value only reflects
+  -- whatever mode was active at the start of parking, already "arcade" if
+  -- the native AI itself switched to it while driving, not the player's
+  -- real original mode. Re-select the parking gear afterward: switching
+  -- modes can itself knock an automatic out of P (BeamNG 0.39 Arcade has no
+  -- true P state and auto-demotes to N), and a real parked car stays in P
+  -- on its own -- shifting out of it is a normal manual action, not
+  -- something that should happen on its own the instant control is handed
+  -- back.
+  local main = mainController()
+  debugLogGearbox("onParkFinalized before restore")
+  if originalGearboxBehavior and originalGearboxBehavior ~= "" and main and
+    type(main.setGearboxMode) == "function" and
+    currentGearboxBehavior(main) ~= originalGearboxBehavior then
+    pcall(main.setGearboxMode, originalGearboxBehavior)
+  end
+  debugLogGearbox("onParkFinalized after mode restore")
+  parkingGearboxBehavior = nil
+  -- selectParkingGear() calls holdParkingGearboxBehavior(), which
+  -- unconditionally forces arcade -> realistic (needed while parking so the
+  -- brake pedal doesn't reverse-throttle) -- calling it here would instantly
+  -- undo the mode restore above whenever the player's original mode was
+  -- arcade. Only reassert a gear when we're already in realistic (true P
+  -- exists there and forcing it is a harmless no-op); leave arcade's own
+  -- gear (which it may have auto-demoted out of P into N) untouched.
+  if currentGearboxBehavior(main) ~= "arcade" then
+    selectParkingGear()
+  end
+  debugLogGearbox("onParkFinalized after selectParkingGear")
   parkingInput("throttle", 0)
   parkingInput("brake", 0)
-  setParkingBrake(1)
+  -- Read the real current gear rather than trust the stale parkingGearTarget
+  -- from the parking-phase selectParkingGear() call (which always assumed
+  -- realistic mode) -- it may no longer match now that the mode has been
+  -- restored to whatever the player actually had.
+  if readParkingGear() ~= "P" then
+    -- No true Park engaged (Neutral, or Arcade auto-demoted out of P) --
+    -- nothing but the parking brake keeps the car from rolling once handed
+    -- back, so it stays engaged even though automatics release it once
+    -- safely sitting in P.
+    setParkingBrake(1)
+  else
+    setParkingBrake(0)
+  end
+  -- This drive-then-park cycle is fully done; the next watch() call (the
+  -- next time AI Drive actually starts a new route) must capture a fresh
+  -- original mode rather than reusing this session's.
+  originalGearboxBehavior = nil
+  -- Finalization is terminal: nothing else ever clears these two flags, and
+  -- updateGFX() reasserts throttle=0/brake=1/parkingbrake=1 every single
+  -- frame for as long as parkingRequested stays true (its whole purpose is
+  -- holding the vehicle stationary while parking is still in progress). Left
+  -- set after finalization, that per-frame watchdog was undoing the release
+  -- above one frame after it ran, and also fighting the driver on any other
+  -- attempt to move once parked.
+  parkingRequested = false
+  parkingCommitRequested = false
   state.parkingRequested = true
   state.parkingConfirmed = true
   state.parked = true
   state.supervisorMode = "parked"
   state.mode = "parked"
   state.status = "parked"
+  return true
+end
+
+-- Cancels a park attempt that hasn't been telemetry-confirmed yet (the
+-- vehicle may still be moving, e.g. the player kept driving through a
+-- premature native "Route Done"). Unlike onParkFinalized(), this never
+-- assumes the vehicle is stationary: it does not require parkingConfirmed,
+-- and it never selects a parking gear or sets the handbrake -- doing either
+-- while still moving would be unsafe or meaningless. It only releases AI
+-- control and pedal inputs and restores the player's original gearbox mode
+-- (safe at any speed, since it's just a response-curve setting).
+local function abortParking(data)
+  if not controlMatches(data) then return false end
+  safeAiCall("setMode", "disabled")
+  local main = mainController()
+  debugLogGearbox("abortParking before restore")
+  if originalGearboxBehavior and originalGearboxBehavior ~= "" and main and
+    type(main.setGearboxMode) == "function" and
+    currentGearboxBehavior(main) ~= originalGearboxBehavior then
+    pcall(main.setGearboxMode, originalGearboxBehavior)
+  end
+  debugLogGearbox("abortParking after restore")
+  parkingGearboxBehavior = nil
+  originalGearboxBehavior = nil
+  parkingInput("throttle", 0)
+  parkingInput("brake", 0)
+  setParkingBrake(0)
+  parkingRequested = false
+  parkingCommitRequested = false
+  parkingConfirmed = false
+  parkingStableChecks = 0
+  parkingGearTarget = nil
+  state.parkingRequested = false
+  state.parkingConfirmed = false
+  state.parked = false
+  state.selectedManeuver = "none"
+  state.supervisorMode = "cancelled"
+  state.mode = "cancelled"
+  state.status = "parkingAborted"
   return true
 end
 
@@ -1343,6 +1474,17 @@ end
 
 local function watch(config)
   config = type(config) == "table" and config or {}
+  -- Capture the player's true gearbox mode before anything below (or the
+  -- native AI itself, once driving starts) can change it, so a driver-
+  -- requested hand-back at the end of this session can restore the mode
+  -- the player actually had, not whatever mode was active by the time
+  -- parking happened to begin. Guarded to only capture once per session:
+  -- watch() re-fires on every mid-session route replan, and by then the
+  -- mode may already reflect an earlier AI-driven change, not the original.
+  if originalGearboxBehavior == nil then
+    originalGearboxBehavior = currentGearboxBehavior()
+    debugLogGearbox("watch() captured")
+  end
   restoreParkingGearboxBehavior()
   if watching then
     setNativeRacing(false)
@@ -1478,6 +1620,7 @@ M.onExtensionUnloaded = onExtensionUnloaded
 M.requestPark = requestPark
 M.commitPark = commitPark
 M.onParkFinalized = onParkFinalized
+M.abortParking = abortParking
 M.pause = pause
 M.fail = fail
 
