@@ -24,7 +24,7 @@ This patch integrates the community work tested after `4.0.1`, then hardens it a
 
 - Added complete Brazilian Portuguese (`pt-BR`) UI localization and Fleet world labels.
 - Restored the native minimap occlusion masks required to keep the map below full-mode trip widgets.
-- The full in-game minimap now clears its shared BeamNG texture every frame while TaxiDriver owns it, mitigating the 0.39 dirty-region rectangle that could flash around the moving orange vehicle arrow. Minimized mode retains BeamNG's lower-cost dirty-region rendering.
+- Fixed the BeamNG 0.39 dirty-region rectangle around the full-mode orange vehicle arrow by retaining normal `WhenDirty` rendering and scheduling one transparent full-texture clear specifically for the next frame whenever dynamic zoom changes scale. Minimized mode keeps the stock lower-cost path without forced clears.
 - Bumped the Connected Phone asset revision to `402` so browsers do not mix older cached UI files with this release.
 
 ### Compatibility and validation
@@ -32,7 +32,6 @@ This patch integrates the community work tested after `4.0.1`, then hardens it a
 - Target game version: **BeamNG.drive 0.39**.
 - Existing settings, profiles, progress, histories, route cache, Fleet data, and LAN identity remain compatible with `4.0.1`.
 - Issue #3, the intermittent invisible vehicle after changing vehicles during an active shift, is not claimed as fixed because it was not reproduced reliably enough to validate a targeted change.
-- A white rectangle may still flash around the full-mode player arrow while dynamic minimap zoom is changing on BeamNG 0.39.x. The full-frame texture clear in this release is a mitigation; static zoom and minimized mode are not affected in the reported reproduction, and further renderer diagnostics are planned.
 
 ### Acknowledgements
 
