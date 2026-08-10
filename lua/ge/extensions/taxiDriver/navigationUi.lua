@@ -19,6 +19,10 @@ function M.new(options)
   local uiBlocked = false
   local originalDrawPlayer = nil
   local wrappedDrawPlayer = nil
+  local originalSetMinimapState = nil
+  local wrappedSetMinimapState = nil
+  local activeMinimapTexture = nil
+  local forceFullTextureClear = false
   local zoomMultiplier = nil
   local lastTransform = nil
   local visualOverrideActive = false
@@ -32,6 +36,15 @@ function M.new(options)
       ui_apps_minimap_vehicles.drawPlayer == wrappedDrawPlayer then
       ui_apps_minimap_vehicles.drawPlayer = originalDrawPlayer
     end
+    if activeMinimapTexture and activeMinimapTexture.setClearFlag then
+      activeMinimapTexture:setClearFlag("WhenDirty")
+    end
+    if ui_apps_minimap_vehicles and originalSetMinimapState and
+      ui_apps_minimap_vehicles.setMinimapState == wrappedSetMinimapState then
+      ui_apps_minimap_vehicles.setMinimapState = originalSetMinimapState
+    end
+    originalSetMinimapState, wrappedSetMinimapState = nil, nil
+    activeMinimapTexture, forceFullTextureClear = nil, false
     originalDrawPlayer, wrappedDrawPlayer, zoomMultiplier = nil, nil, nil
   end
 
@@ -84,36 +97,58 @@ function M.new(options)
   end
 
   local function installDynamicZoom()
-    if wrappedDrawPlayer then return end
     if not ui_apps_minimap_vehicles then extensions.load("ui_apps_minimap_vehicles") end
-    if not ui_apps_minimap_vehicles or
-      type(ui_apps_minimap_vehicles.drawPlayer) ~= "function" then return end
-    originalDrawPlayer = ui_apps_minimap_vehicles.drawPlayer
-    local original = originalDrawPlayer
-    wrappedDrawPlayer = function(dtReal, dtSim)
-      local baseScale = original(dtReal, dtSim)
-      if type(baseScale) ~= "number" or not owned or
-        (options.isActive and not options.isActive()) then return baseScale end
-      local vehicle = options.getVehicle and options.getVehicle() or nil
-      local speedKmh = vehicle and options.getSpeedKmh and options.getSpeedKmh(vehicle) or 0
-      local speedRatio = clamp(speedKmh / 120, 0, 1)
-      local easedSpeed = speedRatio * speedRatio * (3 - 2 * speedRatio)
-      local rawTargetMultiplier = 0.66 + (1.62 - 0.66) * easedSpeed
-      local intensity = clamp(
-        options.getZoomIntensity and options.getZoomIntensity() or 100, 0, 200) / 100
-      local targetMultiplier = clamp(
-        1 + (rawTargetMultiplier - 1) * intensity, 0.35, 2.30)
-      if not zoomMultiplier then
-        zoomMultiplier = targetMultiplier
-      else
-        local frameTime = clamp(dtReal or 0.016, 0, 0.1)
-        local blend = 1 - math.exp(-frameTime * 2.4)
-        zoomMultiplier = zoomMultiplier +
-          (targetMultiplier - zoomMultiplier) * blend
+    if not ui_apps_minimap_vehicles then return end
+
+    if not wrappedSetMinimapState and
+      type(ui_apps_minimap_vehicles.setMinimapState) == "function" then
+      originalSetMinimapState = ui_apps_minimap_vehicles.setMinimapState
+      local originalSetState = originalSetMinimapState
+      wrappedSetMinimapState = function(...)
+        local result = originalSetState(...)
+        local textureDraw = select(10, ...)
+        if textureDraw and textureDraw.setClearFlag then
+          activeMinimapTexture = textureDraw
+          -- BeamNG 0.39 normally uses WhenDirty. On the larger full HUD texture,
+          -- the moving player primitive can leave a stale dirty rectangle around
+          -- the arrow. Full clearing is limited to the full TaxiDriver map; compact
+          -- mode retains the stock, cheaper dirty-region behaviour.
+          textureDraw:setClearFlag(forceFullTextureClear and "Always" or "WhenDirty")
+        end
+        return result
       end
-      return baseScale * zoomMultiplier
+      ui_apps_minimap_vehicles.setMinimapState = wrappedSetMinimapState
     end
-    ui_apps_minimap_vehicles.drawPlayer = wrappedDrawPlayer
+
+    if not wrappedDrawPlayer and
+      type(ui_apps_minimap_vehicles.drawPlayer) == "function" then
+      originalDrawPlayer = ui_apps_minimap_vehicles.drawPlayer
+      local original = originalDrawPlayer
+      wrappedDrawPlayer = function(dtReal, dtSim)
+        local baseScale = original(dtReal, dtSim)
+        if type(baseScale) ~= "number" or not owned or
+          (options.isActive and not options.isActive()) then return baseScale end
+        local vehicle = options.getVehicle and options.getVehicle() or nil
+        local speedKmh = vehicle and options.getSpeedKmh and options.getSpeedKmh(vehicle) or 0
+        local speedRatio = clamp(speedKmh / 120, 0, 1)
+        local easedSpeed = speedRatio * speedRatio * (3 - 2 * speedRatio)
+        local rawTargetMultiplier = 0.66 + (1.62 - 0.66) * easedSpeed
+        local intensity = clamp(
+          options.getZoomIntensity and options.getZoomIntensity() or 100, 0, 200) / 100
+        local targetMultiplier = clamp(
+          1 + (rawTargetMultiplier - 1) * intensity, 0.35, 2.30)
+        if not zoomMultiplier then
+          zoomMultiplier = targetMultiplier
+        else
+          local frameTime = clamp(dtReal or 0.016, 0, 0.1)
+          local blend = 1 - math.exp(-frameTime * 2.4)
+          zoomMultiplier = zoomMultiplier +
+            (targetMultiplier - zoomMultiplier) * blend
+        end
+        return baseScale * zoomMultiplier
+      end
+      ui_apps_minimap_vehicles.drawPlayer = wrappedDrawPlayer
+    end
   end
 
   function service:clearNavigation()
@@ -198,8 +233,9 @@ function M.new(options)
     return appVisible and not uiBlocked
   end
 
-  function service:setTransform(x, y, width, height, allowFleet)
+  function service:setTransform(x, y, width, height, allowFleet, fullTextureClear)
     if not self:canShow(allowFleet) then self:hideMinimap(); return end
+    forceFullTextureClear = fullTextureClear == true
     x, y, width, height = tonumber(x), tonumber(y), tonumber(width), tonumber(height)
     if not x or not y or not width or not height or width <= 0 or height <= 0 then return end
     x, y = clamp(x, 0, 1), clamp(y, 0, 1)

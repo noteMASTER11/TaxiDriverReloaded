@@ -14,6 +14,7 @@ local passengerMood = require("taxiDriver/passengerMood")
 local routeDiversity = require("taxiDriver/routeDiversity")
 local delivery = require("taxiDriver/delivery")
 local repairPricing = require("taxiDriver/repairPricing")
+local vehicleRepair = require("taxiDriver/vehicleRepair")
 local lanBridge = require("taxiDriver/optionalLanBridge")
 local vehicleHistory = require("taxiDriver/vehicleHistory")
 local vehicleScanGuard = require("taxiDriver/vehicleScanGuard")
@@ -33,7 +34,7 @@ local hudPublisher = require("taxiDriver/hudPublisher")
 local logger = require("taxiDriver/logger")
 local runtimeBoundary = require("taxiDriver/faultBoundary").new({retrySeconds = 1})
 local aiLoggerModule = require("taxiDriver/aiLogger")
-local modVersion = "4.0.1-test.20260810"
+local modVersion = "4.0.2"
 local fleet = require("taxiDriver/fleetManager").new({modVersion = modVersion})
 local logTag = "taxiDriver"
 local supportedLanguages = taxiConfig.supportedLanguages
@@ -115,10 +116,9 @@ local realisticFuel = {
   repairDamageProbe = {pending = false, vehicleId = nil, callback = nil, timeout = 0},
   repairSuppressResetVehicleId = nil,
   repairSuppressResetExpiresAt = nil,
-  repairPlateFixVehicleId = nil,
-  repairPlateFixExpiresAt = nil,
   repairRestoreTanksVehicleId = nil,
   repairRestoreTanksData = nil,
+  repairRestoreTanksFrames = 0,
   repairRestoreTanksExpiresAt = nil,
   repairing = {
     active = false,
@@ -1525,11 +1525,11 @@ function realisticFuel.purchaseRepair()
   end)
 end
 
--- Shared low-level repair primitive: reloads the local player's vehicle in
--- place (BeamNG's only known way to clear deformation/damage without a full
--- respawn) while preserving its current fuel/energy levels and suppressing
--- the shift-cancelling reset handler for that one expected reset. Used by
--- both the paid gas-station repair flow and the free debug-menu cheat.
+-- Shared low-level repair primitive. It uses the same reset-in-place path as
+-- BeamNG 0.39's sandbox "Repair vehicle" action instead of reloadVehicle(),
+-- which reconstructs the vehicle VM and can crash in finishConstructionGESide.
+-- Fuel/charge is restored a couple of GE frames after the physics reset.
+-- Used by both the paid gas-station repair flow and the free debug-menu cheat.
 -- callback(success) is invoked once the attempt completes.
 function realisticFuel.repairVehiclePhysically(vehicle, callback)
   if not vehicle or tonumber(vehicle:getID()) ~= tonumber(be:getPlayerVehicleID(0)) then
@@ -1539,65 +1539,35 @@ function realisticFuel.repairVehiclePhysically(vehicle, callback)
   local vehicleId = tonumber(vehicle:getID())
 
   local function attempt(preservedTanks)
-    -- Suppress the very next handleVehicleReset for this vehicle:
-    -- be:reloadVehicle(0) is confirmed by community reports to trigger the
-    -- same reset callback used by "Recover Vehicle". This one-shot flag
-    -- (consumed in handleVehicleReset, auto-expiring via the M.onUpdate
-    -- check) is what keeps the active shift alive.
+    -- The supported repair path still emits the ordinary vehicle-reset hook.
+    -- Suppress only this expected reset so an active shift survives.
     realisticFuel.repairSuppressResetVehicleId = vehicleId
-    -- Primarily cleared by scannerBecameReady (M.onUpdate) once the vehicle
-    -- VM actually settles; this is only a generous fallback in case that
-    -- signal never arrives (e.g. some unrelated vehicleScanGuard state).
-    realisticFuel.repairSuppressResetExpiresAt = (os.clock() or 0) + 20
-    -- be:reloadVehicle(0) respawns from the vehicle's raw .pc file path
-    -- rather than its already-resolved parts config, which leaves the
-    -- license plate CEF texture stuck on "NO TEXTURE" -- confirmed in-game
-    -- across many repairs. core_vehicles.setPlateText (the same primitive
-    -- BeamNG's own "License Plate" config field and its tech/research API
-    -- use) forces the plate texture to regenerate without another respawn,
-    -- so it's queued here and fired once the vehicle settles, below.
-    realisticFuel.repairPlateFixVehicleId = vehicleId
-    realisticFuel.repairPlateFixExpiresAt = (os.clock() or 0) + 20
-    -- be:reloadVehicle also refills the tank and resets the gear, and the
-    -- recovery call below is known to refill it again -- restoring the
-    -- pre-repair energy levels is therefore deferred to the same
-    -- scannerBecameReady checkpoint as the plate fix (rather than done
-    -- immediately here), so it's guaranteed to be the last thing applied
-    -- and isn't clobbered by recovery's own refill. Otherwise repairing
-    -- would incidentally hand out free fuel too.
+    realisticFuel.repairSuppressResetExpiresAt = (os.clock() or 0) + 5
+    -- Resetting initial node positions may also reset energy storage. Queue
+    -- restoration after two GE frames so the physics reset wins first and a
+    -- paid repair never hands out free fuel/charge.
     if type(preservedTanks) == "table" then
       realisticFuel.repairRestoreTanksVehicleId = vehicleId
       realisticFuel.repairRestoreTanksData = preservedTanks
-      realisticFuel.repairRestoreTanksExpiresAt = (os.clock() or 0) + 20
+      realisticFuel.repairRestoreTanksFrames = 2
+      realisticFuel.repairRestoreTanksExpiresAt = (os.clock() or 0) + 5
     end
 
-    -- "0" is the local player slot (same convention as be:getPlayerVehicleID(0)
-    -- above), not a vehicle ID -- reloadVehicle has no vehicle-ID overload.
-    local ok = pcall(function() be:reloadVehicle(0) end)
+    local ok, reason = vehicleRepair.repairInPlace(vehicle)
     if not ok then
       realisticFuel.repairSuppressResetVehicleId = nil
       realisticFuel.repairSuppressResetExpiresAt = nil
-      realisticFuel.repairPlateFixVehicleId = nil
-      realisticFuel.repairPlateFixExpiresAt = nil
       realisticFuel.repairRestoreTanksVehicleId = nil
       realisticFuel.repairRestoreTanksData = nil
+      realisticFuel.repairRestoreTanksFrames = 0
       realisticFuel.repairRestoreTanksExpiresAt = nil
+      logger.error("repair", "repair_in_place_failed", {
+        vehicleId = vehicleId, reason = tostring(reason or "unknown")
+      })
       if type(callback) == "function" then callback(false) end
       return
     end
-
-    local restoredVehicle = getObjectByID(vehicleId)
-    -- be:reloadVehicle preserves whatever position/orientation the vehicle
-    -- had, including flipped/upside-down -- confirmed in-game. recovery
-    -- .startRecovering()/stopRecovering() (vehicle-side) is the same pair of
-    -- calls BeamNG's own "Recover Vehicle" (Home key) runs, placing the
-    -- vehicle upright at its last tracked safe position; since repair only
-    -- runs while the vehicle is nearly stationary, that position is right
-    -- where it already is.
-    if restoredVehicle and type(restoredVehicle.queueLuaCommand) == "function" then
-      restoredVehicle:queueLuaCommand(
-        "if recovery then recovery.startRecovering() recovery.stopRecovering() end")
-    end
+    logger.info("repair", "repair_in_place_applied", {vehicleId = vehicleId})
     if type(callback) == "function" then callback(true) end
   end
 
@@ -2014,7 +1984,7 @@ local function stopModeInternal(message, showNotification, notificationKey)
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
   physicalPickup:clear()
   policeCheck:cancel("shiftStopped")
-  autopilot:disable(vehicle, "shiftStopped")
+  autopilot:disable(vehicle, "shiftStopped", true)
   if shiftTracking:getHud().active then
     local completedShift = shiftTracking:finish()
     shiftHistory.finishActive(vehicle, vehicleHistory.getCurrentShiftVehicle(),
@@ -3298,7 +3268,13 @@ function realisticFuel.resumeRoute()
   local previousRemainingDistance = realisticFuel.detour.previousRemainingDistance or 0
   local closeMagicStation = realisticFuel.station and realisticFuel.station.magic == true
   realisticFuel.resetDetour()
-  if closeMagicStation then realisticFuel.clearStation() end
+  if closeMagicStation then
+    realisticFuel.clearStation()
+    if realisticFuel.repairStation and
+      realisticFuel.repairStation.magic == true then
+      realisticFuel.clearRepairStation()
+    end
+  end
   clearNavigation()
 
   if previousPhase == phases.searching then
@@ -3359,6 +3335,19 @@ function realisticFuel.openMagicStation(vehicle)
     radius = 0,
     magic = true
   }
+  -- Maps without native gas stations must not lose the repair service. The
+  -- same stationary/price/duration rules used by a physical station apply;
+  -- only the spatial station check is omitted because Magic Fuel is opened at
+  -- the current vehicle position.
+  realisticFuel.repairStation = {
+    id = facility.id,
+    facility = facility,
+    center = nil,
+    radius = 0,
+    magic = true
+  }
+  realisticFuel.repairLastDamagePercent = 0
+  realisticFuel.repairDamageRefreshTimer = 0
   realisticFuel.stationFuelTypes = {any = true}
   realisticFuel.options = {}
   realisticFuel.dataTimer = 0
@@ -4083,8 +4072,8 @@ end
 function M.setMinimapAppVisibility(visible)
   navigationUi:setAppVisibility(visible)
 end
-function M.setMinimapTransform(x, y, width, height, allowFleet)
-  navigationUi:setTransform(x, y, width, height, allowFleet)
+function M.setMinimapTransform(x, y, width, height, allowFleet, forceFullTextureClear)
+  navigationUi:setTransform(x, y, width, height, allowFleet, forceFullTextureClear)
 end
 function M.setMinimapOcclusions(
   routeX, routeY, routeWidth, routeHeight,
@@ -4333,33 +4322,10 @@ function M.onUpdate(dtReal, dtSim)
     if pruneOk and pruned then runtimeBoundary:call("hud.full", notifyHud) end
   end
   if scannerBecameReady then
-    -- The vehicle VM has gone fully stable, so no further onVehicleResetted
-    -- events are expected as a consequence of a repair -- safe to disarm the
-    -- suppression flag now (see the comment in handleVehicleReset).
+    -- The vehicle has gone fully stable, so no further onVehicleResetted
+    -- events are expected as a consequence of an in-place repair.
     realisticFuel.repairSuppressResetVehicleId = nil
     realisticFuel.repairSuppressResetExpiresAt = nil
-    if realisticFuel.repairPlateFixVehicleId then
-      local plateVehicleId = realisticFuel.repairPlateFixVehicleId
-      realisticFuel.repairPlateFixVehicleId = nil
-      realisticFuel.repairPlateFixExpiresAt = nil
-      if getObjectByID(plateVehicleId) then
-        pcall(function() core_vehicles.setPlateText(false, plateVehicleId) end)
-      end
-    end
-    if realisticFuel.repairRestoreTanksVehicleId then
-      local tanksVehicleId = realisticFuel.repairRestoreTanksVehicleId
-      local preservedTanks = realisticFuel.repairRestoreTanksData
-      realisticFuel.repairRestoreTanksVehicleId = nil
-      realisticFuel.repairRestoreTanksData = nil
-      realisticFuel.repairRestoreTanksExpiresAt = nil
-      local tanksVehicle = getObjectByID(tanksVehicleId)
-      if tanksVehicle and type(preservedTanks) == "table" then
-        for _, tank in ipairs(preservedTanks) do
-          vehicleBridgeGuard.execute(
-            tanksVehicle, "setEnergyStorageEnergy", tank.name, tank.currentEnergy)
-        end
-      end
-    end
     realisticFuel.dashboardEnergyTimer = 0
     local stableVehicle = state.active and state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
     runtimeBoundary:call(
@@ -4404,15 +4370,30 @@ function M.onUpdate(dtReal, dtSim)
     realisticFuel.repairSuppressResetVehicleId = nil
     realisticFuel.repairSuppressResetExpiresAt = nil
   end
-  if realisticFuel.repairPlateFixVehicleId and
-    (os.clock() or 0) > (realisticFuel.repairPlateFixExpiresAt or 0) then
-    realisticFuel.repairPlateFixVehicleId = nil
-    realisticFuel.repairPlateFixExpiresAt = nil
-  end
   if realisticFuel.repairRestoreTanksVehicleId and
+    (realisticFuel.repairRestoreTanksFrames or 0) > 0 then
+    realisticFuel.repairRestoreTanksFrames =
+      realisticFuel.repairRestoreTanksFrames - 1
+    if realisticFuel.repairRestoreTanksFrames <= 0 then
+      local tanksVehicleId = realisticFuel.repairRestoreTanksVehicleId
+      local preservedTanks = realisticFuel.repairRestoreTanksData
+      realisticFuel.repairRestoreTanksVehicleId = nil
+      realisticFuel.repairRestoreTanksData = nil
+      realisticFuel.repairRestoreTanksExpiresAt = nil
+      local tanksVehicle = getObjectByID(tanksVehicleId)
+      if tanksVehicle and type(preservedTanks) == "table" then
+        for _, tank in ipairs(preservedTanks) do
+          vehicleBridgeGuard.execute(
+            tanksVehicle, "setEnergyStorageEnergy", tank.name, tank.currentEnergy)
+        end
+      end
+      realisticFuel.deferDashboardEnergy()
+    end
+  elseif realisticFuel.repairRestoreTanksVehicleId and
     (os.clock() or 0) > (realisticFuel.repairRestoreTanksExpiresAt or 0) then
     realisticFuel.repairRestoreTanksVehicleId = nil
     realisticFuel.repairRestoreTanksData = nil
+    realisticFuel.repairRestoreTanksFrames = 0
     realisticFuel.repairRestoreTanksExpiresAt = nil
   end
   local fleetOk, fleetDelta, fleetHudDirty = runtimeBoundary:call(
@@ -4495,15 +4476,9 @@ local function handleVehicleReset(vehicleId)
   -- below (manual player resets, vehicle switches, any other vehicle) is
   -- untouched. Works even with no active shift.
   --
-  -- be:reloadVehicle(0) can fire onVehicleResetted more than once for a
-  -- single repair (a second internal respawn pass can land several seconds
-  -- after the first, e.g. if the player opens the pause menu in between) --
-  -- so the flag is deliberately NOT cleared on the first match here. It
-  -- stays armed for every matching reset until vehicleScanGuard reports the
-  -- vehicle VM has actually gone stable (see the scannerBecameReady check in
-  -- M.onUpdate), which only happens once resets stop arriving. A generous
-  -- wall-clock expiry (M.onUpdate) is still a fallback in case that signal
-  -- never comes.
+  -- Keep the flag armed until vehicleScanGuard reports the reset-in-place has
+  -- settled. A short wall-clock expiry is a fallback if no lifecycle signal
+  -- arrives.
   if vehicleId and realisticFuel.repairSuppressResetVehicleId == vehicleId then
     return
   end

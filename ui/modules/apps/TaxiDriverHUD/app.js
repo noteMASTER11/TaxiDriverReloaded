@@ -1752,8 +1752,9 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             .join(",");
 
           const allowFleetMap = $scope.fleetOpen ? "true" : "false";
+          const forceFullTextureClear = $scope.phoneMinimized ? "false" : "true";
           bngApi.engineLua(
-            `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.setMinimapTransform(${rectKey}, ${allowFleetMap}); taxiDriver_taxiDriver.setMinimapOcclusions(${occlusionKey}, ${allowFleetMap}) end`
+            `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.setMinimapTransform(${rectKey}, ${allowFleetMap}, ${forceFullTextureClear}); taxiDriver_taxiDriver.setMinimapOcclusions(${occlusionKey}, ${allowFleetMap}) end`
           );
         };
 

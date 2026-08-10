@@ -1,5 +1,44 @@
 # Changelog
 
+## 4.0.2 — Repair Services, AI Hand-back and Brazilian Portuguese
+
+This patch integrates the community work tested after `4.0.1`, then hardens it against the repair crash and AI control-state failures found during in-game verification on BeamNG.drive 0.39.
+
+### Vehicle repair
+
+- Added damage-based repair alongside refueling at physical gas stations. Repair remains available without an active taxi shift and records its cost in shift accounting.
+- Added the same repair service to **Magic Fuel**, including stationary checks, progress, price display, and mutual exclusion with refueling.
+- Repairs are paid in Realistic Mode and free when Realistic Mode is disabled. The debug menu also exposes a free repair action for testing.
+- Replaced the crash-prone `be:reloadVehicle(0)` implementation with BeamNG 0.39's in-place sandbox repair path. The active shift is preserved and the pre-repair fuel or battery level is restored after the physics reset.
+- Refueling and repair cannot run simultaneously; the restriction is enforced in both the UI and Lua runtime.
+
+### AI Driver control hand-back
+
+- Fixed parking fault paths that could leave AI Driver permanently unavailable until the vehicle was reset.
+- Disabling AI Driver manually now releases native AI, brake inputs, parking inputs, and temporary gearbox behavior immediately. Route completion and route-ending gameplay events still use the normal stationary Park/Neutral plus parking-brake hand-off.
+- Added a timeout for native route-planner jobs that never return, allowing the existing retry or parking recovery path to continue.
+- Restored the player's original Arcade/Realistic gearbox behavior after AI control and removed stale route-revision rejection from same-session parking commands.
+- Removed the temporary gearbox diagnostic logging after the relevant failure paths were isolated.
+
+### UI, minimap and localization
+
+- Added complete Brazilian Portuguese (`pt-BR`) UI localization and Fleet world labels.
+- Restored the native minimap occlusion masks required to keep the map below full-mode trip widgets.
+- The full in-game minimap now clears its shared BeamNG texture every frame while TaxiDriver owns it, mitigating the 0.39 dirty-region rectangle that could flash around the moving orange vehicle arrow. Minimized mode retains BeamNG's lower-cost dirty-region rendering.
+- Bumped the Connected Phone asset revision to `402` so browsers do not mix older cached UI files with this release.
+
+### Compatibility and validation
+
+- Target game version: **BeamNG.drive 0.39**.
+- Existing settings, profiles, progress, histories, route cache, Fleet data, and LAN identity remain compatible with `4.0.1`.
+- Issue #3, the intermittent invisible vehicle after changing vehicles during an active shift, is not claimed as fixed because it was not reproduced reliably enough to validate a targeted change.
+- A white rectangle may still flash around the full-mode player arrow while dynamic minimap zoom is changing on BeamNG 0.39.x. The full-frame texture clear in this release is a mitigation; static zoom and minimized mode are not affected in the reported reproduction, and further renderer diagnostics are planned.
+
+### Acknowledgements
+
+- Thank you to [JamDaBam](https://github.com/JamDaBam) for the original gas-station repair implementation and extensive in-game verification in [PR #2](https://github.com/noteMASTER11/TaxiDriverReloaded/pull/2), and for diagnosing the stuck AI parking, gearbox restoration, stale control revision, and route-timeout failures documented in [issue #5](https://github.com/noteMASTER11/TaxiDriverReloaded/issues/5).
+- Thank you to [SweetRlk](https://github.com/SweetRlk) for preparing and sharing the Brazilian Portuguese translation in [issue #7](https://github.com/noteMASTER11/TaxiDriverReloaded/issues/7).
+
 ## 4.0.1 — Connected Phone Map and LAN Reliability
 
 This patch restores the Connected Phone navigation map on BeamNG.drive 0.39 and adds a practical LAN-address fallback for platforms where the game cannot enumerate a usable network adapter.

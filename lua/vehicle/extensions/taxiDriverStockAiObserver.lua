@@ -334,18 +334,6 @@ local function readParkingGear()
   return actual, confirmed == true
 end
 
-local function debugLogGearbox(tag)
-  if type(log) ~= "function" then return end
-  local main = mainController()
-  local actual, confirmed = readParkingGear()
-  log("I", "taxiDriver.gearboxDebug", tag ..
-    " mode=" .. currentGearboxBehavior(main) ..
-    " originalGearboxBehavior=" .. tostring(originalGearboxBehavior) ..
-    " parkingGearTarget=" .. tostring(parkingGearTarget) ..
-    " actualGear=" .. tostring(actual) ..
-    " gearConfirmed=" .. tostring(confirmed))
-end
-
 local function updateParkingConfirmation()
   local speed = math.abs(number(electrics and electrics.values and
     electrics.values.wheelspeed, math.huge))
@@ -1343,13 +1331,11 @@ local function onParkFinalized(data)
   -- something that should happen on its own the instant control is handed
   -- back.
   local main = mainController()
-  debugLogGearbox("onParkFinalized before restore")
   if originalGearboxBehavior and originalGearboxBehavior ~= "" and main and
     type(main.setGearboxMode) == "function" and
     currentGearboxBehavior(main) ~= originalGearboxBehavior then
     pcall(main.setGearboxMode, originalGearboxBehavior)
   end
-  debugLogGearbox("onParkFinalized after mode restore")
   parkingGearboxBehavior = nil
   -- selectParkingGear() calls holdParkingGearboxBehavior(), which
   -- unconditionally forces arcade -> realistic (needed while parking so the
@@ -1361,7 +1347,6 @@ local function onParkFinalized(data)
   if currentGearboxBehavior(main) ~= "arcade" then
     selectParkingGear()
   end
-  debugLogGearbox("onParkFinalized after selectParkingGear")
   parkingInput("throttle", 0)
   parkingInput("brake", 0)
   -- Read the real current gear rather than trust the stale parkingGearTarget
@@ -1411,13 +1396,11 @@ local function abortParking(data)
   if not controlMatches(data) then return false end
   safeAiCall("setMode", "disabled")
   local main = mainController()
-  debugLogGearbox("abortParking before restore")
   if originalGearboxBehavior and originalGearboxBehavior ~= "" and main and
     type(main.setGearboxMode) == "function" and
     currentGearboxBehavior(main) ~= originalGearboxBehavior then
     pcall(main.setGearboxMode, originalGearboxBehavior)
   end
-  debugLogGearbox("abortParking after restore")
   parkingGearboxBehavior = nil
   originalGearboxBehavior = nil
   parkingInput("throttle", 0)
@@ -1483,7 +1466,6 @@ local function watch(config)
   -- mode may already reflect an earlier AI-driven change, not the original.
   if originalGearboxBehavior == nil then
     originalGearboxBehavior = currentGearboxBehavior()
-    debugLogGearbox("watch() captured")
   end
   restoreParkingGearboxBehavior()
   if watching then

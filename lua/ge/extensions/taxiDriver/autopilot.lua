@@ -411,17 +411,12 @@ function M.new(options)
     completeTrace(reason)
   end
 
-  -- A driver-requested toggle while a park is still in progress (waiting for
-  -- the vehicle to become stationary, e.g. after a premature native "Route
-  -- Done" left it still moving) must be able to cancel immediately instead
-  -- of requestPark()'s usual idempotent no-op re-request -- otherwise a park
-  -- that keeps fighting the player's own driving can never be dismissed at
-  -- all. Unlike finalizePark(), this never assumes the vehicle is stationary:
-  -- it only releases AI control and pedal inputs, without selecting a
-  -- parking gear or setting the handbrake, since forcing either while still
-  -- moving would be unsafe/meaningless.
+  -- Hands control back immediately. This is used for an explicit driver
+  -- toggle (including while a park is still in progress) and for temporary
+  -- detours. Unlike finalizePark(), it never assumes the vehicle is stopped:
+  -- it only disables AI, releases pedal/parking inputs, and restores the
+  -- player's gearbox behavior.
   local function abortParking(vehicle, reason)
-    if not runtime.parking then return end
     vehicle = resolveVehicle(vehicle)
     local sequence = nextSequence()
     if vehicle then
@@ -443,12 +438,12 @@ function M.new(options)
     runtime.parking = nil
     runtime.enabled = false
     runtime.suspended = false
-    runtime.status = "parked"
+    runtime.status = "disabled"
     runtime.reason = tostring(reason or "driver")
     runtime.routeRequestPending = false
     runtime.routeDirty = false
     runtime.routeDone = true
-    logger.info("autopilot", "parking_aborted", {
+    logger.info("autopilot", "control_released", {
       sessionId = runtime.sessionId,
       routeRevision = runtime.routeRevision,
       sequence = sequence,
@@ -757,17 +752,7 @@ function M.new(options)
 
   function service:disable(vehicle, reason, park)
     vehicle = resolveVehicle(vehicle)
-    if runtime.parking then
-      -- requestPark() below treats an already-in-progress park as an
-      -- idempotent no-op, so a fresh disable request needs abortParking()
-      -- instead to actually take effect -- otherwise a park that's still
-      -- waiting for the vehicle to stop (e.g. fighting the driver's own
-      -- input after a premature native "Route Done") could never be
-      -- cancelled by any of disable()'s callers at all.
-      abortParking(vehicle, reason)
-      return true
-    end
-    local wasActive = runtime.enabled or
+    local wasActive = runtime.enabled or runtime.parking ~= nil or
       runtime.status == "planning" or runtime.status == "driving" or
       runtime.status == "paused"
     if not wasActive then
@@ -776,10 +761,11 @@ function M.new(options)
       runtime.reason = tostring(reason or runtime.reason or "")
       return false
     end
-    -- Disabling while moving is always a controlled stop. The legacy park
-    -- argument is retained for API compatibility but no longer permits a
-    -- direct transition to native disabled mode.
-    return requestPark(vehicle, reason or (park and "parkRequested" or "disabled"))
+    if park == true then
+      return requestPark(vehicle, reason or "parkRequested")
+    end
+    abortParking(vehicle, reason or "disabled")
+    return true
   end
 
   function service:park(vehicle, reason)
