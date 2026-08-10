@@ -15,7 +15,8 @@ local worldLabels = {
   it = {taxi = "Il mio tassista", passenger = "Corsa passeggero", delivery = "Consegna merci", planning = "Calcolo percorso", resting = "In attesa di lavoro", unpaid = "In attesa dello stipendio"},
   pl = {taxi = "Mój taksówkarz", passenger = "Kurs z pasażerem", delivery = "Dostawa ładunku", planning = "Wyznacza trasę", resting = "Czeka na zlecenie", unpaid = "Czeka na wypłatę"},
   uk = {taxi = "Мій водій таксі", passenger = "Везе пасажира", delivery = "Везе вантаж", planning = "Прокладає маршрут", resting = "Чекає на замовлення", unpaid = "Очікує зарплату"},
-  ["zh-CN"] = {taxi = "我的车队司机", passenger = "载客行程", delivery = "货物配送", planning = "正在规划路线", resting = "等待下一单", unpaid = "等待工资"}
+  ["zh-CN"] = {taxi = "我的车队司机", passenger = "载客行程", delivery = "货物配送", planning = "正在规划路线", resting = "等待下一单", unpaid = "等待工资"},
+  ["pt-BR"] = {taxi = "Motorista da minha frota", passenger = "Viagem de passageiro", delivery = "Entrega de carga", planning = "Planejando rota", resting = "Aguardando próximo trabalho", unpaid = "Aguardando salário"}
 }
 
 local function clamp(value, minimum, maximum)

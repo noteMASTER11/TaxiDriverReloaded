@@ -14,7 +14,7 @@
   },
   "description": "Taxi driver phone with dispatch, navigation, shift history, AI control, fares and ride quality",
   "author": "IncoCode",
-  "version": "4.0.1",
+  "version": "4.0.1-test.20260810",
   "directive": "taxiDriverHud",
   "preserveAspectRatio": false
 }

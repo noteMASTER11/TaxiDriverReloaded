@@ -45,6 +45,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           { code: "it", label: "Italiano" }, { code: "pl", label: "Polski" },
           { code: "uk", label: "Українська" },
           { code: "ru", label: "Русский" },
+          { code: "pt-BR", label: "Português (Brasil)" },
           { code: "zh-CN", label: "简体中文" },
         ];
         const difficulties = ["elementary", "easy", "standard", "professional", "custom"];

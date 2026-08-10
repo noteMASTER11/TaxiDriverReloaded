@@ -5,7 +5,7 @@ local M = {}
 M.supportedLanguages = {
   en = true, de = true, fr = true, es = true,
   it = true, pl = true, uk = true, ru = true,
-  ["zh-CN"] = true
+  ["zh-CN"] = true, ["pt-BR"] = true
 }
 
 local function clamp(value, minimum, maximum)
