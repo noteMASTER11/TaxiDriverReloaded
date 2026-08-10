@@ -488,6 +488,10 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             available: false, id: "", name: "", magic: false, vehicleStopped: false, options: [], balance: 0,
             refueling: { active: false, completing: false, energyType: "", quantity: 0, cost: 0, duration: 0, elapsed: 0, progress: 0, remainingSeconds: 0, completionId: 0 },
           },
+          repairStation: {
+            available: false, id: "", vehicleStopped: false, damagePercent: 0, price: 0, canRepair: false, balance: 0,
+            repairing: { active: false, completing: false, cost: 0, duration: 0, elapsed: 0, progress: 0, remainingSeconds: 0 },
+          },
           fuelDetour: { active: false, hadTrip: false, passengerOnboard: false, stationName: "", routeDistance: 0, penaltyPercent: 0, arrived: false },
           autopilot: { available: false, enabled: false, suspended: false, status: "off", reason: "", stuckSeconds: 0, recoveryAttempt: 0 },
           lan: { enabled: false, connected: 0, address: "", port: 8085, url: "" },
@@ -666,6 +670,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
         let offlineHoldStartedAt = 0;
         let offlineHoldTimer = null;
         let activeFuelStationId = "";
+        let activeRepairStationId = "";
         let settingsSaveTimer = null;
         let pendingSettingsFingerprint = "";
         let pendingSettingsDeadline = 0;
@@ -1240,6 +1245,30 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           };
         };
 
+        const normalizeRepairStation = (source) => {
+          const value = source && typeof source === "object" ? source : {};
+          const repairingSource = value.repairing && typeof value.repairing === "object"
+            ? value.repairing : {};
+          return {
+            available: value.available === true,
+            id: String(value.id || ""),
+            vehicleStopped: value.vehicleStopped === true,
+            damagePercent: Math.max(0, Math.min(100, Number(value.damagePercent || 0))),
+            price: Math.max(0, Number(value.price || 0)),
+            canRepair: value.canRepair === true,
+            balance: Math.max(0, Number(value.balance || 0)),
+            repairing: {
+              active: repairingSource.active === true,
+              completing: repairingSource.completing === true,
+              cost: Math.max(0, Number(repairingSource.cost || 0)),
+              duration: Math.max(0, Number(repairingSource.duration || 0)),
+              elapsed: Math.max(0, Number(repairingSource.elapsed || 0)),
+              progress: Math.max(0, Math.min(1, Number(repairingSource.progress || 0))),
+              remainingSeconds: Math.max(0, Number(repairingSource.remainingSeconds || 0)),
+            },
+          };
+        };
+
         const normalizeFuelDetour = (source) => {
           const value = source && typeof source === "object" ? source : {};
           return {
@@ -1266,17 +1295,22 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           $scope.refuel.amount = Math.min(maximum, amount);
         };
 
-        const syncFuelStation = (station) => {
-          if (!station.available) {
+        const syncFuelStation = (station, repairStation) => {
+          repairStation = repairStation || { available: false, id: "" };
+          if (!station.available && !repairStation.available) {
             activeFuelStationId = "";
+            activeRepairStationId = "";
             $scope.fuelStationOpen = false;
             $scope.selectedFuelType = "";
             $scope.refuel.amount = 0;
             return;
           }
 
-          const isNewStation = station.id !== activeFuelStationId;
-          activeFuelStationId = station.id;
+          const stationId = station.available ? station.id : repairStation.id;
+          const previousStationId = station.available ? activeFuelStationId : activeRepairStationId;
+          const isNewStation = stationId !== previousStationId;
+          if (station.available) activeFuelStationId = station.id;
+          if (repairStation.available) activeRepairStationId = repairStation.id;
           if (isNewStation) {
             $scope.refuel.amount = 0;
             if (!$scope.settingsOpen && !$scope.profileOpen && !$scope.offlineConfirmOpen) {
@@ -1289,6 +1323,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             }
           }
 
+          if (!station.available) return;
           if (!getFuelOption($scope.selectedFuelType, station)) {
             $scope.selectedFuelType = station.options.length ? station.options[0].energyType : "";
             $scope.refuel.amount = 0;
@@ -2369,6 +2404,9 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             Math.round(Number($scope.cheatEnergyPercent) || 0)
           ));
         };
+        this.cheatRepairVehicle = () => bngApi.engineLua(
+          "if taxiDriver_taxiDriver then taxiDriver_taxiDriver.cheatRepairVehicle() end"
+        );
         this.cheatAddMoney = (amount) => {
           const allowed = [1, 5, 10, 50];
           const value = Number(amount);
@@ -2416,7 +2454,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           );
         };
         this.closeFuelStation = () => {
-          if ($scope.state.fuelStation.refueling.active) return;
+          if ($scope.state.fuelStation.refueling.active || $scope.state.repairStation.repairing.active) return;
           $scope.fuelStationOpen = false;
           bngApi.engineLua(
             'if taxiDriver_taxiDriver then taxiDriver_taxiDriver.completeFuelStop() end'
@@ -2453,7 +2491,8 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           clampRefuelAmount();
         };
         this.purchaseFuel = () => {
-          if ($scope.state.fuelStation.refueling.active || !$scope.state.fuelStation.vehicleStopped) return;
+          if ($scope.state.fuelStation.refueling.active || $scope.state.repairStation.repairing.active ||
+            !$scope.state.fuelStation.vehicleStopped) return;
           const option = getFuelOption($scope.selectedFuelType);
           clampRefuelAmount();
           const quantity = Number($scope.refuel.amount || 0);
@@ -2461,6 +2500,15 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           const energyType = bngApi.serializeToLua(option.energyType);
           bngApi.engineLua(
             `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.purchaseRealisticFuel(${energyType}, ${quantity.toFixed(3)}) end`
+          );
+        };
+        this.purchaseRepair = () => {
+          const repairStation = $scope.state.repairStation;
+          if (repairStation.repairing.active || $scope.state.fuelStation.refueling.active ||
+            !repairStation.vehicleStopped ||
+            !repairStation.canRepair || repairStation.balance < repairStation.price) return;
+          bngApi.engineLua(
+            'if taxiDriver_taxiDriver then taxiDriver_taxiDriver.purchaseRepair() end'
           );
         };
         this.acceptOrder = (offerId) => {
@@ -2903,6 +2951,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
             data.vehicleEnergy || {}
           );
           data.fuelStation = normalizeFuelStation(data.fuelStation);
+          data.repairStation = normalizeRepairStation(data.repairStation);
           data.fuelDetour = normalizeFuelDetour(data.fuelDetour);
           data.autopilot = Object.assign(
             { available: false, enabled: false, suspended: false, status: "off", reason: "", stuckSeconds: 0, recoveryAttempt: 0 },
@@ -3080,7 +3129,7 @@ angular.module("beamng.apps").directive("taxiDriverHud", [
           }
           $scope.state = Object.assign({}, $scope.state, data);
           scheduleLanQr();
-          syncFuelStation($scope.state.fuelStation);
+          syncFuelStation($scope.state.fuelStation, $scope.state.repairStation);
           if (passengerMoodChanged) {
             const moodDirection = data.passengerMoodChangeDirection === "up" ? "up" : "down";
             const moodVariant = Number(data.passengerMoodChangeId || 0) % 2 ? "a" : "b";

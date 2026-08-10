@@ -13,6 +13,7 @@ local identity = require("taxiDriver/identity")
 local passengerMood = require("taxiDriver/passengerMood")
 local routeDiversity = require("taxiDriver/routeDiversity")
 local delivery = require("taxiDriver/delivery")
+local repairPricing = require("taxiDriver/repairPricing")
 local lanBridge = require("taxiDriver/optionalLanBridge")
 local vehicleHistory = require("taxiDriver/vehicleHistory")
 local vehicleScanGuard = require("taxiDriver/vehicleScanGuard")
@@ -107,6 +108,28 @@ local realisticFuel = {
     penaltyPercent = 0,
     penaltyApplied = false,
     arrived = false
+  },
+  repairStation = nil,
+  repairLastDamagePercent = 0,
+  repairDamageRefreshTimer = 0,
+  repairDamageProbe = {pending = false, vehicleId = nil, callback = nil, timeout = 0},
+  repairSuppressResetVehicleId = nil,
+  repairSuppressResetExpiresAt = nil,
+  repairPlateFixVehicleId = nil,
+  repairPlateFixExpiresAt = nil,
+  repairRestoreTanksVehicleId = nil,
+  repairRestoreTanksData = nil,
+  repairRestoreTanksExpiresAt = nil,
+  repairing = {
+    active = false,
+    completing = false,
+    stationId = "",
+    vehicleId = 0,
+    damagePercent = 0,
+    cost = 0,
+    duration = 0,
+    elapsed = 0,
+    hudTimer = 0
   }
 }
 local driverAvatarOptions = identity.driverAvatarOptions
@@ -615,6 +638,51 @@ function realisticFuel.buildHud()
   }
 end
 
+-- Independent of state.active: repair (unlike refuel) must be usable without
+-- an active taxi shift. When a shift IS active, damage is read live from the
+-- telemetry stream already kept current for the active vehicle; otherwise the
+-- last on-demand probe result (see requestCurrentDamage) is used.
+function realisticFuel.buildRepairHud()
+  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
+  local repairing = realisticFuel.repairing
+  local vehicleStopped = vehicle ~= nil and getVehicleSpeedKmh(vehicle) <= 2
+  local available = realisticFuel.repairStation ~= nil and vehicle ~= nil and
+    (vehicleStopped or repairing.active)
+  if available and realisticFuel.repairStation.center then
+    available = vehicle:getPosition():distance(realisticFuel.repairStation.center) <=
+      realisticFuel.repairStation.radius
+  end
+  local damagePercent
+  if repairing.active then
+    damagePercent = repairing.damagePercent
+  elseif state.active and vehicle and tonumber(state.activeVehicleId) == tonumber(vehicle:getID()) then
+    damagePercent = repairPricing.calculateDamagePercent(telemetry.damage or 0, taxiConfig.repair)
+  else
+    damagePercent = realisticFuel.repairLastDamagePercent or 0
+  end
+  local price = repairing.active and repairing.cost or
+    (state.realisticMode and repairPricing.calculateRepairPrice(damagePercent, taxiConfig.repair) or 0)
+  return {
+    available = available == true,
+    id = realisticFuel.repairStation and realisticFuel.repairStation.id or "",
+    vehicleStopped = vehicleStopped == true,
+    damagePercent = damagePercent,
+    price = price,
+    canRepair = damagePercent >= (tonumber(taxiConfig.repair.minimumRepairableDamagePercent) or 0.5),
+    balance = roundMoney(state.balance),
+    repairing = {
+      active = repairing.active == true,
+      completing = repairing.completing == true,
+      cost = repairing.cost or 0,
+      duration = repairing.duration or 0,
+      elapsed = repairing.elapsed or 0,
+      progress = repairing.duration > 0 and
+        clampValue(repairing.elapsed / repairing.duration, 0, 1) or 0,
+      remainingSeconds = math.max(0, (repairing.duration or 0) - (repairing.elapsed or 0))
+    }
+  }
+end
+
 local function getAutopilotTarget()
   if state.phase == phases.toFuelStation and realisticFuel.detour.active then return {pos = realisticFuel.detour.pos, exactApproach = true} end
   if state.phase == phases.toPickup and trip then return {pos = trip.pickup.pos, dir = trip.pickup.dir, nodeA = trip.pickup.nodeA, nodeB = trip.pickup.nodeB, simpleApproach = true} end
@@ -681,6 +749,7 @@ local function buildHudState(includeCollections)
     realisticMode = state.realisticMode == true,
     vehicleEnergy = realisticFuel.dashboardEnergy,
     fuelStation = realisticFuel.buildHud(),
+    repairStation = realisticFuel.buildRepairHud(),
     fuelDetour = {
       active = realisticFuel.detour.active == true,
       hadTrip = realisticFuel.detour.hadTrip == true,
@@ -1034,6 +1103,27 @@ function realisticFuel.clearStation()
   realisticFuel.dataTimer = 0
 end
 
+function realisticFuel.resetRepairing()
+  realisticFuel.repairing = {
+    active = false,
+    completing = false,
+    stationId = "",
+    vehicleId = 0,
+    damagePercent = 0,
+    cost = 0,
+    duration = 0,
+    elapsed = 0,
+    hudTimer = 0
+  }
+end
+
+function realisticFuel.clearRepairStation()
+  realisticFuel.resetRepairing()
+  realisticFuel.repairStation = nil
+  realisticFuel.repairLastDamagePercent = 0
+  realisticFuel.repairDamageRefreshTimer = 0
+end
+
 function realisticFuel.resetDetour()
   realisticFuel.routeRequestPending = false
   realisticFuel.detour = {
@@ -1087,6 +1177,38 @@ function realisticFuel.setStation(element)
   if realisticFuel.detour.active and realisticFuel.detour.stationId == stationId then
     realisticFuel.detour.arrived = true
   end
+  notifyHud()
+end
+
+-- Detection for the repair service at the same physical gas station. Kept
+-- independent of state.active/state.realisticMode so repair also works
+-- outside an active taxi shift, unlike the refuel-only realisticFuel.station.
+function realisticFuel.setRepairStation(element)
+  if not element or not element.facility then return end
+  local facility = element.facility
+  local stationId = tostring(facility.id or element.id or "fuelStation")
+  if realisticFuel.repairStation and realisticFuel.repairStation.id == stationId then return end
+
+  local center, radius = nil, 0
+  if freeroam_gasStations and type(freeroam_gasStations.gasStationCenterRadius) == "function" then
+    local ok, stationCenter, stationRadius = pcall(
+      freeroam_gasStations.gasStationCenterRadius,
+      facility
+    )
+    if ok then
+      center = stationCenter
+      radius = tonumber(stationRadius) or 0
+    end
+  end
+
+  realisticFuel.repairStation = {
+    id = stationId,
+    facility = facility,
+    center = center,
+    radius = math.max(15, radius + 12)
+  }
+  realisticFuel.repairLastDamagePercent = 0
+  realisticFuel.repairDamageRefreshTimer = 0
   notifyHud()
 end
 
@@ -1157,7 +1279,7 @@ end
 
 function realisticFuel.purchase(energyType, requestedQuantity)
   if not state.active or not state.realisticMode or not realisticFuel.station or
-    realisticFuel.refueling.active then return end
+    realisticFuel.refueling.active or realisticFuel.repairing.active then return end
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
   if not vehicle or getVehicleSpeedKmh(vehicle) > 2 then return end
 
@@ -1170,7 +1292,7 @@ function realisticFuel.purchase(energyType, requestedQuantity)
   local vehicleId = vehicle:getID()
   vehicleBridgeGuard.request(vehicle, "energyStorage", function(data, currentVehicle)
     if not state.active or not state.realisticMode or realisticFuel.refueling.active or
-      realisticFuel.station ~= stationAtRequest or
+      realisticFuel.repairing.active or realisticFuel.station ~= stationAtRequest or
       tonumber(state.activeVehicleId) ~= tonumber(vehicleId) then return end
 
     local tanks = type(data) == "table" and data[1] or nil
@@ -1325,7 +1447,265 @@ function realisticFuel.updateRefueling(dtSim)
   end
 end
 
+-- On-demand current-damage read, usable with or without an active shift.
+-- While a shift is active, telemetry.damage is already kept live for the
+-- active vehicle (see M.onTelemetry) so it is returned directly. Otherwise
+-- vehicle telemetry is briefly enabled to capture exactly one damage sample
+-- (matched back to the requester via repairDamageProbe in M.onTelemetry),
+-- then disabled again. callback receives a raw beamstate.damage number, or
+-- nil if the vehicle became unavailable / the probe timed out.
+function realisticFuel.requestCurrentDamage(vehicle, callback)
+  if not vehicle then
+    if type(callback) == "function" then callback(nil) end
+    return
+  end
+  local vehicleId = tonumber(vehicle:getID())
+  if state.active and tonumber(state.activeVehicleId) == vehicleId then
+    if type(callback) == "function" then callback(tonumber(telemetry.damage) or 0) end
+    return
+  end
+  if realisticFuel.repairDamageProbe.pending then
+    if type(callback) == "function" then callback(nil) end
+    return
+  end
+  realisticFuel.repairDamageProbe = {
+    pending = true, vehicleId = vehicleId, callback = callback, timeout = 2
+  }
+  setTelemetryEnabled(vehicle, true)
+end
+
+function realisticFuel.purchaseRepair()
+  if realisticFuel.repairing.active or realisticFuel.refueling.active or
+    not realisticFuel.repairStation then return end
+  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
+  if not vehicle or getVehicleSpeedKmh(vehicle) > 2 then return end
+  if realisticFuel.repairStation.center and
+    vehicle:getPosition():distance(realisticFuel.repairStation.center) >
+    realisticFuel.repairStation.radius then return end
+
+  local stationAtRequest = realisticFuel.repairStation
+  local vehicleId = tonumber(vehicle:getID())
+  realisticFuel.requestCurrentDamage(vehicle, function(rawDamage)
+    if not rawDamage or realisticFuel.repairing.active or realisticFuel.refueling.active or
+      realisticFuel.repairStation ~= stationAtRequest then return end
+    local currentVehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or
+      getPlayerVehicle()
+    if not currentVehicle or tonumber(currentVehicle:getID()) ~= vehicleId or
+      getVehicleSpeedKmh(currentVehicle) > 2 then return end
+
+    -- Recomputed fresh here (never trusting an earlier HUD value) so the
+    -- price actually charged always matches the vehicle's current damage.
+    local damagePercent = repairPricing.calculateDamagePercent(rawDamage, taxiConfig.repair)
+    if damagePercent < (tonumber(taxiConfig.repair.minimumRepairableDamagePercent) or 0.5) then
+      return
+    end
+
+    local price = state.realisticMode and
+      repairPricing.calculateRepairPrice(damagePercent, taxiConfig.repair) or 0
+    if price > 0 then
+      local availableBalance = roundMoney(math.max(0, tonumber(state.balance) or 0))
+      if availableBalance < price then
+        showPhoneNotification("notify_repairNoMoney", {}, "warning")
+        return
+      end
+    end
+
+    realisticFuel.repairing = {
+      active = true,
+      completing = false,
+      stationId = stationAtRequest.id,
+      vehicleId = vehicleId,
+      damagePercent = damagePercent,
+      cost = price,
+      duration = math.max(0.1, tonumber(taxiConfig.repair.repairDurationSeconds) or 6),
+      elapsed = 0,
+      hudTimer = 0
+    }
+    notifyHud()
+  end)
+end
+
+-- Shared low-level repair primitive: reloads the local player's vehicle in
+-- place (BeamNG's only known way to clear deformation/damage without a full
+-- respawn) while preserving its current fuel/energy levels and suppressing
+-- the shift-cancelling reset handler for that one expected reset. Used by
+-- both the paid gas-station repair flow and the free debug-menu cheat.
+-- callback(success) is invoked once the attempt completes.
+function realisticFuel.repairVehiclePhysically(vehicle, callback)
+  if not vehicle or tonumber(vehicle:getID()) ~= tonumber(be:getPlayerVehicleID(0)) then
+    if type(callback) == "function" then callback(false) end
+    return
+  end
+  local vehicleId = tonumber(vehicle:getID())
+
+  local function attempt(preservedTanks)
+    -- Suppress the very next handleVehicleReset for this vehicle:
+    -- be:reloadVehicle(0) is confirmed by community reports to trigger the
+    -- same reset callback used by "Recover Vehicle". This one-shot flag
+    -- (consumed in handleVehicleReset, auto-expiring via the M.onUpdate
+    -- check) is what keeps the active shift alive.
+    realisticFuel.repairSuppressResetVehicleId = vehicleId
+    -- Primarily cleared by scannerBecameReady (M.onUpdate) once the vehicle
+    -- VM actually settles; this is only a generous fallback in case that
+    -- signal never arrives (e.g. some unrelated vehicleScanGuard state).
+    realisticFuel.repairSuppressResetExpiresAt = (os.clock() or 0) + 20
+    -- be:reloadVehicle(0) respawns from the vehicle's raw .pc file path
+    -- rather than its already-resolved parts config, which leaves the
+    -- license plate CEF texture stuck on "NO TEXTURE" -- confirmed in-game
+    -- across many repairs. core_vehicles.setPlateText (the same primitive
+    -- BeamNG's own "License Plate" config field and its tech/research API
+    -- use) forces the plate texture to regenerate without another respawn,
+    -- so it's queued here and fired once the vehicle settles, below.
+    realisticFuel.repairPlateFixVehicleId = vehicleId
+    realisticFuel.repairPlateFixExpiresAt = (os.clock() or 0) + 20
+    -- be:reloadVehicle also refills the tank and resets the gear, and the
+    -- recovery call below is known to refill it again -- restoring the
+    -- pre-repair energy levels is therefore deferred to the same
+    -- scannerBecameReady checkpoint as the plate fix (rather than done
+    -- immediately here), so it's guaranteed to be the last thing applied
+    -- and isn't clobbered by recovery's own refill. Otherwise repairing
+    -- would incidentally hand out free fuel too.
+    if type(preservedTanks) == "table" then
+      realisticFuel.repairRestoreTanksVehicleId = vehicleId
+      realisticFuel.repairRestoreTanksData = preservedTanks
+      realisticFuel.repairRestoreTanksExpiresAt = (os.clock() or 0) + 20
+    end
+
+    -- "0" is the local player slot (same convention as be:getPlayerVehicleID(0)
+    -- above), not a vehicle ID -- reloadVehicle has no vehicle-ID overload.
+    local ok = pcall(function() be:reloadVehicle(0) end)
+    if not ok then
+      realisticFuel.repairSuppressResetVehicleId = nil
+      realisticFuel.repairSuppressResetExpiresAt = nil
+      realisticFuel.repairPlateFixVehicleId = nil
+      realisticFuel.repairPlateFixExpiresAt = nil
+      realisticFuel.repairRestoreTanksVehicleId = nil
+      realisticFuel.repairRestoreTanksData = nil
+      realisticFuel.repairRestoreTanksExpiresAt = nil
+      if type(callback) == "function" then callback(false) end
+      return
+    end
+
+    local restoredVehicle = getObjectByID(vehicleId)
+    -- be:reloadVehicle preserves whatever position/orientation the vehicle
+    -- had, including flipped/upside-down -- confirmed in-game. recovery
+    -- .startRecovering()/stopRecovering() (vehicle-side) is the same pair of
+    -- calls BeamNG's own "Recover Vehicle" (Home key) runs, placing the
+    -- vehicle upright at its last tracked safe position; since repair only
+    -- runs while the vehicle is nearly stationary, that position is right
+    -- where it already is.
+    if restoredVehicle and type(restoredVehicle.queueLuaCommand) == "function" then
+      restoredVehicle:queueLuaCommand(
+        "if recovery then recovery.startRecovering() recovery.stopRecovering() end")
+    end
+    if type(callback) == "function" then callback(true) end
+  end
+
+  vehicleBridgeGuard.request(vehicle, "energyStorage", function(data)
+    attempt(type(data) == "table" and data[1] or nil)
+  end, function()
+    attempt(nil)
+  end)
+end
+
+function realisticFuel.finishRepair()
+  local session = realisticFuel.repairing
+  if not session.active or session.completing then return end
+  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
+  if not vehicle or tonumber(vehicle:getID()) ~= tonumber(session.vehicleId) or
+    not realisticFuel.repairStation or realisticFuel.repairStation.id ~= session.stationId then
+    realisticFuel.resetRepairing()
+    notifyHud()
+    return
+  end
+
+  session.completing = true
+  realisticFuel.repairVehiclePhysically(vehicle, function(success)
+    if not success then
+      showPhoneNotification("notify_repairFailed", {}, "warning")
+      realisticFuel.resetRepairing()
+      notifyHud()
+      return
+    end
+
+    state.balance = roundMoney(math.max(0, (tonumber(state.balance) or 0) - session.cost))
+    shiftTracking:recordRepairCost(session.cost)
+    realisticFuel.recordBalanceHistory()
+    local completedCost = session.cost
+    realisticFuel.resetRepairing()
+    realisticFuel.repairLastDamagePercent = 0
+    showPhoneNotification("notify_repairComplete", {
+      cost = string.format("$%.2f", completedCost),
+      balance = string.format("$%.2f", state.balance)
+    }, "success")
+    notifyHud()
+  end)
+end
+
+function realisticFuel.updateRepairing(dtSim)
+  local session = realisticFuel.repairing
+  if not session.active or session.completing then return end
+  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
+  local withinStation = realisticFuel.repairStation and
+    (not realisticFuel.repairStation.center or vehicle and
+      vehicle:getPosition():distance(realisticFuel.repairStation.center) <=
+      realisticFuel.repairStation.radius)
+  local valid = vehicle and realisticFuel.repairStation and withinStation and
+    tonumber(vehicle:getID()) == tonumber(session.vehicleId) and
+    realisticFuel.repairStation.id == session.stationId and getVehicleSpeedKmh(vehicle) <= 2
+  if not valid then
+    realisticFuel.resetRepairing()
+    showPhoneNotification("notify_repairInterrupted", {}, "warning")
+    notifyHud()
+    return
+  end
+
+  session.elapsed = math.min(session.duration, session.elapsed + math.max(0, dtSim or 0))
+  session.hudTimer = math.max(0, (session.hudTimer or 0) - math.max(0, dtSim or 0))
+  if session.elapsed >= session.duration then
+    realisticFuel.finishRepair()
+  elseif session.hudTimer <= 0 then
+    session.hudTimer = runtimeConfig.hudUpdateInterval
+    notifyHudPatch()
+  end
+end
+
+-- Ticked unconditionally from M.onUpdate (not gated on state.active) so
+-- repair station detection/eligibility and the repair session itself keep
+-- working with no active taxi shift.
+function realisticFuel.updateRepairStation(dtSim, dtReal)
+  if not realisticFuel.repairStation then return end
+  if realisticFuel.repairing.active then
+    realisticFuel.updateRepairing(dtSim)
+    return
+  end
+  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
+  if not vehicle or (realisticFuel.repairStation.center and
+    vehicle:getPosition():distance(realisticFuel.repairStation.center) >
+    realisticFuel.repairStation.radius) then
+    realisticFuel.clearRepairStation()
+    notifyHud()
+    return
+  end
+  if not state.active then
+    realisticFuel.repairDamageRefreshTimer =
+      (realisticFuel.repairDamageRefreshTimer or 0) - math.max(0, dtReal or 0)
+    if realisticFuel.repairDamageRefreshTimer <= 0 then
+      realisticFuel.repairDamageRefreshTimer = 1
+      local stationAtRequest = realisticFuel.repairStation
+      realisticFuel.requestCurrentDamage(vehicle, function(rawDamage)
+        if not rawDamage or realisticFuel.repairStation ~= stationAtRequest then return end
+        realisticFuel.repairLastDamagePercent =
+          repairPricing.calculateDamagePercent(rawDamage, taxiConfig.repair)
+        notifyHudPatch()
+      end)
+    end
+  end
+end
+
 function realisticFuel.refuelCarWrapper(gasStation, fuelTypes, vehicle)
+  -- Repair detection runs regardless of realistic-fuel mode/active shift.
+  realisticFuel.setRepairStation(gasStation)
   if not state.active or not state.realisticMode then
     if type(realisticFuel.originalRefuelCar) == "function" then
       return realisticFuel.originalRefuelCar(gasStation, fuelTypes, vehicle)
@@ -1336,6 +1716,13 @@ function realisticFuel.refuelCarWrapper(gasStation, fuelTypes, vehicle)
 end
 
 function realisticFuel.activityGatherWrapper(elementData, activityData)
+  -- Repair detection runs regardless of realistic-fuel mode/active shift.
+  for _, element in ipairs(elementData or {}) do
+    if element.type == "gasStation" then
+      realisticFuel.setRepairStation(element)
+      break
+    end
+  end
   if not state.active or not state.realisticMode then
     if type(realisticFuel.originalActivityGather) == "function" then
       return realisticFuel.originalActivityGather(elementData, activityData)
@@ -1610,6 +1997,17 @@ local function preparePassengerRideMetrics()
   trip.speedingEpisodeTime = 0
   trip.speedingEpisodeCounted = false
   trip.speedingEpisodeDisposition = nil
+end
+
+-- Shared by both the godMode reset-survival branch (handleVehicleReset) and
+-- the repair-reload settle checkpoint (scannerBecameReady in M.onUpdate):
+-- reapplies the delivery cargo-mass modifier to a reacquired vehicle object,
+-- since neither an ordinary reset nor a repair reload is guaranteed to leave
+-- it in place.
+local function reapplyDeliveryCargoMass(vehicle)
+  if vehicle and trip and trip.isDelivery then
+    delivery.applyVehicleMass(vehicle, trip.cargoWeightKg or 0)
+  end
 end
 
 local function stopModeInternal(message, showNotification, notificationKey)
@@ -3384,6 +3782,10 @@ function M.purchaseRealisticFuel(energyType, quantity)
   realisticFuel.purchase(energyType, quantity)
 end
 
+function M.purchaseRepair()
+  realisticFuel.purchaseRepair()
+end
+
 function M.requestFuelStop()
   realisticFuel.requestRoute()
 end
@@ -3400,6 +3802,13 @@ function M.cancelFuelStop()
 end
 
 function M.onActivityAcceptGatherData(elementData, activityData)
+  -- Repair detection runs regardless of realistic-fuel mode/active shift.
+  for _, element in ipairs(elementData or {}) do
+    if element.type == "gasStation" then
+      realisticFuel.setRepairStation(element)
+      break
+    end
+  end
   if not state.active or not state.realisticMode then return end
   local foundStation = false
   for _, element in ipairs(elementData or {}) do
@@ -3617,6 +4026,26 @@ function M.cheatSetEnergyPercent(value)
   )
 end
 
+function M.cheatRepairVehicle()
+  local vehicle = getPlayerVehicle()
+  if not vehicle then return false end
+  local vehicleId = vehicle:getID()
+  realisticFuel.repairVehiclePhysically(vehicle, function(success)
+    logger.info("cheat", "repair_applied", {success = success, vehicleId = vehicleId})
+    if not success then
+      showPhoneNotification("notify_repairFailed", {}, "warning")
+      return
+    end
+    realisticFuel.repairLastDamagePercent = 0
+    showPhoneNotification("notify_repairComplete", {
+      cost = "$0.00",
+      balance = string.format("$%.2f", state.balance)
+    }, "success")
+    notifyHud()
+  end)
+  return true
+end
+
 function M.cheatAddMoney(value)
   local amount = tonumber(value) or 0
   if amount ~= 1 and amount ~= 5 and amount ~= 10 and amount ~= 50 then return end
@@ -3690,6 +4119,18 @@ function M.getDebugState()
   }
 end
 function M.onTelemetry(vehicleId, data)
+  -- Resolve a pending on-demand repair-damage read (requestCurrentDamage)
+  -- regardless of state.activeVehicleId, since this is the only path that
+  -- also works with no active shift.
+  if type(data) == "table" and realisticFuel.repairDamageProbe.pending and
+    tonumber(vehicleId) == tonumber(realisticFuel.repairDamageProbe.vehicleId) then
+    local probe = realisticFuel.repairDamageProbe
+    realisticFuel.repairDamageProbe = {pending = false, vehicleId = nil, callback = nil, timeout = 0}
+    if not (state.active and tonumber(state.activeVehicleId) == tonumber(probe.vehicleId)) then
+      setTelemetryEnabled(getObjectByID(probe.vehicleId), false)
+    end
+    if type(probe.callback) == "function" then pcall(probe.callback, tonumber(data.damage) or 0) end
+  end
   if vehicleId ~= state.activeVehicleId or type(data) ~= "table" then return end
   aiLogger:onVehicleTelemetry(data)
   telemetry.vehicleId = vehicleId
@@ -3892,16 +4333,46 @@ function M.onUpdate(dtReal, dtSim)
     if pruneOk and pruned then runtimeBoundary:call("hud.full", notifyHud) end
   end
   if scannerBecameReady then
+    -- The vehicle VM has gone fully stable, so no further onVehicleResetted
+    -- events are expected as a consequence of a repair -- safe to disarm the
+    -- suppression flag now (see the comment in handleVehicleReset).
+    realisticFuel.repairSuppressResetVehicleId = nil
+    realisticFuel.repairSuppressResetExpiresAt = nil
+    if realisticFuel.repairPlateFixVehicleId then
+      local plateVehicleId = realisticFuel.repairPlateFixVehicleId
+      realisticFuel.repairPlateFixVehicleId = nil
+      realisticFuel.repairPlateFixExpiresAt = nil
+      if getObjectByID(plateVehicleId) then
+        pcall(function() core_vehicles.setPlateText(false, plateVehicleId) end)
+      end
+    end
+    if realisticFuel.repairRestoreTanksVehicleId then
+      local tanksVehicleId = realisticFuel.repairRestoreTanksVehicleId
+      local preservedTanks = realisticFuel.repairRestoreTanksData
+      realisticFuel.repairRestoreTanksVehicleId = nil
+      realisticFuel.repairRestoreTanksData = nil
+      realisticFuel.repairRestoreTanksExpiresAt = nil
+      local tanksVehicle = getObjectByID(tanksVehicleId)
+      if tanksVehicle and type(preservedTanks) == "table" then
+        for _, tank in ipairs(preservedTanks) do
+          vehicleBridgeGuard.execute(
+            tanksVehicle, "setEnergyStorageEnergy", tank.name, tank.currentEnergy)
+        end
+      end
+    end
     realisticFuel.dashboardEnergyTimer = 0
     local stableVehicle = state.active and state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
     runtimeBoundary:call(
       "telemetry.resume", setTelemetryEnabled, stableVehicle, state.active == true)
-    if stableVehicle and trip and trip.isDelivery then
-      runtimeBoundary:call(
-        "delivery.restoreMass", delivery.applyVehicleMass,
-        stableVehicle, trip.cargoWeightKg or 0)
-    end
+    runtimeBoundary:call("delivery.restoreMass", reapplyDeliveryCargoMass, stableVehicle)
     runtimeBoundary:call("autopilot.resume", autopilot.suspend, autopilot, stableVehicle, false)
+    -- Repair-triggered resets never suspend autopilot (unlike the
+    -- vehicle-config-menu path above, which the suspend(false) call handles),
+    -- so suspend(false) alone is a no-op for them. markRouteDirty -- the same
+    -- primitive the godMode reset-survival branch already uses -- forces the
+    -- next autopilot:update() tick to reissue the native route regardless of
+    -- prior suspend state, covering that case too.
+    runtimeBoundary:call("autopilot.repairResume", autopilot.markRouteDirty, autopilot)
   end
   runtimeBoundary:call(
     "realisticFuel.dashboard", realisticFuel.updateDashboardEnergy, dtSim)
@@ -3911,6 +4382,39 @@ function M.onUpdate(dtReal, dtSim)
     "lan.status", lanBridge.consumeStatusChanged)
   if lanStatusOk and lanStatusChanged then runtimeBoundary:call("hud.full", notifyHud) end
   if vehicleScanGuard.isSuspended() then return end
+  -- Unconditional (not gated on state.active): repair must keep working
+  -- with no active taxi shift, unlike refuel's updateStation (only ticked
+  -- inside updateActiveMode, below the state.active return further down).
+  runtimeBoundary:call(
+    "realisticFuel.repairStation", realisticFuel.updateRepairStation, dtSim, dtReal)
+  if realisticFuel.repairDamageProbe.pending then
+    realisticFuel.repairDamageProbe.timeout =
+      (realisticFuel.repairDamageProbe.timeout or 0) - dtReal
+    if realisticFuel.repairDamageProbe.timeout <= 0 then
+      local probe = realisticFuel.repairDamageProbe
+      realisticFuel.repairDamageProbe = {pending = false, vehicleId = nil, callback = nil, timeout = 0}
+      if not (state.active and tonumber(state.activeVehicleId) == tonumber(probe.vehicleId)) then
+        setTelemetryEnabled(getObjectByID(probe.vehicleId), false)
+      end
+      if type(probe.callback) == "function" then pcall(probe.callback, nil) end
+    end
+  end
+  if realisticFuel.repairSuppressResetVehicleId and
+    (os.clock() or 0) > (realisticFuel.repairSuppressResetExpiresAt or 0) then
+    realisticFuel.repairSuppressResetVehicleId = nil
+    realisticFuel.repairSuppressResetExpiresAt = nil
+  end
+  if realisticFuel.repairPlateFixVehicleId and
+    (os.clock() or 0) > (realisticFuel.repairPlateFixExpiresAt or 0) then
+    realisticFuel.repairPlateFixVehicleId = nil
+    realisticFuel.repairPlateFixExpiresAt = nil
+  end
+  if realisticFuel.repairRestoreTanksVehicleId and
+    (os.clock() or 0) > (realisticFuel.repairRestoreTanksExpiresAt or 0) then
+    realisticFuel.repairRestoreTanksVehicleId = nil
+    realisticFuel.repairRestoreTanksData = nil
+    realisticFuel.repairRestoreTanksExpiresAt = nil
+  end
   local fleetOk, fleetDelta, fleetHudDirty = runtimeBoundary:call(
     "fleet.update", fleet.update, fleet, dtReal, dtSim, state.balance)
   fleetDelta = fleetOk and (tonumber(fleetDelta) or 0) or 0
@@ -3985,12 +4489,28 @@ local function handleVehicleReset(vehicleId)
     realisticFuel.initializationPending[vehicleId] = nil
     vehicleHistory.onVehicleReset(vehicleId)
   end
+  -- Narrow suppression: only resets expected as a consequence of an
+  -- intentional gas-station repair (flagged immediately before invoking the
+  -- repair primitive in finishRepair) are swallowed here. Everything else
+  -- below (manual player resets, vehicle switches, any other vehicle) is
+  -- untouched. Works even with no active shift.
+  --
+  -- be:reloadVehicle(0) can fire onVehicleResetted more than once for a
+  -- single repair (a second internal respawn pass can land several seconds
+  -- after the first, e.g. if the player opens the pause menu in between) --
+  -- so the flag is deliberately NOT cleared on the first match here. It
+  -- stays armed for every matching reset until vehicleScanGuard reports the
+  -- vehicle VM has actually gone stable (see the scannerBecameReady check in
+  -- M.onUpdate), which only happens once resets stop arriving. A generous
+  -- wall-clock expiry (M.onUpdate) is still a fallback in case that signal
+  -- never comes.
+  if vehicleId and realisticFuel.repairSuppressResetVehicleId == vehicleId then
+    return
+  end
   if state.active and vehicleId and vehicleId == tonumber(state.activeVehicleId) then
     if userSettings.godMode == true then
       realisticFuel.dashboardEnergyTimer = 0
-      if trip and trip.isDelivery then
-        delivery.applyVehicleMass(getObjectByID(vehicleId), trip.cargoWeightKg or 0)
-      end
+      reapplyDeliveryCargoMass(getObjectByID(vehicleId))
       autopilot:markRouteDirty()
       notifyHud()
       return

@@ -470,6 +470,15 @@ M.realisticFuel = {
   }
 }
 
+M.repair = {
+  minimumRepairPrice = 5,
+  maximumRepairPrice = 250,
+  repairPriceScale = 45,
+  damagePercentScale = 4500,
+  minimumRepairableDamagePercent = 0.5,
+  repairDurationSeconds = 6
+}
+
 M.delivery = {
   visibleMin = 5,
   visibleMax = 7,
