@@ -34,7 +34,7 @@ local hudPublisher = require("taxiDriver/hudPublisher")
 local logger = require("taxiDriver/logger")
 local runtimeBoundary = require("taxiDriver/faultBoundary").new({retrySeconds = 1})
 local aiLoggerModule = require("taxiDriver/aiLogger")
-local modVersion = "4.0.2"
+local modVersion = "4.0.3"
 local fleet = require("taxiDriver/fleetManager").new({modVersion = modVersion})
 local logTag = "taxiDriver"
 local supportedLanguages = taxiConfig.supportedLanguages
@@ -45,6 +45,8 @@ local earlyExitRatingLoss = taxiConfig.earlyExitRatingLoss
 local driverAbandonmentExtraLoss = taxiConfig.driverAbandonmentExtraLoss
 local realisticFuel = {
   config = taxiConfig.realisticFuel,
+  persistence = require("taxiDriver/fuelPersistence"),
+  persistenceTimer = 0,
   energyMJPerUnit = {
     gasoline = 31.125,
     diesel = 36.112,
@@ -972,6 +974,11 @@ function realisticFuel.refreshDashboardEnergy()
     realisticFuel.resetDashboardEnergy()
     return
   end
+  if state.active and state.realisticMode and realisticFuel.initializedVehicles[vehicle:getID()] == nil and
+    not realisticFuel.initializationPending[vehicle:getID()] then
+    realisticFuel.initializeVehicle(vehicle)
+    if realisticFuel.initializationPending[vehicle:getID()] then return end
+  end
 
   realisticFuel.dashboardEnergyPending = true
   local vehicleId = vehicle:getID()
@@ -987,6 +994,11 @@ function realisticFuel.refreshDashboardEnergy()
     if tonumber(currentVehicle:getID()) ~= tonumber(vehicleId) then return end
 
     local tanks = type(data) == "table" and data[1] or nil
+    local fuelKey = realisticFuel.initializedVehicles[vehicleId]
+    if type(fuelKey) == "string" and fuelKey == realisticFuel.persistence.vehicleKey(currentVehicle) and
+      not realisticFuel.initializationPending[vehicleId] and not realisticFuel.repairRestoreTanksVehicleId then
+      realisticFuel.persistence.capture(fuelKey, tanks)
+    end
     local aggregated = {}
     for _, tank in ipairs(type(tanks) == "table" and tanks or {}) do
       local energyType = tostring(tank.energyType or "")
@@ -1386,6 +1398,7 @@ function realisticFuel.finishPurchase()
   end
 
   session.completing = true
+  realisticFuel.deferDashboardEnergy()
   for _, update in ipairs(session.updates or {}) do
     vehicleBridgeGuard.execute(
       vehicle,
@@ -1393,6 +1406,11 @@ function realisticFuel.finishPurchase()
       update.name,
       update.energy
     )
+  end
+  local fuelKey = realisticFuel.initializedVehicles[vehicle:getID()]
+  if type(fuelKey) == "string" then
+    realisticFuel.persistence.applyUpdates(fuelKey, session.updates)
+    realisticFuel.persistence.flush()
   end
   state.balance = roundMoney(math.max(0, (tonumber(state.balance) or 0) - session.cost))
   shiftTracking:recordFuelCost(session.cost)
@@ -1788,27 +1806,36 @@ end
 function realisticFuel.initializeVehicle(vehicle)
   if not vehicle then return end
   local vehicleId = vehicle:getID()
-  if realisticFuel.initializedVehicles[vehicleId] or
+  local fuelKey = realisticFuel.persistence.vehicleKey(vehicle)
+  if not fuelKey or realisticFuel.initializedVehicles[vehicleId] == fuelKey or
     realisticFuel.initializationPending[vehicleId] then return end
-  realisticFuel.initializationPending[vehicleId] = true
-
-  realisticFuel.setVehicleEnergyLevels(
-    vehicle,
-    realisticFuel.config.fuelInitialLevel,
-    realisticFuel.config.electricInitialLevel,
-    function(initialized)
-      realisticFuel.initializationPending[vehicleId] = nil
-      if initialized then
-        realisticFuel.initializedVehicles[vehicleId] = true
-        if state.active and state.realisticMode and
-          tonumber(state.activeVehicleId) == tonumber(vehicleId) then
-          showPhoneNotification("notify_realisticFuelSet", {}, "success")
-        end
-      elseif state.active and state.realisticMode then
-        showPhoneNotification("notify_realisticFuelUnsupported", {}, "warning")
-      end
+  local request = {}
+  realisticFuel.initializationPending[vehicleId] = request
+  realisticFuel.deferDashboardEnergy()
+  vehicleBridgeGuard.request(vehicle, "energyStorage", function(data, currentVehicle)
+    if realisticFuel.initializationPending[vehicleId] ~= request then return end
+    realisticFuel.initializationPending[vehicleId] = nil
+    if not state.active or not state.realisticMode or state.activeVehicleId ~= vehicleId or
+      realisticFuel.persistence.vehicleKey(currentVehicle) ~= fuelKey then return end
+    local tanks = realisticFuel.persistence.plan(fuelKey, type(data) == "table" and data[1],
+      userSettings.initialFuelPercent, realisticFuel.config.electricInitialLevel)
+    if #tanks == 0 then
+      realisticFuel.initializedVehicles[vehicleId] = false
+      showPhoneNotification("notify_realisticFuelUnsupported", {}, "warning")
+      return
     end
-  )
+    for _, tank in ipairs(tanks) do
+      if not vehicleBridgeGuard.execute(currentVehicle, "setEnergyStorageEnergy", tank.name, tank.currentEnergy) then return end
+    end
+    realisticFuel.initializedVehicles[vehicleId] = fuelKey
+    realisticFuel.persistence.capture(fuelKey, tanks)
+    realisticFuel.persistence.flush()
+    realisticFuel.deferDashboardEnergy()
+  end, function()
+    if realisticFuel.initializationPending[vehicleId] == request then
+      realisticFuel.initializationPending[vehicleId] = nil
+    end
+  end)
 end
 
 function realisticFuel.updateStation(dtSim)
@@ -1981,7 +2008,10 @@ local function reapplyDeliveryCargoMass(vehicle)
 end
 
 local function stopModeInternal(message, showNotification, notificationKey)
-  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
+  local vehicle
+  if state.activeVehicleId then vehicle = getObjectByID(state.activeVehicleId)
+  else vehicle = getPlayerVehicle() end
+  realisticFuel.persistence.flush()
   physicalPickup:clear()
   policeCheck:cancel("shiftStopped")
   autopilot:disable(vehicle, "shiftStopped", true)
@@ -3596,7 +3626,7 @@ function M.startMode(restoredEnergy)
       return
     end
     if type(restoredEnergy) == "table" then
-      realisticFuel.initializedVehicles[vehicle:getID()] = true
+      realisticFuel.initializedVehicles[vehicle:getID()] = realisticFuel.persistence.vehicleKey(vehicle) or true
     else
       realisticFuel.initializeVehicle(vehicle)
     end
@@ -4075,18 +4105,29 @@ end
 function M.setMinimapTransform(x, y, width, height, allowFleet, forceFullTextureClear)
   navigationUi:setTransform(x, y, width, height, allowFleet, forceFullTextureClear)
 end
+function M.panMinimap(dx, dy)
+  return navigationUi:panMinimap(dx, dy)
+end
+function M.zoomMinimap(factor)
+  return navigationUi:zoomMinimap(factor)
+end
+function M.resetMinimapView()
+  return navigationUi:resetMinimapView()
+end
 function M.setMinimapOcclusions(
   routeX, routeY, routeWidth, routeHeight,
   speedX, speedY, speedWidth, speedHeight,
   notificationX, notificationY, notificationWidth, notificationHeight,
-  autopilotX, autopilotY, autopilotWidth, autopilotHeight, fleetX, fleetY, fleetWidth, fleetHeight, allowFleet
+  autopilotX, autopilotY, autopilotWidth, autopilotHeight, fleetX, fleetY, fleetWidth, fleetHeight, allowFleet,
+  controlsX, controlsY, controlsWidth, controlsHeight
 )
   navigationUi:setOcclusions({
     routeX, routeY, routeWidth, routeHeight,
     speedX, speedY, speedWidth, speedHeight,
     notificationX, notificationY, notificationWidth, notificationHeight,
     autopilotX, autopilotY, autopilotWidth, autopilotHeight,
-    fleetX, fleetY, fleetWidth, fleetHeight
+    fleetX, fleetY, fleetWidth, fleetHeight,
+    controlsX, controlsY, controlsWidth, controlsHeight
   }, allowFleet)
 end
 function M.hideMinimap()
@@ -4303,6 +4344,11 @@ end
 function M.onUpdate(dtReal, dtSim)
   dtReal = math.max(0, dtReal or 0)
   dtSim = math.max(0, dtSim or 0)
+  realisticFuel.persistenceTimer = realisticFuel.persistenceTimer + dtReal
+  if realisticFuel.persistenceTimer >= 10 then
+    realisticFuel.persistenceTimer = 0
+    runtimeBoundary:call("fuel.checkpoint", realisticFuel.persistence.flush)
+  end
   runtimeBoundary:call("nextOffer.lifetime", updateNextOfferLifetime, dtReal)
   runtimeBoundary:call("policeCheck.update", policeCheck.update, policeCheck, dtReal)
   if vehicleScanGuard.isConfigurationOpen() then return end
@@ -4437,11 +4483,19 @@ function M.fleetCommand(action, args)
   notifyHud(); return ok, reason
 end
 function M.onVehicleSwitched(oldId, newId)
+  vehicleScanGuard.onVehicleSwitched(oldId, newId)
+  if tonumber(newId) then
+    realisticFuel.initializedVehicles[tonumber(newId)] = nil
+    realisticFuel.initializationPending[tonumber(newId)] = nil
+  end
+  realisticFuel.deferDashboardEnergy()
+  realisticFuel.persistence.flush()
   if vehicleScanGuard.isConfigurationOpen() then return end
   if state.active and oldId == state.activeVehicleId and newId ~= oldId then
     stopModeInternal("Режим остановлен после смены автомобиля", true, "notify_vehicleChanged")
   end
-  vehicleHistory.selectVehicle(newId)
+  -- The replacement's details and VM may not be ready yet. onUpdate refreshes
+  -- vehicle history after the lifecycle guard's quiet period.
   notifyHud()
 end
 function M.onVehicleGroupSpawned(vehicleIds, groupId, groupName)
@@ -4451,6 +4505,11 @@ function M.onPursuitAction(vehicleId, action, pursuit)
   policeCheck:onPursuitAction(vehicleId, action, pursuit)
 end
 local function deferVehicleScan(vehicleId)
+  vehicleId = tonumber(vehicleId)
+  if vehicleId then
+    realisticFuel.initializedVehicles[vehicleId] = nil
+    realisticFuel.initializationPending[vehicleId] = nil
+  end
   if vehicleScanGuard.isConfigurationOpen() then return end
   local currentVehicle = getPlayerVehicle()
   local currentVehicleId = currentVehicle and currentVehicle:getID() or nil
@@ -4462,12 +4521,10 @@ local function deferVehicleScan(vehicleId)
 end
 
 local function handleVehicleReset(vehicleId)
-  if vehicleScanGuard.isConfigurationOpen() then return end
   vehicleId = tonumber(vehicleId)
+  deferVehicleScan(vehicleId)
+  if vehicleScanGuard.isConfigurationOpen() then return end
   if vehicleId then
-    deferVehicleScan(vehicleId)
-    realisticFuel.initializedVehicles[vehicleId] = nil
-    realisticFuel.initializationPending[vehicleId] = nil
     vehicleHistory.onVehicleReset(vehicleId)
   end
   -- Narrow suppression: only resets expected as a consequence of an
@@ -4564,6 +4621,7 @@ end
 
 function M.onExtensionLoaded()
   vehicleScanGuard.reset()
+  realisticFuel.persistence.load()
   loadUserSettings()
   loadDriverProfile()
   loadUserProgress()
@@ -4577,6 +4635,7 @@ function M.onExtensionLoaded()
 end
 
 function M.onClientEndMission()
+  runtimeBoundary:cleanup("fuel.saveMission", realisticFuel.persistence.flush)
   runtimeBoundary:cleanup("physicalPickup.missionEnd", physicalPickup.clear, physicalPickup)
   shiftHistory.setRestoring(nil)
   runtimeBoundary:cleanup("policeCheck.missionEnd", policeCheck.cancel, policeCheck, "missionEnded")
@@ -4610,6 +4669,7 @@ end function M.onPreRender(dtReal, dtSim)
 end
 
 function M.onExtensionUnloaded()
+  runtimeBoundary:cleanup("fuel.saveUnload", realisticFuel.persistence.flush)
   runtimeBoundary:cleanup("physicalPickup.unload", physicalPickup.clear, physicalPickup)
   shiftHistory.setRestoring(nil)
   runtimeBoundary:cleanup("policeCheck.unload", policeCheck.cancel, policeCheck, "extensionUnloaded")
@@ -4636,6 +4696,7 @@ function M.onExtensionUnloaded()
 end
 
 function M.onSerialize()
+  realisticFuel.persistence.flush()
   return {
     balance = state.balance,
     rating = state.rating,

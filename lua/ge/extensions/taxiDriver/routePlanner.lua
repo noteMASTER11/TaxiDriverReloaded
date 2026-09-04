@@ -1,6 +1,7 @@
 local Route = require("gameplay/route/route")
 local trafficUtils = require("gameplay/traffic/trafficUtils")
 local offerGenerator = require("taxiDriver/offerGenerator")
+local stopSafety = require("taxiDriver/stopSafety")
 
 local M = {}
 
@@ -230,6 +231,7 @@ function M.new(options)
     local roadRadius = radiusA + (radiusB - radiusA) * interpolation
     local edgeOffset = clamp(roadRadius - 0.75 + randomRange(-0.25, 0.55), 1.5, 14)
     local edgePos = roadCenter + roadSide * (edgeOffset * sideSign)
+    if not stopSafety.isOpenAir(roadCenter) or not stopSafety.isOpenAir(edgePos) then return nil end
     local legalDirection = nil
     if trafficUtils and type(trafficUtils.finalizeSpawnPoint) == "function" then
       local finalizeOk, _, resultDirection = pcall(
@@ -569,9 +571,9 @@ function M.new(options)
             {legalDirection = true}
           )
           local edgePoint = projectAnchorToRoadEdge(lanePos, road.n1, road.n2)
-          local targetPos = edgePoint and edgePoint.pos or lanePos
-          local targetDir = edgePoint and edgePoint.dir or laneDir
-          local actualDistance = service.calculateDistance(startPos, targetPos)
+          local targetPos = edgePoint and edgePoint.pos
+          local targetDir = edgePoint and edgePoint.dir
+          local actualDistance = targetPos and service.calculateDistance(startPos, targetPos)
           if isDistanceAllowed(actualDistance, minimumDistance, maximumDistance) then
             local stop = {
               pos = vec3(targetPos),

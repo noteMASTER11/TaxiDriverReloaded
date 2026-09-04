@@ -1,7 +1,8 @@
 local M = {}
 local logger = require("taxiDriver/logger")
 
-local configurationPrefix = "menu.vehicleconfig"
+local configurationPrefixes = {"menu.vehicleconfig", "menu.vehicles", "menu.vehiclesnew",
+  "garage.vehicles", "garage.mycars", "garage.vehicle"}
 local defaultSettleSeconds = 1.5
 local configurationOpen = false
 local settleRemaining = 0
@@ -13,7 +14,12 @@ end
 
 local function isConfigurationState(value)
   local name = tostring(value or "")
-  return string.sub(name, 1, string.len(configurationPrefix)) == configurationPrefix
+  for _, prefix in ipairs(configurationPrefixes) do
+    if name == prefix or string.sub(name, 1, #prefix + 1) == prefix .. "." then
+      return true
+    end
+  end
+  return false
 end
 
 local function invalidate(settleSeconds)
@@ -31,15 +37,15 @@ function M.onUiChangedState(to, from)
 
   configurationOpen = nextOpen
   if nextOpen then
-    -- Entering the parts/tuning screen is the earliest reliable signal. Stop
+    -- Entering the vehicle selector/parts screen is the earliest signal. Stop
     -- bridge requests before BeamNG tears down the current vehicle VM.
     invalidate(0)
-    debugLog("Vehicle Config opened; vehicle-side work suspended")
+    debugLog("Vehicle menu opened; vehicle-side work suspended")
   elseif previousOpen then
     -- A short quiet period lets the replacement VM, controllers, and energy
     -- storages finish registering before TaxiDriver asks them for data again.
     invalidate(defaultSettleSeconds)
-    debugLog("Vehicle Config closed; waiting for stable vehicle VM")
+    debugLog("Vehicle menu closed; waiting for stable vehicle VM")
   end
   return true
 end
@@ -52,6 +58,17 @@ function M.onVehicleLifecycle(vehicleId, currentVehicleId)
   end
   invalidate(defaultSettleSeconds)
   debugLog(string.format("Vehicle %d lifecycle event; settle timer restarted", vehicleId))
+  return true
+end
+
+function M.onVehicleSwitched(oldId, newId)
+  newId = tonumber(newId)
+  if not newId or newId < 0 then return false end
+  -- Spawn hooks can precede the change of player focus and therefore fail the
+  -- lifecycle id check above. Focus is authoritative, including reused ids.
+  invalidate(defaultSettleSeconds)
+  debugLog(string.format("Player vehicle changed from %s to %d; waiting for stable VM",
+    tostring(oldId), newId))
   return true
 end
 

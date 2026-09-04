@@ -758,7 +758,7 @@ assert.ok(mainChunkLocalCount < 199,
 assert.ok(taxiDriverLuaSource.split(/\r?\n/).length < 4200,
   "taxiDriver.lua must remain an orchestrator instead of absorbing extracted domain modules again");
 const { server, port } = await startHarnessServer(41735);
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, channel: process.env.TAXIDRIVER_BROWSER_CHANNEL || undefined });
 
 const scenarios = [
   "home", "shiftHistory", "fleet", "fleetTrip", "orders", "trip", "delivery", "overspeed", "boarding", "forcedExit",
@@ -1474,14 +1474,16 @@ try {
   );
   const minimapOcclusionArgs = /setMinimapOcclusions\(([^)]*)\)/.exec(minimapOcclusionCommand)?.[1]
     .split(",") || [];
-  assert.equal(minimapOcclusionArgs.length, 21,
-    "Native minimap must receive five complete overlay occlusion rectangles and an explicit Fleet-mode flag");
+  assert.equal(minimapOcclusionArgs.length, 25,
+    "Native minimap must receive six complete overlay occlusion rectangles and an explicit Fleet-mode flag");
   assert.ok(minimapOcclusionArgs.slice(12, 16).map(Number).every((value) => Number.isFinite(value) && value > 0),
     "Autopilot control must reserve a visible native-minimap occlusion rectangle");
   assert.ok(minimapOcclusionArgs.slice(16, 20).map(Number).every((value) => Number.isFinite(value) && value > 0),
     "The Fleet shortcut must reserve a visible native-map occlusion even when no driver is hired");
   assert.equal(minimapOcclusionArgs[20].trim(), "false",
     "A normal trip map must not request inactive Fleet-map privileges");
+  assert.ok(minimapOcclusionArgs.slice(21, 25).map(Number).every((value) => Number.isFinite(value) && value > 0),
+    "Map controls must reserve a visible native-minimap occlusion rectangle");
   await functionalPage.evaluate(() => { window.__taxiEngineLuaCommands = []; });
   await functionalPage.locator("button.taxi-map__autopilot").click();
   assert.ok((await functionalPage.evaluate(() => window.__taxiEngineLuaCommands || []))
@@ -1501,7 +1503,7 @@ try {
   );
   const fleetOcclusionArgs = await functionalPage.evaluate(() => {
     const command = (window.__taxiEngineLuaCommands || []).findLast((value) =>
-      value.includes("setMinimapOcclusions") && value.trim().includes(", true) end")
+      /setMinimapOcclusions\((?:[^,]*,){20}\s*true,/.test(value)
     ) || "";
     return /setMinimapOcclusions\(([^)]*)\)/.exec(command)?.[1].split(",") || [];
   });

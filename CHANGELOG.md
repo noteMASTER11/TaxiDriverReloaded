@@ -1,5 +1,45 @@
 # Changelog
 
+## 4.0.3 — Fuel Persistence and Player Feedback Fixes
+
+This patch addresses player-reported vehicle, navigation, fuel and UI problems on BeamNG.drive 0.39.
+
+### Vehicle and driving fixes
+
+- Suspend vehicle reads and actions throughout vehicle selection/configuration and the replacement settle period. Reject stale callbacks and avoid sending the old shift's cleanup to the newly selected car (#3).
+- Capture the driver's gearbox behavior before native AI switches modes. Passenger stops temporarily hold Realistic behavior so held braking cannot become Arcade reverse throttle, then restore the driver's mode (#6).
+- Reject newly generated and cached pickup, intermediate-stop and drop-off locations under tunnel ceilings or other static cover. Routes may still pass through tunnels (#10).
+
+### Fuel and energy
+
+- Save remaining fuel and charge by stable vehicle identity and restore them when a later Realistic Mode shift starts, instead of resetting purchased fuel.
+- Add **Starting fuel** in Gameplay settings: **5–30%**, default **5%**, for combustion tanks without a saved record. Electric vehicles retain their initial **30%** charge.
+- Store energy separately in `settings/TaxiDriver/fuel.json`: Career uses profile plus inventory ID; Free Roam uses model plus parts configuration. Saved records take precedence over the initial-fuel slider.
+
+### Navigation and UI
+
+- Respect the game's existing floating-arrow and ground-marker preferences when TaxiDriver route guidance is enabled.
+- Preserve minimized and button-only views across native HUD recreation within the same game UI session.
+- Hide the native TaxiDriver UI and minimap while vanilla map, delivery and other non-driving screens own the UI.
+- Keep native app corners consistently rounded.
+- Add map dragging, **+ / −** zoom and **◎** follow/reset in native and Connected Phone views, including Fleet.
+- Fix the initial native-route query to satisfy BeamNG's Lua callback-expression contract.
+- Refresh Connected Phone assets to revision `403`; translate the new controls in all ten UI languages.
+
+### Compatibility and scope
+
+- Target: **BeamNG.drive 0.39**. Existing settings, profiles, progress, shift history, Fleet and LAN records remain compatible with `4.0.2`.
+- Fuel saved before this feature existed cannot be reconstructed; a vehicle without a fuel record uses the configured initial reserve once.
+- Fuel checkpoints cover TaxiDriver's Realistic Mode tracking. Career identity separation does not imply full Career gameplay support.
+- Free Roam cars with the same model and parts configuration share a fuel record. The covered-stop filter can also exclude stops beneath bridges or awnings.
+- Shift recovery/flying-vehicle reports, initial passenger opinion, voice navigation, an iPad redesign and a decorative phone frame are outside this patch.
+
+### Acknowledgements
+
+Thanks to [TheBiggestNerd2014](https://github.com/TheBiggestNerd2014) for the UI, fuel, map and tunnel feedback in [#10](https://github.com/noteMASTER11/TaxiDriverReloaded/issues/10), to the reporters of [#3](https://github.com/noteMASTER11/TaxiDriverReloaded/issues/3) and [#6](https://github.com/noteMASTER11/TaxiDriverReloaded/issues/6), and to the player who supplied the detailed private fuel/navigation/UI report.
+
+Release: [TaxiDriver Reloaded 4.0.3](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.3)
+
 ## 4.0.2 — Repair Services, AI Hand-back and Brazilian Portuguese
 
 This patch integrates the community work tested after `4.0.1`, then hardens it against the repair crash and AI control-state failures found during in-game verification on BeamNG.drive 0.39.

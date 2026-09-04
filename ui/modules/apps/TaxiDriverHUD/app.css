@@ -3295,7 +3295,9 @@
   .taxi-shell .taxi-phone,
   .taxi-shell .taxi-compact {
     border: 0;
-    border-radius: 0;
+    border-radius: 18px;
+    overflow: hidden;
+    isolation: isolate;
     box-shadow: none;
   }
   .taxi-shell .taxi-compact {
@@ -4860,3 +4862,13 @@
     }
   }
   }
+
+  /* Pointer events belong to the map only; surrounding controls remain clickable. */
+  .taxi-map-interaction { position: absolute; inset: 0; z-index: 1; cursor: grab; touch-action: none; user-select: none; }
+  .taxi-map-interaction:active { cursor: grabbing; }
+  .taxi-map-controls { position: absolute; top: 76px; right: 8px; z-index: 6; display: flex; gap: 2px; padding: 2px; background: var(--td-surface-1); border-radius: 6px; }
+  .taxi-map-controls button { width: 36px; height: 36px; padding: 0; color: var(--td-text); background: var(--td-control); border: 1px solid var(--td-border); border-radius: 4px; font-size: 23px; cursor: pointer; }
+  .taxi-map-controls button:hover { background: var(--td-control-hover); }
+  .taxi-map-controls button:focus-visible { outline: 2px solid var(--td-focus); outline-offset: 1px; }
+  .taxi-map-controls .taxi-map-controls--following { color: var(--td-accent); }
+  .taxi-shell .taxi-phone__screen { border-radius: inherit; overflow: hidden; }

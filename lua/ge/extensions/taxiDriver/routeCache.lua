@@ -3,6 +3,7 @@
 -- BeamNG virtual paths under /settings resolve inside the active user folder,
 -- including installations whose user folder was moved away from AppData.
 local M = {}
+local stopSafety = require("taxiDriver/stopSafety")
 
 local schemaVersion = 2
 local cacheDirectory = "/settings/TaxiDriver/route_cache"
@@ -394,7 +395,7 @@ function M.restoreBest(options)
       (requestedType ~= "delivery" and not cached.isDelivery)
     if compatible then
       local candidate = M.inflateOffer(cached, options.offerId)
-      if candidate then
+      if candidate and stopSafety.isOfferAllowed(candidate) then
         local directDistance = vehiclePos:distance(candidate.pickup.pos)
         local exactType = requestedType == nil or
           (requestedType == "delivery" and candidate.isDelivery) or

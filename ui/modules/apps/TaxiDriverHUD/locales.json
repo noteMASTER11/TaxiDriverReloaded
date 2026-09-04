@@ -355,7 +355,7 @@
     "estimatedRange": "Estimated driving range",
     "fuelRemainingAmount": "Fuel remaining",
     "fuel_n2o": "Nitrous oxide",
-    "notify_realisticFuelSet": "Fuel 5% · EV 30%",
+    "notify_realisticFuelSet": "Starting fuel applied",
     "notify_realisticFuelUnsupported": "This vehicle has no supported fuel storage.",
     "notify_realisticFuelUnavailable": "Realistic fueling is unavailable on this map.",
     "notify_realisticNoMoney": "Insufficient balance for refueling.",
@@ -579,7 +579,14 @@
     "zoomAggressive": "Aggressive",
     "cheatEconomyMultiplier": "Fare multiplier",
     "cheatEconomyMultiplierHelp": "Multiplies the base payout of newly generated orders. Fuel prices are unchanged.",
-    "difficultyFileHelp": "Custom difficulty and penalty switches are portable and can be shared through:"
+    "difficultyFileHelp": "Custom difficulty and penalty switches are portable and can be shared through:",
+    "initialFuelPercent": "Starting fuel",
+    "initialFuelPercentHelp": "First use of a vehicle in Realistic Mode. Saved fuel is kept on later shifts. Electric charge is unchanged.",
+    "mapDrag": "Drag to move the map",
+    "mapControls": "Map controls",
+    "mapZoomIn": "Zoom in",
+    "mapZoomOut": "Zoom out",
+    "mapFollow": "Follow vehicle"
   },
   "ru": {
     "fleetTitle": "Мой таксопарк",
@@ -937,7 +944,7 @@
     "estimatedRange": "Примерный запас хода",
     "fuelRemainingAmount": "Остаток топлива",
     "fuel_n2o": "Закись азота",
-    "notify_realisticFuelSet": "Топливо 5% · электромобиль 30%",
+    "notify_realisticFuelSet": "Стартовый запас топлива применён",
     "notify_realisticFuelUnsupported": "В автомобиле нет поддерживаемого хранилища энергии.",
     "notify_realisticFuelUnavailable": "Реалистичная заправка недоступна на этой карте.",
     "notify_realisticNoMoney": "Недостаточно средств для заправки.",
@@ -1161,7 +1168,14 @@
     "zoomAggressive": "Агрессивный",
     "cheatEconomyMultiplier": "Множитель оплаты",
     "cheatEconomyMultiplierHelp": "Умножает базовую оплату новых заказов. Цены на топливо не меняются.",
-    "difficultyFileHelp": "Настройки своей сложности и штрафов можно передавать другим игрокам через файл:"
+    "difficultyFileHelp": "Настройки своей сложности и штрафов можно передавать другим игрокам через файл:",
+    "initialFuelPercent": "Стартовый запас топлива",
+    "initialFuelPercentHelp": "При первом использовании машины в реалистичном режиме. В следующих сменах сохраняется остаток топлива. Заряд электромобилей не меняется.",
+    "mapDrag": "Перетащите карту курсором",
+    "mapControls": "Управление картой",
+    "mapZoomIn": "Приблизить",
+    "mapZoomOut": "Отдалить",
+    "mapFollow": "Следовать за машиной"
   },
   "de": {
     "fleetTitle": "Mein Fuhrpark",
@@ -1480,7 +1494,7 @@
     "estimatedRange": "Geschätzte Reichweite",
     "fuelRemainingAmount": "Verbleibender Kraftstoff",
     "fuel_n2o": "Lachgas",
-    "notify_realisticFuelSet": "Kraftstoff 5% · E-Auto 30%",
+    "notify_realisticFuelSet": "Startkraftstoff angewendet",
     "notify_realisticFuelUnsupported": "Dieses Fahrzeug hat keinen unterstützten Energiespeicher.",
     "notify_realisticFuelUnavailable": "Realistisches Tanken ist auf dieser Karte nicht verfügbar.",
     "notify_realisticNoMoney": "Guthaben reicht zum Tanken nicht aus.",
@@ -1704,7 +1718,14 @@
     "zoomAggressive": "Aggressiv",
     "cheatEconomyMultiplier": "Fahrpreismultiplikator",
     "cheatEconomyMultiplierHelp": "Multipliziert die Grundvergütung neuer Aufträge. Kraftstoffpreise bleiben unverändert.",
-    "difficultyFileHelp": "Benutzerdefinierte Schwierigkeit und Abzüge können über diese Datei geteilt werden:"
+    "difficultyFileHelp": "Benutzerdefinierte Schwierigkeit und Abzüge können über diese Datei geteilt werden:",
+    "initialFuelPercent": "Kraftstoff beim Start",
+    "initialFuelPercentHelp": "Bei der ersten Nutzung eines Fahrzeugs im realistischen Modus. Spätere Schichten behalten den gespeicherten Kraftstoff. Die Batterieladung bleibt unverändert.",
+    "mapDrag": "Karte durch Ziehen bewegen",
+    "mapControls": "Kartensteuerung",
+    "mapZoomIn": "Vergrößern",
+    "mapZoomOut": "Verkleinern",
+    "mapFollow": "Fahrzeug folgen"
   },
   "fr": {
     "fleetTitle": "Ma flotte",
@@ -2023,7 +2044,7 @@
     "estimatedRange": "Autonomie estimée",
     "fuelRemainingAmount": "Carburant restant",
     "fuel_n2o": "Protoxyde d’azote",
-    "notify_realisticFuelSet": "Carburant 5% · véhicule électrique 30%",
+    "notify_realisticFuelSet": "Carburant de départ appliqué",
     "notify_realisticFuelUnsupported": "Ce véhicule ne possède aucun stockage d’énergie compatible.",
     "notify_realisticFuelUnavailable": "Le ravitaillement réaliste est indisponible sur cette carte.",
     "notify_realisticNoMoney": "Solde insuffisant pour le ravitaillement.",
@@ -2247,7 +2268,14 @@
     "zoomAggressive": "Agressif",
     "cheatEconomyMultiplier": "Multiplicateur de tarif",
     "cheatEconomyMultiplierHelp": "Multiplie le paiement de base des nouvelles commandes. Le prix du carburant ne change pas.",
-    "difficultyFileHelp": "La difficulté personnalisée et les pénalités peuvent être partagées avec ce fichier :"
+    "difficultyFileHelp": "La difficulté personnalisée et les pénalités peuvent être partagées avec ce fichier :",
+    "initialFuelPercent": "Carburant au départ",
+    "initialFuelPercentHelp": "À la première utilisation du véhicule en mode réaliste. Le carburant sauvegardé est conservé lors des services suivants. La charge électrique reste inchangée.",
+    "mapDrag": "Faites glisser pour déplacer la carte",
+    "mapControls": "Commandes de la carte",
+    "mapZoomIn": "Zoom avant",
+    "mapZoomOut": "Zoom arrière",
+    "mapFollow": "Suivre le véhicule"
   },
   "es": {
     "fleetTitle": "Mi flota",
@@ -2566,7 +2594,7 @@
     "estimatedRange": "Autonomía estimada",
     "fuelRemainingAmount": "Combustible restante",
     "fuel_n2o": "Óxido nitroso",
-    "notify_realisticFuelSet": "Combustible 5% · eléctrico 30%",
+    "notify_realisticFuelSet": "Combustible inicial aplicado",
     "notify_realisticFuelUnsupported": "Este vehículo no tiene almacenamiento de energía compatible.",
     "notify_realisticFuelUnavailable": "El repostaje realista no está disponible en este mapa.",
     "notify_realisticNoMoney": "Saldo insuficiente para repostar.",
@@ -2790,7 +2818,14 @@
     "zoomAggressive": "Agresivo",
     "cheatEconomyMultiplier": "Multiplicador de tarifa",
     "cheatEconomyMultiplierHelp": "Multiplica el pago base de los pedidos nuevos. El precio del combustible no cambia.",
-    "difficultyFileHelp": "La dificultad personalizada y las penalizaciones se pueden compartir mediante este archivo:"
+    "difficultyFileHelp": "La dificultad personalizada y las penalizaciones se pueden compartir mediante este archivo:",
+    "initialFuelPercent": "Combustible inicial",
+    "initialFuelPercentHelp": "En el primer uso del vehículo en modo realista. Los turnos siguientes conservan el combustible guardado. La carga eléctrica no cambia.",
+    "mapDrag": "Arrastra para mover el mapa",
+    "mapControls": "Controles del mapa",
+    "mapZoomIn": "Acercar",
+    "mapZoomOut": "Alejar",
+    "mapFollow": "Seguir al vehículo"
   },
   "pl": {
     "fleetTitle": "Moja flota",
@@ -3109,7 +3144,7 @@
     "estimatedRange": "Szacowany zasięg",
     "fuelRemainingAmount": "Pozostałe paliwo",
     "fuel_n2o": "Podtlenek azotu",
-    "notify_realisticFuelSet": "Paliwo 5% · pojazd elektryczny 30%",
+    "notify_realisticFuelSet": "Ustawiono początkowy poziom paliwa",
     "notify_realisticFuelUnsupported": "Ten pojazd nie ma obsługiwanego zasobnika energii.",
     "notify_realisticFuelUnavailable": "Realistyczne tankowanie jest niedostępne na tej mapie.",
     "notify_realisticNoMoney": "Za mało środków na tankowanie.",
@@ -3333,7 +3368,14 @@
     "zoomAggressive": "Agresywny",
     "cheatEconomyMultiplier": "Mnożnik opłaty",
     "cheatEconomyMultiplierHelp": "Mnoży bazową wypłatę nowych zleceń. Ceny paliwa pozostają bez zmian.",
-    "difficultyFileHelp": "Własną trudność i przełączniki kar można udostępniać przez plik:"
+    "difficultyFileHelp": "Własną trudność i przełączniki kar można udostępniać przez plik:",
+    "initialFuelPercent": "Początkowy poziom paliwa",
+    "initialFuelPercentHelp": "Przy pierwszym użyciu pojazdu w trybie realistycznym. Kolejne zmiany zachowują zapisane paliwo. Poziom naładowania nie zmienia się.",
+    "mapDrag": "Przeciągnij, aby przesunąć mapę",
+    "mapControls": "Sterowanie mapą",
+    "mapZoomIn": "Przybliż",
+    "mapZoomOut": "Oddal",
+    "mapFollow": "Śledź pojazd"
   },
   "uk": {
     "fleetTitle": "Мій таксопарк",
@@ -3652,7 +3694,7 @@
     "estimatedRange": "Орієнтовний запас ходу",
     "fuelRemainingAmount": "Залишок пального",
     "fuel_n2o": "Закис азоту",
-    "notify_realisticFuelSet": "Пальне 5% · електромобіль 30%",
+    "notify_realisticFuelSet": "Початковий запас пального застосовано",
     "notify_realisticFuelUnsupported": "В автомобілі немає підтримуваного сховища енергії.",
     "notify_realisticFuelUnavailable": "Реалістична заправка недоступна на цій мапі.",
     "notify_realisticNoMoney": "Недостатньо коштів для заправки.",
@@ -3876,7 +3918,14 @@
     "zoomAggressive": "Агресивний",
     "cheatEconomyMultiplier": "Множник оплати",
     "cheatEconomyMultiplierHelp": "Множить базову оплату нових замовлень. Ціни на пальне не змінюються.",
-    "difficultyFileHelp": "Власну складність і перемикачі штрафів можна передавати через файл:"
+    "difficultyFileHelp": "Власну складність і перемикачі штрафів можна передавати через файл:",
+    "initialFuelPercent": "Початковий запас пального",
+    "initialFuelPercentHelp": "Під час першого використання авто в реалістичному режимі. У наступних змінах зберігається залишок пального. Заряд електромобілів не змінюється.",
+    "mapDrag": "Перетягніть карту курсором",
+    "mapControls": "Керування картою",
+    "mapZoomIn": "Наблизити",
+    "mapZoomOut": "Віддалити",
+    "mapFollow": "Стежити за авто"
   },
   "it": {
     "fleetTitle": "La mia flotta",
@@ -4195,7 +4244,7 @@
     "estimatedRange": "Autonomia stimata",
     "fuelRemainingAmount": "Carburante residuo",
     "fuel_n2o": "Protossido di azoto",
-    "notify_realisticFuelSet": "Carburante 5% · EV 30%",
+    "notify_realisticFuelSet": "Carburante iniziale applicato",
     "notify_realisticFuelUnsupported": "Questo veicolo non dispone di un deposito di carburante supportato.",
     "notify_realisticFuelUnavailable": "Il rifornimento realistico non è disponibile su questa mappa.",
     "notify_realisticNoMoney": "Saldo insufficiente per il rifornimento.",
@@ -4419,7 +4468,14 @@
     "zoomAggressive": "Aggressivo",
     "cheatEconomyMultiplier": "Moltiplicatore tariffa",
     "cheatEconomyMultiplierHelp": "Moltiplica il compenso base dei nuovi ordini. I prezzi del carburante non cambiano.",
-    "difficultyFileHelp": "La difficoltà personalizzata e le penalità possono essere condivise tramite il file:"
+    "difficultyFileHelp": "La difficoltà personalizzata e le penalità possono essere condivise tramite il file:",
+    "initialFuelPercent": "Carburante iniziale",
+    "initialFuelPercentHelp": "Al primo utilizzo del veicolo in modalità realistica. Nei turni successivi viene conservato il carburante salvato. La carica elettrica resta invariata.",
+    "mapDrag": "Trascina per spostare la mappa",
+    "mapControls": "Controlli mappa",
+    "mapZoomIn": "Ingrandisci",
+    "mapZoomOut": "Riduci",
+    "mapFollow": "Segui il veicolo"
   },
   "zh-CN": {
     "fleetTitle": "我的车队",
@@ -4777,7 +4833,7 @@
     "estimatedRange": "预计行驶里程",
     "fuelRemainingAmount": "剩余燃油",
     "fuel_n2o": "一氧化二氮",
-    "notify_realisticFuelSet": "燃油 5% · 电量 30%",
+    "notify_realisticFuelSet": "已设置初始燃油量",
     "notify_realisticFuelUnsupported": "该车辆没有支持的燃料储存。",
     "notify_realisticFuelUnavailable": "在此地图上无法进行真实的加油。",
     "notify_realisticNoMoney": "余额不足，无法加油。",
@@ -5001,7 +5057,14 @@
     "zoomAggressive": "强烈的",
     "cheatEconomyMultiplier": "收入倍数",
     "cheatEconomyMultiplierHelp": "订单的价格倍数。燃油价格不变。",
-    "difficultyFileHelp": "自定义难度和惩罚开关是便携式的，可以通过以下方式共享："
+    "difficultyFileHelp": "自定义难度和惩罚开关是便携式的，可以通过以下方式共享：",
+    "initialFuelPercent": "初始燃油量",
+    "initialFuelPercentHelp": "首次在真实模式中使用车辆时生效。后续班次保留已保存的燃油量。电动车电量不变。",
+    "mapDrag": "拖动以移动地图",
+    "mapControls": "地图控制",
+    "mapZoomIn": "放大",
+    "mapZoomOut": "缩小",
+    "mapFollow": "跟随车辆"
   },
   "pt-BR": {
     "fleetTitle": "Minha frota",
@@ -5359,7 +5422,7 @@
     "estimatedRange": "Autonomia estimada",
     "fuelRemainingAmount": "Combustível restante",
     "fuel_n2o": "Óxido nitroso",
-    "notify_realisticFuelSet": "Combustível 5% · VE 30%",
+    "notify_realisticFuelSet": "Combustível inicial aplicado",
     "notify_realisticFuelUnsupported": "Este veículo não possui armazenamento de combustível compatível.",
     "notify_realisticFuelUnavailable": "O abastecimento realista está indisponível neste mapa.",
     "notify_realisticNoMoney": "Saldo insuficiente para abastecer.",
@@ -5583,6 +5646,13 @@
     "notify_repairComplete": "Reparado · {cost} · saldo {balance}",
     "notify_repairFailed": "Falha no reparo",
     "notify_repairInterrupted": "Reparo interrompido",
-    "cheatRepairVehicle": "REPARAR VEÍCULO"
+    "cheatRepairVehicle": "REPARAR VEÍCULO",
+    "initialFuelPercent": "Combustível inicial",
+    "initialFuelPercentHelp": "No primeiro uso do veículo no modo realista. Os turnos seguintes mantêm o combustível salvo. A carga elétrica não muda.",
+    "mapDrag": "Arraste para mover o mapa",
+    "mapControls": "Controles do mapa",
+    "mapZoomIn": "Ampliar",
+    "mapZoomOut": "Reduzir",
+    "mapFollow": "Seguir veículo"
   }
 }

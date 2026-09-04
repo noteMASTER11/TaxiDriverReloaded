@@ -280,6 +280,10 @@ function M.new(options)
       "if extensions.taxiDriverTelemetry then extensions.taxiDriverTelemetry.setForcedStop(false) end;",
       "electrics.set_left_signal(false,false);electrics.set_right_signal(false,false);",
       "if ai and type(ai.driveUsingPath)=='function' then ",
+      -- driveUsingPath switches to Arcade synchronously. Capture the player's
+      -- gearbox mode before that call so handoff can restore it correctly.
+      "if taxiObserver and type(taxiObserver.watch)=='function' then taxiObserver.watch(",
+      observerConfig(sequence), ") end;",
       "ai.driveUsingPath({wpTargetList=", serializePath(nodes),
       ",noOfLaps=1,aggression=", string.format("%.2f", runtime.profile.aggression),
       ",avoidCars='on',driveInLane=", quote(laneMode),
@@ -295,8 +299,6 @@ function M.new(options)
       ",edgeDist=0,enableElectrics=true,targetSpeedSmootherRate=7}) end;",
       "if type(ai.setRacing)=='function' then ai.setRacing(false) end;",
       "if type(ai.setRecoverOnCrash)=='function' then ai.setRecoverOnCrash(false) end;",
-      "if taxiObserver and type(taxiObserver.watch)=='function' then taxiObserver.watch(",
-      observerConfig(sequence), ") end;",
       "else if taxiObserver and type(taxiObserver.fail)=='function' then taxiObserver.fail(",
       observerConfig(sequence), ",'nativeAiUnavailable') end end"
     })
