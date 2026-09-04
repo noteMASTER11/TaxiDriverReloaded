@@ -1595,6 +1595,11 @@ local function onExtensionUnloaded()
 end
 
 M.watch = watch
+-- Passenger stops may overlap native AI driving/parking. They must restore
+-- the driver's mode, rather than capture the AI's temporary Arcade override.
+function M.getDriverGearboxBehavior()
+  return originalGearboxBehavior
+end
 M.unwatch = unwatch
 M.updateGFX = updateGFX
 M.getDebugState = getDebugState

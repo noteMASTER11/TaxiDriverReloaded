@@ -120,6 +120,7 @@ function M.new(options)
       silentMode = false,
       showRouteGuidance = true,
       realisticMode = false,
+      initialFuelPercent = 5,
       randomEventsEnabled = false,
       randomEvents = taxiConfig.sanitizeRandomEvents(nil),
       aiDebugLogging = false,
@@ -184,6 +185,9 @@ function M.new(options)
     result.silentMode = source.silentMode == true
     result.showRouteGuidance = source.showRouteGuidance ~= false
     result.realisticMode = source.realisticMode == true
+    local initialFuelPercent = tonumber(source.initialFuelPercent)
+    if not initialFuelPercent or initialFuelPercent ~= initialFuelPercent then initialFuelPercent = 5 end
+    result.initialFuelPercent = math.floor(clamp(initialFuelPercent, 5, 30) + 0.5)
     result.randomEventsEnabled = source.randomEventsEnabled == true
     result.randomEvents = taxiConfig.sanitizeRandomEvents(source.randomEvents)
     result.aiDebugLogging = source.aiDebugLogging == true

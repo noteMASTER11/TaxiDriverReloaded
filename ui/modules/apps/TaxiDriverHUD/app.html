@@ -3,7 +3,7 @@
   @import url("/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=342-flatplus");
 </style>
 
-<div class="taxi-shell" ng-if="externalPhoneMode || !vehicleConfigSuspended" ng-class="{'taxi-shell--minimized': !externalPhoneMode && phoneMinimized, 'taxi-shell--super-minimized': !externalPhoneMode && phoneSuperMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
+<div class="taxi-shell" ng-if="externalPhoneMode || (!vehicleConfigSuspended && !nativeUiSuspended)" ng-class="{'taxi-shell--minimized': !externalPhoneMode && phoneMinimized, 'taxi-shell--super-minimized': !externalPhoneMode && phoneSuperMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode && state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode && state.lan.connected > 0 && !localPhoneOpen}">
   <div class="taxi-shell__scale-stage" ng-class="getUiScaleClass()">
   <button type="button" class="taxi-shell__remote-toggle" ng-if="!externalPhoneMode && state.lan.connected > 0" ng-click="hud.toggleLocalPhone()" aria-label="{{ localPhoneOpen ? t('externalHideLocal') : t('externalShowLocal') }}">
     <span>&#128241;</span><i ng-if="state.nextOffer"></i>
@@ -40,6 +40,12 @@
     <div class="taxi-compact__map">
       <div class="taxi-minimap-surface"></div>
       <canvas class="taxi-external-minimap" ng-if="externalPhoneMode"></canvas>
+        <div class="taxi-map-interaction" ng-class="{'taxi-map-interaction--panned': !mapFollowing}" aria-label="{{ t('mapDrag') }}"></div>
+        <div class="taxi-map-controls" aria-label="{{ t('mapControls') }}">
+          <button type="button" ng-click="hud.zoomMap(0.8)" title="{{ t('mapZoomIn') }}" aria-label="{{ t('mapZoomIn') }}">+</button>
+          <button type="button" ng-click="hud.zoomMap(1.25)" title="{{ t('mapZoomOut') }}" aria-label="{{ t('mapZoomOut') }}">−</button>
+          <button type="button" ng-click="hud.followMap()" ng-class="{'taxi-map-controls--following': mapFollowing}" title="{{ t('mapFollow') }}" aria-label="{{ t('mapFollow') }}">◎</button>
+        </div>
       <div class="taxi-compact__route-info" ng-if="isNavigationPhase()">
         <span>{{ t('arrival') }}</span>
         <strong>{{ getArrivalTime(state.etaMinutes) }}</strong>
@@ -181,6 +187,12 @@
           <span class="taxi-settings__group-icon">!</span><strong>{{ t('settingsGameplay') }}</strong><i>{{ settingsSections.gameplay ? '-' : '+' }}</i>
         </button>
         <div id="taxi-settings-gameplay" class="taxi-settings__group-body" ng-if="settingsSections.gameplay">
+          <div class="taxi-settings__section">
+            <label class="taxi-settings__label" for="taxi-initial-fuel"><span>{{ t('initialFuelPercent') }}</span><span>{{ settings.initialFuelPercent | number:0 }}%</span></label>
+            <div class="taxi-settings__help">{{ t('initialFuelPercentHelp') }}</div>
+            <input id="taxi-initial-fuel" class="taxi-settings__range" type="range" min="5" max="30" step="1" ng-model="settings.initialFuelPercent" ng-change="hud.settingsChanged()">
+            <div class="taxi-settings__range-ends"><span>5%</span><span>30%</span></div>
+          </div>
           <div class="taxi-settings__section">
             <div class="taxi-settings__label">{{ t('difficulty') }}</div>
             <div class="taxi-settings__help">{{ t('difficultyHelp') }}</div>
@@ -726,6 +738,12 @@
       <div class="taxi-map taxi-fleet__map">
         <div class="taxi-minimap-surface"></div>
         <canvas class="taxi-external-minimap" ng-if="externalPhoneMode"></canvas>
+        <div class="taxi-map-interaction" ng-class="{'taxi-map-interaction--panned': !mapFollowing}" aria-label="{{ t('mapDrag') }}"></div>
+        <div class="taxi-map-controls" aria-label="{{ t('mapControls') }}">
+          <button type="button" ng-click="hud.zoomMap(0.8)" title="{{ t('mapZoomIn') }}" aria-label="{{ t('mapZoomIn') }}">+</button>
+          <button type="button" ng-click="hud.zoomMap(1.25)" title="{{ t('mapZoomOut') }}" aria-label="{{ t('mapZoomOut') }}">−</button>
+          <button type="button" ng-click="hud.followMap()" ng-class="{'taxi-map-controls--following': mapFollowing}" title="{{ t('mapFollow') }}" aria-label="{{ t('mapFollow') }}">◎</button>
+        </div>
         <div class="taxi-map__route-info" ng-if="state.active && (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination' || state.phase === 'toFuelStation')">
           <span>{{ t('arrival') }}</span><strong>{{ getArrivalTime(state.etaMinutes) }}</strong><small>{{ formatEta(state.etaMinutes) }} · {{ formatDistance(state.distanceToTarget) }}</small>
         </div>
@@ -980,6 +998,12 @@
       <div class="taxi-map">
         <div class="taxi-minimap-surface"></div>
         <canvas class="taxi-external-minimap" ng-if="externalPhoneMode"></canvas>
+        <div class="taxi-map-interaction" ng-class="{'taxi-map-interaction--panned': !mapFollowing}" aria-label="{{ t('mapDrag') }}"></div>
+        <div class="taxi-map-controls" aria-label="{{ t('mapControls') }}">
+          <button type="button" ng-click="hud.zoomMap(0.8)" title="{{ t('mapZoomIn') }}" aria-label="{{ t('mapZoomIn') }}">+</button>
+          <button type="button" ng-click="hud.zoomMap(1.25)" title="{{ t('mapZoomOut') }}" aria-label="{{ t('mapZoomOut') }}">−</button>
+          <button type="button" ng-click="hud.followMap()" ng-class="{'taxi-map-controls--following': mapFollowing}" title="{{ t('mapFollow') }}" aria-label="{{ t('mapFollow') }}">◎</button>
+        </div>
         <div class="taxi-map__route-info">
           <span>{{ t('arrival') }}</span>
           <strong>{{ getArrivalTime(state.etaMinutes) }}</strong>
@@ -1024,6 +1048,12 @@
       <div class="taxi-map">
         <div class="taxi-minimap-surface"></div>
         <canvas class="taxi-external-minimap" ng-if="externalPhoneMode"></canvas>
+        <div class="taxi-map-interaction" ng-class="{'taxi-map-interaction--panned': !mapFollowing}" aria-label="{{ t('mapDrag') }}"></div>
+        <div class="taxi-map-controls" aria-label="{{ t('mapControls') }}">
+          <button type="button" ng-click="hud.zoomMap(0.8)" title="{{ t('mapZoomIn') }}" aria-label="{{ t('mapZoomIn') }}">+</button>
+          <button type="button" ng-click="hud.zoomMap(1.25)" title="{{ t('mapZoomOut') }}" aria-label="{{ t('mapZoomOut') }}">−</button>
+          <button type="button" ng-click="hud.followMap()" ng-class="{'taxi-map-controls--following': mapFollowing}" title="{{ t('mapFollow') }}" aria-label="{{ t('mapFollow') }}">◎</button>
+        </div>
         <div class="taxi-map__route-info">
           <span>{{ t('arrival') }}</span>
           <strong>{{ getArrivalTime(state.etaMinutes) }}</strong>

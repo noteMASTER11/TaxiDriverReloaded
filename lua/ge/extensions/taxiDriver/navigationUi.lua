@@ -32,8 +32,18 @@ function M.new(options)
   local originalArrows = nil
   local destinationMarker = nil
   local destinationMarkerSerial = 0
+  local originalSetUtilsState, wrappedSetUtilsState = nil, nil
+  local mapView = nil
+  local inspectionCenter, inspectionRotation, inspectionInverse = nil, nil, nil
+  local manualZoom = 1
+  local mapViewChanged = false
 
   local function restoreDynamicZoom()
+    if ui_apps_minimap_utils and originalSetUtilsState and
+      ui_apps_minimap_utils.setMinimapState == wrappedSetUtilsState then
+      ui_apps_minimap_utils.setMinimapState = originalSetUtilsState
+    end
+    originalSetUtilsState, wrappedSetUtilsState, mapView = nil, nil, nil
     if ui_apps_minimap_vehicles and originalDrawPlayer and
       ui_apps_minimap_vehicles.drawPlayer == wrappedDrawPlayer then
       ui_apps_minimap_vehicles.drawPlayer = originalDrawPlayer
@@ -64,17 +74,21 @@ function M.new(options)
   end
 
   local function applyVisualSettings()
+    local visible = not options.isRouteGuidanceHidden or not options.isRouteGuidanceHidden()
+    if visible then
+      restoreVisualSettings()
+      return
+    end
     if not visualOverrideActive then
       originalGroundmarkers = settings.getValue("showNavigationGroundmarkers") ~= false
       originalArrows = settings.getValue("showNavigationArrows") ~= false
       visualOverrideActive = true
     end
-    local visible = not options.isRouteGuidanceHidden or not options.isRouteGuidanceHidden()
-    settings.setValue("showNavigationGroundmarkers", visible)
-    settings.setValue("showNavigationArrows", visible)
+    settings.setValue("showNavigationGroundmarkers", false)
+    settings.setValue("showNavigationArrows", false)
     if core_groundMarkers and core_groundMarkers.onSettingsChanged then
       core_groundMarkers.onSettingsChanged()
-    elseif not visible and core_groundMarkerArrows then
+    elseif core_groundMarkerArrows then
       core_groundMarkerArrows.clearArrows()
     end
   end
@@ -104,6 +118,35 @@ function M.new(options)
     if not ui_apps_minimap_vehicles then extensions.load("ui_apps_minimap_vehicles") end
     if not ui_apps_minimap_vehicles then return end
 
+    if ui_apps_minimap_utils and not wrappedSetUtilsState and
+      type(ui_apps_minimap_utils.setMinimapState) == "function" then
+      originalSetUtilsState = ui_apps_minimap_utils.setMinimapState
+      local original = originalSetUtilsState
+      wrappedSetUtilsState = function(w, h, cx, cy, pos, rot, inverse, scale, ...)
+        if owned and pos and rot and inverse and type(scale) == "number" then
+          -- 0.39 passes these same vector/quaternion objects to utilities,
+          -- vehicles and roads. Adjust before the first drawing consumer so
+          -- every map layer uses the same camera while inspecting a location.
+          if inspectionCenter then
+            pos:set(inspectionCenter)
+            rot:set(inspectionRotation)
+            inverse:set(inspectionInverse)
+          end
+          mapView = {width = w, height = h, scale = scale,
+            center = vec3(pos), rotation = quat(rot), inverse = quat(inverse)}
+        end
+        if mapViewChanged then
+          local texture = select(2, ...)
+          if texture and type(texture.clearOnceBeforeRender) == "function" then
+            pcall(function() texture:clearOnceBeforeRender(0) end)
+          end
+          mapViewChanged = false
+        end
+        return original(w, h, cx, cy, pos, rot, inverse, scale, ...)
+      end
+      ui_apps_minimap_utils.setMinimapState = wrappedSetUtilsState
+    end
+
     if not wrappedSetMinimapState and
       type(ui_apps_minimap_vehicles.setMinimapState) == "function" then
       originalSetMinimapState = ui_apps_minimap_vehicles.setMinimapState
@@ -132,8 +175,8 @@ function M.new(options)
       local original = originalDrawPlayer
       wrappedDrawPlayer = function(dtReal, dtSim)
         local baseScale = original(dtReal, dtSim)
-        if type(baseScale) ~= "number" or not owned or
-          (options.isActive and not options.isActive()) then return baseScale end
+        if type(baseScale) ~= "number" or not owned then return baseScale end
+        local shiftActive = not options.isActive or options.isActive()
         local vehicle = options.getVehicle and options.getVehicle() or nil
         local speedKmh = vehicle and options.getSpeedKmh and options.getSpeedKmh(vehicle) or 0
         local speedRatio = clamp(speedKmh / 120, 0, 1)
@@ -151,7 +194,7 @@ function M.new(options)
           zoomMultiplier = zoomMultiplier +
             (targetMultiplier - zoomMultiplier) * blend
         end
-        local returnedScale = baseScale * zoomMultiplier
+        local returnedScale = baseScale * (shiftActive and zoomMultiplier or 1) * manualZoom
         local scaleDelta = lastReturnedScale and math.abs(returnedScale - lastReturnedScale) or 0
         local scaleChanged = lastReturnedScale ~= nil and scaleDelta > 0.00001
         if forceFullTextureClear and scaleChanged and clearOnceSupported ~= false and
@@ -182,8 +225,6 @@ function M.new(options)
 
   function service:setNavigationTarget(target)
     if not core_groundMarkers or not target or not target.pos then return end
-    local guidanceVisible = not options.isRouteGuidanceHidden or
-      not options.isRouteGuidanceHidden()
     applyVisualSettings()
     core_groundMarkers.setPath(target.pos, {
       clearPathOnReachingTarget = false,
@@ -191,7 +232,7 @@ function M.new(options)
     })
     -- BeamNG 0.39 creates the floating-arrow pool at the end of setPath even
     -- when showNavigationArrows is false, so the disabled state must win last.
-    if not guidanceVisible and core_groundMarkerArrows then
+    if settings.getValue("showNavigationArrows") == false and core_groundMarkerArrows then
       core_groundMarkerArrows.clearArrows()
     end
     setDestinationMarker(target.pos)
@@ -209,7 +250,7 @@ function M.new(options)
     if ui_apps_minimap_minimap then
       for _, id in ipairs({
         "taxiDriverRouteInfo", "taxiDriverSpeedLimit", "taxiDriverNotification",
-        "taxiDriverAutopilot", "taxiDriverFleetStatus"
+        "taxiDriverAutopilot", "taxiDriverFleetStatus", "taxiDriverMapControls"
       }) do
         ui_apps_minimap_minimap.resetOcclusionTransform(id)
       end
@@ -247,6 +288,30 @@ function M.new(options)
 
   function service:resetVisibility()
     appVisible, uiBlocked = true, false
+    self:resetMinimapView()
+  end
+
+  function service:panMinimap(dx, dy)
+    dx, dy = tonumber(dx), tonumber(dy)
+    if not owned or not mapView or not dx or not dy or dx ~= dx or dy ~= dy then return end
+    local offset = mapView.inverse * vec3(
+      -clamp(dx, -1, 1) * mapView.width * mapView.scale,
+      clamp(dy, -1, 1) * mapView.height * mapView.scale, 0)
+    inspectionCenter = (inspectionCenter or mapView.center) + offset
+    inspectionRotation, inspectionInverse = mapView.rotation, mapView.inverse
+    mapViewChanged = true
+  end
+
+  function service:zoomMinimap(factor)
+    factor = tonumber(factor)
+    if not owned or not factor or factor ~= factor or factor <= 0 then return end
+    manualZoom = clamp(manualZoom * factor, 0.25, 4)
+  end
+
+  function service:resetMinimapView()
+    mapViewChanged = inspectionCenter ~= nil
+    inspectionCenter, inspectionRotation, inspectionInverse = nil, nil, nil
+    manualZoom = 1
   end
 
   function service:canRenderWorld()
@@ -283,7 +348,7 @@ function M.new(options)
     if not ui_apps_minimap_minimap then return end
     local ids = {
       "taxiDriverRouteInfo", "taxiDriverSpeedLimit", "taxiDriverNotification",
-      "taxiDriverAutopilot", "taxiDriverFleetStatus"
+      "taxiDriverAutopilot", "taxiDriverFleetStatus", "taxiDriverMapControls"
     }
     for index, id in ipairs(ids) do
       local offset = (index - 1) * 4

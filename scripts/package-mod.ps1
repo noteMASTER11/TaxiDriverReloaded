@@ -58,6 +58,8 @@ $requiredEntries = @(
   "lua/ge/extensions/taxiDriver/optionalLanBridge.lua",
   "lua/ge/extensions/taxiDriver/autopilotPerception.lua",
   "lua/ge/extensions/taxiDriver/persistence.lua",
+  "lua/ge/extensions/taxiDriver/fuelPersistence.lua",
+  "lua/ge/extensions/taxiDriver/stopSafety.lua",
   "lua/ge/extensions/taxiDriver/physicalPickup.lua",
   "lua/ge/extensions/taxiDriver/policeCheckEvent.lua",
   "lua/ge/extensions/taxiDriver/routeCache.lua",
@@ -97,7 +99,7 @@ try {
   if ($entries | Where-Object FullName -like "lua/vehicle/extensions/auto/taxiDriver*") {
     throw "TaxiDriver vehicle extensions must remain lazy-loaded, not automatic"
   }
-  if ($entries.Count -ne 64) {
+  if ($entries.Count -ne 66) {
     throw "Unexpected archive entry count: $($entries.Count)"
   }
 }

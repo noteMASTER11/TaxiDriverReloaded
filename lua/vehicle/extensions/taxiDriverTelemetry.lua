@@ -2,6 +2,7 @@ local M = {}
 
 local enabled = false
 local forcedStop = false
+local forcedStopGearboxBehavior = nil
 local updateTimer = 0
 local updateInterval = 0.2
 local lastDamageSnapshot = nil
@@ -16,9 +17,37 @@ local function releaseForcedStopInputs()
   input.event("parkingbrake", 0, FILTER_DIRECT)
 end
 
+local function gearboxBehavior(main)
+  local current = main and type(main.getState) == "function" and main.getState() or nil
+  return (current and current.grb_bhv) or (main and main.gearboxBehavior)
+end
+
+local function holdForcedStopGearbox()
+  local main = controller and controller.mainController or nil
+  if gearboxBehavior(main) == "arcade" and type(main.setGearboxMode) == "function" then
+    main.setGearboxMode("realistic")
+  end
+end
+
 local function setForcedStop(value)
-  forcedStop = value == true
-  if not forcedStop then releaseForcedStopInputs() end
+  value = value == true
+  if forcedStop == value then return end
+  forcedStop = value
+  local main = controller and controller.mainController or nil
+  if forcedStop then
+    local observer = extensions and extensions.taxiDriverStockAiObserver
+    forcedStopGearboxBehavior = observer and type(observer.getDriverGearboxBehavior) == "function" and
+      observer.getDriverGearboxBehavior() or gearboxBehavior(main)
+    -- Arcade interprets a held brake at zero speed as reverse throttle.
+    -- Own Realistic only for this forced stop and retain the live Q-key mode.
+    holdForcedStopGearbox()
+  else
+    releaseForcedStopInputs()
+    if forcedStopGearboxBehavior and main and type(main.setGearboxMode) == "function" then
+      main.setGearboxMode(forcedStopGearboxBehavior)
+    end
+    forcedStopGearboxBehavior = nil
+  end
 end
 
 local function getGForces()
@@ -47,6 +76,7 @@ end
 
 local function updateGFX(dt)
   if forcedStop then
+    holdForcedStopGearbox()
     input.event("throttle", 0, FILTER_DIRECT)
     input.event("brake", 1, FILTER_DIRECT)
     local wheelSpeed = math.abs(tonumber(electrics.values.wheelspeed) or 0)
@@ -103,6 +133,7 @@ local function onReset()
   enabled = false
   if forcedStop then releaseForcedStopInputs() end
   forcedStop = false
+  forcedStopGearboxBehavior = nil
 end
 
 M.setEnabled = setEnabled

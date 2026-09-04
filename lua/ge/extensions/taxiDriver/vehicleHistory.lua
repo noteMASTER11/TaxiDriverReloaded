@@ -1,4 +1,5 @@
 local M = {}
+local vehicleScanGuard = require("taxiDriver/vehicleScanGuard")
 
 local schemaVersion = 1
 local settingsDirectoryPath = "/settings/TaxiDriver"
@@ -223,6 +224,7 @@ local function trackVehicle(vehicle)
   if changed and tracking.dirtyDistance > 0 then writeHistory() end
 
   tracking.vehicleId = vehicleId
+  tracking.scanGeneration = vehicleScanGuard.getGeneration()
   tracking.key = entry.key
   tracking.entry = entry
   local pos = vehicle:getPosition()
@@ -256,6 +258,7 @@ function M.load(version)
 end
 
 function M.refreshCurrentVehicle()
+  if vehicleScanGuard.isSuspended() then return false end
   local vehicle = getCurrentPlayerVehicle()
   if not vehicle then
     local changed = tracking.vehicleId ~= nil or tracking.entry ~= nil
@@ -265,25 +268,27 @@ function M.refreshCurrentVehicle()
   end
 
   local vehicleId = tonumber(vehicle:getID())
-  -- A live parts/configuration edit keeps the same BeamNG vehicle object.
-  -- Treat its id as the lifetime identity so opening the parts selector cannot
-  -- trigger expensive core_vehicles lookups, JSON writes, or a new profile row.
-  if vehicleId == tracking.vehicleId and tracking.entry then
+  -- Reuse cached details only within the same settled vehicle lifetime.
+  if vehicleId == tracking.vehicleId and tracking.entry and
+    tracking.scanGeneration == vehicleScanGuard.getGeneration() then
     return false
   end
   return trackVehicle(vehicle)
 end
 
 function M.selectVehicle(vehicleId)
+  if vehicleScanGuard.isSuspended() then return false end
   vehicleId = tonumber(vehicleId)
   if not vehicleId then return M.refreshCurrentVehicle() end
-  if vehicleId == tracking.vehicleId and tracking.entry then return false end
+  if vehicleId == tracking.vehicleId and tracking.entry and
+    tracking.scanGeneration == vehicleScanGuard.getGeneration() then return false end
   local vehicle = getObjectByID(vehicleId)
   if not vehicle then return false end
   return trackVehicle(vehicle)
 end
 
 function M.update(dtReal, dtSim)
+  if vehicleScanGuard.isSuspended() then return false end
   local vehicle = getCurrentPlayerVehicle()
   if not vehicle then
     M.resetTracking()
@@ -291,7 +296,8 @@ function M.update(dtReal, dtSim)
   end
 
   local vehicleId = tonumber(vehicle:getID())
-  local identityChanged = vehicleId ~= tracking.vehicleId or tracking.entry == nil
+  local identityChanged = vehicleId ~= tracking.vehicleId or tracking.entry == nil or
+    tracking.scanGeneration ~= vehicleScanGuard.getGeneration()
   if identityChanged then
     return trackVehicle(vehicle)
   end

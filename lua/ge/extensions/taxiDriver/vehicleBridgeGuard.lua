@@ -61,7 +61,7 @@ function M.request(vehicle, valueName, callback, rejected)
 end
 
 function M.execute(vehicle, action, ...)
-  if not vehicle or not core_vehicleBridge or
+  if vehicleScanGuard.isSuspended() or not vehicle or not core_vehicleBridge or
     type(core_vehicleBridge.executeAction) ~= "function" then return false end
   return pcall(core_vehicleBridge.executeAction, vehicle, action, ...)
 end

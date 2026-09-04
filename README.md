@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.2"><img src="https://img.shields.io/badge/release-v4.0.2-ff6600?style=flat-square" alt="Release v4.0.2"></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.3"><img src="https://img.shields.io/badge/release-v4.0.3-ff6600?style=flat-square" alt="Release v4.0.3"></a>
   <img src="https://img.shields.io/badge/BeamNG.drive-0.39-f28c28?style=flat-square" alt="BeamNG.drive 0.39">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.2"><strong>Download 4.0.2</strong></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.3"><strong>Download 4.0.3</strong></a>
 </p>
 
 ---
 
-> **4.0.2:** Adds safe vehicle repair at physical gas stations and Magic Fuel, improves AI Driver control hand-back and parking recovery, adds Brazilian Portuguese, and hardens the full in-game minimap renderer. Contributions by [JamDaBam](https://github.com/JamDaBam) and [SweetRlk](https://github.com/SweetRlk) are included. Existing `4.0.1` saves remain compatible.
+> **4.0.3:** Preserves fuel between sessions, adds a 5–30% initial-fuel slider and draggable maps with zoom controls, respects vanilla navigation preferences, and fixes vehicle-change, passenger-stop and UI lifecycle problems. Existing `4.0.2` settings and saves remain compatible.
 
 TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
@@ -153,6 +153,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - The driver UI uses a flat high-contrast black, white, and BeamNG-orange visual system with compact spacing sized for 100% scale on a 1080p display.
 - A rectangular native minimap appears only during active driving phases.
 - The native minimap adapts to speed, while Connected Phone uses a closer, smoother, phone-specific zoom curve that preserves local road detail.
+- Drag the map to inspect a location, use **+ / −** to zoom, and press **◎** to return to following the vehicle. These controls are available in-game and on Connected Phone.
 - ETA is calculated using a city-driving reference speed of **40 km/h**.
 - Arrival time, remaining distance, route progress, speed limit, stop markers, and trip metrics remain visible around the map.
 - The ride footer shows current fuel or charge to two decimal places and an approximate remaining driving range.
@@ -177,7 +178,8 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 ### Optional realistic economy
 
 - Enable **Realistic mode** on the start screen before going online.
-- Combustion vehicles begin the shift with 5% fuel; electric vehicles begin with 30% charge.
+- Set the initial combustion-fuel reserve from **5% to 30%** in Gameplay settings (default **5%**); electric vehicles initially receive **30%** charge. This applies only when the vehicle has no saved fuel record.
+- Remaining fuel and charge are saved between sessions in `settings/TaxiDriver/fuel.json`. Career vehicles are separated by profile and inventory ID; Free Roam uses the vehicle model and parts configuration. Starting another shift restores the saved amount instead of discarding purchased fuel.
 - Stop at a compatible fuel station to open the in-phone refueling screen.
 - Repair vehicle damage from the same station screen. Repair cost follows current damage in Realistic Mode and is free outside Realistic Mode.
 - Use the persistent **Refuel** action to route to the nearest compatible station while browsing orders or during an active ride.
@@ -267,7 +269,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Installation
 
-1. Download `taxidriver.zip` from the [4.0.2 release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.2).
+1. Download `taxidriver.zip` from the [4.0.3 release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.3).
 2. Place the archive directly in:
 
    ```text
