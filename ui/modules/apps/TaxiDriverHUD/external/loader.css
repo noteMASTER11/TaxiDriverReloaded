@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Taxi Noto Sans";
-  src: url("/ui/common/NotoSans/NotoSans-Regular.ttf") format("truetype");
+  src: url("/ui/common/Noto_Sans/static/NotoSans-Regular.ttf") format("truetype");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -8,7 +8,7 @@
 
 @font-face {
   font-family: "Taxi Noto Sans";
-  src: url("/ui/common/NotoSans/NotoSans-SemiBold.ttf") format("truetype");
+  src: url("/ui/common/Noto_Sans/static/NotoSans-SemiBold.ttf") format("truetype");
   font-style: normal;
   font-weight: 600;
   font-display: swap;
@@ -16,7 +16,7 @@
 
 @font-face {
   font-family: "Taxi Noto Sans";
-  src: url("/ui/common/NotoSans/NotoSans-Bold.ttf") format("truetype");
+  src: url("/ui/common/Noto_Sans/static/NotoSans-Bold.ttf") format("truetype");
   font-style: normal;
   font-weight: 700;
   font-display: swap;
