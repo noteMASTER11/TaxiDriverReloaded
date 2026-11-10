@@ -1145,6 +1145,56 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
     };
 
     const appRoot = host;
+    if (!externalPhoneMode) {
+      const textInputTypes = new Set(['text', 'search', 'email', 'password', 'tel', 'url', 'number',
+        'date', 'datetime-local', 'month', 'time', 'week']);
+      const editableElement = element => {
+        if (!element || element.disabled || element.readOnly) return null;
+        const tag = String(element.tagName || '').toLowerCase();
+        if (tag === 'input') return textInputTypes.has(String(element.type || 'text').toLowerCase()) ? element : null;
+        if (tag === 'textarea') return element;
+        const editable = element.closest?.('[contenteditable]');
+        return editable && editable.getAttribute('contenteditable') !== 'false' ? editable : null;
+      };
+      let nativeTypingOwned = false;
+      let typingWindowActive = true;
+      const releaseNativeTyping = () => {
+        if (!nativeTypingOwned) return;
+        nativeTypingOwned = false;
+        const focused = editableElement(document.activeElement);
+        // A native editor outside this HUD manages its own typing lifecycle.
+        if (focused && !appRoot.contains(focused)) return;
+        bngApi.engineLua('if setCEFTyping then setCEFTyping(false) end');
+      };
+      const syncNativeTyping = () => {
+        const focused = editableElement(document.activeElement);
+        if (focused && appRoot.contains(focused) && !document.hidden && typingWindowActive) {
+          if (!nativeTypingOwned) {
+            nativeTypingOwned = true;
+            bngApi.engineLua('if setCEFTyping then setCEFTyping(true) end');
+          }
+        } else releaseNativeTyping();
+      };
+      listen(appRoot, 'focusin', syncNativeTyping, true);
+      listen(appRoot, 'focusout', () => scheduleUi(syncNativeTyping), true);
+      const stopTypingKeyPropagation = event => {
+        if (editableElement(event.target)) event.stopPropagation();
+      };
+      listen(appRoot, 'keydown', stopTypingKeyPropagation);
+      listen(appRoot, 'keyup', stopTypingKeyPropagation);
+      listen(window, 'blur', () => { typingWindowActive = false; releaseNativeTyping(); });
+      listen(window, 'focus', () => { typingWindowActive = true; syncNativeTyping(); });
+      listen(document, 'visibilitychange', () => document.hidden ? releaseNativeTyping() : syncNativeTyping());
+      onGameEvent('CEFTypingLostFocus', () => {
+        const focused = editableElement(document.activeElement);
+        if (nativeTypingOwned && focused && appRoot.contains(focused)) focused.blur();
+        releaseNativeTyping();
+      });
+      const typingObserver = typeof window.MutationObserver === 'function'
+        ? new window.MutationObserver(() => { if (nativeTypingOwned) syncNativeTyping(); }) : null;
+      typingObserver?.observe(appRoot, { childList: true, subtree: true });
+      onDestroy(() => { typingObserver?.disconnect(); releaseNativeTyping(); });
+    }
     const handleExternalAudioUnlock = () => {
       externalAudioActivated = true;
       // Both transports are unlocked from the same trusted gesture. Web
@@ -1212,10 +1262,186 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
     };
     listen(appRoot, "click", handleAppClick, true);
 
-    const callTaxiDriver = (functionName) => {
+    const callTaxiDriver = (functionName, ...args) => {
       bngApi.engineLua(
-        `if not taxiDriver_taxiDriver then extensions.load("taxiDriver_taxiDriver") end; taxiDriver_taxiDriver.${functionName}()`
+        `if not taxiDriver_taxiDriver then extensions.load("taxiDriver_taxiDriver") end; taxiDriver_taxiDriver.${functionName}(${args.map(value => bngApi.serializeToLua(value)).join(', ')})`
       );
+    };
+
+    const emptyEarthField = () => ({ query: '', selected: null, results: [], searching: false, error: '' });
+    const normalizeEarthField = field => ({ ...emptyEarthField(), ...field,
+      results: Array.isArray(field?.results) ? field.results.slice(0, 8) : [],
+    });
+    const normalizeEarth = snapshot => ({
+      available: false, status: 'absent', mode: 'vehicle', error: '', canNavigate: false, gps: null, owner: '',
+      maxRandomKm: 50, randomAttempt: 0,
+      ...snapshot,
+      a: normalizeEarthField(snapshot?.a), b: normalizeEarthField(snapshot?.b),
+      route: { status: 'idle', distanceM: 0, durationS: 0, from: null, to: null, error: '', ...snapshot?.route },
+    });
+    view.earth = normalizeEarth();
+    view.earthOpen = false;
+    view.earthActive = { a: -1, b: -1 };
+    view.earthExpanded = { a: false, b: false };
+    const earthDirty = { a: false, b: false };
+    const earthEditTimers = { a: null, b: null };
+    const earthOwner = `hud-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    let earthHeartbeat = null;
+    let earthAwaitingOwnerAck = false;
+    const earthCommand = (action, args = {}) => callTaxiDriver('earthCommand', action, { ...args, owner: earthOwner });
+    const cancelEarthEdits = () => {
+      for (const field of ['a', 'b']) {
+        if (earthEditTimers[field]) clearTimeout(earthEditTimers[field]);
+        earthEditTimers[field] = null;
+      }
+    };
+    const stopEarthWork = () => {
+      cancelEarthEdits();
+      if (earthHeartbeat !== null) clearInterval(earthHeartbeat);
+      earthHeartbeat = null;
+      earthAwaitingOwnerAck = false;
+      view.earthOpen = false;
+      view.earthExpanded = { a: false, b: false };
+    };
+    onDestroy(() => {
+      const wasOpen = view.earthOpen;
+      stopEarthWork();
+      if (wasOpen) earthCommand('close');
+    });
+    const applyEarth = snapshot => {
+      if (!snapshot || typeof snapshot !== 'object') return;
+      const incoming = normalizeEarth(snapshot);
+      const hasOwner = typeof snapshot.owner === 'string';
+      if (view.earthOpen && earthAwaitingOwnerAck && hasOwner && incoming.owner !== earthOwner) return;
+      if (incoming.owner === earthOwner) earthAwaitingOwnerAck = false;
+      if (view.earthOpen && hasOwner && incoming.owner !== earthOwner) {
+        stopEarthWork();
+        earthDirty.a = earthDirty.b = false;
+        scheduleMinimapUpdate();
+      }
+      for (const field of ['a', 'b']) {
+        if (earthDirty[field] && incoming[field].query !== view.earth[field].query) {
+          incoming[field] = { ...view.earth[field] };
+          incoming.route = { status: 'idle', distanceM: 0, durationS: 0, error: '' };
+        } else {
+          earthDirty[field] = false;
+        }
+      }
+      view.earth = incoming;
+    };
+    onGameEvent('TaxiDriverEarthState', applyEarth);
+    view.earthResults = field => view.earth[field].results.slice(0, 8);
+    view.canPreviewEarth = () => view.earth.status === 'ready' && !!view.earth.b.selected &&
+      (view.earth.mode === 'vehicle' || !!view.earth.a.selected) && view.earth.route.status !== 'pending';
+    view.canNavigateEarth = target => view.earth.status === 'ready' && view.earth.canNavigate &&
+      !!view.earth[target]?.selected;
+    view.canRandomEarth = () => view.earth.status === 'ready' && view.earth.route.status !== 'pending' &&
+      (view.earth.mode === 'vehicle' || !!view.earth.a.selected);
+    hud.setEarthRandomLimit = value => {
+      const number = Number(value);
+      const maxRandomKm = Math.max(1, Math.min(600, Math.round(Number.isFinite(number) ? number : 50)));
+      view.earth.maxRandomKm = maxRandomKm;
+      earthCommand('setRandomLimit', { maxRandomKm });
+    };
+    hud.teleportEarthA = () => {
+      if (view.earth.mode === 'points' && view.canNavigateEarth('a')) earthCommand('teleport', { target: 'a' });
+    };
+    hud.randomEarth = () => {
+      if (!view.canRandomEarth()) return;
+      cancelEarthEdits();
+      earthDirty.a = earthDirty.b = false;
+      view.earth.b = emptyEarthField();
+      view.earthExpanded.b = false;
+      view.earth.randomAttempt = 0;
+      view.earth.route = { ...normalizeEarth().route, status: 'pending' };
+      earthCommand('randomPreview');
+    };
+    hud.closeEarth = () => {
+      if (!view.earthOpen) return;
+      // Flush pending local invalidations before cancelling backend work.
+      for (const field of ['a', 'b']) {
+        if (earthDirty[field]) earthCommand('edit', { field, query: view.earth[field].query });
+      }
+      stopEarthWork();
+      earthCommand('close');
+      scheduleMinimapUpdate();
+    };
+    hud.openEarth = () => {
+      if (!view.earth.available || view.earthOpen) return;
+      if (settingsSaveTimer) persistSettingsNow();
+      view.settingsOpen = view.profileOpen = view.fleetOpen = view.fuelStationOpen = false;
+      view.shiftHistoryOpen = view.offlineConfirmOpen = false;
+      earthAwaitingOwnerAck = true;
+      view.earthOpen = true;
+      dismissPassengerChat();
+      hideMinimap();
+      earthCommand('open');
+      earthHeartbeat = setInterval(() => earthCommand('heartbeat'), 2500);
+    };
+    hud.setEarthMode = mode => {
+      if (!['vehicle', 'points'].includes(mode) || mode === view.earth.mode) return;
+      view.earth.mode = mode;
+      view.earth.route = normalizeEarth().route;
+      earthCommand('mode', { mode });
+    };
+    hud.editEarth = (field, query) => {
+      if (!['a', 'b'].includes(field)) return;
+      view.earth[field] = { ...emptyEarthField(), query: String(query || '') };
+      view.earth.route = normalizeEarth().route;
+      view.earthActive[field] = -1;
+      view.earthExpanded[field] = false;
+      earthDirty[field] = true;
+      if (earthEditTimers[field]) clearTimeout(earthEditTimers[field]);
+      earthEditTimers[field] = setTimeout(() => {
+        earthEditTimers[field] = null;
+        earthCommand('edit', { field, query: view.earth[field].query });
+      }, 250);
+    };
+    hud.searchEarth = field => {
+      if (!['a', 'b'].includes(field) || view.earth.status !== 'ready' || !view.earth[field].query.trim() || view.earth[field].searching) return;
+      if (earthEditTimers[field]) clearTimeout(earthEditTimers[field]);
+      earthEditTimers[field] = null;
+      view.earth[field].query = view.earth[field].query.trim();
+      view.earth[field].searching = true;
+      view.earth[field].error = '';
+      view.earthExpanded[field] = true;
+      view.earthActive[field] = -1;
+      earthCommand('search', { field, query: view.earth[field].query });
+    };
+    hud.selectEarth = (field, index) => {
+      const point = view.earthResults(field)[index];
+      if (!point || !Number.isInteger(index)) return;
+      earthDirty[field] = false;
+      view.earth[field].selected = point;
+      view.earth[field].query = point.name || view.earth[field].query;
+      view.earthExpanded[field] = false;
+      view.earthActive[field] = -1;
+      view.earth.route = normalizeEarth().route;
+      earthCommand('select', { field, index: index + 1 });
+    };
+    hud.earthKeydown = (field, event) => {
+      const count = view.earthResults(field).length;
+      if (event.key === 'Escape') {
+        view.earthExpanded[field] = false; view.earthActive[field] = -1;
+      } else if (['ArrowDown', 'ArrowUp'].includes(event.key) && count) {
+        event.preventDefault();
+        view.earthExpanded[field] = true;
+        view.earthActive[field] = view.earthActive[field] < 0
+          ? (event.key === 'ArrowDown' ? 0 : count - 1)
+          : (view.earthActive[field] + (event.key === 'ArrowDown' ? 1 : count - 1)) % count;
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        if (view.earthExpanded[field] && view.earthActive[field] >= 0) hud.selectEarth(field, view.earthActive[field]);
+        else hud.searchEarth(field);
+      }
+    };
+    hud.previewEarth = () => {
+      if (!view.canPreviewEarth()) return;
+      view.earth.route.status = 'pending';
+      earthCommand('preview');
+    };
+    hud.navigateEarth = target => {
+      if (view.canNavigateEarth(target)) earthCommand('navigate', { target });
     };
 
     const clearNextOfferCountdown = () => {
@@ -1777,11 +2003,13 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
     };
     const minimapPhases = new Set(["toPickup", "toStop", "toDestination", "toFuelStation"]);
     const externalMapVisible = () => externalPhoneMode && !document.hidden &&
+      !view.earthOpen &&
       view.settings.externalMapEnabled !== false && (view.fleetOpen || minimapPhases.has(view.state.phase)) &&
       !view.settingsOpen && !view.profileOpen && !view.offlineConfirmOpen &&
       !view.fuelStationOpen;
     const getExternalView = () => {
       if (!externalPhoneMode) return "hidden";
+      if (view.earthOpen) return "status";
       if (view.settingsOpen) return "settings";
       if (view.profileOpen) return "profile";
       if (view.fuelStationOpen) return "fuel";
@@ -1804,7 +2032,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
         `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.setExternalPhoneView("${view}", ${visible ? "true" : "false"}, "${externalSessionToken}") end`
       );
     };
-    const canRenderMinimap = (hudState) => !externalPhoneMode && !view.phoneSuperMinimized &&
+    const canRenderMinimap = (hudState) => !externalPhoneMode && !view.phoneSuperMinimized && !view.earthOpen &&
       uiVisible && !view.vehicleConfigSuspended && hudState &&
       (!(hudState.lan && Number(hudState.lan.connected || 0) > 0) || view.localPhoneOpen) &&
       (view.fleetOpen || (hudState.active === true && minimapPhases.has(hudState.phase))) &&
@@ -2164,6 +2392,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
       callTaxiDriver("startMode");
     };
     hud.toggleFleet = () => {
+      hud.closeEarth();
       view.fleetOpen = !view.fleetOpen;
       view.shiftHistoryOpen = false;
       lastMinimapRect = "";
@@ -2275,6 +2504,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
       scheduleMinimapUpdate();
     };
     hud.toggleSettings = () => {
+      hud.closeEarth();
       if (view.settingsOpen && settingsSaveTimer) persistSettingsNow();
       view.settingsOpen = !view.settingsOpen;
       view.profileOpen = false;
@@ -2296,6 +2526,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
       else scheduleMinimapUpdate();
     };
     hud.toggleProfile = () => {
+      hud.closeEarth();
       view.profileOpen = !view.profileOpen;
       view.settingsOpen = false;
       view.fleetOpen = false;
@@ -3195,6 +3426,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
         hudResyncRequestedAt = 0;
       }
       const previousMapPhase = view.state.phase;
+      if (data.earth) applyEarth(data.earth);
       const previousMapSpeed = Number(view.state.currentSpeed || 0);
       // Lua omits nil fields from full snapshots. Patches already merge their
       // unchanged values before reaching this handler, so absence means clear.
@@ -3683,7 +3915,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
     };
     const stopExternalViewWatch = externalPhoneMode
       ? watchFields([
-          "settingsOpen", "profileOpen", "fuelStationOpen", "offlineConfirmOpen",
+          "settingsOpen", "profileOpen", "fuelStationOpen", "offlineConfirmOpen", "earthOpen",
           "fleetOpen", "phoneMinimized", "state.phase", "state.active", "settings.externalMapEnabled",
         ], syncExternalView)
       : null;
@@ -3794,6 +4026,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
       );
     }
     callTaxiDriver("requestHudState");
+    callTaxiDriver("requestEarthState");
     scheduleMinimapUpdate();
 
     return { view, hud, destroy };

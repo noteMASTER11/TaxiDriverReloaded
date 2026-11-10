@@ -58,6 +58,8 @@ $requiredEntries = @(
   "lua/ge/extensions/taxiDriver/faultBoundary.lua",
   "lua/ge/extensions/taxiDriver/offerPlan.lua",
   "lua/ge/extensions/taxiDriver/optionalLanBridge.lua",
+  "lua/ge/extensions/taxiDriver/earthRouting.lua",
+  "lua/ge/extensions/taxiDriver/earthTransport.lua",
   "lua/ge/extensions/taxiDriver/autopilotPerception.lua",
   "lua/ge/extensions/taxiDriver/persistence.lua",
   "lua/ge/extensions/taxiDriver/fuelPersistence.lua",

@@ -757,6 +757,7 @@ local function buildHudState(includeCollections)
   local autopilotTarget = getAutopilotTarget()
 
   local result = {
+    earth = M._earthRouting and M._earthRouting:snapshot() or nil,
     active = state.active,
     phase = state.phase,
     phaseLabel = phaseLabels[state.phase] or phaseLabels.inactive,
@@ -3861,6 +3862,21 @@ function M.requestHudState()
   notifyHud()
 end
 
+function M.requestEarthState()
+  if M._earthRouting then
+    M._earthRouting:update(0)
+    guihooks.trigger("TaxiDriverEarthState", M._earthRouting:snapshot())
+  end
+end
+
+function M.earthCommand(action, args)
+  if M._earthRouting then return M._earthRouting:command(action, args) end
+end
+
+function M.getEarthDebugState()
+  return M._earthRouting and {state=M._earthRouting:snapshot(),stats=M._earthRouting:stats()} or nil
+end
+
 function M.requestProfileData()
   if vehicleScanGuard.isConfigurationOpen() then return end
   notifyProfile()
@@ -4419,6 +4435,9 @@ end
 function M.onUpdate(dtReal, dtSim)
   dtReal = math.max(0, dtReal or 0)
   dtSim = math.max(0, dtSim or 0)
+  if M._earthRouting then
+    runtimeBoundary:call("earth.update", M._earthRouting.update, M._earthRouting, dtReal)
+  end
   runtimeBoundary:call("minimap.update", navigationUi.updateMinimap, navigationUi, dtReal, dtSim)
   runtimeBoundary:call("routeCache.update", routeCache.update, dtReal)
   realisticFuel.persistenceTimer = realisticFuel.persistenceTimer + dtReal
@@ -4697,6 +4716,12 @@ function M.onUiChangedState(to, from)
 end
 
 function M.onExtensionLoaded()
+  if M._earthRouting then M._earthRouting:destroy() end
+  M._earthRouting = require("taxiDriver/earthRouting").new({
+    isTripActive=function() return state.active end,
+    emit=function(value) guihooks.trigger("TaxiDriverEarthState", value) end
+  })
+  M._earthRouting:update(0)
   vehicleScanGuard.reset()
   realisticFuel.persistence.load()
   loadUserSettings()
@@ -4712,6 +4737,7 @@ function M.onExtensionLoaded()
 end
 
 function M.onClientEndMission()
+  if M._earthRouting then M._earthRouting:command("close") end
   runtimeBoundary:cleanup("routeCache.saveMission", routeCache.flush)
   runtimeBoundary:cleanup("fuel.saveMission", realisticFuel.persistence.flush)
   runtimeBoundary:cleanup("physicalPickup.missionEnd", physicalPickup.clear, physicalPickup)
@@ -4747,6 +4773,7 @@ end function M.onPreRender(dtReal, dtSim)
 end
 
 function M.onExtensionUnloaded()
+  if M._earthRouting then M._earthRouting:destroy();M._earthRouting=nil end
   runtimeBoundary:cleanup("routeCache.saveUnload", routeCache.flush)
   runtimeBoundary:cleanup("fuel.saveUnload", realisticFuel.persistence.flush)
   runtimeBoundary:cleanup("physicalPickup.unload", physicalPickup.clear, physicalPickup)
