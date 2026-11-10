@@ -4970,3 +4970,5 @@
 .taxi-shell .taxi-earth-limit { display: flex; align-items: center; gap: 10px; color: var(--td-text-secondary); font-size: 16px; }
 .taxi-shell .taxi-earth-limit input { width: 110px; min-height: 44px; padding: 9px 12px; color: var(--td-text); font: inherit; font-size: 16px; background: var(--td-control); border: 1px solid var(--td-border-strong); border-radius: 6px; }
 .taxi-shell .taxi-earth-limit input:focus-visible { outline: 2px solid var(--td-focus); outline-offset: 2px; }
+.taxi-shell .taxi-earth__start { width: 100%; margin-top: 12px; }
+.taxi-shell .taxi-order-card__earth-route { margin: 10px 0 6px; color: var(--td-text-secondary); font-size: max(13px, var(--taxi-caption)); line-height: 1.4; overflow-wrap: anywhere; }

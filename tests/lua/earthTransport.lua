@@ -52,6 +52,40 @@ local function service(sockets, extra)
 end
 local request = {type="route",id=7,download="off"}
 
+-- Settlement discovery must use the same isolated request-only protocol.
+do
+  local s, got = socketFixture(), nil
+  payloads.labels = {type="map_labels_result",id=9,rows={{"town","Local",41,44,9,99,38,"town"}}}
+  local encoded = '{"type":"map_labels","id":9,"lat":41,"lon":44,"zoom":12,"radius":600000}'
+  local t = service({s},{encode=function(message)
+    assert(message.type == "map_labels" and message.zoom == 12 and message.radius == 600000)
+    return encoded
+  end})
+  s.incoming={frame("labels")}
+  assert(t:request({type="map_labels",id=9,lat=41,lon=44,zoom=12,radius=600000},function(result,err)
+    assert(not err); got=result
+  end), "map_labels must be an accepted request")
+  t:update(0.01)
+  assert(got == payloads.labels and s.sent == frame(encoded) and s.closed == 1)
+end
+
+-- Reverse address requests remain isolated and preserve their own request id.
+do
+  local s,got=socketFixture(),nil
+  payloads.where={type="where_result",id=10,street="Main Street",place="Town",region="Region",country="Country"}
+  local encoded='{"type":"where","id":10,"lat":45.0347,"lon":38.9771,"online":true}'
+  local t=service({s},{encode=function(message)
+    assert(message.type=="where" and message.online==true and message.id==10)
+    return encoded
+  end})
+  s.incoming={frame("where")}
+  assert(t:request({type="where",id=10,lat=45.0347,lon=38.9771,online=true},function(result,err)
+    assert(not err);got=result
+  end),"where must be an accepted request")
+  t:update(0.01)
+  assert(got==payloads.where and s.sent==frame(encoded) and s.closed==1)
+end
+
 -- Dropping partial bytes or accepting an unrelated id must not complete a request.
 do
   local s = socketFixture()

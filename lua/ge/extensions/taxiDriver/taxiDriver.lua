@@ -249,6 +249,7 @@ local navigationUi = require("taxiDriver/navigationUi").new({
   getSpeedKmh = getVehicleSpeedKmh,
   getZoomIntensity = function() return userSettings.dynamicZoomIntensity end,
   isRouteGuidanceHidden = function() return userSettings.showRouteGuidance == false end,
+  getEarthSupport = function() return M._earthTrip end,
   minimumDrivability = runtimeConfig.minimumDrivability,
   onRouteChanged = function() autopilot:markRouteDirty() end
 })
@@ -444,6 +445,16 @@ local function chargeDirectPenalty(amount)
 end
 
 local function getRemainingDistance()
+  if state.active and trip and trip.earth and M._earthTrip and state.phase~=phases.toFuelStation then
+    local target=(state.phase==phases.toPickup or state.phase==phases.boarding) and trip.pickup or
+      (state.phase==phases.toStop and trip.stops[trip.currentStopIndex]) or trip.destination
+    if trip.lastEarthTarget~=target then
+      trip.lastEarthTarget=target;trip.lastEarthRemaining=target.routeDistance
+    end
+    local remaining=M._earthTrip:remaining(target)
+    if remaining then trip.lastEarthRemaining=remaining end
+    return math.max(0,remaining or trip.lastEarthRemaining or target.routeDistance or 0)
+  end
   if not state.active or not core_groundMarkers then return 0 end
   return math.max(0, core_groundMarkers.getPathLength() or 0)
 end
@@ -552,6 +563,11 @@ local function buildHudOffer(offer)
   return {
     id = offer.id,
     passengerName = offer.passengerName,
+    earth = offer.earth == true,
+    pickupName = offer.pickup.name,
+    destinationName = offer.destination.name,
+    pickupAddress = offer.pickup.address,
+    destinationAddress = offer.destination.address,
     isDelivery = offer.isDelivery == true,
     cargoWeightKg = offer.cargoWeightKg or 0,
     cargoWeightBonusPercent = (offer.cargoWeightBonusRate or 0) * 100,
@@ -712,6 +728,7 @@ function realisticFuel.buildRepairHud()
 end
 
 local function getAutopilotTarget()
+  if trip and trip.earth then return nil end
   if state.phase == phases.toFuelStation and realisticFuel.detour.active then return {pos = realisticFuel.detour.pos, exactApproach = true} end
   if state.phase == phases.toPickup and trip then return {pos = trip.pickup.pos, dir = trip.pickup.dir, nodeA = trip.pickup.nodeA, nodeB = trip.pickup.nodeB, simpleApproach = true} end
   if state.phase == phases.toStop and trip and trip.stops then
@@ -755,6 +772,10 @@ local function buildHudState(includeCollections)
   local abandonmentPreview = getDriverAbandonmentPreview()
   local profile = driverProfile or createDefaultDriverProfile()
   local autopilotTarget = getAutopilotTarget()
+  local earthEta
+  if trip and trip.earth and M._earthTrip then
+    earthEta=M._earthTrip:eta(state.phase==phases.toPickup and trip.pickup or trip.destination)
+  end
 
   local result = {
     earth = M._earthRouting and M._earthRouting:snapshot() or nil,
@@ -832,8 +853,10 @@ local function buildHudState(includeCollections)
     rideRating = trip and trip.rideRating or 0,
     rideDistance = trip and trip.rideDistance or 0,
     distanceToTarget = remainingDistance,
-    etaMinutes = rideRules.calculateEtaMinutes(remainingDistance),
-    rideEtaMinutes = rideRules.calculateEtaMinutes(rideRemainingDistance) +
+    etaMinutes = earthEta and earthEta/60 or rideRules.calculateEtaMinutes(remainingDistance),
+    rideEtaMinutes = (trip and trip.earth and
+      ((state.phase==phases.toPickup or state.phase==phases.boarding) and trip.totalEtaMinutes or
+        (earthEta and earthEta/60 or trip.totalEtaMinutes)) or rideRules.calculateEtaMinutes(rideRemainingDistance)) +
       remainingStopWaitSeconds / 60,
     routeProgress = routeProgress,
     progressLabel = progressLabel,
@@ -2064,6 +2087,8 @@ local function reapplyDeliveryCargoMass(vehicle)
 end
 
 local function stopModeInternal(message, showNotification, notificationKey)
+  if M._earthDispatcher then M._earthDispatcher:cancel() end
+  if M._earthAddresses then M._earthAddresses:cancel() end
   routeCache.flush()
   local vehicle
   if state.activeVehicleId then vehicle = getObjectByID(state.activeVehicleId)
@@ -2113,7 +2138,7 @@ local function stopModeInternal(message, showNotification, notificationKey)
   notifyHud()
 end
 
-local function createOffer(requestedType, generationFailureCount)
+local function createOffer(requestedType, generationFailureCount, earthPlan)
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
   if not vehicle then
     return nil, "Сначала выберите автомобиль"
@@ -2121,12 +2146,12 @@ local function createOffer(requestedType, generationFailureCount)
 
   local vehiclePos = vehicle:getPosition()
   local vehicleDir = vehicle:getDirectionVector()
-  local pickup, pickupError = chooseTaxiStopPoint(
-    vehiclePos,
-    vehicleDir,
-    runtimeConfig.minPickupDistance,
-    runtimeConfig.maxPickupDistance
-  )
+  local pickup,pickupError
+  if earthPlan then pickup=earthPlan.pickup
+  else
+    pickup,pickupError=chooseTaxiStopPoint(vehiclePos,vehicleDir,
+      runtimeConfig.minPickupDistance,runtimeConfig.maxPickupDistance)
+  end
   if not pickup then return nil, pickupError end
 
   local isDelivery = requestedType == "delivery" or
@@ -2136,7 +2161,7 @@ local function createOffer(requestedType, generationFailureCount)
     requestedType == "multiStop" or
     (requestedType == nil and math.random() < offerConfig.multiStopChance)
   )
-  local isMultiStop = wantsMultiStop and
+  local isMultiStop = not earthPlan and wantsMultiStop and
     routePlanning.getStopCandidateCount() >= offerConfig.multiStopMinimumCandidates
   local stops = {}
   local routeOrigin = pickup
@@ -2178,14 +2203,13 @@ local function createOffer(requestedType, generationFailureCount)
     destinationMaxDistance = isDelivery and taxiConfig.delivery.maximumDistance or
       runtimeConfig.maxRideDistance
   end
-  local destination, destinationError = chooseTaxiStopPoint(
-    routeOrigin.pos,
-    routeOrigin.dir,
-    destinationMinDistance,
-    destinationMaxDistance,
-    isDelivery and taxiConfig.delivery.routeAttempts or
-      (isMultiStop and offerConfig.multiStopRouteAttempts or nil)
-  )
+  local destination,destinationError
+  if earthPlan then destination=earthPlan.destination
+  else
+    destination,destinationError=chooseTaxiStopPoint(routeOrigin.pos,routeOrigin.dir,
+      destinationMinDistance,destinationMaxDistance,isDelivery and taxiConfig.delivery.routeAttempts or
+        (isMultiStop and offerConfig.multiStopRouteAttempts or nil))
+  end
   if not destination then return nil, destinationError end
 
   local destinationDistance = destination.routeDistance
@@ -2195,7 +2219,7 @@ local function createOffer(requestedType, generationFailureCount)
   destination.routeDistance = destinationDistance
   rideDistance = rideDistance + destinationDistance
 
-  if not isMultiStop and (rideDistance < runtimeConfig.minRideDistance or
+  if not earthPlan and not isMultiStop and (rideDistance < runtimeConfig.minRideDistance or
     (not unlimitedRouteDistance and rideDistance > runtimeConfig.maxRideDistance)) then
     return nil, "Полученный маршрут не прошёл проверку дистанции"
   end
@@ -2241,6 +2265,7 @@ local function createOffer(requestedType, generationFailureCount)
   local passengerCalmness = math.random(0, 100)
   local randomEvent = userSettings.randomEventsEnabled == true and
     tripEvents.create(isDelivery, isRush, isMultiStop, userSettings.randomEvents) or {kind = "none"}
+  if earthPlan and (tripEvents.needsTarget(randomEvent) or randomEvent.kind=="roadClosure") then randomEvent={kind="none"} end
   if tripEvents.needsTarget(randomEvent) then
     local targetOrigin = randomEvent.kind == "forgottenItem" and pickup or destination
     local eventTarget = chooseTaxiStopPoint(targetOrigin.pos, targetOrigin.dir,
@@ -2249,6 +2274,7 @@ local function createOffer(requestedType, generationFailureCount)
     if eventTarget then randomEvent.target = eventTarget else randomEvent = {kind = "none"} end
   end
   local offer = {
+    earth = earthPlan~=nil,
     id = nextOfferId,
     passengerName = isDelivery and "Delivery" or identity.createPassengerName(),
     isDelivery = isDelivery,
@@ -2263,7 +2289,8 @@ local function createOffer(requestedType, generationFailureCount)
     stops = stops,
     isMultiStop = isMultiStop,
     rideDistance = rideDistance,
-    totalEtaMinutes = rideRules.calculateEtaMinutes(rideDistance) + waitingSeconds / 60,
+    totalEtaMinutes = earthPlan and earthPlan.durationS/60 or
+      (rideRules.calculateEtaMinutes(rideDistance) + waitingSeconds / 60),
     baseFare = baseFare,
     ratingAdjustedFare = ratingAdjustedFare,
     ratingBonusRate = ratingBonusRate,
@@ -2324,6 +2351,7 @@ local function reportRouteCacheFailure(message)
 end
 
 local function cachePublishedOffer(offer)
+  if offer and offer.earth then return end
   if not offer then return end
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or
     getPlayerVehicle()
@@ -2374,14 +2402,17 @@ local function scheduleNextOffer()
   offerTimer = offerPlan.randomRange(offerConfig.intervalMin, offerConfig.intervalMax)
 end
 local function beginSearching(message)
+  if M._earthAddresses then M._earthAddresses:cancel() end
   local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
   if autopilot:isEnabled() then autopilot:park(vehicle, "searchingWithoutRoute") end
   physicalPickup:clear()
   setVehicleForcedStop(vehicle, false)
   routeCacheFailureLogged = false
-  local cacheOk, cacheReady = pcall(routeCache.ensureCurrentMapFile)
-  if not cacheOk or not cacheReady then
-    reportRouteCacheFailure(cacheOk and "unable to initialize map cache" or cacheReady)
+  if not M.isEarthMap() then
+    local cacheOk,cacheReady=pcall(routeCache.ensureCurrentMapFile)
+    if not cacheOk or not cacheReady then
+      reportRouteCacheFailure(cacheOk and "unable to initialize map cache" or cacheReady)
+    end
   end
   hideNativeMinimap()
   clearNavigation()
@@ -2396,7 +2427,7 @@ local function beginSearching(message)
   offerTargetCount = math.random(offerConfig.minVisible, offerConfig.maxVisible)
   offerTypePlan = offerPlan.build(
     offerTargetCount,
-    true,
+    not M.isEarthMap(),
     offerConfig,
     userSettings.deliveryOrderSharePercent
   )
@@ -2406,6 +2437,10 @@ local function beginSearching(message)
   offerGeneration.poolRequestedType = nil
   offerGeneration.nextJob = nil
   offerTimer = offerConfig.initialDelay
+  if M._earthDispatcher and M.isEarthMap() then
+    M._earthDispatcher:start({unlimited=userSettings.unlimitedRouteDistance==true,
+      maxKm=M._earthRouting:snapshot().maxRandomKm,targetCount=offerTargetCount})
+  end
   notifyHud()
 end
 local function failPassengerHit()
@@ -2426,6 +2461,26 @@ local function failPassengerHit()
 end
 local function addOffer(dtSim)
   if #offers >= offerTargetCount then return end
+  if M._earthDispatcher and M.isEarthMap() then
+    local plan=M._earthDispatcher:takePlan()
+    if plan then
+      local offer,why=createOffer(offerTypePlan[#offers+1],0,plan)
+      if offer then
+        M._earthTrip:refreshOffer(offer)
+        table.insert(offers,offer)
+        M.enrichEarthOffer(offer)
+        state.message=string.format("Earth: %d / %d",#offers,offerTargetCount)
+        notifyHud()
+      else log("W",logTag,why or "Earth offer unavailable") end
+    else
+      local stats=M._earthDispatcher:stats()
+      if stats.status=="error" or stats.status=="exhausted" or stats.status=="waiting" then
+        state.message=stats.error~="" and stats.error or "Earth routes unavailable; retry search"
+      end
+    end
+    offerTimer=0.1
+    return
+  end
   if not offerGeneration.poolJob then
     local plannedType = offerTypePlan[#offers + 1]
     local requestedType = plannedType
@@ -2489,8 +2544,11 @@ local function startAcceptedOffer(selected)
   if not vehicle then return false, "Активный автомобиль недоступен" end
   offerGeneration.poolJob = nil
   offerGeneration.poolRequestedType = nil
+  if selected.earth and M._earthDispatcher then M._earthDispatcher:cancel() end
+  if selected.earth and M._earthTrip then M._earthTrip:refreshOffer(selected) end
 
-  local pickupDistance = calculateRouteDistance(vehicle:getPosition(), selected.pickup.pos)
+  local pickupDistance = selected.earth and M._earthTrip:distanceTo(selected.pickup) or
+    calculateRouteDistance(vehicle:getPosition(), selected.pickup.pos)
   if not pickupDistance and selected.cachedRoute then
     pickupDistance = math.max(
       tonumber(selected.pickup.routeDistance) or 0,
@@ -2511,6 +2569,7 @@ local function startAcceptedOffer(selected)
   )
   trip = selected
   offers = {}
+  if selected.earth and M._earthAddresses then M._earthAddresses:cancel();M.enrichEarthOffer(selected) end
   resetTripMetrics()
   trip.pickupTimeRemaining = trip.pickupWaitLimit
   trip.completedRideDistance = 0
@@ -2590,6 +2649,7 @@ local function recordNextOfferError(errorMessage)
   ))
 end
 local function updateNextOfferOpportunity(dtSim)
+  if trip and trip.earth then return end
   if not trip or state.phase ~= phases.toDestination or trip.nextOfferDisabled then return end
   if nextOffer then return end
   if not trip.nextOfferPrompted then
@@ -3546,6 +3606,10 @@ local function updateActiveMode(dtSim)
   -- Taxi deadlines use simulation time. A zero simulation delta means that
   -- BeamNG is paused, so no offer, fare, boarding or passenger timer may move.
   if dtSim <= 0 then return end
+  if trip and trip.earth and (not M._earthTrip or not M._earthTrip:pose() or not M._earthTrip:ready()) then
+    state.message="Waiting for BeamNG.Earth connection"
+    return
+  end
   local speedKmh = getVehicleSpeedKmh(vehicle)
   local waitingNoShowAtPickup = state.phase == phases.toPickup and trip and
     not trip.isDelivery and trip.randomEvent and
@@ -3587,7 +3651,9 @@ local function updateActiveMode(dtSim)
   elseif state.phase == phases.toPickup and trip then
     local pickupRadius = trip.isDelivery and runtimeConfig.arrivalRadius or
       runtimeConfig.passengerPickupRadius
-    local pickupReached = vehicle:getPosition():distance(trip.pickup.pos) <= pickupRadius and
+    local pickupReached = (trip.earth and M._earthTrip:arrived(trip.pickup,pickupRadius,
+      runtimeConfig.maxArrivalSpeedKmh/3.6) or
+      (not trip.earth and vehicle:getPosition():distance(trip.pickup.pos)<=pickupRadius)) and
       stoppedForArrival(speedKmh)
     if not pickupReached then updatePickupDeadline(dtSim) end
     if pickupReached then
@@ -3627,7 +3693,9 @@ local function updateActiveMode(dtSim)
     updateSpeedPenalty(vehicle, dtSim)
     if state.phase ~= phases.toDestination then return end
     updateNextOfferOpportunitySafely(dtSim)
-    if vehicle:getPosition():distance(trip.destination.pos) <= runtimeConfig.arrivalRadius and
+    if (trip.earth and M._earthTrip:arrived(trip.destination,runtimeConfig.arrivalRadius,
+      runtimeConfig.maxArrivalSpeedKmh/3.6) or
+      (not trip.earth and vehicle:getPosition():distance(trip.destination.pos)<=runtimeConfig.arrivalRadius)) and
       stoppedForArrival(getVehicleSpeedKmh(vehicle)) then
       beginAlighting()
     end
@@ -3675,6 +3743,7 @@ function M.startMode(restoredEnergy)
     notifyHud()
     return
   end
+  M._earthDispatchRecoveryCount=0;M._earthDispatchRetryAt=0
 
   local vehicle = getPlayerVehicle()
   if not vehicle then
@@ -3683,7 +3752,8 @@ function M.startMode(restoredEnergy)
   end
 
   local mapData = map.getMap()
-  if not mapData or not tableHasValues(mapData.nodes) then
+  if (not mapData or not tableHasValues(mapData.nodes)) and
+    not M.isEarthMap() then
     failOrder("На текущей карте отсутствует дорожный граф", "notify_noRoadGraph")
     return
   end
@@ -3870,11 +3940,14 @@ function M.requestEarthState()
 end
 
 function M.earthCommand(action, args)
+  if action=="startTrip" then return M.startEarthTrip(args) end
   if M._earthRouting then return M._earthRouting:command(action, args) end
 end
 
 function M.getEarthDebugState()
-  return M._earthRouting and {state=M._earthRouting:snapshot(),stats=M._earthRouting:stats()} or nil
+  return M._earthRouting and {state=M._earthRouting:snapshot(),stats=M._earthRouting:stats(),
+    dispatcher=M._earthDispatcher and M._earthDispatcher:stats(),
+    trip=trip and trip.earth and {id=trip.id,pickup=trip.pickup,destination=trip.destination}} or nil
 end
 
 function M.requestProfileData()
@@ -4438,6 +4511,15 @@ function M.onUpdate(dtReal, dtSim)
   if M._earthRouting then
     runtimeBoundary:call("earth.update", M._earthRouting.update, M._earthRouting, dtReal)
   end
+  if M._earthDispatcher and state.active and state.phase==phases.searching then
+    runtimeBoundary:call("earth.dispatcher",M.updateEarthDispatcher,dtReal)
+  end
+  if M._earthAddresses and state.active then
+    runtimeBoundary:call("earth.addresses",M._earthAddresses.update,M._earthAddresses,dtReal)
+  end
+  if trip and trip.earth and M._earthTrip then
+    runtimeBoundary:call("earth.tripFrame",M._earthTrip.refreshOffer,M._earthTrip,trip)
+  end
   runtimeBoundary:call("minimap.update", navigationUi.updateMinimap, navigationUi, dtReal, dtSim)
   runtimeBoundary:call("routeCache.update", routeCache.update, dtReal)
   realisticFuel.persistenceTimer = realisticFuel.persistenceTimer + dtReal
@@ -4715,7 +4797,161 @@ function M.onUiChangedState(to, from)
   end
 end
 
+function M.isEarthMap()
+  if type(getCurrentLevelIdentifier)=="function" and getCurrentLevelIdentifier()=="beamng_earth" then return true end
+  local api=rawget(_G,"beamngEarth_api")
+  return api and api.inWorld and api.inWorld()==true or false
+end
+
+function M.earthEndpoint()
+  local ok,net=pcall(require,"beamngEarth/net")
+  local core=rawget(_G,"beamngEarth_core")
+  local hello=core and core.serverHello and core.serverHello()
+  return {port=ok and net.PORT or 47613,sessionId=hello and hello.sessionId}
+end
+
+function M.onBeamNGEarthTeleported()
+  M._earthPickups=nil
+  if M._earthTrip then M._earthTrip:reset() end
+  if state.active and state.phase==phases.searching then beginSearching()
+  elseif trip and trip.earth and M._earthTrip then
+    M._earthTrip:refreshOffer(trip)
+    if state.phase==phases.toPickup then setNavigationTarget(trip.pickup)
+    elseif state.phase==phases.toDestination then setNavigationTarget(trip.destination) end
+  end
+end
+
+function M.onBeamNGEarthWorldReady()
+  M._earthDispatchRecoveryCount=0
+  if state.active and state.phase==phases.searching and M._earthDispatcher and
+    not M._earthDispatcher:hasPending() and M._earthDispatcher:status()~="complete" then beginSearching() end
+end
+
+function M.updateEarthDispatcher(dtReal)
+  local dispatcher=M._earthDispatcher
+  if not dispatcher then return end
+  if M._earthTrip.ready and not M._earthTrip:ready() then return end
+  local status=dispatcher:status()
+  local now=(os.clockhp or os.clock)()
+  if #offers<offerTargetCount and (status=="cancelled" or status=="waiting" or status=="error") and
+    M._earthTrip:pose() and now>=(M._earthDispatchRetryAt or 0) and
+    (M._earthDispatchRecoveryCount or 0)<3 then
+    M._earthDispatchRetryAt=now+5
+    M._earthDispatchRecoveryCount=(M._earthDispatchRecoveryCount or 0)+1
+    beginSearching()
+  end
+  dispatcher:update(dtReal)
+end
+
+function M.getEarthPickupStop()
+  local support=M._earthTrip
+  local vehicle=state.activeVehicleId and getObjectByID(state.activeVehicleId) or getPlayerVehicle()
+  if not support or not vehicle or not support:pose() then return nil end
+  local origin=vehicle:getPosition()
+  local now=(os.clockhp or os.clock)()
+  local key=string.format("%d:%d",math.floor(origin.x/120),math.floor(origin.y/120))
+  local cache=M._earthPickups
+  if not cache or cache.key~=key or now-cache.at>5 then
+    cache={key=key,at=now,points={},index=0};M._earthPickups=cache
+    local data=map and map.getMap and map.getMap()
+    local nodes=data and data.nodes or {}
+    local scanned=0
+    for a,node in pairs(nodes) do
+      for b,link in pairs(node.links or {}) do
+        scanned=scanned+1
+        local other=nodes[b]
+        if other and tostring(a)<tostring(b) and node.pos and other.pos and
+          (tonumber(link.drivability) or 0)>=runtimeConfig.minimumDrivability then
+          local center=(node.pos+other.pos)*0.5
+          local meters=center:distance(origin)
+          if meters>=60 and meters<=800 then
+            local dir=other.pos-node.pos
+            if dir:length()>1 then
+              dir:normalize()
+              local radius=math.min(tonumber(node.radius) or 3,tonumber(other.radius) or 3)
+              local pos=center+dir:cross(vec3(0,0,1))*math.max(1,radius*0.65)
+              if require("taxiDriver/stopSafety").isOpenAir(pos) then
+                cache.points[#cache.points+1]={pos=pos,dir=dir,nodeA=a,nodeB=b,name="Nearby pickup"}
+              end
+            end
+          end
+        end
+        if scanned>=2048 or #cache.points>=48 then break end
+      end
+      if scanned>=2048 or #cache.points>=48 then break end
+    end
+  end
+  local result
+  if #cache.points>0 then
+    cache.index=cache.index%#cache.points+1
+    local seed=cache.points[cache.index]
+    result={pos=vec3(seed.pos),dir=vec3(seed.dir),nodeA=seed.nodeA,nodeB=seed.nodeB,name=seed.name}
+  else result={pos=vec3(origin),dir=vec3(vehicle:getDirectionVector()),name="Current position"} end
+  result.geo=support:toGeo(result.pos)
+  local api=rawget(_G,"beamngEarth_api")
+  local place=api and api.place and api.place()
+  if place and type(place.place)=="string" and place.place~="" then result.name=place.place end
+  result.routeDistance=calculateRouteDistance(origin,result.pos) or origin:distance(result.pos)*1.25
+  return result.geo and result or nil
+end
+
+function M.enrichEarthOffer(offer)
+  if not M._earthAddresses or not offer or not offer.earth then return end
+  for _,stop in ipairs({offer.pickup,offer.destination}) do
+    if not stop.address then
+      M._earthAddresses:enqueue(stop,function(address,fields)
+        stop.address,stop.addressFields=address,fields
+        if trip==offer then notifyHud();return end
+        for _,visible in ipairs(offers) do if visible==offer then notifyHud();return end end
+      end)
+    end
+  end
+end
+
+function M.startEarthTrip(args)
+  args=type(args)=="table" and args or {}
+  local snapshot=M._earthRouting and M._earthRouting:snapshot()
+  if not snapshot or args.owner~=snapshot.owner then return false end
+  local function reject(why)
+    M._earthRouting:command("startFailed",{owner=args.owner,error=why});return false
+  end
+  if snapshot.startedTripId>0 then return true end
+  if not M._earthTrip:active() or snapshot.route.status~="ready" then return reject("Build an Earth route first") end
+  if state.active and state.phase~=phases.searching then return reject("Finish the current trip first") end
+  local route=snapshot.route
+  local from,to=route.roadFrom or route.from,route.roadTo or route.to
+  if not from or not to then return reject("Earth route endpoints are unavailable") end
+  if not state.active then M.startMode() end
+  if not state.active then return reject("The taxi shift could not start") end
+  local vehicle=getPlayerVehicle()
+  local pickup={geo={lat=from.lat,lon=from.lon},name=route.from.name,
+    dir=vehicle:getDirectionVector(),routeDistance=0}
+  local destination={geo={lat=to.lat,lon=to.lon},name=route.to.name,
+    dir=vehicle:getDirectionVector(),routeDistance=route.distanceM}
+  for index,label in ipairs({route.from,route.to}) do
+    if label.name:find("%d") and not label.name:match("^[%d%+%-%.%s,]+$") then
+      local stop=index==1 and pickup or destination
+      stop.address=label.detail and label.detail~="" and label.detail or label.name
+    end
+  end
+  M._earthTrip:project(pickup);M._earthTrip:project(destination)
+  pickup.routeDistance=M._earthTrip:distanceTo(pickup) or 0
+  local offer,why=createOffer("normal",0,{earth=true,pickup=pickup,destination=destination,
+    distanceM=route.distanceM,durationS=route.durationS})
+  if not offer then return reject(why or "Earth order could not be created") end
+  local accepted,errorMessage=startAcceptedOffer(offer)
+  if not accepted then return reject(errorMessage or "Earth order could not start") end
+  M._earthRouting:command("started",{owner=args.owner,tripId=offer.id})
+  return true
+end
+
 function M.onExtensionLoaded()
+  M._earthTrip=require("taxiDriver/earthTripSupport").new()
+  if M._earthAddresses then M._earthAddresses:destroy() end
+  M._earthAddresses=require("taxiDriver/earthAddresses").new({getEndpoint=M.earthEndpoint})
+  if M._earthDispatcher then M._earthDispatcher:destroy() end
+  M._earthDispatcher=require("taxiDriver/earthDispatcher").new({getEndpoint=M.earthEndpoint,
+    getOrigin=function() return M._earthTrip:pose() end,getPickup=M.getEarthPickupStop})
   if M._earthRouting then M._earthRouting:destroy() end
   M._earthRouting = require("taxiDriver/earthRouting").new({
     isTripActive=function() return state.active end,
@@ -4737,6 +4973,9 @@ function M.onExtensionLoaded()
 end
 
 function M.onClientEndMission()
+  if M._earthAddresses then M._earthAddresses:cancel() end
+  if M._earthDispatcher then M._earthDispatcher:cancel() end
+  if M._earthTrip then M._earthTrip:reset() end
   if M._earthRouting then M._earthRouting:command("close") end
   runtimeBoundary:cleanup("routeCache.saveMission", routeCache.flush)
   runtimeBoundary:cleanup("fuel.saveMission", realisticFuel.persistence.flush)
@@ -4773,6 +5012,9 @@ end function M.onPreRender(dtReal, dtSim)
 end
 
 function M.onExtensionUnloaded()
+  if M._earthAddresses then M._earthAddresses:destroy();M._earthAddresses=nil end
+  if M._earthDispatcher then M._earthDispatcher:destroy();M._earthDispatcher=nil end
+  if M._earthTrip then M._earthTrip:reset();M._earthTrip=nil end
   if M._earthRouting then M._earthRouting:destroy();M._earthRouting=nil end
   runtimeBoundary:cleanup("routeCache.saveUnload", routeCache.flush)
   runtimeBoundary:cleanup("fuel.saveUnload", realisticFuel.persistence.flush)

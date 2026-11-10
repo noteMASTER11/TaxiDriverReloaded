@@ -1274,13 +1274,14 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
     });
     const normalizeEarth = snapshot => ({
       available: false, status: 'absent', mode: 'vehicle', error: '', canNavigate: false, gps: null, owner: '',
-      maxRandomKm: 50, randomAttempt: 0,
+      maxRandomKm: 50, randomAttempt: 0, startedTripId: 0,
       ...snapshot,
       a: normalizeEarthField(snapshot?.a), b: normalizeEarthField(snapshot?.b),
       route: { status: 'idle', distanceM: 0, durationS: 0, from: null, to: null, error: '', ...snapshot?.route },
     });
     view.earth = normalizeEarth();
     view.earthOpen = false;
+    view.earthStarting = false;
     view.earthActive = { a: -1, b: -1 };
     view.earthExpanded = { a: false, b: false };
     const earthDirty = { a: false, b: false };
@@ -1288,6 +1289,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
     const earthOwner = `hud-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
     let earthHeartbeat = null;
     let earthAwaitingOwnerAck = false;
+    let earthStartTimer = null;
     const earthCommand = (action, args = {}) => callTaxiDriver('earthCommand', action, { ...args, owner: earthOwner });
     const cancelEarthEdits = () => {
       for (const field of ['a', 'b']) {
@@ -1297,6 +1299,9 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
     };
     const stopEarthWork = () => {
       cancelEarthEdits();
+      if (earthStartTimer !== null) clearTimeout(earthStartTimer);
+      earthStartTimer = null;
+      view.earthStarting = false;
       if (earthHeartbeat !== null) clearInterval(earthHeartbeat);
       earthHeartbeat = null;
       earthAwaitingOwnerAck = false;
@@ -1328,15 +1333,37 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
         }
       }
       view.earth = incoming;
+      if (view.earthStarting && (Number(incoming.startedTripId) > 0 || incoming.error || incoming.route.error)) {
+        if (earthStartTimer !== null) clearTimeout(earthStartTimer);
+        earthStartTimer = null;
+        view.earthStarting = false;
+        if (Number(incoming.startedTripId) > 0) hud.closeEarth();
+      }
     };
     onGameEvent('TaxiDriverEarthState', applyEarth);
     view.earthResults = field => view.earth[field].results.slice(0, 8);
-    view.canPreviewEarth = () => view.earth.status === 'ready' && !!view.earth.b.selected &&
+    view.earthOfferRoute = offer => [offer?.pickupAddress || offer?.pickupName,
+      offer?.destinationAddress || offer?.destinationName].filter(Boolean).join(' → ');
+    view.canPreviewEarth = () => !view.earthStarting && view.earth.status === 'ready' && !!view.earth.b.selected &&
       (view.earth.mode === 'vehicle' || !!view.earth.a.selected) && view.earth.route.status !== 'pending';
-    view.canNavigateEarth = target => view.earth.status === 'ready' && view.earth.canNavigate &&
+    view.canNavigateEarth = target => !view.earthStarting && view.earth.status === 'ready' && view.earth.canNavigate &&
       !!view.earth[target]?.selected;
-    view.canRandomEarth = () => view.earth.status === 'ready' && view.earth.route.status !== 'pending' &&
+    view.canRandomEarth = () => !view.earthStarting && view.earth.status === 'ready' && view.earth.route.status !== 'pending' &&
       (view.earth.mode === 'vehicle' || !!view.earth.a.selected);
+    view.canStartEarthTrip = () => view.earthOpen && !view.earthStarting && view.earth.status === 'ready' &&
+      view.earth.route.status === 'ready' && (!view.state.active || view.state.phase === 'searching');
+    hud.earthStartTrip = () => {
+      if (!view.canStartEarthTrip()) return;
+      view.earthStarting = true;
+      view.earth.error = '';
+      view.earth.route.error = '';
+      earthStartTimer = setTimeout(() => {
+        earthStartTimer = null;
+        view.earthStarting = false;
+        view.earth.error = view.t('earthStartTimeout');
+      }, 15000);
+      earthCommand('startTrip');
+    };
     hud.setEarthRandomLimit = value => {
       const number = Number(value);
       const maxRandomKm = Math.max(1, Math.min(600, Math.round(Number.isFinite(number) ? number : 50)));
@@ -1372,6 +1399,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
       view.settingsOpen = view.profileOpen = view.fleetOpen = view.fuelStationOpen = false;
       view.shiftHistoryOpen = view.offlineConfirmOpen = false;
       earthAwaitingOwnerAck = true;
+      view.earth.startedTripId = 0;
       view.earthOpen = true;
       dismissPassengerChat();
       hideMinimap();
@@ -1379,12 +1407,14 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
       earthHeartbeat = setInterval(() => earthCommand('heartbeat'), 2500);
     };
     hud.setEarthMode = mode => {
+      if (view.earthStarting) return;
       if (!['vehicle', 'points'].includes(mode) || mode === view.earth.mode) return;
       view.earth.mode = mode;
       view.earth.route = normalizeEarth().route;
       earthCommand('mode', { mode });
     };
     hud.editEarth = (field, query) => {
+      if (view.earthStarting) return;
       if (!['a', 'b'].includes(field)) return;
       view.earth[field] = { ...emptyEarthField(), query: String(query || '') };
       view.earth.route = normalizeEarth().route;
@@ -1398,6 +1428,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
       }, 250);
     };
     hud.searchEarth = field => {
+      if (view.earthStarting) return;
       if (!['a', 'b'].includes(field) || view.earth.status !== 'ready' || !view.earth[field].query.trim() || view.earth[field].searching) return;
       if (earthEditTimers[field]) clearTimeout(earthEditTimers[field]);
       earthEditTimers[field] = null;
@@ -1409,6 +1440,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
       earthCommand('search', { field, query: view.earth[field].query });
     };
     hud.selectEarth = (field, index) => {
+      if (view.earthStarting) return;
       const point = view.earthResults(field)[index];
       if (!point || !Number.isInteger(index)) return;
       earthDirty[field] = false;

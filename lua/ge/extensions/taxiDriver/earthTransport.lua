@@ -76,7 +76,7 @@ function M.new(options)
     if type(port) ~= "number" or port ~= math.floor(port) or port < 1 or port > 65535 then
       return false, "invalid port"
     end
-    if type(message) ~= "table" or (message.type ~= "route" and message.type ~= "geocode") or
+    if type(message) ~= "table" or (message.type ~= "route" and message.type ~= "geocode" and message.type ~= "map_labels" and message.type ~= "where") or
       message.id == nil or type(callback) ~= "function" then return false, "invalid request" end
     local ok, body = pcall(encode, message)
     if not ok or type(body) ~= "string" or #body > 8188 then return false, "invalid request encoding" end

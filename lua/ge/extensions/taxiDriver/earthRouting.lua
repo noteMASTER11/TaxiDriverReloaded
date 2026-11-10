@@ -67,7 +67,7 @@ function M.new(options)
   local emit, read, write = options.emit, options.read or readSettings, options.write or writeSettings
   local isTripActive = options.isTripActive or function() return false end
   local state = {available=false,status="absent",mode="vehicle",a=field(),b=field(),
-    route=idleRoute(),gps=nil,error="",canNavigate=false,owner="",maxRandomKm=50,randomAttempt=0}
+    route=idleRoute(),gps=nil,error="",canNavigate=false,owner="",maxRandomKm=50,randomAttempt=0,startedTripId=0}
   local opened, destroyed, clock, detectAt, gpsAt = false,false,0,0,0
   local lastOwnerSeen=0
   local generation, requestId, transport, transportPort, currentSession = 0,0,nil,nil,nil
@@ -201,6 +201,9 @@ function M.new(options)
         return
       end
       route.status,route.distanceM,route.durationS="ready",distance,duration
+      local first,last=result.points[1],result.points[#result.points]
+      route.roadFrom=place({lat=first[1],lon=first[2],name=from.name})
+      route.roadTo=place({lat=last[1],lon=last[2],name=to.name})
       -- Deliberately do not retain the full Earth geometry in the HUD/store.
     end)
   end
@@ -231,6 +234,8 @@ function M.new(options)
           duration and duration>=0 and to and #points>=2 then
           to.name=string.format("%.5f, %.5f",to.lat,to.lon);to.detail="Earth · OSRM"
           route.to,route.status,route.distanceM,route.durationS=to,"ready",distance,duration
+          route.roadFrom=place({lat=points[1][1],lon=points[1][2],name=from.name})
+          route.roadTo=to
           state.b.selected,state.b.query=to,to.name
           remember(to);persist()
           return
@@ -302,10 +307,12 @@ function M.new(options)
     if action=="open" then
       local owner=text(args.owner,96)
       if opened and owner~=state.owner then cancel() end
-      state.owner=owner;opened=true;detect();updateGps()
+      state.owner=owner;state.startedTripId=0;opened=true;detect();updateGps()
     elseif action=="close" then
       opened=false;cancel();state.a.results,state.b.results={},{};state.owner=""
     elseif action=="heartbeat" then return state
+    elseif action=="started" then state.startedTripId=tonumber(args.tripId) or 0
+    elseif action=="startFailed" then state.error=text(args.error or "Earth trip could not start",400)
     elseif action=="mode" then
       cancel();state.route=idleRoute();state.mode=args.mode=="points" and "points" or "vehicle";persist()
     elseif action=="setRandomLimit" then

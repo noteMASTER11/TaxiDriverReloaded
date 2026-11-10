@@ -229,3 +229,47 @@ test('Earth exposes explicit teleport, random route and a gameplay limit of 600 
     window.__taxiHudHandle?.unmount(); await window.happyDOM.cancelAsync(); window.close();
   }
 });
+
+test('Earth paid-trip action is explicit and Earth offers show destination names', async () => {
+  const {window, errors} = await openHarness('orders', false);
+  try {
+    const {view, hud} = window.__taxiHudModel;
+    const offers = view.state.offers.map((offer, index) => index === 0 ? {...offer, earth: true, pickupName: 'Krasnodar', destinationName: 'Sochi'} : offer);
+    window.__taxiSetState({offers, earth: {available: true, status: 'ready', route: {status: 'ready', distanceM: 292000, durationS: 14400}}});
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const caption = window.document.querySelector('.taxi-order-card__earth-route');
+    assert(caption); assert.equal(caption.textContent.trim(), 'Krasnodar → Sochi');
+    hud.openEarth(); await new Promise(resolve => setTimeout(resolve, 0));
+    const start = window.document.querySelector('.taxi-earth__start');
+    assert(start); assert.equal(start.textContent.trim(), 'Start trip'); assert.equal(start.disabled, false);
+    assert(start.classList.contains('taxi-earth-button'));
+    start.click(); await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(start.disabled, true);
+    assert.equal(view.earthOpen, true);
+    assert.equal(window.__taxiEngineLuaCommands.filter(command => /earthCommand\("startTrip"/.test(command)).length, 1);
+    assert.deepEqual(errors, []);
+  } finally {
+    window.__taxiHudHandle?.unmount(); await window.happyDOM.cancelAsync(); window.close();
+  }
+});
+
+test('Earth offer captions update when full addresses arrive asynchronously', async () => {
+  const {window, errors} = await openHarness('orders', false);
+  try {
+    const {view} = window.__taxiHudModel;
+    const offers = view.state.offers.map((offer, index) => index === 0 ? {...offer, earth: true, pickupName: 'London', destinationName: 'Oxford'} : offer);
+    window.__taxiSetState({offers});
+    await new Promise(resolve => setTimeout(resolve, 0));
+    let caption = window.document.querySelector('.taxi-order-card__earth-route');
+    assert.equal(caption.textContent.trim(), 'London → Oxford');
+    window.__taxiSetState({offers: offers.map((offer, index) => index === 0 ? {...offer, pickupAddress: '10 Downing Street, London', destinationAddress: 'High Street, Oxford'} : offer)});
+    await new Promise(resolve => setTimeout(resolve, 0));
+    caption = window.document.querySelector('.taxi-order-card__earth-route');
+    const address = '10 Downing Street, London → High Street, Oxford';
+    assert.equal(caption.textContent.trim(), address);
+    assert.equal(caption.title, address);
+    assert.deepEqual(errors, []);
+  } finally {
+    window.__taxiHudHandle?.unmount(); await window.happyDOM.cancelAsync(); window.close();
+  }
+});

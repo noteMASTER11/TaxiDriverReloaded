@@ -810,8 +810,8 @@
       </header>
       <div class="taxi-earth__scroll">
         <div class="taxi-earth__modes" :aria-label="t('earthOrigin')">
-          <button type="button" class="taxi-action taxi-action--secondary" :aria-pressed="earth.mode === 'vehicle'" @click="hud.setEarthMode('vehicle')">{{ t('earthVehicleMode') }}</button>
-          <button type="button" class="taxi-action taxi-action--secondary" :aria-pressed="earth.mode === 'points'" @click="hud.setEarthMode('points')">{{ t('earthPointsMode') }}</button>
+          <button type="button" class="taxi-action taxi-action--secondary" :disabled="earthStarting" :aria-pressed="earth.mode === 'vehicle'" @click="hud.setEarthMode('vehicle')">{{ t('earthVehicleMode') }}</button>
+          <button type="button" class="taxi-action taxi-action--secondary" :disabled="earthStarting" :aria-pressed="earth.mode === 'points'" @click="hud.setEarthMode('points')">{{ t('earthPointsMode') }}</button>
         </div>
         <p class="taxi-earth__status" role="status" v-if="earth.status !== 'ready'">{{ t('earthStatus_' + earth.status) }}</p>
         <div class="taxi-earth__vehicle" v-if="earth.mode === 'vehicle'">{{ t('earthVehicleOrigin') }}</div>
@@ -822,24 +822,25 @@
               <button type="button" class="taxi-earth__teleport taxi-action taxi-action--secondary" v-if="field === 'a' &amp;&amp; earth.a.selected" :disabled="earth.mode !== 'points' || !canNavigateEarth('a')" @click="hud.teleportEarthA()">{{ t('earthTeleportA') }}</button>
             </div>
             <div class="taxi-earth__search">
-              <input type="text" :id="'taxi-earth-' + field" role="combobox" maxlength="200" aria-autocomplete="list" :aria-controls="'taxi-earth-' + field + '-results'" :aria-expanded="earthExpanded[field] &amp;&amp; earthResults(field).length > 0" :aria-activedescendant="earthExpanded[field] &amp;&amp; earthActive[field] >= 0 ? 'taxi-earth-' + field + '-result-' + earthActive[field] : undefined" :value="earth[field].query" :placeholder="t('earthSearchPlaceholder')" autocomplete="off" spellcheck="false" @input="hud.editEarth(field, $event.target.value)" @keydown.stop="hud.earthKeydown(field, $event)" @keyup.stop @focus="earthExpanded[field] = true">
-              <button type="button" class="taxi-action taxi-action--secondary" :disabled="!earth[field].query.trim() || earth[field].searching || earth.status !== 'ready'" @click="hud.searchEarth(field)">{{ t('earthSearch') }}</button>
+              <input type="text" :id="'taxi-earth-' + field" role="combobox" maxlength="200" :disabled="earthStarting" aria-autocomplete="list" :aria-controls="'taxi-earth-' + field + '-results'" :aria-expanded="earthExpanded[field] &amp;&amp; earthResults(field).length > 0" :aria-activedescendant="earthExpanded[field] &amp;&amp; earthActive[field] >= 0 ? 'taxi-earth-' + field + '-result-' + earthActive[field] : undefined" :value="earth[field].query" :placeholder="t('earthSearchPlaceholder')" autocomplete="off" spellcheck="false" @input="hud.editEarth(field, $event.target.value)" @keydown.stop="hud.earthKeydown(field, $event)" @keyup.stop @focus="earthExpanded[field] = true">
+              <button type="button" class="taxi-action taxi-action--secondary" :disabled="earthStarting || !earth[field].query.trim() || earth[field].searching || earth.status !== 'ready'" @click="hud.searchEarth(field)">{{ t('earthSearch') }}</button>
             </div>
             <p class="taxi-earth__status" role="status" v-if="earth[field].searching">{{ t('earthSearching') }}</p>
             <p class="taxi-earth__error" role="alert" v-if="earth[field].error">{{ earth[field].error }}</p>
             <div class="taxi-earth__results" role="listbox" :id="'taxi-earth-' + field + '-results'" :aria-label="t('earthResults')" v-if="earthExpanded[field] &amp;&amp; earthResults(field).length">
-              <button type="button" role="option" tabindex="-1" v-for="(point, index) in earthResults(field)" :key="index" :id="'taxi-earth-' + field + '-result-' + index" :aria-selected="earthActive[field] === index" @mousedown.prevent @click="hud.selectEarth(field, index)"><strong>{{ point.name }}</strong><small>{{ point.detail }}</small></button>
+              <button type="button" role="option" tabindex="-1" :disabled="earthStarting" v-for="(point, index) in earthResults(field)" :key="index" :id="'taxi-earth-' + field + '-result-' + index" :aria-selected="earthActive[field] === index" @mousedown.prevent @click="hud.selectEarth(field, index)"><strong>{{ point.name }}</strong><small>{{ point.detail }}</small></button>
             </div>
             <p class="taxi-earth__selected" v-if="earth[field].selected"><strong>✓ {{ earth[field].selected.name }}</strong><span>{{ earth[field].selected.detail }}</span></p>
           </section>
         </template>
-        <button type="button" class="taxi-earth__preview taxi-action taxi-action--primary" :disabled="!canPreviewEarth()" @click="hud.previewEarth()">{{ t('earthPreview') }}</button>
+        <button type="button" class="taxi-earth__preview taxi-action taxi-action--secondary" :disabled="!canPreviewEarth()" @click="hud.previewEarth()">{{ t('earthPreview') }}</button>
         <button type="button" class="taxi-earth__random taxi-action taxi-action--secondary" :disabled="!canRandomEarth()" @click="hud.randomEarth()">{{ t('earthRandomRoute') }}</button>
         <p class="taxi-earth__status" role="status" v-if="earth.route.status === 'pending'">{{ t('earthRouting') }} <span v-if="earth.randomAttempt > 0">{{ t('earthRandomAttempt', {attempt: earth.randomAttempt}) }}</span></p>
         <div class="taxi-earth__metrics" v-if="earth.route.status === 'ready'">
           <div><span>{{ t('earthDistance') }}</span><strong>{{ formatDistance(earth.route.distanceM) }}</strong></div>
           <div><span>{{ t('earthDuration') }}</span><strong>{{ formatEta(earth.route.durationS / 60) }}</strong></div>
         </div>
+        <button type="button" class="taxi-earth__start taxi-earth-button taxi-action taxi-action--secondary" :disabled="!canStartEarthTrip()" @click="hud.earthStartTrip()">{{ t(earthStarting ? 'earthStartingTrip' : 'earthStartTrip') }}</button>
         <p class="taxi-earth__error" role="alert" v-if="earth.route.error || earth.error">{{ earth.route.error || earth.error }}</p>
         <div class="taxi-earth__navigate">
           <button type="button" class="taxi-action taxi-action--secondary" :disabled="!canNavigateEarth('a')" @click="hud.navigateEarth('a')">{{ t('earthNavigateA') }}</button>
@@ -980,6 +981,7 @@
               <div class="taxi-order-card__badge" v-if="offer.isRush">+{{ offer.bonusPercent }}%</div>
               <div class="taxi-order-card__badge taxi-order-card__badge--multi" v-if="offer.isMultiStop">{{ t('multiStopBadge', {count: offer.stopCount}) }}</div>
             </div>
+            <p class="taxi-order-card__earth-route" v-if="offer.earth &amp;&amp; earthOfferRoute(offer)" :title="earthOfferRoute(offer)">{{ earthOfferRoute(offer) }}</p>
             <div class="taxi-order-card__efficiency"><span>{{ formatMoney(getOfferIncomePerMinute(offer)) }}/{{ t('minuteShort') }}</span><span>{{ formatMoney(getOfferIncomePerKm(offer)) }}/{{ settings.unitSystem === 'imperial' ? t('unitMile') : t('unitKm') }}</span></div>
             <div class="taxi-order-card__metrics">
               <div class="taxi-order-card__metric"><span>{{ t('trip') }}</span><b>{{ formatEta(offer.etaMinutes) }}</b></div>

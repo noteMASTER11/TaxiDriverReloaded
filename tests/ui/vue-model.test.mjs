@@ -795,3 +795,57 @@ test('Earth retires an expired owner lease and can reopen only on a new click', 
   h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner});
   assert.equal(h.view.earthOpen, true);
 });
+
+test('Earth starts a paid trip only from a ready route while offline or searching and blocks duplicate submits', async t => {
+  const h = await fixture(t);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', route: {status: 'ready'}});
+  h.hud.openEarth();
+  assert.equal(h.view.canStartEarthTrip(), true);
+  h.hud.earthStartTrip(); h.hud.earthStartTrip();
+  assert.equal(earthCalls(h).filter(call => call.action === 'startTrip').length, 1);
+  assert.equal(h.view.earthStarting, true);
+  assert.equal(h.view.earthOpen, true, 'keep route visible until backend acknowledgement');
+  const owner = earthCalls(h).find(call => call.action === 'open').args.owner;
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner, startedTripId: 123, route: {status: 'ready'}});
+  assert.equal(h.view.earthStarting, false);
+  assert.equal(h.view.earthOpen, false);
+  assert.equal(earthCalls(h).filter(call => call.action === 'close').length, 1);
+  h.hud.openEarth();
+  h.send({active: true, phase: 'searching'});
+  assert.equal(h.view.canStartEarthTrip(), true);
+  h.send({active: true, phase: 'toDestination'});
+  assert.equal(h.view.canStartEarthTrip(), false);
+  const before = earthCalls(h).length; h.hud.earthStartTrip();
+  assert.equal(earthCalls(h).length, before, 'cannot replace an active taxi trip');
+});
+
+test('Earth start failure and acknowledgement timeout unlock submission without closing the panel', async t => {
+  const h = await fixture(t);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', route: {status: 'ready'}});
+  h.hud.openEarth(); h.hud.earthStartTrip();
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', error: 'Trip unavailable', route: {status: 'ready'}});
+  assert.equal(h.view.earthStarting, false);
+  assert.equal(h.view.earthOpen, true);
+  assert.equal(h.view.earth.error, 'Trip unavailable');
+  h.hud.earthStartTrip();
+  assert.equal(h.view.earthStarting, true);
+  await h.advance(15000);
+  assert.equal(h.view.earthStarting, false);
+  assert.equal(h.view.earthOpen, true);
+  assert.ok(h.view.earth.error);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', route: {status: 'pending'}});
+  assert.equal(h.view.canStartEarthTrip(), false);
+});
+
+test('Earth address search forwards the complete address and offer captions prefer available address details', async t => {
+  const h = await fixture(t);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready'});
+  h.hud.openEarth();
+  h.hud.editEarth('b', '10 Downing Street, London');
+  h.hud.searchEarth('b');
+  assert.equal(earthCalls(h).at(-1).action, 'search');
+  assert.equal(earthCalls(h).at(-1).args.query, '10 Downing Street, London');
+  const offer = {pickupName: 'London', destinationName: 'Oxford'};
+  assert.equal(h.view.earthOfferRoute(offer), 'London → Oxford');
+  assert.equal(h.view.earthOfferRoute({...offer, pickupAddress: '10 Downing Street, London', destinationAddress: 'High Street, Oxford'}), '10 Downing Street, London → High Street, Oxford');
+});
