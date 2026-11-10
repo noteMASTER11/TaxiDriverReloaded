@@ -17,6 +17,18 @@ local function tableHasValues(value)
   return type(value) == "table" and next(value) ~= nil
 end
 
+-- Partial Fisher-Yates samples without replacement in O(budget), including on
+-- maps with thousands of points. Do not shuffle the entire map each attempt.
+local function sampleIndices(count, budget)
+  local swaps, result = {}, {}
+  for remaining = count, math.max(1, count - budget + 1), -1 do
+    local index = math.random(remaining)
+    result[#result + 1] = swaps[index] or index
+    swaps[index] = swaps[remaining] or remaining
+  end
+  return result
+end
+
 local function isFiniteNumber(value)
   value = tonumber(value)
   return value ~= nil and value == value and value ~= math.huge and value ~= -math.huge
@@ -38,10 +50,13 @@ function M.new(options)
   local recentSeparation = tonumber(config.recentStopSeparation) or 100
   local candidateCache = nil
   local candidateLevel = nil
+  local candidateBuilder = nil
   local roadEdgeCache = nil
   local roadEdgeLevel = nil
+  local roadEdgeBuilder = nil
   local routePointCache = nil
   local routePointLevel = nil
+  local routePointBuilder = nil
   local recentPositions = {}
   local routeDistanceFailureLogged = false
   local semanticFailureLogged = false
@@ -94,6 +109,7 @@ function M.new(options)
       for _, startNode in ipairs(starts) do
         for _, targetNode in ipairs(targets) do
           if nodes[startNode] and nodes[targetNode] then
+            offerGenerator.yield()
             local path = graph:getPath(startNode, targetNode)
             if type(path) == "table" then
               local routeDistance = fromPos:distance(nodes[startNode].pos)
@@ -130,6 +146,7 @@ function M.new(options)
       return nil
     end)
     if ok and result then return result end
+    offerGenerator.yield()
     local fallback = calculateGraphDistance(fromPos, toPos)
     if fallback then
       if not ok and not routeDistanceFailureLogged then
@@ -255,183 +272,224 @@ function M.new(options)
   local function getRoadEdges()
     local level = getCurrentLevelIdentifier() or ""
     if roadEdgeCache and roadEdgeLevel == level then return roadEdgeCache end
-    local mapOk, mapData = pcall(map.getMap)
-    if not mapOk then mapData = nil end
-    local nodes = mapData and mapData.nodes
-    local edges = {}
-    local seen = {}
-    local scanned = 0
-    if tableHasValues(nodes) then
-      for nodeA, node in pairs(nodes) do
-        for nodeB, _ in pairs(node.links or {}) do
-          local firstKey = tostring(nodeA)
-          local secondKey = tostring(nodeB)
-          local edgeKey = firstKey < secondKey and
-            (firstKey .. "\0" .. secondKey) or (secondKey .. "\0" .. firstKey)
-          if not seen[edgeKey] then
-            seen[edgeKey] = true
-            if isUsableRoad(nodes, nodeA, nodeB) then
-              edges[#edges + 1] = {nodeA = nodeA, nodeB = nodeB}
+    if not roadEdgeBuilder or roadEdgeLevel ~= level then
+      roadEdgeLevel = level
+      roadEdgeCache = nil
+      roadEdgeBuilder = coroutine.create(function()
+        local mapOk, mapData = pcall(map.getMap)
+        if not mapOk then mapData = nil end
+        local nodes = mapData and mapData.nodes
+        local edges = {}
+        local seen = {}
+        local scanned = 0
+        if tableHasValues(nodes) then
+          for nodeA, node in pairs(nodes) do
+            for nodeB, _ in pairs(node.links or {}) do
+              local firstKey = tostring(nodeA)
+              local secondKey = tostring(nodeB)
+              local edgeKey = firstKey < secondKey and
+                (firstKey .. "\0" .. secondKey) or (secondKey .. "\0" .. firstKey)
+              if not seen[edgeKey] then
+                seen[edgeKey] = true
+                if isUsableRoad(nodes, nodeA, nodeB) then
+                  edges[#edges + 1] = {nodeA = nodeA, nodeB = nodeB}
+                end
+              end
+              scanned = scanned + 1
+              if scanned % 32 == 0 then offerGenerator.yield() end
             end
           end
-          scanned = scanned + 1
-          if scanned % 64 == 0 then offerGenerator.yield() end
         end
-      end
+        return edges
+      end)
     end
-    roadEdgeCache = edges
-    roadEdgeLevel = level
-    return edges
+    -- The builder belongs to the planner rather than an individual offer job.
+    -- Cancelling or timing out an offer must retain completed graph work.
+    while true do
+      local ok, result = coroutine.resume(roadEdgeBuilder)
+      if not ok then roadEdgeBuilder = nil; error(result) end
+      if coroutine.status(roadEdgeBuilder) == "dead" then
+        roadEdgeCache, roadEdgeBuilder = result, nil
+        return roadEdgeCache
+      end
+      offerGenerator.yield()
+    end
   end
 
   local function getRoutePoints()
     local level = getCurrentLevelIdentifier() or ""
     if routePointCache and routePointLevel == level then return routePointCache end
-    local mapOk, mapData = pcall(map.getMap)
-    local nodes = mapOk and mapData and mapData.nodes or nil
-    local points, occupiedCells = {}, {}
+    if not routePointBuilder or routePointLevel ~= level then
+      routePointLevel = level
+      routePointCache = nil
+      routePointBuilder = coroutine.create(function()
+        local mapOk, mapData = pcall(map.getMap)
+        local nodes = mapOk and mapData and mapData.nodes or nil
+        local points, occupiedCells = {}, {}
 
-    local function addPoint(stop)
-      if not (stop and stop.pos and stop.nodeA and stop.nodeB) then return end
-      local cellKey = string.format("%d:%d",
-        math.floor(stop.pos.x / 20), math.floor(stop.pos.y / 20))
-      if occupiedCells[cellKey] then return end
-      occupiedCells[cellKey] = true
-      stop.anchorKind = "routeCache"
-      points[#points + 1] = stop
-    end
+        local function addPoint(stop)
+          if not (stop and stop.pos and stop.nodeA and stop.nodeB) then return end
+          local cellKey = string.format("%d:%d",
+            math.floor(stop.pos.x / 20), math.floor(stop.pos.y / 20))
+          if occupiedCells[cellKey] then return end
+          occupiedCells[cellKey] = true
+          stop.anchorKind = "routeCache"
+          points[#points + 1] = stop
+        end
 
-    -- This in-memory fallback is rebuilt exclusively from the core road graph.
-    -- Persistent /route_cache JSON is reserved for complete dispatcher offers
-    -- that have actually reached the UI.
-    for index, edge in ipairs(getRoadEdges()) do
-      if index % 64 == 0 then offerGenerator.yield() end
-      local nodeA, nodeB = nodes and nodes[edge.nodeA], nodes and nodes[edge.nodeB]
-      if nodeA and nodeB and nodeA.pos and nodeB.pos then
-        addPoint(projectAnchorToRoadEdge(
-          nodeA.pos + (nodeB.pos - nodeA.pos) * 0.5,
-          edge.nodeA,
-          edge.nodeB,
-          false
+        -- This in-memory fallback is rebuilt exclusively from the core road graph.
+        -- Persistent /route_cache JSON is reserved for complete dispatcher offers
+        -- that have actually reached the UI.
+        for index, edge in ipairs(getRoadEdges()) do
+          if index % 4 == 0 then offerGenerator.yield() end
+          local nodeA, nodeB = nodes and nodes[edge.nodeA], nodes and nodes[edge.nodeB]
+          if nodeA and nodeB and nodeA.pos and nodeB.pos then
+            addPoint(projectAnchorToRoadEdge(
+              nodeA.pos + (nodeB.pos - nodeA.pos) * 0.5,
+              edge.nodeA,
+              edge.nodeB,
+              false
+            ))
+          end
+        end
+
+        log("I", "taxiDriver.routePlanner", string.format(
+          "Prepared %d in-memory road-graph route points for level '%s'",
+          #points, level
         ))
-      end
+        return points
+      end)
     end
-
-    routePointCache = points
-    routePointLevel = level
-    log("I", "taxiDriver.routePlanner", string.format(
-      "Prepared %d in-memory road-graph route points for level '%s'",
-      #points, level
-    ))
-    return points
+    while true do
+      local ok, result = coroutine.resume(routePointBuilder)
+      if not ok then routePointBuilder = nil; error(result) end
+      if coroutine.status(routePointBuilder) == "dead" then
+        routePointCache, routePointBuilder = result, nil
+        return routePointCache
+      end
+      offerGenerator.yield()
+    end
   end
 
   local function getStopCandidates()
     local level = getCurrentLevelIdentifier() or ""
     if candidateCache and candidateLevel == level then return candidateCache end
-    if candidateLevel ~= level then
-      recentPositions = {}
-      if type(options.onLevelChanged) == "function" then options.onLevelChanged(level) end
-    end
-    local candidates = {}
-    local occupiedCells = {}
-    local scanWork = 0
-    local function addCandidate(pos, kind, name)
-      if not pos then return end
-      local ok, anchor = pcall(vec3, pos)
-      if not ok or not anchor or not isFiniteNumber(anchor.x) or
-        not isFiniteNumber(anchor.y) or not isFiniteNumber(anchor.z) then return end
-      local cellKey = string.format("%d:%d", math.floor(anchor.x / 8), math.floor(anchor.y / 8))
-      if occupiedCells[cellKey] then return end
-      occupiedCells[cellKey] = true
-      candidates[#candidates + 1] = {anchor = anchor, kind = kind, name = name or kind}
-    end
-
-    local triggerIds = {}
-    if scenetree and type(scenetree.findClassObjects) == "function" then
-      local ok, values = pcall(scenetree.findClassObjects, "BeamNGTrigger")
-      if ok and type(values) == "table" then triggerIds = values
-      else
-        logSemanticFallback("Unable to enumerate bus-stop triggers")
+    if not candidateBuilder or candidateLevel ~= level then
+      if candidateLevel ~= level then
+        recentPositions = {}
+        if type(options.onLevelChanged) == "function" then options.onLevelChanged(level) end
       end
-    end
-    for _, objectId in ipairs(triggerIds) do
-      scanWork = scanWork + 1
-      if scanWork % config.semanticScanBatchSize == 0 then offerGenerator.yield() end
-      local objectOk, object = pcall(scenetree.findObject, objectId)
-      if objectOk and object then
-        local dataOk, objectType, objectPos, stopName = pcall(function()
-          return object.type, object:getPosition(), object.stopName
-        end)
-        if dataOk and objectType == "busstop" then
-          addCandidate(objectPos, "busStop", stopName or objectId)
+      candidateLevel = level
+      candidateCache = nil
+      candidateBuilder = coroutine.create(function()
+        local candidates = {}
+        local occupiedCells = {}
+        local scanWork = 0
+        local function addCandidate(pos, kind, name)
+          if not pos then return end
+          local ok, anchor = pcall(vec3, pos)
+          if not ok or not anchor or not isFiniteNumber(anchor.x) or
+            not isFiniteNumber(anchor.y) or not isFiniteNumber(anchor.z) then return end
+          local cellKey = string.format("%d:%d", math.floor(anchor.x / 8), math.floor(anchor.y / 8))
+          if occupiedCells[cellKey] then return end
+          occupiedCells[cellKey] = true
+          candidates[#candidates + 1] = {anchor = anchor, kind = kind, name = name or kind}
         end
-      end
-    end
 
-    local sitesManager = gameplay_sites_sitesManager
-    if sitesManager then
-      local sitesFiles = {}
-      local filesOk, values = pcall(sitesManager.getCurrentLevelSitesFiles)
-      if filesOk and type(values) == "table" then sitesFiles = values
-      else
-        logSemanticFallback("Unable to enumerate level sites")
-      end
-      for _, sitesFile in ipairs(sitesFiles) do
-        sitesFile = tostring(sitesFile or "")
-        local lowerPath = string.lower(sitesFile)
-        if not lowerPath:find("/missions/", 1, true) and
-          not lowerPath:find("/quickrace/", 1, true) and
-          not lowerPath:find("/scenarios/", 1, true) then
-          local loaded, sites = pcall(sitesManager.loadSites, sitesFile)
-          if not loaded then
-            logSemanticFallback("Unable to read taxi stop anchors from '" .. sitesFile .. "'")
-            sites = nil
+        local triggerIds = {}
+        if scenetree and type(scenetree.findClassObjects) == "function" then
+          local ok, values = pcall(scenetree.findClassObjects, "BeamNGTrigger")
+          if ok and type(values) == "table" then triggerIds = values
+          else
+            logSemanticFallback("Unable to enumerate bus-stop triggers")
           end
-          local sortedOk, sortedSpots = pcall(function()
-            return sites and sites.parkingSpots and sites.parkingSpots.sorted
-          end)
-          if sortedOk and type(sortedSpots) == "table" then
-            for _, spot in ipairs(sortedSpots) do
-              scanWork = scanWork + 1
-              if scanWork % config.semanticScanBatchSize == 0 then offerGenerator.yield() end
-              local spotOk, spotPos, spotKind, spotName, banned = pcall(function()
-                local tags = spot.customFields and spot.customFields.tags or {}
-                return spot.pos, tags.street and "streetParking" or "parking",
-                  spot.name, tags.banned == true
+        end
+        for _, objectId in ipairs(triggerIds) do
+          scanWork = scanWork + 1
+          if scanWork % config.semanticScanBatchSize == 0 then offerGenerator.yield() end
+          local objectOk, object = pcall(scenetree.findObject, objectId)
+          if objectOk and object then
+            local dataOk, objectType, objectPos, stopName = pcall(function()
+              return object.type, object:getPosition(), object.stopName
+            end)
+            if dataOk and objectType == "busstop" then
+              addCandidate(objectPos, "busStop", stopName or objectId)
+            end
+          end
+        end
+
+        local sitesManager = gameplay_sites_sitesManager
+        if sitesManager then
+          local sitesFiles = {}
+          local filesOk, values = pcall(sitesManager.getCurrentLevelSitesFiles)
+          if filesOk and type(values) == "table" then sitesFiles = values
+          else
+            logSemanticFallback("Unable to enumerate level sites")
+          end
+          for _, sitesFile in ipairs(sitesFiles) do
+            sitesFile = tostring(sitesFile or "")
+            local lowerPath = string.lower(sitesFile)
+            if not lowerPath:find("/missions/", 1, true) and
+              not lowerPath:find("/quickrace/", 1, true) and
+              not lowerPath:find("/scenarios/", 1, true) then
+              local loaded, sites = pcall(sitesManager.loadSites, sitesFile)
+              if not loaded then
+                logSemanticFallback("Unable to read taxi stop anchors from '" .. sitesFile .. "'")
+                sites = nil
+              end
+              local sortedOk, sortedSpots = pcall(function()
+                return sites and sites.parkingSpots and sites.parkingSpots.sorted
               end)
-              if spotOk and not banned then
-                addCandidate(spotPos, spotKind, spotName)
+              if sortedOk and type(sortedSpots) == "table" then
+                for _, spot in ipairs(sortedSpots) do
+                  scanWork = scanWork + 1
+                  if scanWork % config.semanticScanBatchSize == 0 then offerGenerator.yield() end
+                  local spotOk, spotPos, spotKind, spotName, banned = pcall(function()
+                    local tags = spot.customFields and spot.customFields.tags or {}
+                    return spot.pos, tags.street and "streetParking" or "parking",
+                      spot.name, tags.banned == true
+                  end)
+                  if spotOk and not banned then
+                    addCandidate(spotPos, spotKind, spotName)
+                  end
+                end
               end
             end
           end
         end
-      end
-    end
 
-    local poiIds = {}
-    if scenetree and type(scenetree.findClassObjects) == "function" then
-      local ok, values = pcall(scenetree.findClassObjects, "BeamNGPointOfInterest")
-      if ok and type(values) == "table" then poiIds = values
-      else
-        logSemanticFallback("Unable to enumerate points of interest")
-      end
+        local poiIds = {}
+        if scenetree and type(scenetree.findClassObjects) == "function" then
+          local ok, values = pcall(scenetree.findClassObjects, "BeamNGPointOfInterest")
+          if ok and type(values) == "table" then poiIds = values
+          else
+            logSemanticFallback("Unable to enumerate points of interest")
+          end
+        end
+        for _, objectId in ipairs(poiIds) do
+          scanWork = scanWork + 1
+          if scanWork % config.semanticScanBatchSize == 0 then offerGenerator.yield() end
+          local objectOk, object = pcall(scenetree.findObject, objectId)
+          if objectOk and object then
+            local positionOk, position = pcall(object.getPosition, object)
+            if positionOk then addCandidate(position, "pointOfInterest", objectId) end
+          end
+        end
+        log("I", "taxiDriver.routePlanner", string.format(
+          "Prepared %d semantic taxi stop anchors for level '%s'", #candidates, level
+        ))
+        return candidates
+      end)
     end
-    for _, objectId in ipairs(poiIds) do
-      scanWork = scanWork + 1
-      if scanWork % config.semanticScanBatchSize == 0 then offerGenerator.yield() end
-      local objectOk, object = pcall(scenetree.findObject, objectId)
-      if objectOk and object then
-        local positionOk, position = pcall(object.getPosition, object)
-        if positionOk then addCandidate(position, "pointOfInterest", objectId) end
+    while true do
+      local ok, result = coroutine.resume(candidateBuilder)
+      if not ok then candidateBuilder = nil; error(result) end
+      if coroutine.status(candidateBuilder) == "dead" then
+        candidateCache, candidateBuilder = result, nil
+        return candidateCache
       end
+      offerGenerator.yield()
     end
-    candidateCache = candidates
-    candidateLevel = level
-    log("I", "taxiDriver.routePlanner", string.format(
-      "Prepared %d semantic taxi stop anchors for level '%s'", #candidates, level
-    ))
-    return candidates
   end
 
   function service.getStopCandidateCount()
@@ -441,13 +499,8 @@ function M.new(options)
   local function chooseSemanticStop(startPos, minimumDistance, maximumDistance)
     local candidates = getStopCandidates()
     if not candidates[1] then return nil end
-    local order = {}
-    for index = 1, #candidates do order[index] = index end
-    for index = #order, 2, -1 do
-      local swapIndex = math.random(index)
-      order[index], order[swapIndex] = order[swapIndex], order[index]
-    end
-    local maximumAttempts = math.min(#order, config.semanticCandidateAttempts)
+    local order = sampleIndices(#candidates, config.semanticCandidateAttempts or 40)
+    local maximumAttempts = #order
     local recentFallback = nil
     for attempt = 1, maximumAttempts do
       offerGenerator.yield()
@@ -457,6 +510,7 @@ function M.new(options)
         (maximumDistance == nil or directDistance <= maximumDistance + 500) then
         local stop = projectAnchorToRoadEdge(candidate.anchor, nil, nil, true)
         if stop then
+          offerGenerator.yield()
           local actualDistance = service.calculateDistance(startPos, stop.pos)
           if isDistanceAllowed(actualDistance, minimumDistance, maximumDistance) then
             stop.routeDistance = actualDistance
@@ -476,12 +530,7 @@ function M.new(options)
     if not points[1] then
       return nil, "No in-memory road-graph route points are available"
     end
-    local order = {}
-    for index = 1, #points do order[index] = index end
-    for index = #order, 2, -1 do
-      local swapIndex = math.random(index)
-      order[index], order[swapIndex] = order[swapIndex], order[index]
-    end
+    local order = sampleIndices(#points, config.graphCandidateAttempts or 64)
 
     local recentFallback = nil
     for _, pointIndex in ipairs(order) do
@@ -559,6 +608,7 @@ function M.new(options)
       local distanceRatio = math.random() ^ config.randomDistanceExponent
       local desiredDistance = minimumDistance + (maximumDistance - minimumDistance) * distanceRatio
       local planner = buildRandomPath(nodes, nodeA, searchDirection, maximumDistance)
+      offerGenerator.yield()
       if planner and planner.path[1].distToTarget >= desiredDistance then
         local road = planner:stepAhead(desiredDistance, true)
         if road and road.n1 and road.n2 and isUsableRoad(nodes, road.n1, road.n2) then
@@ -573,6 +623,7 @@ function M.new(options)
           local edgePoint = projectAnchorToRoadEdge(lanePos, road.n1, road.n2)
           local targetPos = edgePoint and edgePoint.pos
           local targetDir = edgePoint and edgePoint.dir
+          offerGenerator.yield()
           local actualDistance = targetPos and service.calculateDistance(startPos, targetPos)
           if isDistanceAllowed(actualDistance, minimumDistance, maximumDistance) then
             local stop = {
@@ -618,6 +669,7 @@ function M.new(options)
         local anchor = nodeA.pos + (nodeB.pos - nodeA.pos) * interpolation
         local stop = projectAnchorToRoadEdge(anchor, edge.nodeA, edge.nodeB)
         if stop then
+          offerGenerator.yield()
           local actualDistance = service.calculateDistance(startPos, stop.pos)
           if isDistanceAllowed(actualDistance, minimumDistance, nil) then
             stop.routeDistance = actualDistance
@@ -668,10 +720,13 @@ function M.new(options)
   function service.reset()
     candidateCache = nil
     candidateLevel = nil
+    candidateBuilder = nil
     roadEdgeCache = nil
     roadEdgeLevel = nil
+    roadEdgeBuilder = nil
     routePointCache = nil
     routePointLevel = nil
+    routePointBuilder = nil
     recentPositions = {}
     routeDistanceFailureLogged = false
     semanticFailureLogged = false

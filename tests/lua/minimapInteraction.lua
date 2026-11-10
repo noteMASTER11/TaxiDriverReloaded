@@ -25,7 +25,10 @@ ui_apps_minimap_minimap = {onMinimapSettingsChanged=function() end,setDrawTransf
 extensions={load=function() end}
 settings={getValue=function() return "rect" end,setValue=function() end}
 local active = true
-local nav=require("taxiDriver/navigationUi").new({isActive=function() return active end,
+local nav=require("taxiDriver/navigationUi").new({
+  nativeMinimap={getModules=function() return {minimap=ui_apps_minimap_minimap,
+    utils=ui_apps_minimap_utils,vehicles=ui_apps_minimap_vehicles} end},
+  isActive=function() return active end,
   isRouteActive=function() return true end,getZoomIntensity=function() return 0 end})
 nav:setTransform(0,0,0.5,0.5,false,true)
 local pos=vec3(100,200,0)

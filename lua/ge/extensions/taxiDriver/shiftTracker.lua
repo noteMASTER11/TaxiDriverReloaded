@@ -4,6 +4,10 @@ local function money(value)
   return math.floor(math.max(0, tonumber(value) or 0) * 100 + 0.5) / 100
 end
 
+local function signedMoney(value)
+  return math.floor((tonumber(value) or 0) * 100 + 0.5) / 100
+end
+
 local function snapshot(source)
   source = type(source) == "table" and source or {}
   return {
@@ -15,7 +19,7 @@ local function snapshot(source)
     fuelCost = money(source.fuelCost),
     repairCost = money(source.repairCost),
     penaltyLoss = money(source.penaltyLoss),
-    netIncome = money(source.netIncome),
+    netIncome = signedMoney(source.netIncome),
     ratingTotal = math.max(0, tonumber(source.ratingTotal) or 0),
     averageRating = math.max(0, math.min(5, tonumber(source.averageRating) or 0))
   }
@@ -36,25 +40,25 @@ function M.new(lastShift)
     self.active.penaltyLoss = money(self.active.penaltyLoss + math.max(0, tonumber(penaltyLoss) or 0))
     self.active.ratingTotal = self.active.ratingTotal + math.max(0, math.min(5, tonumber(rating) or 0))
     self.active.averageRating = self.active.ratingTotal / math.max(1, self.active.rides)
-    self.active.netIncome = money(self.active.grossIncome - self.active.fuelCost - self.active.repairCost)
+    self.active.netIncome = signedMoney(self.active.grossIncome - self.active.fuelCost - self.active.repairCost)
   end
 
   function service:recordFuelCost(cost)
     if not self.active then return end
     self.active.fuelCost = money(self.active.fuelCost + math.max(0, tonumber(cost) or 0))
-    self.active.netIncome = money(self.active.grossIncome - self.active.fuelCost - self.active.repairCost)
+    self.active.netIncome = signedMoney(self.active.grossIncome - self.active.fuelCost - self.active.repairCost)
   end
 
   function service:recordRepairCost(cost)
     if not self.active then return end
     self.active.repairCost = money(self.active.repairCost + math.max(0, tonumber(cost) or 0))
-    self.active.netIncome = money(self.active.grossIncome - self.active.fuelCost - self.active.repairCost)
+    self.active.netIncome = signedMoney(self.active.grossIncome - self.active.fuelCost - self.active.repairCost)
   end
 
   function service:finish()
     if not self.active then return self.last end
     self.active.endedAt = os.time()
-    self.active.netIncome = money(self.active.grossIncome - self.active.fuelCost - self.active.repairCost)
+    self.active.netIncome = signedMoney(self.active.grossIncome - self.active.fuelCost - self.active.repairCost)
     self.last = snapshot(self.active)
     self.active = nil
     return self.last

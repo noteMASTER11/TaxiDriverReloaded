@@ -8,6 +8,8 @@ local stopSafety = require("taxiDriver/stopSafety")
 local schemaVersion = 2
 local cacheDirectory = "/settings/TaxiDriver/route_cache"
 local maximumRoutes = 96
+local documents = {}
+local flushInterval = 2
 
 local function finiteNumber(value)
   value = tonumber(value)
@@ -91,16 +93,16 @@ local function readDocument(descriptor)
   if not ok or type(source) ~= "table" then
     log("W", "taxiDriver.routeCache",
       "Unable to read route cache '" .. descriptor.filePath .. "': " .. tostring(source))
-    return result, true
+    return result, true, true
   end
   if trim(source.mapId, 128):lower() ~= descriptor.mapId:lower() then
-    return result, true
+    return result, true, true
   end
 
   -- Schema 1 contained road samples rather than complete dispatcher offers.
   -- It is intentionally migrated to an empty route history.
-  if tonumber(source.schemaVersion) == 1 then return result, true end
-  if tonumber(source.schemaVersion) ~= schemaVersion then return result, true end
+  if tonumber(source.schemaVersion) == 1 then return result, true, true end
+  if tonumber(source.schemaVersion) ~= schemaVersion then return result, true, true end
   result.updatedAt = finiteNumber(source.updatedAt) or 0
   result.routes = type(source.routes) == "table" and source.routes or {}
   return result, true
@@ -112,7 +114,7 @@ local function writeDocument(document, descriptor)
   document.mapId = descriptor.mapId
   document.mapName = descriptor.mapName
   document.updatedAt = os.time()
-  local ok, writeResult = pcall(jsonWriteFile, descriptor.filePath, document, true)
+  local ok, writeResult = pcall(jsonWriteFile, descriptor.filePath, document, false)
   if not ok or writeResult == false then
     log("W", "taxiDriver.routeCache",
       "Unable to write route cache '" .. descriptor.filePath .. "': " ..
@@ -288,37 +290,78 @@ local function routeKey(route)
   return table.concat(parts, "|")
 end
 
+local function getDocument(descriptor)
+  local entry = documents[descriptor.filePath]
+  if entry then return entry end
+  local document, exists, needsMigration = readDocument(descriptor)
+  local routes = {}
+  for _, source in ipairs(document.routes) do
+    local route = sanitizeOffer(source)
+    if route then routes[#routes + 1] = route end
+  end
+  while #routes > maximumRoutes do table.remove(routes, 1) end
+  document.routes = routes
+  entry = {document = document, descriptor = descriptor, exists = exists,
+    dirty = needsMigration == true, age = 0}
+  documents[descriptor.filePath] = entry
+  return entry
+end
+
+local function flushEntry(entry)
+  if not entry.dirty then return true end
+  entry.age = 0
+  if not writeDocument(entry.document, entry.descriptor) then return false end
+  entry.dirty, entry.exists = false, true
+  return true
+end
+
+function M.flush()
+  local success = true
+  for _, entry in pairs(documents) do
+    if not flushEntry(entry) then success = false end
+  end
+  return success
+end
+
+function M.update(dtReal)
+  for _, entry in pairs(documents) do
+    if entry.dirty then
+      entry.age = entry.age + math.max(0, tonumber(dtReal) or 0)
+      if entry.age >= flushInterval then flushEntry(entry) end
+    end
+  end
+end
+
 function M.ensureCurrentMapFile()
   local descriptor = currentMapDescriptor()
-  local document = readDocument(descriptor)
-  return writeDocument(document, descriptor)
+  local entry = getDocument(descriptor)
+  if entry.exists and not entry.dirty then return true end
+  entry.dirty = true
+  return flushEntry(entry)
 end
 
 function M.appendOffer(offer, originPos)
   local descriptor = currentMapDescriptor()
   local route = serializeOffer(offer, originPos)
   if not route then return false end
-  local document = readDocument(descriptor)
+  local entry = getDocument(descriptor)
+  local document = entry.document
   local routes = {}
   local newKey = routeKey(route)
   for _, source in ipairs(document.routes or {}) do
-    local cached = sanitizeOffer(source)
+    local cached = source
     if cached and routeKey(cached) ~= newKey then routes[#routes + 1] = cached end
   end
   routes[#routes + 1] = route
   while #routes > maximumRoutes do table.remove(routes, 1) end
   document.routes = routes
-  if not writeDocument(document, descriptor) then return false end
-  log("I", "taxiDriver.routeCache", string.format(
-    "Cached dispatcher offer %d/%d for '%s' in '%s'",
-    #routes, maximumRoutes, descriptor.mapId, descriptor.filePath
-  ))
+  entry.dirty = true
   return true
 end
 
 function M.loadOffers()
   local descriptor = currentMapDescriptor()
-  local document = readDocument(descriptor)
+  local document = getDocument(descriptor).document
   local result, seen = {}, {}
   for index = #document.routes, 1, -1 do
     local route = sanitizeOffer(document.routes[index])

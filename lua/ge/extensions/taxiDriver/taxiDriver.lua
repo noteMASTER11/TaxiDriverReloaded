@@ -34,7 +34,7 @@ local hudPublisher = require("taxiDriver/hudPublisher")
 local logger = require("taxiDriver/logger")
 local runtimeBoundary = require("taxiDriver/faultBoundary").new({retrySeconds = 1})
 local aiLoggerModule = require("taxiDriver/aiLogger")
-local modVersion = "4.0.3"
+local modVersion = "5.0.0"
 local fleet = require("taxiDriver/fleetManager").new({modVersion = modVersion})
 local logTag = "taxiDriver"
 local supportedLanguages = taxiConfig.supportedLanguages
@@ -236,6 +236,7 @@ local autopilot = require("taxiDriver/autopilot").new({
   end
 })
 local navigationUi = require("taxiDriver/navigationUi").new({
+  onMinimapReady = function(modules) fleet:installMinimapMarkers(modules) end,
   isActive = function() return state.active end,
   isRouteActive = function()
     return state.active and (state.phase == phases.toPickup or
@@ -339,7 +340,9 @@ local function getDriverAbandonmentPreview()
   local currentRating = clampValue(tonumber(state.rating) or 5, 0, 5)
   local extraLoss = driverAbandonmentExtraLoss[state.difficulty] or
     driverAbandonmentExtraLoss.standard
-  local finalRating = clampValue(currentRating - 1 - currentRating * extraLoss, 0, 5)
+  local baseLoss = (state.difficulty == "elementary" or state.difficulty == "easy") and 0 or 1
+  if state.difficulty == "elementary" then extraLoss = 0 end
+  local finalRating = clampValue(currentRating - baseLoss - currentRating * extraLoss, 0, 5)
   return {
     extraPercent = extraLoss * 100,
     ratingLoss = currentRating - finalRating,
@@ -371,6 +374,7 @@ local function createPassengerPenaltyDisposition()
 end
 
 local function applyPassengerPenalty(basePenalty, disposition)
+  if state.difficulty == "elementary" then return 0 end
   if not disposition or disposition.ignored then return 0 end
   return math.max(0, basePenalty or 0) * (disposition.multiplier or 1)
 end
@@ -392,9 +396,16 @@ local function addPassengerStress(baseStress)
 end
 
 local function getPenaltyTotal()
-  if not trip then return 0 end
+  if not trip or state.difficulty == "elementary" then return 0 end
+  local maximum = balanceConfig.maxTotalPenalty
+  if state.difficulty == "easy" then
+    local fare = math.max(0, tonumber(trip.estimatedFare) or 0)
+    local budget = math.floor(fare * maximum * 100 + 0.000001) / 100
+    maximum = fare > 0 and math.max(0, budget - (trip.directPenaltyAmount or 0)) / fare or 0
+  end
   if trip.isDelivery then
-    return clampValue((trip.cargoDamagePercent or 0) / 100, 0, 1)
+    return clampValue((trip.cargoDamagePercent or 0) / 100, 0,
+      state.difficulty == "easy" and maximum or 1)
   end
   return clampValue(
     (trip.speedPenalty or 0) +
@@ -403,7 +414,7 @@ local function getPenaltyTotal()
     (trip.pickupPenalty or 0) +
     (trip.fuelStopPenalty or 0),
     0,
-    balanceConfig.maxTotalPenalty
+    maximum
   )
 end
 
@@ -411,10 +422,25 @@ local function getAdjustedFare()
   if not trip then return 0 end
   if trip.finalFare then return trip.finalFare end
   local eligibleFare = trip.estimatedFare or 0
-  if trip.isRush and trip.rushBonusLost then
+  if state.difficulty ~= "elementary" and trip.isRush and trip.rushBonusLost then
     eligibleFare = trip.ratingAdjustedFare or trip.baseFare or eligibleFare
   end
   return roundMoney(eligibleFare * (1 - getPenaltyTotal()))
+end
+
+local function chargeDirectPenalty(amount)
+  if state.difficulty == "elementary" then return 0 end
+  amount = roundMoney(math.max(0, tonumber(amount) or 0))
+  if state.difficulty == "easy" then
+    local fare = math.max(0, tonumber(trip and trip.estimatedFare) or 0)
+    local remaining = fare * (balanceConfig.maxTotalPenalty - getPenaltyTotal()) -
+      (trip and trip.directPenaltyAmount or 0)
+    amount = math.min(amount, math.max(0, math.floor(remaining * 100 + 0.000001) / 100),
+      math.max(0, tonumber(state.balance) or 0))
+    if trip then trip.directPenaltyAmount = roundMoney((trip.directPenaltyAmount or 0) + amount) end
+  end
+  state.balance = roundMoney(math.max(0, state.balance - amount))
+  return amount
 end
 
 local function getRemainingDistance()
@@ -776,7 +802,7 @@ local function buildHudState(includeCollections)
     cargoWeightKg = trip and trip.cargoWeightKg or 0,
     cargoWeightBonusPercent = trip and (trip.cargoWeightBonusRate or 0) * 100 or 0,
     cargoWeightBonusAmount = trip and trip.cargoWeightBonusAmount or 0,
-    cargoDamagePercent = trip and trip.cargoDamagePercent or 0,
+    cargoDamagePercent = state.difficulty ~= "elementary" and trip and trip.cargoDamagePercent or 0,
     passengerCalmness = trip and trip.passengerCalmness or 50,
     passengerInitialCalmness = trip and trip.passengerInitialCalmness or 50,
     passengerMoodMaximum = trip and math.min(
@@ -834,8 +860,9 @@ local function buildHudState(includeCollections)
     stopWaitDuration = runtimeConfig.stopWaitingDuration,
     stopWaitRemaining = state.phase == phases.stopWaiting and math.max(0, phaseTimer) or 0,
     rushOrder = trip and trip.isRush or false,
-    rushBonusActive = trip and trip.isRush and not trip.rushBonusLost or false,
-    rushBonusLost = trip and trip.rushBonusLost or false,
+    rushBonusActive = trip and trip.isRush and
+      (state.difficulty == "elementary" or not trip.rushBonusLost) or false,
+    rushBonusLost = state.difficulty ~= "elementary" and trip and trip.rushBonusLost or false,
     rushBonusAmount = trip and trip.bonusAmount or 0,
     rushTimeLimit = trip and trip.rushTimeLimit or 0,
     rushTimeRemaining = trip and trip.isRush and
@@ -1397,6 +1424,13 @@ function realisticFuel.finishPurchase()
     return
   end
 
+  if roundMoney(math.max(0, tonumber(state.balance) or 0)) < session.cost then
+    realisticFuel.resetRefueling()
+    showPhoneNotification("notify_realisticNoMoney", {}, "warning")
+    notifyHud()
+    return
+  end
+
   session.completing = true
   realisticFuel.deferDashboardEnergy()
   for _, update in ipairs(session.updates or {}) do
@@ -1549,14 +1583,21 @@ end
 -- Fuel/charge is restored a couple of GE frames after the physics reset.
 -- Used by both the paid gas-station repair flow and the free debug-menu cheat.
 -- callback(success) is invoked once the attempt completes.
-function realisticFuel.repairVehiclePhysically(vehicle, callback)
+function realisticFuel.repairVehiclePhysically(vehicle, callback, authorize)
   if not vehicle or tonumber(vehicle:getID()) ~= tonumber(be:getPlayerVehicleID(0)) then
     if type(callback) == "function" then callback(false) end
     return
   end
   local vehicleId = tonumber(vehicle:getID())
+  local attempted = false
 
   local function attempt(preservedTanks)
+    if attempted then return end
+    attempted = true
+    if type(authorize) == "function" and not authorize() then
+      if type(callback) == "function" then callback(false) end
+      return
+    end
     -- The supported repair path still emits the ordinary vehicle-reset hook.
     -- Suppress only this expected reset so an active shift survives.
     realisticFuel.repairSuppressResetVehicleId = vehicleId
@@ -1607,8 +1648,21 @@ function realisticFuel.finishRepair()
     return
   end
 
+  local function canPay()
+    if realisticFuel.repairing ~= session or not session.active then return false end
+    if roundMoney(math.max(0, tonumber(state.balance) or 0)) < session.cost then
+      realisticFuel.resetRepairing()
+      showPhoneNotification("notify_repairNoMoney", {}, "warning")
+      notifyHud()
+      return false
+    end
+    return true
+  end
+  if not canPay() then return end
+
   session.completing = true
   realisticFuel.repairVehiclePhysically(vehicle, function(success)
+    if realisticFuel.repairing ~= session or not session.active then return end
     if not success then
       showPhoneNotification("notify_repairFailed", {}, "warning")
       realisticFuel.resetRepairing()
@@ -1627,7 +1681,7 @@ function realisticFuel.finishRepair()
       balance = string.format("$%.2f", state.balance)
     }, "success")
     notifyHud()
-  end)
+  end, canPay)
 end
 
 function realisticFuel.updateRepairing(dtSim)
@@ -1900,8 +1954,8 @@ local policeCheckCallbacks = {
     showPhoneNotification("notify_policeCheckStarted", {}, "warning"); notifyHud()
   end,
   fine = function(amount)
-    amount = roundMoney(math.max(0, tonumber(amount) or 0))
-    state.balance = roundMoney(math.max(0, state.balance - amount))
+    if state.difficulty == "elementary" then return end
+    amount = chargeDirectPenalty(amount)
     local event = addPenaltyEvent("policeCheck", "Police inspection", 0,
       string.format("Administrative fine: $%.2f", amount))
     if event then event.fareAmount = amount end
@@ -1929,6 +1983,7 @@ local function resetTripMetrics()
   trip.aggressionPenalty = 0
   trip.pickupPenalty = 0
   trip.fuelStopPenalty = 0
+  trip.directPenaltyAmount = 0
   trip.fuelVisitedStations = {}
   trip.pickupLate = false
   trip.pickupLateSeconds = 0
@@ -2008,6 +2063,7 @@ local function reapplyDeliveryCargoMass(vehicle)
 end
 
 local function stopModeInternal(message, showNotification, notificationKey)
+  routeCache.flush()
   local vehicle
   if state.activeVehicleId then vehicle = getObjectByID(state.activeVehicleId)
   else vehicle = getPlayerVehicle() end
@@ -2353,11 +2409,15 @@ local function beginSearching(message)
 end
 local function failPassengerHit()
   if not trip then return end
-  local fine = roundMoney(math.min(state.balance, math.max(1000, state.balance * 0.25)))
-  state.balance = roundMoney(math.max(0, state.balance - fine))
-  local hitEvent = addPenaltyEvent("passengerHit", "Passenger collision", 0, "Passenger hit at pickup")
+  local fine = chargeDirectPenalty(math.min(state.balance, math.max(1000, state.balance * 0.25)))
+  local hitEvent = fine > 0 and addPenaltyEvent("passengerHit", "Passenger collision", 0, "Passenger hit at pickup")
   if hitEvent then hitEvent.fareAmount = fine end
-  state.ratingCount = state.ratingCount + 1; state.rating = state.ratingTotal / math.max(1, state.ratingCount)
+  if state.difficulty == "easy" then
+    state.rating = state.rating * (1 - earlyExitRatingLoss.easy)
+    state.ratingTotal = state.rating * state.ratingCount
+  elseif state.difficulty ~= "elementary" then
+    state.ratingCount = state.ratingCount + 1; state.rating = state.ratingTotal / math.max(1, state.ratingCount)
+  end
   recordProgressEvent(trip.passengerName, "🤬", 0, 0, "passengerHit",
     state.rating, 0, trip.usedAutopilot, trip.penaltyEvents, tripEvents.history(trip.randomEvent))
   realisticFuel.recordBalanceHistory(); writeUserProgress()
@@ -2378,7 +2438,11 @@ local function addOffer(dtSim)
     )
     offerGeneration.poolJob = offerGenerator.create(function()
       return createDiverseOffer(requestedType, offerGeneration.failures, strictDiversity)
-    end, offerConfig.generationStepInterval)
+    end, offerConfig.generationStepInterval, {
+      maxResumes = offerConfig.generationMaxResumes,
+      timeBudgetSeconds = offerConfig.generationTimeBudgetSeconds,
+      maxJobSeconds = offerConfig.generationMaxJobSeconds
+    })
   end
   local status, offer, errorMessage = offerGenerator.step(offerGeneration.poolJob, dtSim)
   if status == "pending" then return end
@@ -2540,7 +2604,11 @@ local function updateNextOfferOpportunity(dtSim)
   if not offerGeneration.nextJob then
     offerGeneration.nextJob = offerGenerator.create(function()
       return createDiverseOffer(nil, 0, true)
-    end, offerConfig.generationStepInterval)
+    end, offerConfig.generationStepInterval, {
+      maxResumes = offerConfig.generationMaxResumes,
+      timeBudgetSeconds = offerConfig.generationTimeBudgetSeconds,
+      maxJobSeconds = offerConfig.generationMaxJobSeconds
+    })
   end
   local status, generatedOffer, errorMessage = offerGenerator.step(offerGeneration.nextJob, dtSim)
   if status == "pending" then return end
@@ -2621,11 +2689,14 @@ local function stoppedForArrival(speedKmh)
 end
 
 local function updatePickupDeadline(dtSim)
-  if not trip or trip.isDelivery or state.phase ~= phases.toPickup then return end
+  local approachingPickup = state.phase == phases.toPickup or
+    (state.phase == phases.toFuelStation and realisticFuel.detour.active and
+      realisticFuel.detour.previousPhase == phases.toPickup)
+  if not trip or trip.isDelivery or not approachingPickup then return end
   local previousRemaining = trip.pickupTimeRemaining or trip.pickupWaitLimit or 0
   local rawRemaining = previousRemaining - dtSim
   trip.pickupTimeRemaining = math.max(0, rawRemaining)
-  if userSettings.penaltyToggles.pickupDelay == false then return end
+  if state.difficulty == "elementary" or userSettings.penaltyToggles.pickupDelay == false then return end
   if rawRemaining > 0 then return end
 
   local lateIncrement = dtSim
@@ -2790,7 +2861,8 @@ local function beginAlighting()
 end
 local function applyEarlyExitRatingLoss()
   if not trip or trip.earlyExitRatingApplied then return end
-  local loss = earlyExitRatingLoss[state.difficulty] or earlyExitRatingLoss.standard
+  local loss = state.difficulty == "elementary" and 0 or
+    (earlyExitRatingLoss[state.difficulty] or earlyExitRatingLoss.standard)
   trip.earlyExitRatingLoss = loss
   trip.earlyExitRatingApplied = true
 
@@ -2909,10 +2981,10 @@ local function finishRide()
     trip.randomEvent,
     fareBeforeTip,
     penalty,
-    trip.isRush and not trip.rushBonusLost
+    trip.isRush and (state.difficulty == "elementary" or not trip.rushBonusLost)
   )
   local fare = roundMoney(fareBeforeTip + tipAmount)
-  local rideRating = trip.isDelivery and
+  local rideRating = state.difficulty == "elementary" and 5 or trip.isDelivery and
     delivery.calculateRating(trip.cargoDamagePercent or 0, taxiConfig.delivery) or
     clampValue(
       5 - penalty * balanceConfig.ratingPenaltyScale -
@@ -2920,6 +2992,7 @@ local function finishRide()
       balanceConfig.minimumRideRating,
       5
     )
+  if state.difficulty == "easy" then rideRating = math.max(4.75, rideRating) end
 
   trip.finalFare = fare
   trip.tipAmount = tipAmount
@@ -2994,7 +3067,7 @@ local function updateSpeedPenalty(vehicle, dtSim)
   trip.currentSpeed = speed
   trip.speedLimit = speedLimit or 0
 
-  if userSettings.penaltyToggles.speeding == false then
+  if state.difficulty == "elementary" or userSettings.penaltyToggles.speeding == false then
     trip.speedingEpisodeTime = 0
     trip.speedingEpisodeCounted = false
     trip.speedingEpisodeDisposition = nil
@@ -3094,12 +3167,14 @@ local function updateSpeedPenalty(vehicle, dtSim)
 end
 
 local function updateRushTimer(dtSim)
-  if not trip or not trip.isRush or trip.rushBonusLost then return end
+  if not trip or not trip.isRush or
+    (state.difficulty ~= "elementary" and trip.rushBonusLost) then return end
   if not rideRules.isPassengerDrivingPhase(state.phase) and
     state.phase ~= phases.stopWaiting then return end
 
   trip.rushTimeRemaining = math.max(0, (trip.rushTimeRemaining or trip.rushTimeLimit or 0) - dtSim)
   if trip.rushTimeRemaining > 0 then return end
+  if state.difficulty == "elementary" then return end
   if userSettings.penaltyToggles.rushBonus == false then return end
 
   trip.rushBonusLost = true
@@ -3206,11 +3281,11 @@ function realisticFuel.calculatePassengerWaitPenalty(stationId)
   if not trip or trip.isDelivery or not rideRules.isPassengerOnboardPhase(state.phase) then
     return 0
   end
-  if userSettings.penaltyToggles.fuelStop == false then return 0 end
+  if state.difficulty == "elementary" or userSettings.penaltyToggles.fuelStop == false then return 0 end
   if trip.fuelVisitedStations and trip.fuelVisitedStations[tostring(stationId or "")] then return 0 end
   local baseByDifficulty = {
     elementary = 0.006,
-    easy = 0.009,
+    easy = 0.003,
     standard = 0.012,
     professional = 0.018
   }
@@ -3225,7 +3300,7 @@ end
 
 function realisticFuel.applyPassengerWaitPenalty(stationId, stationName)
   if not trip then return 0 end
-  if userSettings.penaltyToggles.fuelStop == false then return 0 end
+  if state.difficulty == "elementary" or userSettings.penaltyToggles.fuelStop == false then return 0 end
   local penalty = math.max(0, realisticFuel.detour.penaltyPercent or 0) / 100
   if penalty <= 0 then return 0 end
   trip.fuelVisitedStations = trip.fuelVisitedStations or {}
@@ -4185,7 +4260,7 @@ function M.onTelemetry(vehicleId, data)
     local damageDelta = damage - lastDamage
     trip.lastDamage = damage
 
-    if userSettings.penaltyToggles.cargoDamage ~= false and trip.isDelivery and
+    if state.difficulty ~= "elementary" and userSettings.penaltyToggles.cargoDamage ~= false and trip.isDelivery and
       (damageDelta >= taxiConfig.delivery.collisionDamageThreshold or
       ((trip.collisionCooldown or 0) > 0 and trip.activeCollisionEvent)) then
       local isNewImpact = (trip.collisionCooldown or 0) <= 0 or not trip.activeCollisionEvent
@@ -4229,7 +4304,7 @@ function M.onTelemetry(vehicleId, data)
         trip.activeCollisionEvent.detail = string.format("Package damaged by %.1f%%", impactPercent)
       end
       trip.collisionCooldown = balanceConfig.collisionCooldownSeconds
-    elseif userSettings.penaltyToggles.collision ~= false and not trip.isDelivery and
+    elseif state.difficulty ~= "elementary" and userSettings.penaltyToggles.collision ~= false and not trip.isDelivery and
       damageDelta >= balanceConfig.collisionDamageThreshold then
       local previousPenalty = trip.collisionPenalty
       local isNewCollision = trip.collisionCooldown <= 0
@@ -4284,7 +4359,7 @@ function M.onTelemetry(vehicleId, data)
   end
 
   if trip.isDelivery then return end
-  if userSettings.penaltyToggles.aggression == false then
+  if state.difficulty == "elementary" or userSettings.penaltyToggles.aggression == false then
     trip.aggressionActive = false
     trip.aggressionCooldown = 0
     return
@@ -4344,6 +4419,8 @@ end
 function M.onUpdate(dtReal, dtSim)
   dtReal = math.max(0, dtReal or 0)
   dtSim = math.max(0, dtSim or 0)
+  runtimeBoundary:call("minimap.update", navigationUi.updateMinimap, navigationUi, dtReal, dtSim)
+  runtimeBoundary:call("routeCache.update", routeCache.update, dtReal)
   realisticFuel.persistenceTimer = realisticFuel.persistenceTimer + dtReal
   if realisticFuel.persistenceTimer >= 10 then
     realisticFuel.persistenceTimer = 0
@@ -4635,6 +4712,7 @@ function M.onExtensionLoaded()
 end
 
 function M.onClientEndMission()
+  runtimeBoundary:cleanup("routeCache.saveMission", routeCache.flush)
   runtimeBoundary:cleanup("fuel.saveMission", realisticFuel.persistence.flush)
   runtimeBoundary:cleanup("physicalPickup.missionEnd", physicalPickup.clear, physicalPickup)
   shiftHistory.setRestoring(nil)
@@ -4644,17 +4722,17 @@ function M.onClientEndMission()
   runtimeBoundary:cleanup("autopilot.missionEnd", autopilot.disable, autopilot,
     state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil, "missionEnded")
   runtimeBoundary:cleanup("aiLogger.missionEnd", aiLogger.close, aiLogger, "missionEnded")
-  runtimeBoundary:cleanup("minimap.missionEnd", hideNativeMinimap)
+  runtimeBoundary:cleanup("minimap.missionEnd", navigationUi.resetMinimap, navigationUi)
   runtimeBoundary:cleanup("fuel.restoreEconomy", realisticFuel.restoreEconomy)
   realisticFuel.initializedVehicles = {}
   realisticFuel.initializationPending = {}
   runtimeBoundary:cleanup("routePlanning.reset", routePlanning.reset)
   offerGeneration.recentRoutes = {}
-  runtimeBoundary:cleanup("fuel.resetDashboard", realisticFuel.resetDashboardEnergy)
   phoneNotification = nil
   if state.active then
     runtimeBoundary:cleanup("mode.stopMission", stopModeInternal, nil, false)
   end
+  runtimeBoundary:cleanup("fuel.resetDashboard", realisticFuel.resetDashboardEnergy)
   runtimeBoundary:cleanup("progress.writeMission", writeUserProgress)
   runtimeBoundary:cleanup("vehicleHistory.writeMission", vehicleHistory.write)
   runtimeBoundary:cleanup("shiftHistory.writeMission", shiftHistory.write)
@@ -4669,6 +4747,7 @@ end function M.onPreRender(dtReal, dtSim)
 end
 
 function M.onExtensionUnloaded()
+  runtimeBoundary:cleanup("routeCache.saveUnload", routeCache.flush)
   runtimeBoundary:cleanup("fuel.saveUnload", realisticFuel.persistence.flush)
   runtimeBoundary:cleanup("physicalPickup.unload", physicalPickup.clear, physicalPickup)
   shiftHistory.setRestoring(nil)
@@ -4679,15 +4758,15 @@ function M.onExtensionUnloaded()
   runtimeBoundary:cleanup("aiLogger.unload", aiLogger.close, aiLogger, "extensionUnloaded")
   vehicleScanGuard.reset()
   runtimeBoundary:cleanup("lan.unload", lanBridge.stop)
-  runtimeBoundary:cleanup("minimap.unload", hideNativeMinimap)
+  runtimeBoundary:cleanup("minimap.unload", navigationUi.resetMinimap, navigationUi)
   runtimeBoundary:cleanup("delivery.unload", delivery.applyVehicleMass, getPlayerVehicle(), 0)
   runtimeBoundary:cleanup("fuel.unload", realisticFuel.restoreEconomy)
   runtimeBoundary:cleanup("routePlanning.unload", routePlanning.clearRecent)
   offerGeneration.recentRoutes = {}
-  realisticFuel.resetDashboardEnergy()
   if state.active then
     runtimeBoundary:cleanup("mode.stopUnload", stopModeInternal, nil, false)
   end
+  realisticFuel.resetDashboardEnergy()
   runtimeBoundary:cleanup("progress.writeUnload", writeUserProgress)
   runtimeBoundary:cleanup("vehicleHistory.writeUnload", vehicleHistory.write)
   runtimeBoundary:cleanup("shiftHistory.writeUnload", shiftHistory.write)
@@ -4696,6 +4775,7 @@ function M.onExtensionUnloaded()
 end
 
 function M.onSerialize()
+  routeCache.flush()
   realisticFuel.persistence.flush()
   return {
     balance = state.balance,

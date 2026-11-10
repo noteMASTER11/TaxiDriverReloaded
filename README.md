@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.3"><img src="https://img.shields.io/badge/release-v4.0.3-ff6600?style=flat-square" alt="Release v4.0.3"></a>
-  <img src="https://img.shields.io/badge/BeamNG.drive-0.39-f28c28?style=flat-square" alt="BeamNG.drive 0.39">
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v5.0.0"><img src="https://img.shields.io/badge/release-v5.0.0-ff6600?style=flat-square" alt="Release v5.0.0"></a>
+  <img src="https://img.shields.io/badge/BeamNG.drive-0.40.5-f28c28?style=flat-square" alt="BeamNG.drive 0.40.5">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.3"><strong>Download 4.0.3</strong></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v5.0.0"><strong>Download 5.0.0</strong></a>
 </p>
 
 ---
 
-> **4.0.3:** Preserves fuel between sessions, adds a 5–30% initial-fuel slider and draggable maps with zoom controls, respects vanilla navigation preferences, and fixes vehicle-change, passenger-stop and UI lifecycle problems. Existing `4.0.2` settings and saves remain compatible.
+> **5.0.0 — Vue 3 and BeamNG 0.40:** Native Vue 3 UI for BeamNG.drive 0.40.5, independent minimaps, bounded order generation, route-distance sorting, home difficulty presets and AI Driver corrections. Existing settings, profiles and histories are retained. See the [changelog](CHANGELOG.md) and [Wiki](https://github.com/noteMASTER11/TaxiDriverReloaded/wiki) for the full update.
 
 TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
@@ -51,7 +51,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 
 - Browse a gradually populated pool of **10–12 mixed requests**.
 - Compare passenger, pickup deadline, trip time, distance, fare, rating bonus, Calmness, scheduled stops, estimated income per minute, and income per kilometre/mile.
-- Sort requests by highest fare, nearest pickup, shortest duration, or best income per kilometre/mile.
+- Sort requests by highest fare, nearest pickup, shortest route distance, shortest duration, or best income per kilometre/mile.
 - Choose between regular rides, rush requests, multi-stop work, and long-distance cargo deliveries.
 - Rush requests offer additional pay but impose a tighter arrival target.
 - Multi-stop requests create longer routes and require a **10-second stationary wait** at every intermediate stop.
@@ -74,8 +74,8 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Cargo above **15 kg** earns a linear weight premium, rising from 0% at the threshold to **+150% at 250 kg** before the driver-rating bonus.
 - Deliveries cover routes from approximately **2 to 25 km**; their pre-weight base rate is slightly lower than comparable passenger work.
 - Passenger-specific penalties do not apply: only collisions can damage the package.
-- Each impact can add **1–35% package damage**, proportionally reducing the delivery payout; cumulative damage is capped at 100%.
-- Package damage from 5% upward lowers the delivery review, reaching **1 star at 100% damage**.
+- When cargo damage is enabled, each impact can add **1–35% package damage**. Standard/Hardcore delivery payout can fall by up to 100%; **Relaxed has no cargo-damage deduction**, and **Easy shares a 10% fine budget** with direct fines.
+- Standard/Hardcore package damage from 5% upward lowers the delivery review, reaching **1 star at 100% damage**. Relaxed completes with a 5-star review; Easy keeps completed-trip reviews at 4.75 or above.
 - Dedicated loading, unloading, cargo-weight, damage, progress, notification, and review states are available in all ten interface languages.
 
 ### Universal and more believable destinations
@@ -119,7 +119,9 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Enable **Strict GPS route** to send the exact displayed shortest GPS node sequence to the vehicle AI. If that path is temporarily unavailable, TaxiDriver falls back to its legal autonomous route instead of disabling control.
 - Native `Route Done` is checked against the physical gameplay target. Premature completion triggers an immediate route rebuild from the current road segment with a bounded retry count.
 - A lightweight Vehicle Lua traffic guard observes nearby vehicles, maintains a configurable time and bumper gap, predicts intersections with the current steering arc, and applies jerk-limited speed reduction. Immediate braking is reserved for an unavoidable collision.
-- Final-target braking activates only when the vehicle is aligned with the target-side travel direction. Passenger pickup succeeds inside the 10-metre logical trigger only at the 0.5 km/h wheel-speed sensor tolerance.
+- Final-target braking activates only when the vehicle is aligned with the target-side travel direction. AI stops inside the configured gameplay arrival trigger at the wheel-speed sensor tolerance.
+- The observer supplies route turn signals at crossroads and T-junctions because native manual-path AI does not run traffic-mode intersection indicators. Signals clear after the turn or control handoff, and hazard lights are preserved.
+- Native ingress planning handles the first edge before the resolved route is appended. Pickup/stop parking can continue to the next leg; bounded stall/circling recovery avoids endless replanning.
 - If a cancellation or no-show returns the player to dispatcher search, an active AI Driver parks the vehicle and releases native AI control.
 - Presets configure native aggression, following time, minimum distance, comfortable braking, traffic wait time, speed-limit compliance, and lane discipline. Custom exposes the same focused controls.
 - The player-vehicle guard rejects NPC IDs, and native crash recovery/teleport is disabled for the player's car so boarding cannot despawn or relocate it.
@@ -142,8 +144,9 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - The phone calculates an estimated fare before the trip.
 - Speeding, collisions, harsh maneuvers, and late pickup can reduce the final payment.
 - Every applied reduction appears in the in-phone **Penalties** list with its value and event details.
-- Passenger fare reduction is capped at **50%**; cargo damage can reduce a delivery payout by up to 100%.
-- Difficulty presets range from **Elementary** to **Professional**.
+- Standard/Hardcore passenger fare reduction is capped at **50%**; enabled cargo damage can reduce a delivery payout by up to 100%. Custom uses its configured limits.
+- Choose **Relaxed**, **Easy**, **Standard** or **Hardcore** from the start screen. Relaxed has no monetary/rating fines, cargo deductions or lost rush bonuses; Easy caps combined direct fines and fare reductions at 10% of the estimated fare. Normal fuel and repair purchases remain paid.
+- Preset selection saves immediately and survives a game restart. Independent realism, random-event and AI preferences remain unchanged; Custom sliders are retained.
 - A strong driver rating increases earnings, reaching a **15% rating bonus at 5.00**.
 - The persistent driver rating is displayed on a five-star progress scale from `0.00` to `5.00`.
 - The active-trip screen shows projected final payout, fuel sufficiency, the next scheduled stop, and a compact violation summary that expands on demand.
@@ -154,6 +157,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - A rectangular native minimap appears only during active driving phases.
 - The native minimap adapts to speed, while Connected Phone uses a closer, smoother, phone-specific zoom curve that preserves local road detail.
 - Drag the map to inspect a location, use **+ / −** to zoom, and press **◎** to return to following the vehicle. These controls are available in-game and on Connected Phone.
+- AI and zoom/follow share a top-right toolbar. When AI is hidden, navigation occupies the corner. TaxiDriver's private minimap can coexist with the stock widget.
 - ETA is calculated using a city-driving reference speed of **40 km/h**.
 - Arrival time, remaining distance, route progress, speed limit, stop markers, and trip metrics remain visible around the map.
 - The ride footer shows current fuel or charge to two decimal places and an approximate remaining driving range.
@@ -198,7 +202,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 Open the gear icon in the TaxiDriver phone to configure:
 
 - language, full-interface scale from 80% to 180%, metric/imperial units, and 12/24-hour time;
-- Elementary, Easy, Standard, Professional, or fully adjustable Custom difficulty;
+- Relaxed, Easy, Standard, Hardcore, or fully adjustable Custom difficulty;
 - independent penalty switches for speeding, collisions, harsh maneuvers, late pickup, fuel stops, rush bonuses, and cargo damage;
 - passenger/delivery order ratio and dynamic minimap zoom intensity;
 - optional unlimited route length beyond the standard 25 km cap;
@@ -244,6 +248,8 @@ All application sounds—including clicks, online/offline cues, passenger messag
 
 ## Runtime architecture
 
+The HUD is a native Vue 3 UI App (`app.vue`), using the Vue runtime and bridge supplied by BeamNG. There is no AngularJS entry point. `hud-model.js` contains shared reactive state and behavior; `hud-template.html` is compiled into `hud-render.js` before packaging. Connected Phone uses the same model and renderer in a self-contained Vue bundle, without a CDN. See [Development](DEVELOPMENT.md) for build and compatibility checks.
+
 `taxiDriver.lua` is the BeamNG extension entry point and gameplay orchestrator. Domain state is delegated to focused modules:
 
 - `persistence.lua` owns settings, difficulty, profile, progress schemas, validation, and JSON I/O;
@@ -254,7 +260,7 @@ All application sounds—including clicks, online/offline cues, passenger messag
 - `aiLogger.lua` writes opt-in, crash-readable AI navigation and vehicle telemetry journals;
 - `fleetManager.lua` owns hiring, fleet economy, persistence, map/world markers, and worker lifecycle;
 - `fleetWorker.lua` runs one native route assignment per hired vehicle with bounded replanning and a reduced-rate traffic guard;
-- `navigationUi.lua` owns native minimap visibility, dynamic zoom, occlusion regions, and restoration of BeamNG navigation settings;
+- `navigationUi.lua` owns minimap visibility, dynamic zoom and occlusion regions; `nativeMinimap.lua` isolates the game's native drawing modules, texture and window from the stock navigation widget;
 - `physicalPickup.lua`, `policeCheckEvent.lua`, `tripEvents.lua`, and `tripHistory.lua` own physical pickup props, the opt-in native police flow, configurable events, and expandable trip records;
 - `vehicleControl.lua` owns telemetry commands, forced-stop/freeze control, and passenger/cargo access triggers;
 - `vehicleHistory.lua` owns current-vehicle detection, per-configuration odometers, previews, ride counts, and income;
@@ -269,7 +275,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Installation
 
-1. Download `taxidriver.zip` from the [4.0.3 release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v4.0.3).
+1. Download `taxidriver.zip` from the [5.0.0 release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v5.0.0).
 2. Place the archive directly in:
 
    ```text
@@ -284,7 +290,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Compatibility
 
-- Target game version: **BeamNG.drive 0.39**.
+- Target game version: **BeamNG.drive 0.40.5**.
 - Designed for official and community maps with a usable road network.
 - Best results are obtained on maps with detailed road, building, and bus-stop data.
 - Vehicle door animation is best-effort and depends on the selected vehicle.

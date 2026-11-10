@@ -40,7 +40,6 @@
   "use strict";
   const mockParams = new URLSearchParams(window.location.search);
   window.beamng = { ingame: mockParams.get("external") !== "1" };
-  window.angular.module("beamng.apps", []);
   window.__taxiPlayedSounds = [];
   window.Audio = class MockAudio {
     constructor(source) { this.src = source; this.volume = 1; this.currentTime = 0; }
@@ -286,6 +285,20 @@
         else callback(null);
       }
       if (command.includes("requestHudState")) setTimeout(() => window.__emitTaxiState?.(), 0);
+    },
+  };
+  const listeners = new Map();
+  window.__taxiNativeBridge = {
+    api: window.bngApi,
+    events: {
+      on(name, callback) {
+        if (!listeners.has(name)) listeners.set(name, new Set());
+        listeners.get(name).add(callback);
+      },
+      off(name, callback) { listeners.get(name)?.delete(callback); },
+      emit(name, ...args) {
+        for (const callback of listeners.get(name) || []) callback(...args);
+      },
     },
   };
 })();

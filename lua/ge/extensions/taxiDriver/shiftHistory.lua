@@ -30,6 +30,10 @@ local function money(value)
   return math.floor(math.max(0, tonumber(value) or 0) * 100 + 0.5) / 100
 end
 
+local function signedMoney(value)
+  return math.floor((tonumber(value) or 0) * 100 + 0.5) / 100
+end
+
 local function sanitizePreview(value)
   local preview = trimText(value, 320)
   if preview == "" or preview:sub(1, 1) ~= "/" or preview:find("..", 1, true) or
@@ -63,7 +67,7 @@ local function sanitizeSummary(source)
     fuelCost = money(source.fuelCost),
     repairCost = money(source.repairCost),
     penaltyLoss = money(source.penaltyLoss),
-    netIncome = money(source.netIncome),
+    netIncome = signedMoney(source.netIncome),
     averageRating = clamp(source.averageRating, 0, 5)
   }
 end

@@ -1,14 +1,23 @@
 {
   "name": "taxidriver-reloaded",
   "private": true,
-  "version": "4.0.3",
+  "version": "5.0.0",
   "type": "module",
   "scripts": {
+    "test": "node scripts/build-ui.mjs && node --test tests/ui/game-bridge.test.mjs tests/ui/vue-model.test.mjs tests/ui/vue-template.test.mjs tests/ui/vue-scenarios.test.mjs tests/ui/external-lifecycle.test.mjs tests/ui/assets.test.mjs",
+    "build:ui": "node scripts/build-ui.mjs",
     "build:external-sounds": "node scripts/generate-external-sounds.mjs",
-    "test:ui": "node tests/ui/visual.test.mjs",
+    "test:ui": "pnpm test",
+    "test:visual": "node tests/ui/visual.test.mjs",
+    "test:game": "node scripts/test-game.mjs",
     "test:lan": "dotnet run --project tools/TaxiDriver.LanProbe -- --self-test"
   },
   "devDependencies": {
-    "playwright": "1.61.1"
+    "@vue/compiler-dom": "3.5.43",
+    "@vue/compiler-sfc": "3.5.43",
+    "esbuild": "0.28.2",
+    "happy-dom": "21.0.4",
+    "playwright": "1.61.1",
+    "vue": "3.5.43"
   }
 }

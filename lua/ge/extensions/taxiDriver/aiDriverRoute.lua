@@ -1,10 +1,10 @@
 local M = {}
 
--- BeamNG 0.39 route-planning adapter.
+-- BeamNG 0.40 route-planning adapter.
 --
 -- Public contract:
 --   local service = M.new(options)
---   service:request(vehicle, target, routeRevision, callback)
+--   service:request(vehicle, target, routeRevision, callback, requestOptions)
 --   service:cancel()
 --   service:getStatus()
 --
@@ -66,6 +66,15 @@ local function appendUnique(path, nodeId)
   local value = tostring(nodeId)
   if value == "" then return end
   if path[#path] ~= value then path[#path + 1] = value end
+end
+
+local function appendTargetEdge(path, approachNode, departureNode)
+  -- Some planners already include the full destination edge. Appending it
+  -- again would produce A,B,A,B and force a U-turn after reaching the target.
+  if path[#path - 1] == tostring(approachNode) and
+    path[#path] == tostring(departureNode) then return end
+  appendUnique(path, approachNode)
+  appendUnique(path, departureNode)
 end
 
 local function filterGraphNodes(markers, graphNodes)
@@ -391,7 +400,11 @@ function M.new(options)
     return count
   end
 
+  local closestRoadJoin
+
   local function startRoadNode(vehicle, context, startPosition)
+    local join = closestRoadJoin(vehicle, context, startPosition)
+    if join then return resolveNodeId(context.nodes, join.anchorNode) end
     if not map or type(map.findBestRoad) ~= "function" or
       type(map.findClosestRoad) ~= "function" then return nil end
     local direction
@@ -417,6 +430,31 @@ function M.new(options)
     local dot = (number(secondPos.x, 0) - number(firstPos.x, 0)) * number(direction.x, 0) +
       (number(secondPos.y, 0) - number(firstPos.y, 0)) * number(direction.y, 0)
     return dot >= 0 and second or first
+  end
+
+  closestRoadJoin = function(vehicle, context, startPosition)
+    if not map or type(map.findClosestRoad) ~= "function" then return nil end
+    local ok, first, second, roadDistance = pcall(map.findClosestRoad, startPosition)
+    first = ok and resolveNodeId(context.nodes, first) or nil
+    second = ok and resolveNodeId(context.nodes, second) or nil
+    local edge = first and second and context.roads[first] and context.roads[first][second]
+    if not edge or number(edge.drivability, 1) < minimumDrivability then return nil end
+    local firstPos, secondPos = context.nodes[first].pos, context.nodes[second].pos
+    if not firstPos or not secondPos then return nil end
+    local anchor = first
+    if edge.oneWay then
+      anchor = edge.inNode == first and second or first
+    elseif type(vehicle.getDirectionVector) == "function" then
+      local directionOk, direction = pcall(vehicle.getDirectionVector, vehicle)
+      if directionOk and direction then
+        local dot = (secondPos.x - firstPos.x) * number(direction.x, 0) +
+          (secondPos.y - firstPos.y) * number(direction.y, 0)
+        anchor = dot >= 0 and second or first
+      end
+    end
+    return {nodeA = tostring(first), nodeB = tostring(second),
+      anchorNode = tostring(anchor), roadDistance = number(roadDistance, nil),
+      replanned = false}
   end
 
   local function synchronousFallback(generation, vehicle, target, revision, callback,
@@ -451,13 +489,15 @@ function M.new(options)
       return setFailure(generation, revision, callback, "fallbackPathFailed")
     end
     local path = filterGraphNodes(rawPath, context.nodes)
+    if #path == 0 then
+      return setFailure(generation, revision, callback, "fallbackPathTooShort")
+    end
     if approachNode and departureNode then
       if path[#path - 1] == tostring(departureNode) and
         path[#path] == tostring(approachNode) then
         return setFailure(generation, revision, callback, "orientedApproachWouldReverse")
       end
-      appendUnique(path, approachNode)
-      appendUnique(path, departureNode)
+      appendTargetEdge(path, approachNode, departureNode)
     end
     local trimDiagnostics
     path, trimDiagnostics = trimStartPath(path, context, vehicle, approachNode,
@@ -494,7 +534,7 @@ function M.new(options)
     runtime.pathCount = 0
   end
 
-  function service:request(vehicle, target, revision, callback)
+  function service:request(vehicle, target, revision, callback, requestOptions)
     runtime.generation = runtime.generation + 1
     local generation = runtime.generation
     cancelPlanner()
@@ -522,8 +562,44 @@ function M.new(options)
       return false
     end
     local approachNode, departureNode = orientedTargetEdge(target, context)
+    local targetEdge = approachNode and context.roads[approachNode] and
+      context.roads[approachNode][departureNode] or nil
+    if targetEdge and not legalIntoNode(targetEdge, departureNode) then
+      setFailure(generation, revision, callback, "targetEdgeWrongWay")
+      return false
+    end
+    -- Read the currently displayed GPS sequence only when requested. It is
+    -- already a resolved route and must reach vehicle AI unchanged. Invalid,
+    -- stale or not-yet-ready markers fall through to normal native planning.
+    if type(requestOptions) == "table" and requestOptions.strictGpsRoute == true and
+      type(options.getRoutePath) == "function" then
+      local gpsOk, markers = pcall(options.getRoutePath, vehicle, target)
+      local gpsPath = gpsOk and filterGraphNodes(markers, context.nodes) or {}
+      local validGps = #gpsPath >= 2
+      for _, marker in ipairs(type(markers) == "table" and markers or {}) do
+        local node = type(marker) == "table" and marker.wp or marker
+        if (type(node) == "string" or type(node) == "number") and
+          not resolveNodeId(context.nodes, node) then validGps = false; break end
+      end
+      for index = 2, #gpsPath do
+        local from, to = gpsPath[index - 1], gpsPath[index]
+        local edge = context.roads[from] and context.roads[from][to]
+        if not edge or not legalIntoNode(edge, to) then validGps = false; break end
+      end
+      local lastNode = gpsPath[#gpsPath]
+      if approachNode and departureNode and lastNode ~= tostring(approachNode) and
+        lastNode ~= tostring(departureNode) then validGps = false end
+      if validGps then
+        setSuccess(generation, revision, callback, gpsPath, "displayedGps",
+          approachNode, departureNode,
+          routeDistanceFromNodes(gpsPath, context, startPosition, targetPosition),
+          {async = false, strictGpsRoute = true})
+        return true
+      end
+    end
     local planningTarget = approachNode and context.nodes[approachNode] and
       copyPosition(context.nodes[approachNode].pos) or targetPosition
+    local startJoin = closestRoadJoin(vehicle, context, startPosition)
 
     local probe = newPlanner()
     runtime.asyncAvailable = probe ~= nil and
@@ -533,9 +609,9 @@ function M.new(options)
         context, startPosition, targetPosition, approachNode, departureNode)
     end
 
-    local function launchAsync(viaNode, orientedRetry)
+    local function launchAsync(viaNode, orientedRetry, sourceJoinRetry)
       if generation ~= runtime.generation then return false end
-      local planner = orientedRetry and newPlanner() or probe
+      local planner = (orientedRetry or sourceJoinRetry) and newPlanner() or probe
       if not planner or type(planner.setupPathMultiJob) ~= "function" then
         setFailure(generation, revision, callback, "asyncPlannerUnavailable")
         return false
@@ -550,7 +626,8 @@ function M.new(options)
       runtime.status = orientedRetry and "planningOrientedApproach" or "planning"
       runtime.source = orientedRetry and "beamngRouteAsyncOriented" or
         "beamngRouteAsync"
-      local positions = {startPosition}
+      local positions = {sourceJoinRetry and
+        copyPosition(context.nodes[startJoin.anchorNode].pos) or startPosition}
       if viaNode and context.nodes[viaNode] and context.nodes[viaNode].pos then
         positions[#positions + 1] = copyPosition(context.nodes[viaNode].pos)
       end
@@ -561,6 +638,34 @@ function M.new(options)
           if generation ~= runtime.generation then return end
           local path = filterGraphNodes(completedPlanner and completedPlanner.path,
             context.nodes)
+          if #path == 0 then
+            setFailure(generation, revision, callback, "asyncPathTooShort")
+            return
+          end
+          if startJoin then
+            if sourceJoinRetry then
+              -- Route's coordinate endpoint trimming can omit the source node.
+              -- Restore it only across a real, legally traversable graph edge.
+              if path[1] ~= startJoin.anchorNode then
+                local sourceEdge = context.roads[startJoin.anchorNode] and
+                  context.roads[startJoin.anchorNode][path[1]]
+                if not sourceEdge or not legalIntoNode(sourceEdge, path[1]) then
+                  setFailure(generation, revision, callback, "startRoadJoinFailed")
+                  return
+                end
+                table.insert(path, 1, startJoin.anchorNode)
+              end
+            elseif path[1] ~= startJoin.nodeA and path[1] ~= startJoin.nodeB and
+              path[2] ~= startJoin.nodeA and path[2] ~= startJoin.nodeB then
+              -- Point-to-point search may minimize total route cost by joining
+              -- a nearby ramp instead of the road physically under the cab.
+              -- Re-run the same native job from a fixed current-road endpoint.
+              startJoin.replanned = true
+              startJoin.rejectedFirstNode = path[1]
+              launchAsync(viaNode, orientedRetry, true)
+              return
+            end
+          end
           local usedBidirectionalPass = false
           if approachNode and departureNode then
             local reverseApproach = path[#path - 1] == tostring(departureNode) and
@@ -572,7 +677,7 @@ function M.new(options)
                 local predecessor = alternativeApproachPredecessor(context,
                   approachNode, departureNode, startPosition, minimumDrivability)
                 if predecessor then
-                  launchAsync(predecessor, true)
+                  launchAsync(predecessor, true, sourceJoinRetry)
                   return
                 end
                 setFailure(generation, revision, callback,
@@ -594,8 +699,7 @@ function M.new(options)
               usedBidirectionalPass = true
             end
             if not usedBidirectionalPass then
-              appendUnique(path, approachNode)
-              appendUnique(path, departureNode)
+              appendTargetEdge(path, approachNode, departureNode)
             end
           end
           local trimDiagnostics
@@ -618,6 +722,7 @@ function M.new(options)
               orientedRetry = orientedRetry == true,
               bidirectionalPass = usedBidirectionalPass,
               viaNode = viaNode and tostring(viaNode) or nil,
+              startJoin = startJoin,
               startPathTrim = trimDiagnostics
             })
         end)

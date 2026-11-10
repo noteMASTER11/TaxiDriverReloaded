@@ -1,5 +1,54 @@
 # Changelog
 
+## 5.0.0 — Vue 3 and BeamNG 0.40
+
+This major update moves TaxiDriver to BeamNG.drive 0.40.5 and a native Vue 3 interface, with dispatcher, minimap, AI Driver, difficulty and persistence fixes verified against the running game.
+
+### Native Vue 3 interface
+
+- Replace the AngularJS HUD with a native Vue 3 UI App using the game's runtime and bridge. Connected Phone uses the same model and precompiled renderer in a self-contained bundle, without a CDN.
+- Preserve the existing screens, ten languages, settings, driver profiles and histories. Update the game's font paths and ship resource revision `502` to refresh cached UI assets.
+- Load translations asynchronously, cache sorted views and remove idle digest work. Offline holds animate without per-frame state updates and cancel on release, blur or visibility changes.
+- Group the optional AI button and map zoom/follow controls in one top-right toolbar: 12 px edge margins and an 8 px gap. Navigation takes the first position whenever AI is hidden.
+- Clean up subscriptions, timers and animation frames on unmount and partial startup failure. Preserve Connected Phone through browser back/forward-cache navigation and recover map polling after a lost bridge reply.
+
+### Dispatcher and navigation
+
+- Add shortest-route-distance sorting to the order list.
+- Bound coroutine work between routing operations, limit sparse-map candidate searches and batch route-cache writes.
+- Keep graph and POI preparation across cancelled/timed-out jobs, so large maps no longer restart the same preparation on every retry.
+- Give TaxiDriver a private native minimap renderer, texture and ImGui window. The stock map widget can remain visible and retains its own camera, settings and callbacks.
+- Isolate POI drawing and fleet-map callbacks from the stock minimap, including after teardown/recreation.
+
+### AI Driver
+
+- Seed road ingress through a two-node native waypoint prefix, then append the exact resolved path through `ai.setPath`. Validate the starting edge against the vehicle position and bound recovery from stationary stalls or moving circles.
+- Preserve strict GPS sequences and road-speed limits, avoid duplicated terminal edges and correct the overtaking direction.
+- Stop inside the gameplay arrival trigger and continue from passenger pickup to the next leg. Explicit feature disable cancels pending continuation.
+- Signal route turns at crossroads and T-junctions in native manual AI mode, including short connectors and nearby successive turns. Cancel after the turn or on handoff without resetting the flasher every scan; preserve hazard lights.
+
+### Difficulty and economy
+
+- Add four home-screen preset cards: **Relaxed**, **Easy**, **Standard** and **Hardcore**, plus the existing Custom settings in Gameplay.
+- **Relaxed:** disable monetary/rating fines and cargo damage deductions, retain rush bonuses after deadlines, and ignore stale deductions from a previous difficulty. Normal fuel/repair purchases remain paid; unfinished, unpaid work remains unpaid.
+- **Easy:** use milder penalties with a shared 10% fare budget across direct fines and fare reductions, including cent rounding. Reduce early-exit/abandonment rating loss to 5% and keep completed-trip reviews at 4.75 or above.
+- Save a home preset immediately, including when the game/phone closes without starting a shift. Preserve independent realism, events, AI preferences and saved Custom sliders.
+- Keep pickup deadlines running during fuel detours. Preserve negative net shift income instead of clamping losses to zero.
+- Recheck fuel/repair affordability at completion and after asynchronous vehicle reads; reject cancelled, replaced and duplicate completions.
+
+### Persistence and compatibility
+
+- Reset local offer deadlines and notification IDs when the backend session changes. Clear omitted nullable fields in full HUD snapshots instead of reviving stale offers from later patches.
+- Save the last known fuel/charge before clearing shutdown state, so an unavailable vehicle-VM reply cannot turn a saved shift into an empty tank.
+- Target: **BeamNG.drive 0.40.5**. Existing settings, profiles, progress, shift history, fuel, fleet and LAN records retain their schemas; preset IDs remain compatible.
+- AI Driver and Connected Phone remain experimental. This release does not claim full Career support or compatibility with every third-party map/vehicle.
+
+### Acknowledgements
+
+Thanks to the maintainer for the live-game reports, screenshots and repeated testing of loading, maps, orders, difficulty and AI Driver behavior. Original TaxiDriver concept credit remains with Incognito; see `CREDITS.txt`.
+
+Release: [TaxiDriver Reloaded 5.0.0](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v5.0.0)
+
 ## 4.0.3 — Fuel Persistence and Player Feedback Fixes
 
 This patch addresses player-reported vehicle, navigation, fuel and UI problems on BeamNG.drive 0.39.

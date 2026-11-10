@@ -75,9 +75,17 @@
       if (item.isDelivery) item.cargoWeightKg = 987654 + index;
     });
   }
-  angular.bootstrap(document, ["beamng.apps"]);
-  const rootScope = angular.element(document).injector().get("$rootScope");
-  const emit = () => rootScope.$broadcast("TaxiDriverHUDState", angular.copy(state));
+  const bridge = window.__taxiNativeBridge;
+  const handle = window.TaxiDriverVue.mountTaxiDriver(
+    document.getElementById("taxi-hud-root"), bridge, {externalPhoneMode: externalMode}
+  );
+  const model = handle.getModel();
+  if (!model) throw new Error("TaxiDriver Vue harness failed to create its model");
+  const view = model.view;
+  window.__taxiHudHandle = handle;
+  window.__taxiHudModel = model;
+  window.__taxiBridge = bridge;
+  const emit = () => bridge.events.emit("TaxiDriverHUDState", JSON.parse(JSON.stringify(state)));
   window.__emitTaxiState = emit;
   window.__taxiSetState = (patch) => {
     Object.assign(state, patch || {});
@@ -87,52 +95,51 @@
     state.rating = Number(event.detail);
     setTimeout(emit, 0);
   });
+  bridge.events.emit("ui_router_afterRouteChange", {request: {name: "play"}});
   emit();
 
   setTimeout(() => {
-    const appElement = document.querySelector("taxi-driver-hud");
-    const scope = angular.element(appElement).scope();
-    scope.$apply(() => {
+    {
       if (scenarioName === "settings") {
-        scope.settingsOpen = true;
-        scope.settingsSections = externalMode
+        view.settingsOpen = true;
+        view.settingsSections = externalMode
           ? { general: true, gameplay: false, randomEvents: false, aiDriver: false, fleet: false, navigation: false, audio: false, connectivity: false, cheats: false }
           : { general: true, gameplay: true, randomEvents: true, aiDriver: true, fleet: true, navigation: true, audio: true, connectivity: true, cheats: true };
       }
       if (scenarioName === "settingsAi") {
-        scope.settingsOpen = true;
-        scope.settingsSections = { general: false, gameplay: false, aiDriver: true, navigation: false, audio: false, connectivity: false, cheats: false };
+        view.settingsOpen = true;
+        view.settingsSections = { general: false, gameplay: false, aiDriver: true, navigation: false, audio: false, connectivity: false, cheats: false };
       }
       if (scenarioName === "settingsFleet") {
-        scope.settingsOpen = true;
-        scope.settingsSections = { general: false, gameplay: false, randomEvents: false, aiDriver: false, fleet: true, navigation: false, audio: false, connectivity: false, cheats: false };
+        view.settingsOpen = true;
+        view.settingsSections = { general: false, gameplay: false, randomEvents: false, aiDriver: false, fleet: true, navigation: false, audio: false, connectivity: false, cheats: false };
       }
       if (scenarioName === "settingsEvents") {
-        scope.settingsOpen = true;
-        scope.settingsSections = { general: false, gameplay: false, randomEvents: true, aiDriver: false, fleet: false, navigation: false, audio: false, connectivity: false, cheats: false };
+        view.settingsOpen = true;
+        view.settingsSections = { general: false, gameplay: false, randomEvents: true, aiDriver: false, fleet: false, navigation: false, audio: false, connectivity: false, cheats: false };
       }
       if (scenarioName === "settingsConnection") {
-        scope.settingsOpen = true;
-        scope.settingsSections = { general: false, gameplay: false, aiDriver: false, navigation: false, audio: false, connectivity: true, cheats: false };
+        view.settingsOpen = true;
+        view.settingsSections = { general: false, gameplay: false, aiDriver: false, navigation: false, audio: false, connectivity: true, cheats: false };
       }
       if (scenarioName === "profile") {
-        scope.profileOpen = true;
-        scope.profileTab = "reviews";
+        view.profileOpen = true;
+        view.profileTab = "reviews";
       }
       if (scenarioName === "profileVehicles") {
-        scope.profileOpen = true;
-        scope.profileTab = "vehicles";
+        view.profileOpen = true;
+        view.profileTab = "vehicles";
       }
       if (scenarioName === "profileShifts") {
-        scope.profileOpen = true;
-        scope.profileTab = "shifts";
+        view.profileOpen = true;
+        view.profileTab = "shifts";
       }
-      if (scenarioName === "compact") scope.phoneMinimized = true;
-      if (scenarioName === "fuel" || scenarioName === "magicFuel") scope.fuelStationOpen = true;
-      if (scenarioName === "shiftHistory") scope.shiftHistoryOpen = true;
-      if (scenarioName === "fleet" || scenarioName === "fleetTrip") scope.fleetOpen = true;
-    });
-    rootScope.$broadcast("TaxiDriverProfileData", {
+      if (scenarioName === "compact") view.phoneMinimized = true;
+      if (scenarioName === "fuel" || scenarioName === "magicFuel") view.fuelStationOpen = true;
+      if (scenarioName === "shiftHistory") view.shiftHistoryOpen = true;
+      if (scenarioName === "fleet" || scenarioName === "fleetTrip") view.fleetOpen = true;
+    }
+    bridge.events.emit("TaxiDriverProfileData", {
       profile: { fullName: extremeMode ? "Alexandria-Cassandra Montgomery-Wellington" : "Alex Morgan", birthDate: "1991-05-17", avatar: "🙂" },
       progress: {
         balance: extremeMode ? 9876543.21 : 75.15,
@@ -166,7 +173,7 @@
         const target = document.querySelector(".taxi-lan__qr-code");
         if (target && !target.children.length && typeof window.QRCode === "function") {
           new window.QRCode(target, {
-            text: String(scope.state.lan && scope.state.lan.url || "TaxiDriver"),
+            text: String(view.state.lan && view.state.lan.url || "TaxiDriver"),
             width: 140,
             height: 140,
             correctLevel: window.QRCode.CorrectLevel.M,
@@ -175,11 +182,11 @@
       });
     }
     if (externalMode) {
-      rootScope.$broadcast("TaxiDriverExternalMapData", {
+      bridge.events.emit("TaxiDriverExternalMapData", {
         revision: 1,
         route: [[0, 120], [0, 40], [0, -40], [45, -130]],
       });
-      rootScope.$broadcast("TaxiDriverExternalRoadData", {
+      bridge.events.emit("TaxiDriverExternalRoadData", {
         revision: 1, chunkIndex: 1, chunkCount: 2, totalRoads: 6,
         reset: true, complete: false,
         roads: [
@@ -187,14 +194,14 @@
           [-150, -130, 150, 130, 6, 1], [-160, 140, 160, -140, 5, 0.8],
         ],
       });
-      rootScope.$broadcast("TaxiDriverExternalRoadData", {
+      bridge.events.emit("TaxiDriverExternalRoadData", {
         revision: 1, chunkIndex: 2, chunkCount: 2, totalRoads: 6,
         reset: false, complete: true,
         roads: [
           [-180, 90, 180, 90, 5, 1], [-180, -90, 180, -90, 5, 1],
         ],
       });
-      rootScope.$broadcast("TaxiDriverExternalVehicleState", {
+      bridge.events.emit("TaxiDriverExternalVehicleState", {
         position: [0, 0], direction: [0, 1],
       });
     }
