@@ -48,6 +48,8 @@ function M.new(options)
   local inspectionCenter, inspectionRotation, inspectionInverse = nil, nil, nil
   local manualZoom = 1
   local mapViewChanged = false
+  local earthTarget = nil
+  local earthMarkerPos = nil
 
   local function restoreDynamicZoom()
     if ui_apps_minimap_utils and originalSetUtilsState and
@@ -225,6 +227,13 @@ function M.new(options)
   end
 
   function service:clearNavigation()
+    if earthTarget then
+      local earth=options.getEarthSupport and options.getEarthSupport()
+      if earth then earth:clearTarget() end
+      earthTarget,earthMarkerPos=nil,nil
+      clearDestinationMarker()
+      return
+    end
     if core_groundMarkers then core_groundMarkers.setPath(nil) end
     clearDestinationMarker()
   end
@@ -234,6 +243,17 @@ function M.new(options)
   end
 
   function service:setNavigationTarget(target)
+    local earth=options.getEarthSupport and options.getEarthSupport()
+    if target and target.geo then
+      earthTarget=target;earthMarkerPos=nil
+      clearDestinationMarker()
+      if not earth or not earth:active() then return end
+      applyVisualSettings()
+      earth:setTarget(target)
+      if options.onRouteChanged then options.onRouteChanged() end
+      return
+    end
+    if earthTarget then self:clearNavigation() end
     if not core_groundMarkers or not target or not target.pos then return end
     applyVisualSettings()
     core_groundMarkers.setPath(target.pos, {
@@ -250,6 +270,16 @@ function M.new(options)
   end
 
   function service:onPreRender(dtReal, dtSim)
+    if earthTarget then
+      local earth=options.getEarthSupport and options.getEarthSupport()
+      if earth then earth:project(earthTarget) end
+      local p=earthTarget.pos
+      if p and earthTarget.earthLocal then
+        if not earthMarkerPos or p:distance(earthMarkerPos)>1 then
+          setDestinationMarker(p);earthMarkerPos=vec3(p)
+        end
+      elseif earthMarkerPos then clearDestinationMarker();earthMarkerPos=nil end
+    end
     if destinationMarker and destinationMarker.update then
       destinationMarker:update(dtReal or 0, dtSim or 0)
     end

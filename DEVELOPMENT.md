@@ -45,3 +45,21 @@ Native 0.40 intersection indicators are part of `trafficActions`, called by `tra
 The native minimap API is experimental. `nativeMinimap.lua` is its compatibility boundary: the HUD must not change the stock map's singleton, camera, texture or callbacks. POIs are rendered with private utilities because native marker objects can close over the stock map's utilities. Changes to that native API belong in this adapter, not across the HUD.
 
 Do not silently enable optional features after a settings change, retain listeners or timers after unmount, or issue vehicle commands after a vehicle-generation change. Add a regression test for each such failure before changing the implementation.
+
+## Experimental Earth branch
+
+`earthRouting.lua` owns WGS84 selections, search history, route previews and the persisted random-distance limit in `/settings/TaxiDriver/earth_routes.json`. Random routes use at most four asynchronous OSRM attempts and accept only the returned road distance within the configured 1–600 km limit. Explicit A-to-B routes have no 600 km cap. The Start trip action creates a paid passenger order through normal acceptance, boarding, fare and completion, using road-snapped endpoints.
+
+On an Earth level, the ordinary dispatcher automatically uses `earthCandidates.lua` and `earthDispatcher.lua`, never the finite local-map destination generator or XYZ route cache. Candidate discovery reads cached Earth map labels at zoom 12, prioritises towns and adds bounded radial fallback seeds. One world-route request runs at a time; short, medium and long destinations are mixed. Unlimited uses the configured random limit up to 600 km; otherwise the usual 25 km limit applies. Hard NoRoute/over-limit results are not repeated. Temporary loss of pose/ground readiness waits and recovers with bounded backoff.
+
+`earthTripSupport.lua` keeps geographic stops authoritative over origin rebases and supplies the whole Earth GPS remaining distance and ETA. `navigationUi.lua` delegates geographic targets to Earth GPS and only draws nearby local markers. Boarding/arrival still require physical proximity and a stopped car. Earth AI Driver, dynamic multi-stop/route-changing events and follow-up offers are not enabled by this integration.
+
+`earthAddresses.lua` enriches published cards independently: at most 24 queued lookups, one request every 3 seconds, 128 cached addresses for 10 minutes. Earth's `where` supplies an available road/place; it does not invent house numbers. Forward address searches retain the house/street text that Earth's geocoder actually returns.
+
+`earthTransport.lua` opens a separate nonblocking request-only connection to the running Earth server. Read the endpoint from Earth's existing network module; do not mutate its singleton. Each connection has its own route/prefetch state. Send only `geocode`, `map_labels`, `where` or `route` (`download="off"`), never world `hello`, `pose` or anchor commands. Reuse Earth's fetcher and provider limits. Close the socket on completion, cancellation or timeout; do not leave a connection owning world state. The current Earth route handler still obtains elevation samples even with corridor download disabled.
+
+The UI owns its Earth panel with a unique token, 2.5-second heartbeats and a 10-second backend lease. Destroy/unmount cancels only that owner's work. Ignore stale owners until the open acknowledgement; release the panel if confirmed ownership is lost. Gameplay settings can save the random limit without holding a panel lease.
+
+Native editable fields use the game's `setCEFTyping` contract to suppress driving keybindings while typing. Release owned input capture on blur, hidden documents, removed fields and unmount; Connected Phone must not capture the game's keyboard.
+
+For hot deployment, package the mod, unload only `taxiDriver_taxiDriver`, deactivate its archive with `core_modmanager`, replace the ZIP, activate it, clear changed TaxiDriver modules from `package.loaded`, reload the TaxiDriver extension and reload the UI. Do not reload the GE VM, level or vehicle for a UI/GE-only Earth change: keep the running Earth server and session. Retain the previous ZIP in `dist/backups` and never mount two TaxiDriver archives together. Reloading changed vehicle Lua is a separate operation.

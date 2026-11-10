@@ -483,3 +483,388 @@ for (const [failingCommand, external] of [
     assert.equal(h.commands.length, commandCount, 'failed startup must remove its DOM handlers');
   });
 }
+
+test('Earth snapshots open an independent route panel and close it when switching screens', async t => {
+  const h = await fixture(t);
+  assert.ok(h.commands.some(command => command.includes('requestEarthState()')));
+  h.bridge.events.emit('TaxiDriverEarthState', { available: true, status: 'ready' });
+  h.view.settingsOpen = true; h.view.profileOpen = true; h.view.fleetOpen = true;
+  h.hud.openEarth();
+  assert.equal(h.view.earthOpen, true);
+  assert.equal(h.view.settingsOpen || h.view.profileOpen || h.view.fleetOpen, false);
+  assert.equal(earthCalls(h).at(-1).action, 'open');
+  h.hud.toggleSettings();
+  assert.equal(h.view.earthOpen, false);
+  assert.ok(earthCalls(h).some(call => call.action === 'close'));
+  h.bridge.events.emit('TaxiDriverEarthState', { available: true, status: 'ready' });
+  assert.equal(h.view.earthOpen, false, 'late snapshots cannot reopen a closed panel');
+});
+
+test('Earth search is explicit, clears edited selections and keeps backend result indexes', async t => {
+  const h = await fixture(t);
+  const point = {name: 'Paris', detail: 'France', lat: 48.8, lon: 2.3};
+  h.send({earth: {available: true, status: 'ready', mode: 'points', a: {query: 'Paris', selected: point}, b: {query: 'Rome', selected: point}, route: {status: 'ready', distanceM: 1234, durationS: 600}, canNavigate: true}});
+  assert.equal(h.view.earth.available, true);
+  h.hud.openEarth();
+  h.hud.editEarth('a', 'New York');
+  assert.equal(h.view.earth.a.selected, null);
+  assert.equal(h.view.earth.route.status, 'idle');
+  assert.equal(h.view.canPreviewEarth(), false);
+  assert.equal(h.commands.some(command => /earthCommand\("search"/.test(command)), false);
+  h.hud.searchEarth('a');
+  assert.equal(earthCalls(h).at(-1).action, 'search');
+  assert.equal(earthCalls(h).at(-1).args.field, 'a');
+  assert.equal(earthCalls(h).at(-1).args.query, 'New York');
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', mode: 'points', a: {query: 'New York', results: Array.from({length: 10}, (_, i) => ({...point, name: `Place ${i}`}))}});
+  assert.equal(h.view.earthResults('a').length, 8);
+  h.hud.earthKeydown('a', {key: 'ArrowDown', preventDefault() {}});
+  h.hud.earthKeydown('a', {key: 'ArrowDown', preventDefault() {}});
+  h.hud.earthKeydown('a', {key: 'Enter', preventDefault() {}});
+  assert.equal(earthCalls(h).at(-1).action, 'select');
+  assert.equal(earthCalls(h).at(-1).args.field, 'a');
+  assert.equal(earthCalls(h).at(-1).args.index, 2);
+});
+
+test('Earth supports both route origins, localized fallback and separate navigation targets', async t => {
+  const h = await fixture(t, {rememberedLanguage: 'de'});
+  const point = {name: 'Place', lat: 40, lon: 30};
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', mode: 'vehicle', b: {selected: point}, canNavigate: true});
+  assert.equal(h.view.t('earthTitle'), 'Earth routes');
+  assert.equal(h.view.canPreviewEarth(), true);
+  h.hud.previewEarth();
+  assert.equal(earthCalls(h).at(-1).action, 'preview');
+  h.hud.setEarthMode('points');
+  assert.equal(h.view.canPreviewEarth(), false);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', mode: 'points', a: {selected: point}, b: {selected: point}, canNavigate: true});
+  h.hud.navigateEarth('a'); assert.equal(earthCalls(h).at(-1).args.target, 'a');
+  h.hud.navigateEarth('b'); assert.equal(earthCalls(h).at(-1).args.target, 'b');
+  assert.equal(h.commands.some(command => /acceptOffer|startMode|teleport/i.test(command)), false);
+});
+
+test('Earth preserves a newer draft against late snapshots and debounces only local edits', async t => {
+  const h = await fixture(t);
+  const point = {name: 'Old place', lat: 40, lon: 30};
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', a: {query: 'Old place', selected: point}, route: {status: 'ready'}});
+  h.hud.openEarth();
+  h.hud.editEarth('a', 'New'); h.hud.editEarth('a', 'New place');
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', a: {query: 'Old place', selected: point}, route: {status: 'ready'}});
+  assert.equal(h.view.earth.a.query, 'New place');
+  assert.equal(h.view.earth.a.selected, null);
+  assert.equal(h.view.earth.route.status, 'idle');
+  await h.advance(250);
+  const edits = h.commands.filter(command => /earthCommand\("edit"/.test(command));
+  assert.equal(edits.length, 1);
+  assert.match(edits[0], /"query":"New place"/);
+  assert.equal(h.commands.some(command => /earthCommand\("search"/.test(command)), false);
+});
+
+test('Earth keyboard chooses the last result with ArrowUp and does not search unavailable Earth', async t => {
+  const h = await fixture(t);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', a: {query: 'Place', results: [{name: 'A'}, {name: 'B'}, {name: 'C'}]}});
+  h.hud.earthKeydown('a', {key: 'ArrowUp', preventDefault() {}});
+  assert.equal(h.view.earthActive.a, 2);
+  h.hud.earthKeydown('a', {key: 'Escape', preventDefault() {}});
+  assert.equal(h.view.earthExpanded.a, false);
+  assert.equal(h.view.earthActive.a, -1);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'disconnected', b: {query: 'Place'}});
+  const before = h.commands.length;
+  h.hud.earthKeydown('b', {key: 'Enter', preventDefault() {}});
+  assert.equal(h.commands.length, before);
+});
+
+test('Earth normalizes empty Lua result objects without breaking combobox rendering', async t => {
+  const h = await fixture(t);
+  h.send({earth: {available: true, status: 'ready', a: {results: {}}, b: {results: {}}}});
+  assert.deepEqual(h.view.earthResults('a'), []);
+  assert.deepEqual(h.view.earthResults('b'), []);
+  assert.equal(h.view.earth.route.from, null);
+  assert.equal(h.view.earth.route.to, null);
+});
+
+test('Earth search trims its submitted draft so normalized backend results clear loading', async t => {
+  const h = await fixture(t);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready'});
+  h.hud.openEarth();
+  h.hud.editEarth('b', ' Paris ');
+  h.hud.searchEarth('b');
+  assert.equal(h.view.earth.b.query, 'Paris');
+  assert.match(h.commands.at(-1), /"query":"Paris"/);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', b: {query: 'Paris', searching: false, results: [{name: 'Paris', detail: 'France', lat: 48.8, lon: 2.3}]}});
+  assert.equal(h.view.earth.b.searching, false);
+  assert.equal(h.view.earthResults('b')[0].name, 'Paris');
+});
+
+const earthCalls = h => h.commands.flatMap(command => {
+  const match = command.match(/earthCommand\("([^"]+)", (\{.*\})\)$/);
+  return match ? [{action: match[1], args: JSON.parse(match[2])}] : [];
+});
+
+test('Earth owns its heartbeat and closes backend polling when an open model is destroyed', async t => {
+  const h = await fixture(t);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready'});
+  h.hud.openEarth();
+  const owner = earthCalls(h).find(call => call.action === 'open').args.owner;
+  assert.equal(typeof owner, 'string'); assert.ok(owner.length > 0);
+  await h.advance(2500);
+  assert.equal(earthCalls(h).filter(call => call.action === 'heartbeat' && call.args.owner === owner).length, 1);
+  h.hud.editEarth('a', 'Pending');
+  h.destroy();
+  assert.equal(earthCalls(h).filter(call => call.action === 'close' && call.args.owner === owner).length, 1);
+  const count = earthCalls(h).length;
+  await h.advance(5000);
+  assert.equal(earthCalls(h).length, count);
+});
+
+test('Earth instances use distinct owners and a foreign snapshot retires local work without closing the new owner', async t => {
+  const h = await fixture(t);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready'});
+  h.hud.openEarth();
+  const ownerA = earthCalls(h).at(-1).args.owner;
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner: ownerA});
+  h.hud.editEarth('a', 'Pending');
+  const other = h.recreate();
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready'});
+  other.hud.openEarth();
+  const ownerB = earthCalls(h).at(-1).args.owner;
+  assert.notEqual(ownerA, ownerB);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner: ownerB});
+  assert.equal(h.view.earthOpen, false);
+  assert.equal(other.view.earthOpen, true);
+  h.destroy();
+  await h.advance(2500);
+  assert.equal(earthCalls(h).filter(call => ['edit', 'close', 'heartbeat'].includes(call.action) && call.args.owner === ownerA).length, 0);
+  other.hud.closeEarth();
+  const count = earthCalls(h).length;
+  await h.advance(5000);
+  assert.equal(earthCalls(h).length, count);
+});
+
+test('destroying a model that never opened Earth does not send close', async t => {
+  const h = await fixture(t);
+  h.destroy();
+  assert.equal(earthCalls(h).some(call => call.action === 'close'), false);
+});
+
+test('Earth random limit remains independent of taxi settings and clamps to 1–600 km', async t => {
+  const h = await fixture(t);
+  assert.equal(h.view.earth.maxRandomKm, 50);
+  h.hud.setEarthRandomLimit(900);
+  assert.equal(h.view.earth.maxRandomKm, 600);
+  assert.equal(earthCalls(h).at(-1).action, 'setRandomLimit');
+  assert.equal(earthCalls(h).at(-1).args.maxRandomKm, 600);
+  h.hud.setEarthRandomLimit(-2);
+  assert.equal(h.view.earth.maxRandomKm, 1);
+  assert.equal(earthCalls(h).at(-1).args.maxRandomKm, 1);
+  assert.equal('maxRandomKm' in h.view.settings, false);
+});
+
+test('Earth teleports only by its explicit A button in points mode', async t => {
+  const h = await fixture(t);
+  const point = {name: 'Paris', lat: 48.8, lon: 2.3};
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', mode: 'points', a: {selected: point}, canNavigate: true});
+  assert.equal(earthCalls(h).some(call => call.action === 'teleport'), false);
+  h.hud.teleportEarthA();
+  assert.equal(earthCalls(h).at(-1).action, 'teleport');
+  assert.equal(earthCalls(h).at(-1).args.target, 'a');
+  h.hud.setEarthMode('vehicle');
+  const before = earthCalls(h).length;
+  h.hud.teleportEarthA();
+  assert.equal(earthCalls(h).length, before);
+});
+
+test('Earth random preview works without B and accepts its generated destination over an old draft', async t => {
+  const h = await fixture(t);
+  const point = {name: 'Paris', lat: 48.8, lon: 2.3};
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', mode: 'vehicle'});
+  h.hud.editEarth('b', 'Abandoned draft');
+  assert.equal(h.view.canRandomEarth(), true);
+  h.hud.randomEarth();
+  assert.equal(earthCalls(h).at(-1).action, 'randomPreview');
+  assert.equal(h.view.earth.route.status, 'pending');
+  assert.equal(h.view.canRandomEarth(), false);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', mode: 'vehicle', b: {query: 'Paris', selected: point}, route: {status: 'ready', distanceM: 1000}, randomAttempt: 2});
+  assert.equal(h.view.earth.b.selected.name, 'Paris');
+  assert.equal(h.view.earth.route.status, 'ready');
+  h.hud.setEarthMode('points');
+  assert.equal(h.view.canRandomEarth(), false, 'points mode needs selected A');
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', mode: 'points', a: {selected: point}});
+  assert.equal(h.view.canRandomEarth(), true);
+  await h.advance(250);
+  assert.equal(earthCalls(h).some(call => call.action === 'edit'), false, 'old B draft timer was cancelled');
+});
+
+const typingCalls = h => h.commands.filter(command => command.includes('setCEFTyping('));
+const addTypingField = (h, tag = 'input', type = 'text', outside = false) => {
+  const element = h.browser.document.createElement(tag);
+  if (tag === 'input') element.type = type;
+  if (tag === 'div') { element.setAttribute('contenteditable', 'true'); element.tabIndex = 0; }
+  (outside ? h.browser.document.body : h.host).append(element);
+  return element;
+};
+
+test('native editable focus locks game bindings once and keeps the lock across HUD fields', async t => {
+  const h = await fixture(t);
+  const first = addTypingField(h), second = addTypingField(h, 'textarea');
+  first.focus(); await h.flush();
+  assert.deepEqual(typingCalls(h), ['if setCEFTyping then setCEFTyping(true) end']);
+  second.focus(); await h.flush();
+  assert.equal(typingCalls(h).length, 1);
+  second.blur(); await h.flush();
+  assert.deepEqual(typingCalls(h), ['if setCEFTyping then setCEFTyping(true) end', 'if setCEFTyping then setCEFTyping(false) end']);
+});
+
+for (const event of ['windowBlur', 'hidden', 'engineLost', 'destroy']) {
+  test(`native typing releases on ${event}`, async t => {
+    const h = await fixture(t);
+    const field = addTypingField(h, 'div'); field.focus(); await h.flush();
+    if (event === 'windowBlur') h.browser.dispatchEvent(new h.browser.Event('blur'));
+    if (event === 'hidden') { h.browser.document.hidden = true; h.browser.document.dispatchEvent(new h.browser.Event('visibilitychange')); }
+    if (event === 'engineLost') h.bridge.events.emit('CEFTypingLostFocus');
+    if (event === 'destroy') h.destroy();
+    await h.flush();
+    assert.equal(typingCalls(h).at(-1), 'if setCEFTyping then setCEFTyping(false) end', event);
+    if (event === 'engineLost') assert.notEqual(h.browser.document.activeElement, field);
+    h.destroy();
+  });
+}
+
+test('native typing hands focus to other game editors without sending false', async t => {
+  const h = await fixture(t);
+  addTypingField(h).focus(); await h.flush();
+  addTypingField(h, 'input', 'text', true).focus(); await h.flush();
+  h.destroy();
+  assert.deepEqual(typingCalls(h), ['if setCEFTyping then setCEFTyping(true) end']);
+});
+
+test('nontext controls never acquire the native typing lock', async t => {
+  const h = await fixture(t);
+  for (const type of ['checkbox', 'range', 'button', 'radio', 'file', 'submit']) { addTypingField(h, 'input', type).focus(); await h.flush(); }
+  assert.deepEqual(typingCalls(h), []);
+});
+
+test('Connected Phone never acquires the native typing lock', async t => {
+  const external = await fixture(t, {external: true});
+  const field = addTypingField(external); field.focus(); await external.flush(); field.blur();
+  external.destroy();
+  assert.deepEqual(typingCalls(external), []);
+});
+
+test('native editable keys stay in the HUD while Vue field handlers still run', async t => {
+  const h = await fixture(t);
+  const field = addTypingField(h);
+  let fieldEvents = 0, escapedEvents = 0;
+  for (const type of ['keydown', 'keyup']) {
+    field.addEventListener(type, () => fieldEvents++);
+    h.browser.document.addEventListener(type, () => escapedEvents++);
+    field.dispatchEvent(new h.browser.KeyboardEvent(type, {key: 'w', bubbles: true}));
+  }
+  assert.equal(fieldEvents, 2);
+  assert.equal(escapedEvents, 0);
+});
+
+test('leaving Earth closes its panel and stops heartbeats even before ownership acknowledgement', async t => {
+  const h = await fixture(t);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner: 'previous'});
+  h.hud.openEarth();
+  assert.equal(h.view.earthOpen, true);
+  h.hud.editEarth('a', 'unfinished');
+  h.bridge.events.emit('TaxiDriverEarthState', {available: false, status: 'outsideWorld', owner: ''});
+  assert.equal(h.view.earthOpen, false);
+  assert.equal(h.view.earth.available, false);
+  const count = earthCalls(h).length;
+  await h.advance(3000);
+  assert.equal(earthCalls(h).length, count, 'leaving the world cancels edits and heartbeats');
+  h.hud.openEarth();
+  assert.equal(h.view.earthOpen, false);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready'});
+  h.hud.openEarth();
+  assert.equal(h.view.earthOpen, true);
+});
+
+test('Earth opening waits for its owner acknowledgement before accepting a takeover snapshot', async t => {
+  const h = await fixture(t);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner: 'prior-owner'});
+  h.hud.openEarth();
+  const owner = earthCalls(h).at(-1).args.owner;
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner: 'prior-owner'});
+  assert.equal(h.view.earthOpen, true, 'queued state from the previous owner cannot close a newly opening panel');
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner});
+  assert.equal(h.view.earthOpen, true);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner: 'next-owner'});
+  assert.equal(h.view.earthOpen, false, 'a takeover after own acknowledgement retires this panel');
+  assert.equal(earthCalls(h).some(call => call.action === 'close'), false);
+});
+
+test('Earth retires an expired owner lease and can reopen only on a new click', async t => {
+  const h = await fixture(t);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready'});
+  h.hud.openEarth();
+  const owner = earthCalls(h).at(-1).args.owner;
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner});
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner: ''});
+  assert.equal(h.view.earthOpen, false, 'expired lease closes the panel locally');
+  const count = earthCalls(h).length;
+  await h.advance(2500);
+  assert.equal(earthCalls(h).length, count, 'expired lease stops heartbeat');
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner});
+  assert.equal(h.view.earthOpen, false, 'late own snapshot cannot reopen the panel');
+  h.hud.openEarth();
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner: ''});
+  assert.equal(h.view.earthOpen, true, 'queued empty owner is ignored while waiting for the new open acknowledgement');
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner});
+  assert.equal(h.view.earthOpen, true);
+});
+
+test('Earth starts a paid trip only from a ready route while offline or searching and blocks duplicate submits', async t => {
+  const h = await fixture(t);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', route: {status: 'ready'}});
+  h.hud.openEarth();
+  assert.equal(h.view.canStartEarthTrip(), true);
+  h.hud.earthStartTrip(); h.hud.earthStartTrip();
+  assert.equal(earthCalls(h).filter(call => call.action === 'startTrip').length, 1);
+  assert.equal(h.view.earthStarting, true);
+  assert.equal(h.view.earthOpen, true, 'keep route visible until backend acknowledgement');
+  const owner = earthCalls(h).find(call => call.action === 'open').args.owner;
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner, startedTripId: 123, route: {status: 'ready'}});
+  assert.equal(h.view.earthStarting, false);
+  assert.equal(h.view.earthOpen, false);
+  assert.equal(earthCalls(h).filter(call => call.action === 'close').length, 1);
+  h.hud.openEarth();
+  h.send({active: true, phase: 'searching'});
+  assert.equal(h.view.canStartEarthTrip(), true);
+  h.send({active: true, phase: 'toDestination'});
+  assert.equal(h.view.canStartEarthTrip(), false);
+  const before = earthCalls(h).length; h.hud.earthStartTrip();
+  assert.equal(earthCalls(h).length, before, 'cannot replace an active taxi trip');
+});
+
+test('Earth start failure and acknowledgement timeout unlock submission without closing the panel', async t => {
+  const h = await fixture(t);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', route: {status: 'ready'}});
+  h.hud.openEarth(); h.hud.earthStartTrip();
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', error: 'Trip unavailable', route: {status: 'ready'}});
+  assert.equal(h.view.earthStarting, false);
+  assert.equal(h.view.earthOpen, true);
+  assert.equal(h.view.earth.error, 'Trip unavailable');
+  h.hud.earthStartTrip();
+  assert.equal(h.view.earthStarting, true);
+  await h.advance(15000);
+  assert.equal(h.view.earthStarting, false);
+  assert.equal(h.view.earthOpen, true);
+  assert.ok(h.view.earth.error);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', route: {status: 'pending'}});
+  assert.equal(h.view.canStartEarthTrip(), false);
+});
+
+test('Earth address search forwards the complete address and offer captions prefer available address details', async t => {
+  const h = await fixture(t);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready'});
+  h.hud.openEarth();
+  h.hud.editEarth('b', '10 Downing Street, London');
+  h.hud.searchEarth('b');
+  assert.equal(earthCalls(h).at(-1).action, 'search');
+  assert.equal(earthCalls(h).at(-1).args.query, '10 Downing Street, London');
+  const offer = {pickupName: 'London', destinationName: 'Oxford'};
+  assert.equal(h.view.earthOfferRoute(offer), 'London → Oxford');
+  assert.equal(h.view.earthOfferRoute({...offer, pickupAddress: '10 Downing Street, London', destinationAddress: 'High Street, Oxford'}), '10 Downing Street, London → High Street, Oxford');
+});

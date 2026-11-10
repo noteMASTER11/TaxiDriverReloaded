@@ -99,8 +99,8 @@
         <strong :title="profileOpen ? (profileDraft.fullName || 'John Doe') : (fleetOpen ? t('fleetTitle') : 'TaxiDriver')">{{ profileOpen ? (profileDraft.fullName || 'John Doe') : (fleetOpen ? t('fleetTitle') : 'TaxiDriver') }}</strong>
         <span>{{ fuelStationOpen ? (state.fuelStation.magic ? t('magicFuelTitle') : (state.fuelStation.name || t('refuelTitle'))) : (settingsOpen ? t('settingsTitle') : (profileOpen ? t('profileTitle') : (fleetOpen ? (state.fleet.activeDrivers + ' ' + t('fleetActiveDrivers')) : (state.active ? getPhaseLabel() : t('appSubtitle'))))) }}</span>
       </div>
-      <div class="taxi-appbar__live" v-if="state.active &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen">{{ t('online') }}</div>
-      <button type="button" class="taxi-appbar__fuel taxi-action taxi-action--secondary" :class="{'taxi-appbar__fuel--warning': state.vehicleEnergy.available &amp;&amp; state.vehicleEnergy.percent <= 15}" v-if="state.active &amp;&amp; state.realisticMode &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen" @click="hud.handleFuelAction()" :aria-label="t('refuelAction')"><span>{{ t('refuelAction') }}</span></button>
+      <div class="taxi-appbar__live" v-if="state.active &amp;&amp; !earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen">{{ t('online') }}</div>
+      <button type="button" class="taxi-appbar__fuel taxi-action taxi-action--secondary" :class="{'taxi-appbar__fuel--warning': state.vehicleEnergy.available &amp;&amp; state.vehicleEnergy.percent <= 15}" v-if="state.active &amp;&amp; state.realisticMode &amp;&amp; !earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen" @click="hud.handleFuelAction()" :aria-label="t('refuelAction')"><span>{{ t('refuelAction') }}</span></button>
       <button type="button" class="taxi-appbar__profile taxi-action taxi-action--tertiary" :class="{'taxi-appbar__profile--active': profileOpen}" @click="hud.toggleProfile()" :aria-label="t('profileTitle')">
         {{ (state.driverProfile && state.driverProfile.avatar) || driverProfile.avatar || '🙂' }}
       </button>
@@ -109,7 +109,7 @@
       </button>
     </div>
 
-    <div class="taxi-passenger-chat" v-if="passengerChat &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; state.phase === 'toPickup'" :class="'taxi-passenger-chat--' + passengerChat.mood">
+    <div class="taxi-passenger-chat" v-if="passengerChat &amp;&amp; !earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; state.phase === 'toPickup'" :class="'taxi-passenger-chat--' + passengerChat.mood">
       <div class="taxi-passenger-chat__avatar">{{ getInitials(passengerChat.passengerName) }}</div>
       <div class="taxi-passenger-chat__body">
         <div class="taxi-passenger-chat__header">
@@ -184,6 +184,14 @@
           <span class="taxi-settings__group-icon">!</span><strong>{{ t('settingsGameplay') }}</strong><i>{{ settingsSections.gameplay ? '-' : '+' }}</i>
         </button>
         <div id="taxi-settings-gameplay" class="taxi-settings__group-body" v-if="settingsSections.gameplay">
+          <div class="taxi-settings__section" v-if="earth.available">
+            <label class="taxi-settings__label" for="taxi-earth-random-limit">{{ t('earthRandomLimit') }}</label>
+            <p class="taxi-settings__help">{{ t('earthRandomLimitHelp') }}</p>
+            <div class="taxi-earth-limit">
+              <input id="taxi-earth-random-limit" type="number" min="1" max="600" step="1" v-model.number="earth.maxRandomKm" @change="hud.setEarthRandomLimit(earth.maxRandomKm)">
+              <span>{{ t('unitKm') }}</span>
+            </div>
+          </div>
           <div class="taxi-settings__section">
             <label class="taxi-settings__label" for="taxi-initial-fuel"><span>{{ t('initialFuelPercent') }}</span><span>{{ formatNumber(settings.initialFuelPercent, 0) }}%</span></label>
             <div class="taxi-settings__help">{{ t('initialFuelPercentHelp') }}</div>
@@ -731,7 +739,7 @@
       </div>
     </div>
 
-    <div class="taxi-fleet" v-if="fleetOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen">
+    <div class="taxi-fleet" v-if="fleetOpen &amp;&amp; !earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen">
       <div class="taxi-map taxi-fleet__map">
         <div class="taxi-minimap-surface"></div>
         <canvas class="taxi-external-minimap" v-if="externalPhoneMode"></canvas>
@@ -795,7 +803,55 @@
       </div>
     </div>
 
-    <div class="taxi-home" :class="{'taxi-home--presets': !shiftHistoryOpen}" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; !state.active">
+    <section class="taxi-earth" v-if="earthOpen" :aria-label="t('earthTitle')">
+      <header class="taxi-earth__head">
+        <button type="button" class="taxi-action taxi-action--secondary" @click="hud.closeEarth()" :aria-label="t('back')">‹</button>
+        <div><h2>{{ t('earthTitle') }}</h2><p>{{ t('earthHelp') }}</p></div>
+      </header>
+      <div class="taxi-earth__scroll">
+        <div class="taxi-earth__modes" :aria-label="t('earthOrigin')">
+          <button type="button" class="taxi-action taxi-action--secondary" :disabled="earthStarting" :aria-pressed="earth.mode === 'vehicle'" @click="hud.setEarthMode('vehicle')">{{ t('earthVehicleMode') }}</button>
+          <button type="button" class="taxi-action taxi-action--secondary" :disabled="earthStarting" :aria-pressed="earth.mode === 'points'" @click="hud.setEarthMode('points')">{{ t('earthPointsMode') }}</button>
+        </div>
+        <p class="taxi-earth__status" role="status" v-if="earth.status !== 'ready'">{{ t('earthStatus_' + earth.status) }}</p>
+        <div class="taxi-earth__vehicle" v-if="earth.mode === 'vehicle'">{{ t('earthVehicleOrigin') }}</div>
+        <template v-for="field in ['a', 'b']" :key="field">
+          <section class="taxi-earth__field" v-if="field === 'b' || earth.mode === 'points'">
+            <div class="taxi-earth__field-head">
+              <label :for="'taxi-earth-' + field">{{ t(field === 'a' ? 'earthPointA' : 'earthPointB') }}</label>
+              <button type="button" class="taxi-earth__teleport taxi-action taxi-action--secondary" v-if="field === 'a' &amp;&amp; earth.a.selected" :disabled="earth.mode !== 'points' || !canNavigateEarth('a')" @click="hud.teleportEarthA()">{{ t('earthTeleportA') }}</button>
+            </div>
+            <div class="taxi-earth__search">
+              <input type="text" :id="'taxi-earth-' + field" role="combobox" maxlength="200" :disabled="earthStarting" aria-autocomplete="list" :aria-controls="'taxi-earth-' + field + '-results'" :aria-expanded="earthExpanded[field] &amp;&amp; earthResults(field).length > 0" :aria-activedescendant="earthExpanded[field] &amp;&amp; earthActive[field] >= 0 ? 'taxi-earth-' + field + '-result-' + earthActive[field] : undefined" :value="earth[field].query" :placeholder="t('earthSearchPlaceholder')" autocomplete="off" spellcheck="false" @input="hud.editEarth(field, $event.target.value)" @keydown.stop="hud.earthKeydown(field, $event)" @keyup.stop @focus="earthExpanded[field] = true">
+              <button type="button" class="taxi-action taxi-action--secondary" :disabled="earthStarting || !earth[field].query.trim() || earth[field].searching || earth.status !== 'ready'" @click="hud.searchEarth(field)">{{ t('earthSearch') }}</button>
+            </div>
+            <p class="taxi-earth__status" role="status" v-if="earth[field].searching">{{ t('earthSearching') }}</p>
+            <p class="taxi-earth__error" role="alert" v-if="earth[field].error">{{ earth[field].error }}</p>
+            <div class="taxi-earth__results" role="listbox" :id="'taxi-earth-' + field + '-results'" :aria-label="t('earthResults')" v-if="earthExpanded[field] &amp;&amp; earthResults(field).length">
+              <button type="button" role="option" tabindex="-1" :disabled="earthStarting" v-for="(point, index) in earthResults(field)" :key="index" :id="'taxi-earth-' + field + '-result-' + index" :aria-selected="earthActive[field] === index" @mousedown.prevent @click="hud.selectEarth(field, index)"><strong>{{ point.name }}</strong><small>{{ point.detail }}</small></button>
+            </div>
+            <p class="taxi-earth__selected" v-if="earth[field].selected"><strong>✓ {{ earth[field].selected.name }}</strong><span>{{ earth[field].selected.detail }}</span></p>
+          </section>
+        </template>
+        <button type="button" class="taxi-earth__preview taxi-action taxi-action--secondary" :disabled="!canPreviewEarth()" @click="hud.previewEarth()">{{ t('earthPreview') }}</button>
+        <button type="button" class="taxi-earth__random taxi-action taxi-action--secondary" :disabled="!canRandomEarth()" @click="hud.randomEarth()">{{ t('earthRandomRoute') }}</button>
+        <p class="taxi-earth__status" role="status" v-if="earth.route.status === 'pending'">{{ t('earthRouting') }} <span v-if="earth.randomAttempt > 0">{{ t('earthRandomAttempt', {attempt: earth.randomAttempt}) }}</span></p>
+        <div class="taxi-earth__metrics" v-if="earth.route.status === 'ready'">
+          <div><span>{{ t('earthDistance') }}</span><strong>{{ formatDistance(earth.route.distanceM) }}</strong></div>
+          <div><span>{{ t('earthDuration') }}</span><strong>{{ formatEta(earth.route.durationS / 60) }}</strong></div>
+        </div>
+        <button type="button" class="taxi-earth__start taxi-earth-button taxi-action taxi-action--secondary" :disabled="!canStartEarthTrip()" @click="hud.earthStartTrip()">{{ t(earthStarting ? 'earthStartingTrip' : 'earthStartTrip') }}</button>
+        <p class="taxi-earth__error" role="alert" v-if="earth.route.error || earth.error">{{ earth.route.error || earth.error }}</p>
+        <div class="taxi-earth__navigate">
+          <button type="button" class="taxi-action taxi-action--secondary" :disabled="!canNavigateEarth('a')" @click="hud.navigateEarth('a')">{{ t('earthNavigateA') }}</button>
+          <button type="button" class="taxi-action taxi-action--secondary" :disabled="!canNavigateEarth('b')" @click="hud.navigateEarth('b')">{{ t('earthNavigateB') }}</button>
+        </div>
+        <p class="taxi-earth__hint">{{ t('earthNavigationHelp') }}</p>
+        <p class="taxi-earth__status" role="status" v-if="earth.gps">{{ earth.gps.planning ? t('earthRouting') : formatDistance(earth.gps.remaining) + ' · ' + formatEta(earth.gps.eta / 60) }}</p>
+      </div>
+    </section>
+
+    <div class="taxi-home" :class="{'taxi-home--presets': !shiftHistoryOpen}" v-if="!earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; !state.active">
       <div class="taxi-home__shade"></div>
       <div class="taxi-home__content" v-if="!shiftHistoryOpen">
         <section class="taxi-home__presets" :aria-label="t('homeDifficultyTitle')">
@@ -849,6 +905,7 @@
         </div>
         <div class="taxi-home__actions">
           <button type="button" class="taxi-start taxi-action taxi-action--primary" :class="{'taxi-start--intro': newShiftSheenActive}" @click="hud.startMode()">{{ t('newShift') }}</button>
+          <button type="button" class="taxi-earth-button taxi-action taxi-action--secondary" v-if="earth.available" @click="hud.openEarth()">{{ t('earthTitle') }}</button>
           <button type="button" class="taxi-fleet-button taxi-action taxi-action--secondary" @click="hud.toggleFleet()"><span class="taxi-action-label" :title="t('fleetTitle')">{{ t('fleetTitle') }}</span><span class="taxi-count-badge" v-if="state.fleet.activeDrivers" :title="state.fleet.activeDrivers">{{ formatCount(state.fleet.activeDrivers) }}</span></button>
           <button type="button" class="taxi-shift-history-button taxi-action taxi-action--secondary" @click="hud.toggleShiftHistory()" :disabled="!state.shiftHistory.items.length || state.shiftHistory.restoring">
             <span class="taxi-action-label" :title="t('previousShift')">{{ t('previousShift') }}</span>
@@ -885,7 +942,7 @@
       </div>
     </div>
 
-    <div class="taxi-orders" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'searching'">
+    <div class="taxi-orders" v-if="!earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'searching'">
       <div class="taxi-orders__sheet">
         <div class="taxi-orders__search">
           <div class="taxi-orders__spinner" v-if="state.offers.length < state.offerTargetCount"></div>
@@ -924,6 +981,7 @@
               <div class="taxi-order-card__badge" v-if="offer.isRush">+{{ offer.bonusPercent }}%</div>
               <div class="taxi-order-card__badge taxi-order-card__badge--multi" v-if="offer.isMultiStop">{{ t('multiStopBadge', {count: offer.stopCount}) }}</div>
             </div>
+            <p class="taxi-order-card__earth-route" v-if="offer.earth &amp;&amp; earthOfferRoute(offer)" :title="earthOfferRoute(offer)">{{ earthOfferRoute(offer) }}</p>
             <div class="taxi-order-card__efficiency"><span>{{ formatMoney(getOfferIncomePerMinute(offer)) }}/{{ t('minuteShort') }}</span><span>{{ formatMoney(getOfferIncomePerKm(offer)) }}/{{ settings.unitSystem === 'imperial' ? t('unitMile') : t('unitKm') }}</span></div>
             <div class="taxi-order-card__metrics">
               <div class="taxi-order-card__metric"><span>{{ t('trip') }}</span><b>{{ formatEta(offer.etaMinutes) }}</b></div>
@@ -953,7 +1011,7 @@
       </div>
     </div>
 
-    <div class="taxi-transfer" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; (state.phase === 'boarding' || state.phase === 'alighting')">
+    <div class="taxi-transfer" v-if="!earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; (state.phase === 'boarding' || state.phase === 'alighting')">
       <div class="taxi-transfer__loader"><div :class="state.isDelivery ? 'taxi-transfer__cargo' : 'taxi-transfer__door'"></div></div>
       <h2>{{ getPhaseLabel() }}</h2>
       <div class="taxi-transfer__passenger">{{ state.isDelivery ? formatCargoWeight(state.cargoWeightKg) : state.passengerName }}</div>
@@ -965,7 +1023,7 @@
       <div class="taxi-transfer__progress"></div>
     </div>
 
-    <div class="taxi-transfer taxi-transfer--critical" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'passengerStopDemand'">
+    <div class="taxi-transfer taxi-transfer--critical" v-if="!earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'passengerStopDemand'">
       <div class="taxi-transfer__alert">!</div>
       <h2>{{ t('stopDemandTitle') }}</h2>
       <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
@@ -973,7 +1031,7 @@
       <div class="taxi-transfer__progress"></div>
     </div>
 
-    <div class="taxi-transfer taxi-transfer--critical" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'passengerForcedExit'">
+    <div class="taxi-transfer taxi-transfer--critical" v-if="!earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'passengerForcedExit'">
       <div class="taxi-transfer__loader"><div class="taxi-transfer__door"></div></div>
       <h2>{{ t('forcedExitTitle') }}</h2>
       <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
@@ -982,7 +1040,7 @@
       <div class="taxi-transfer__progress taxi-transfer__progress--determinate"><div class="taxi-transfer__progress-fill" :style="{'width': ((state.forcedExitDuration - state.forcedExitRemaining) / state.forcedExitDuration * 100) + '%'}"></div></div>
     </div>
 
-    <div class="taxi-transfer taxi-transfer--critical" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'driverAbandoning'">
+    <div class="taxi-transfer taxi-transfer--critical" v-if="!earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'driverAbandoning'">
       <div class="taxi-transfer__loader"><div class="taxi-transfer__door"></div></div>
       <h2>{{ t('driverAbandoningTitle') }}</h2>
       <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
@@ -991,7 +1049,7 @@
       <div class="taxi-transfer__progress taxi-transfer__progress--determinate"><div class="taxi-transfer__progress-fill" :style="{'width': ((state.forcedExitDuration - state.forcedExitRemaining) / state.forcedExitDuration * 100) + '%'}"></div></div>
     </div>
 
-    <div class="taxi-transfer" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'stopWaiting'">
+    <div class="taxi-transfer" v-if="!earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'stopWaiting'">
       <div class="taxi-transfer__stop">{{ state.currentStopIndex }}</div>
       <h2>{{ getPhaseLabel() }}</h2>
       <div class="taxi-transfer__passenger">{{ t('stopProgress', {current: state.currentStopIndex, total: state.stopCount}) }}</div>
@@ -1000,7 +1058,7 @@
       <div class="taxi-transfer__progress taxi-transfer__progress--determinate"><div class="taxi-transfer__progress-fill" :style="{'width': ((state.stopWaitDuration - state.stopWaitRemaining) / state.stopWaitDuration * 100) + '%'}"></div></div>
     </div>
 
-    <div class="taxi-transfer" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'complete'">
+    <div class="taxi-transfer" v-if="!earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'complete'">
       <div class="taxi-transfer__check">✓</div>
       <h2>{{ state.isDelivery ? t('deliveryComplete') : t('complete') }}</h2>
       <div class="taxi-transfer__passenger">{{ t('payout') }} {{ formatMoney(state.adjustedFare) }}</div>
@@ -1009,7 +1067,7 @@
       <div class="taxi-transfer__progress"></div>
     </div>
 
-    <div class="taxi-fuel-route" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'toFuelStation'">
+    <div class="taxi-fuel-route" v-if="!earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'toFuelStation'">
       <div class="taxi-map">
         <div class="taxi-minimap-surface"></div>
         <canvas class="taxi-external-minimap" v-if="externalPhoneMode"></canvas>
@@ -1062,7 +1120,7 @@
       </div>
     </div>
 
-    <div class="taxi-trip-layout" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination')">
+    <div class="taxi-trip-layout" v-if="!earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination')">
       <div class="taxi-map">
         <div class="taxi-minimap-surface"></div>
         <canvas class="taxi-external-minimap" v-if="externalPhoneMode"></canvas>
