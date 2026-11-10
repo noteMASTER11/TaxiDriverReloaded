@@ -7,6 +7,6 @@ export default createHudComponent(vue, useBridge(), { externalPhoneMode: false }
 </script>
 
 <style>
-@import url('/ui/modules/apps/TaxiDriverHUD/app.css?v=502');
-@import url('/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=502');
+@import url('/ui/modules/apps/TaxiDriverHUD/app.css?v=509');
+@import url('/ui/modules/apps/TaxiDriverHUD/external/external-ui.css?v=509');
 </style>

@@ -32,6 +32,8 @@ pnpm test:game
 
 Packaging rebuilds the UI and creates `dist/taxidriver.zip`. Build dependencies and tests are excluded from the mod archive. `-InstallDirectory <mods-directory>` also copies the archive and verifies its SHA256.
 
+Distribute readable JavaScript for BeamNG Repo review. `build-ui.mjs` disables minification and keeps module labels and application function names in the bundled Connected Phone runtime. Vue still uses its production configuration. Original HUD modules and template are included in the archive, alongside Vue's license notices. `sounds-data.js` contains embedded MP3 data URLs, not encoded executable code. The asset tests check that the shipped bundle stays formatted.
+
 ## Game updates
 
 After an update, run both test commands and verify UI recreation, simultaneous maps, pause behavior and AI Driver arrival/hand-back in the game. Compare the installed native AI contracts before changing route arguments: `path` follows a resolved graph sequence; `wpTargetList` performs new searches between targets.
