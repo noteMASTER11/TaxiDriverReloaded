@@ -762,6 +762,25 @@ test('native editable keys stay in the HUD while Vue field handlers still run', 
   assert.equal(escapedEvents, 0);
 });
 
+test('leaving Earth closes its panel and stops heartbeats even before ownership acknowledgement', async t => {
+  const h = await fixture(t);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner: 'previous'});
+  h.hud.openEarth();
+  assert.equal(h.view.earthOpen, true);
+  h.hud.editEarth('a', 'unfinished');
+  h.bridge.events.emit('TaxiDriverEarthState', {available: false, status: 'outsideWorld', owner: ''});
+  assert.equal(h.view.earthOpen, false);
+  assert.equal(h.view.earth.available, false);
+  const count = earthCalls(h).length;
+  await h.advance(3000);
+  assert.equal(earthCalls(h).length, count, 'leaving the world cancels edits and heartbeats');
+  h.hud.openEarth();
+  assert.equal(h.view.earthOpen, false);
+  h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready'});
+  h.hud.openEarth();
+  assert.equal(h.view.earthOpen, true);
+});
+
 test('Earth opening waits for its owner acknowledgement before accepting a takeover snapshot', async t => {
   const h = await fixture(t);
   h.bridge.events.emit('TaxiDriverEarthState', {available: true, status: 'ready', owner: 'prior-owner'});

@@ -1317,6 +1317,12 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
       if (!snapshot || typeof snapshot !== 'object') return;
       const incoming = normalizeEarth(snapshot);
       const hasOwner = typeof snapshot.owner === 'string';
+      if (view.earthOpen && !incoming.available) {
+        stopEarthWork();
+        earthDirty.a = earthDirty.b = false;
+        if (incoming.owner === earthOwner) earthCommand('close');
+        scheduleMinimapUpdate();
+      }
       if (view.earthOpen && earthAwaitingOwnerAck && hasOwner && incoming.owner !== earthOwner) return;
       if (incoming.owner === earthOwner) earthAwaitingOwnerAck = false;
       if (view.earthOpen && hasOwner && incoming.owner !== earthOwner) {

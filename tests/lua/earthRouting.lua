@@ -88,6 +88,31 @@ restored:command("preview",{})
 assert(#calls==before, "missing selection cannot trigger a network request")
 s:destroy();old({results=results})
 assert(cancelled>0 and emitted>0)
+local inEarth,connected=true,true
+api.inWorld=function()return inEarth end
+api.connected=function()return connected end
+local switching=service();switching:update(0)
+assert(switching:snapshot().available)
+switching:command("open",{owner="switch-test"})
+switching:command("search",{owner="switch-test",field="b",query="Paris"})
+local stale=lastCallback
+inEarth=false;switching:update(1)
+assert(not switching:snapshot().available,
+  "an installed Earth API must not expose Earth controls outside the Earth level")
+assert(switching:snapshot().status=="outsideWorld" and not switching:snapshot().b.searching)
+stale({results=results})
+assert(#switching:snapshot().b.results==0, "a reply from the old Earth world cannot populate the ordinary level")
+inEarth=true;connected=false;switching:update(1)
+assert(switching:snapshot().available and switching:snapshot().status=="disconnected",
+  "Earth controls stay visible while the active Earth level reconnects")
+connected=true;switching:update(1)
+assert(switching:snapshot().available and switching:snapshot().status=="ready")
+api=nil;switching:update(1)
+assert(not switching:snapshot().available and switching:snapshot().status=="absent")
+switching:destroy()
+api={version=function()return 1 end,connected=function()return true end,
+  inWorld=function()return true end,ready=function()return true end,
+  pose=function()return pose end,gps=function()return nil end,gpsSet=function()return true end}
 local owned=service();owned:update(0)
 owned:command("open",{owner="first"})
 owned:command("search",{owner="first",field="b",query="Paris"})

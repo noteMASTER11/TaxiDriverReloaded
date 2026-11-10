@@ -103,16 +103,17 @@ function M.new(options)
   end
   local function detect()
     api=getApi()
+    local inWorld=invoke(api,"inWorld")==true
     local status="absent"
     if api then
       if invoke(api,"version")~=1 then status="unsupported"
+      elseif not inWorld then status="outsideWorld"
       elseif invoke(api,"connected")~=true then status="disconnected"
-      elseif invoke(api,"inWorld")~=true then status="outsideWorld"
       elseif invoke(api,"ready")~=true then status="loading"
       else status="ready" end
     end
     local beforeStatus,beforeCan=state.status,state.canNavigate
-    state.available=api~=nil
+    state.available=inWorld and status~="unsupported"
     state.status=status
     local p=invoke(api,"pose")
     state.canNavigate=status=="ready" and p~=nil and p.camera~=true and not isTripActive() and
