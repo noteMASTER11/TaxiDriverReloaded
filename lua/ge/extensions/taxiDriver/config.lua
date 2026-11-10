@@ -341,10 +341,14 @@ M.autopilot = {
 }
 
 M.offer = {
-  initialDelay = 1.5,
-  intervalMin = 1.2,
-  intervalMax = 2.2,
-  generationStepInterval = 0.02,
+  initialDelay = 0.15,
+  intervalMin = 0.25,
+  intervalMax = 0.5,
+  generationStepInterval = 0,
+  generationMaxResumes = 16,
+  generationTimeBudgetSeconds = 0.001,
+  generationMaxJobSeconds = 8,
+  graphCandidateAttempts = 64,
   semanticScanBatchSize = 6,
   semanticCandidateAttempts = 40,
   randomRouteAttempts = 24,
@@ -438,15 +442,15 @@ M.balance = {
 }
 
 M.earlyExitRatingLoss = {
-  elementary = 0.10,
-  easy = 0.20,
+  elementary = 0,
+  easy = 0.05,
   standard = 0.30,
   professional = 0.45
 }
 
 M.driverAbandonmentExtraLoss = {
-  elementary = 0.10,
-  easy = 0.20,
+  elementary = 0,
+  easy = 0.05,
   standard = 0.30,
   professional = 0.45
 }
@@ -502,7 +506,7 @@ M.delivery = {
 
 M.difficultyPresets = {
   elementary = {
-    maxTotalPenalty = 0.50,
+    maxTotalPenalty = 0,
     pickupLateBasePenalty = 0.05, pickupLatePenaltyPerSecond = 0.000333,
     maxPickupLatePenalty = 0.12,
     speedToleranceKmh = 15, speedToleranceRatio = 0.25, speedGraceSeconds = 6,
@@ -515,17 +519,17 @@ M.difficultyPresets = {
     aggressionExtraMax = 0.004, maxAggressionPenalty = 0.05
   },
   easy = {
-    maxTotalPenalty = 0.50,
-    pickupLateBasePenalty = 0.05, pickupLatePenaltyPerSecond = 0.000333,
-    maxPickupLatePenalty = 0.12,
+    maxTotalPenalty = 0.10,
+    pickupLateBasePenalty = 0.01, pickupLatePenaltyPerSecond = 0.00005,
+    maxPickupLatePenalty = 0.03,
     speedToleranceKmh = 11, speedToleranceRatio = 0.20, speedGraceSeconds = 4.5,
-    speedPenaltyRate = 0.00045, maxSpeedPenalty = 0.10,
+    speedPenaltyRate = 0.00015, maxSpeedPenalty = 0.025,
     collisionDamageScale = 17000, collisionDamageThreshold = 35,
-    collisionDamagePenalty = 0.14, collisionEventPenalty = 0.007, maxCollisionPenalty = 0.14,
+    collisionDamagePenalty = 0.04, collisionEventPenalty = 0.002, maxCollisionPenalty = 0.04,
     longitudinalGThreshold = 0.74, lateralGThreshold = 0.66,
     longitudinalGRelease = 0.48, lateralGRelease = 0.42,
-    aggressionEventPenalty = 0.0035, aggressionExtraRate = 0.01,
-    aggressionExtraMax = 0.006, maxAggressionPenalty = 0.08
+    aggressionEventPenalty = 0.001, aggressionExtraRate = 0.003,
+    aggressionExtraMax = 0.002, maxAggressionPenalty = 0.02
   },
   standard = {
     maxTotalPenalty = 0.50,

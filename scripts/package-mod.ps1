@@ -4,6 +4,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+& node (Join-Path $PSScriptRoot "build-ui.mjs")
+if ($LASTEXITCODE -ne 0) { throw "Vue UI build failed" }
 $dist = Join-Path $root "dist"
 $zipPath = Join-Path $dist "taxidriver.zip"
 
@@ -68,6 +70,7 @@ $requiredEntries = @(
   "lua/ge/extensions/taxiDriver/hudPublisher.lua",
   "lua/ge/extensions/taxiDriver/logger.lua",
   "lua/ge/extensions/taxiDriver/navigationUi.lua",
+  "lua/ge/extensions/taxiDriver/nativeMinimap.lua",
   "lua/ge/extensions/taxiDriver/shiftTracker.lua",
   "lua/ge/extensions/taxiDriver/shiftHistory.lua",
   "lua/ge/extensions/taxiDriver/tripEvents.lua",
@@ -82,8 +85,13 @@ $requiredEntries = @(
   "lua/vehicle/extensions/taxiDriverAutopilotRecovery.lua",
   "lua/vehicle/extensions/taxiDriverStockAiObserver.lua",
   "lua/vehicle/extensions/taxiDriverCargo.lua",
-  "ui/modules/apps/TaxiDriverHUD/app.html",
-  "ui/modules/apps/TaxiDriverHUD/app.js",
+  "ui/modules/apps/TaxiDriverHUD/app.vue",
+  "ui/modules/apps/TaxiDriverHUD/hud-model.js",
+  "ui/modules/apps/TaxiDriverHUD/hud-render.js",
+  "ui/modules/apps/TaxiDriverHUD/hud-component.js",
+  "ui/modules/apps/TaxiDriverHUD/game-bridge.js",
+  "ui/modules/apps/TaxiDriverHUD/external/hud.bundle.js",
+  "ui/modules/apps/TaxiDriverHUD/external/THIRD-PARTY-NOTICES.txt",
   "ui/modules/apps/TaxiDriverHUD/locales.json",
   "mod_info/TaxiDriver/info.json",
   "mod_info/TaxiDriver/icon.jpg"
@@ -99,7 +107,7 @@ try {
   if ($entries | Where-Object FullName -like "lua/vehicle/extensions/auto/taxiDriver*") {
     throw "TaxiDriver vehicle extensions must remain lazy-loaded, not automatic"
   }
-  if ($entries.Count -ne 66) {
+  if ($entries.Count -ne $files.Count) {
     throw "Unexpected archive entry count: $($entries.Count)"
   }
 }

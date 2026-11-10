@@ -11,11 +11,11 @@
   let completed = 0;
   let ready = false;
   let failed = false;
-  const assetRevision = "403";
+  const assetRevision = "502";
   window.TaxiDriverAssetRevision = assetRevision;
   // Set unconditionally: this bootstrap only ever runs for the Connected Phone
   // browser client, never for the in-game phone, so this is a reliable signal
-  // independent of BeamNG's own beamng.ingame flag (see app.js).
+  // independent of BeamNG's own beamng.ingame flag (see hud-model.js).
   window.TaxiDriverExternalPhoneMode = true;
   const versionedAsset = (src) => `${src}${src.includes("?") ? "&" : "?"}v=${assetRevision}`;
 
@@ -57,7 +57,7 @@
 
   const warmAssets = async () => {
     const assets = [
-      "/ui/modules/apps/TaxiDriverHUD/app.html",
+      "/ui/modules/apps/TaxiDriverHUD/hud-render.js",
       "/ui/modules/apps/TaxiDriverHUD/app.css",
       "/ui/modules/apps/TaxiDriverHUD/locales.json"
     ];
@@ -101,7 +101,6 @@
       setStep("runtime", "active", "Loading");
       setStage("Loading application runtime", "Preparing the lightweight TaxiDriver web app…");
       await loadScript("/ui/lib/ext/tiny-emitter/tinyemitter.js");
-      await loadScript("/ui/lib/ext/angular/angular.js");
       await loadScript("/ui/lib/ext/qrcode.min.js");
       const bridgeModule = await import("/ui/ui-vue/src/bridge/index.js");
       bridgeModule.setBridgeDependencies({ Emitter: window.TinyEmitter, beamng: window.beamng });
@@ -109,10 +108,7 @@
       window.bngApi = window.bridge.api;
       window.StreamsManager = window.bridge.streams;
       window.vueEventBus = window.bridge.events;
-      // External WebSocket clients do not receive GUI hooks until they send an
-      // event subscription. The regular BeamNG Angular bootstrap does this in
-      // angularModules.js, but this lightweight entry point intentionally skips
-      // that bootstrap, so subscribe before requesting TaxiDriverHUDState.
+      // Subscribe before the model requests its first state snapshot.
       window.bridge.api.subscribeToEvents("{}");
       setStep("runtime", "done", "Ready");
 
@@ -120,13 +116,10 @@
       setStage("Preparing the phone", "Loading the interface, translations and sounds into the browser cache…");
       await loadScript("/ui/modules/apps/TaxiDriverHUD/external/sounds-data.js");
       await warmAssets();
-      angular.module("beamng.apps", []).run(["$rootScope", function ($rootScope) {
-        window.globalAngularRootScope = $rootScope;
-      }]);
       const hudStatePromise = waitForHudState(window.bridge);
-      await loadScript("/ui/modules/apps/TaxiDriverHUD/app.js");
-      document.getElementById("taxi-external-root").innerHTML = "<taxi-driver-hud></taxi-driver-hud>";
-      angular.bootstrap(document.getElementById("taxi-external-root"), ["beamng.apps"]);
+      await loadScript("/ui/modules/apps/TaxiDriverHUD/external/hud.bundle.js");
+      window.TaxiDriverVue.mountTaxiDriver(
+        document.getElementById("taxi-external-root"), window.bridge);
       setStep("assets", "done", "Cached");
 
       setStep("state", "active", "Syncing");

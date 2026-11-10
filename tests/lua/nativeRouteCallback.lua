@@ -1,5 +1,5 @@
 -- BeamNG's engineLua callback wraps the supplied code as a Lua expression.
-local file = assert(io.open("ui/modules/apps/TaxiDriverHUD/app.js", "r"))
+local file = assert(io.open("ui/modules/apps/TaxiDriverHUD/hud-model.js", "r"))
 local source = file:read("*a")
 file:close()
 local expression = assert(source:match('"([^"\n]*ui_router%.getCurrent[^"\n]*)"'))

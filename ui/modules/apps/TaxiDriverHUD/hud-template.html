@@ -1,0 +1,1361 @@
+<div class="taxi-shell" v-if="externalPhoneMode || (!vehicleConfigSuspended &amp;&amp; !nativeUiSuspended)" :class="{'taxi-shell--minimized': !externalPhoneMode &amp;&amp; phoneMinimized, 'taxi-shell--super-minimized': !externalPhoneMode &amp;&amp; phoneSuperMinimized, 'taxi-shell--external': externalPhoneMode, 'taxi-shell--remote': !externalPhoneMode &amp;&amp; state.lan.connected > 0, 'taxi-shell--remote-collapsed': !externalPhoneMode &amp;&amp; state.lan.connected > 0 &amp;&amp; !localPhoneOpen}">
+  <div class="taxi-shell__scale-stage" :class="getUiScaleClass()">
+  <button type="button" class="taxi-shell__remote-toggle" v-if="!externalPhoneMode &amp;&amp; state.lan.connected > 0" @click="hud.toggleLocalPhone()" :aria-label="localPhoneOpen ? t('externalHideLocal') : t('externalShowLocal')">
+    <span>&#128241;</span><i v-if="state.nextOffer"></i>
+  </button>
+
+  <div class="taxi-shell__controls" v-if="!externalPhoneMode &amp;&amp; (state.lan.connected < 1 || localPhoneOpen)" :class="{'taxi-shell__controls--compact': phoneMinimized &amp;&amp; !phoneSuperMinimized, 'taxi-shell__controls--button': phoneSuperMinimized}">
+    <button type="button" class="taxi-shell__toggle" v-if="!phoneSuperMinimized" @click="hud.toggleMinimized()" :title="phoneMinimized ? t('expand') : t('minimize')" :aria-label="phoneMinimized ? t('expand') : t('minimize')">
+      <svg class="taxi-shell__toggle-icon" v-if="!phoneMinimized" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="4" width="16" height="16" rx="3"></rect>
+        <path d="M8 10h8M9 14h6"></path>
+      </svg>
+      <svg class="taxi-shell__toggle-icon" v-if="phoneMinimized" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="4" width="16" height="16" rx="3"></rect>
+        <path d="M8 14h8M9 10h6"></path>
+      </svg>
+      <span>{{ phoneMinimized ? t('expand') : t('minimize') }}</span>
+      <i class="taxi-shell__notification" v-if="phoneMinimized &amp;&amp; (collapseAttention || state.nextOffer)"></i>
+    </button>
+    <button type="button" class="taxi-shell__toggle taxi-shell__toggle--super" @click="hud.toggleSuperMinimized()" :title="phoneSuperMinimized ? t('superExpand') : t('superMinimize')" :aria-label="phoneSuperMinimized ? t('superExpand') : t('superMinimize')">
+      <svg class="taxi-shell__toggle-icon" v-if="!phoneSuperMinimized" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path>
+        <path d="M8 8l3 3M16 8l-3 3M8 16l3-3M16 16l-3-3"></path>
+      </svg>
+      <svg class="taxi-shell__toggle-icon" v-if="phoneSuperMinimized" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="5" y="5" width="14" height="14" rx="3"></rect>
+        <path d="M9 12h6M12 9v6"></path>
+      </svg>
+      <span class="taxi-shell__toggle-label">{{ phoneSuperMinimized ? t('superExpand') : t('superMinimize') }}</span>
+      <i class="taxi-shell__notification" v-if="phoneSuperMinimized &amp;&amp; (collapseAttention || state.nextOffer)"></i>
+    </button>
+  </div>
+
+  <div class="taxi-compact" v-if="!externalPhoneMode &amp;&amp; phoneMinimized &amp;&amp; !phoneSuperMinimized &amp;&amp; (state.lan.connected < 1 || localPhoneOpen)">
+    <div class="taxi-compact__map">
+      <div class="taxi-minimap-surface"></div>
+      <canvas class="taxi-external-minimap" v-if="externalPhoneMode"></canvas>
+        <div class="taxi-map-interaction" :class="{'taxi-map-interaction--panned': !mapFollowing}" :aria-label="t('mapDrag')"></div>
+        <div class="taxi-map-toolbar">
+          <div class="taxi-map-controls" :aria-label="t('mapControls')">
+          <button type="button" @click="hud.zoomMap(0.8)" :title="t('mapZoomIn')" :aria-label="t('mapZoomIn')">+</button>
+          <button type="button" @click="hud.zoomMap(1.25)" :title="t('mapZoomOut')" :aria-label="t('mapZoomOut')">−</button>
+          <button type="button" @click="hud.followMap()" :class="{'taxi-map-controls--following': mapFollowing}" :title="t('mapFollow')" :aria-label="t('mapFollow')">◎</button>
+        </div>
+        </div>
+      <div class="taxi-compact__route-info" v-if="isNavigationPhase()">
+        <span>{{ t('arrival') }}</span>
+        <strong>{{ getArrivalTime(state.etaMinutes) }}</strong>
+        <small>{{ formatEta(state.etaMinutes) }} · {{ formatDistance(state.distanceToTarget) }}</small>
+      </div>
+      <div class="taxi-compact__speed" :class="{'taxi-compact__speed--warning': overspeedWarningActive}" v-if="isNavigationPhase() &amp;&amp; state.speedLimit > 0">{{ formatSpeedValue(state.speedLimit) }}</div>
+      <div class="taxi-compact__map-status" v-if="!isNavigationPhase()">
+        <strong>{{ getCompactTitle() }}</strong>
+        <span>{{ getPhaseLabel() }}</span>
+      </div>
+    </div>
+    <div class="taxi-compact__dashboard">
+      <div class="taxi-compact__heading">
+        <div class="taxi-compact__icon">{{ state.phase === 'toFuelStation' ? '⛽' : (state.isDelivery ? '📦' : '🚕') }}</div>
+        <div class="taxi-compact__copy">
+          <strong>{{ getCompactTitle() }}</strong>
+          <span>{{ getPhaseLabel() }}</span>
+        </div>
+        <strong class="taxi-compact__distance" v-if="isNavigationPhase()">{{ formatDistance(state.distanceToTarget) }}</strong>
+      </div>
+      <div class="taxi-compact__progress">
+        <div class="taxi-compact__progress-labels"><span>{{ getProgressLabel() }}</span><strong>{{ formatNumber(getProgressPercent(), 0) }}%</strong></div>
+        <div class="taxi-compact__progress-track"><span :style="{'width': getProgressPercent() + '%'}"></span></div>
+      </div>
+      <div class="taxi-compact__metrics">
+        <div class="taxi-compact__metric"><span>{{ t('payout') }}</span><strong>{{ formatMoney(state.adjustedFare) }}</strong></div>
+        <div class="taxi-compact__metric"><span>{{ t('balance') }}</span><strong>{{ formatMoney(state.balance) }}</strong></div>
+        <div class="taxi-compact__metric"><span>{{ t('yourRating') }}</span><strong>{{ formatNumber(state.rating, 2) }}</strong></div>
+        <div class="taxi-compact__metric" v-if="state.isDelivery">
+          <span>{{ t('cargoWeight') }}</span>
+          <strong>{{ formatCargoWeight(state.cargoWeightKg) }}</strong>
+          <small v-if="state.cargoWeightBonusPercent > 0">+{{ formatNumber(state.cargoWeightBonusPercent, 0) }}%</small>
+        </div>
+        <div class="taxi-compact__metric" v-if="!state.isDelivery"><span>{{ t('rides') }}</span><strong>{{ state.completedRides }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="taxi-phone" v-if="externalPhoneMode || (!phoneMinimized &amp;&amp; !phoneSuperMinimized &amp;&amp; (state.lan.connected < 1 || localPhoneOpen))">
+  <div class="taxi-phone__screen">
+    <div class="phone-status">
+      <span>{{ currentClock }}</span>
+      <span class="phone-status__icons"><span>●●●</span><span>⌁</span><i class="phone-status__battery"></i></span>
+    </div>
+
+    <div class="phone-odometer" v-if="state.currentVehicle.available" :title="state.currentVehicle.name">
+      <span class="phone-odometer__vehicle">{{ state.currentVehicle.name }}</span>
+      <strong>{{ formatOdometer(state.currentVehicle.distanceMeters) }}</strong>
+    </div>
+
+    <div class="taxi-appbar">
+      <div class="taxi-appbar__logo">T</div>
+      <div class="taxi-appbar__title">
+        <strong :title="profileOpen ? (profileDraft.fullName || 'John Doe') : (fleetOpen ? t('fleetTitle') : 'TaxiDriver')">{{ profileOpen ? (profileDraft.fullName || 'John Doe') : (fleetOpen ? t('fleetTitle') : 'TaxiDriver') }}</strong>
+        <span>{{ fuelStationOpen ? (state.fuelStation.magic ? t('magicFuelTitle') : (state.fuelStation.name || t('refuelTitle'))) : (settingsOpen ? t('settingsTitle') : (profileOpen ? t('profileTitle') : (fleetOpen ? (state.fleet.activeDrivers + ' ' + t('fleetActiveDrivers')) : (state.active ? getPhaseLabel() : t('appSubtitle'))))) }}</span>
+      </div>
+      <div class="taxi-appbar__live" v-if="state.active &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen">{{ t('online') }}</div>
+      <button type="button" class="taxi-appbar__fuel taxi-action taxi-action--secondary" :class="{'taxi-appbar__fuel--warning': state.vehicleEnergy.available &amp;&amp; state.vehicleEnergy.percent <= 15}" v-if="state.active &amp;&amp; state.realisticMode &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen" @click="hud.handleFuelAction()" :aria-label="t('refuelAction')"><span>{{ t('refuelAction') }}</span></button>
+      <button type="button" class="taxi-appbar__profile taxi-action taxi-action--tertiary" :class="{'taxi-appbar__profile--active': profileOpen}" @click="hud.toggleProfile()" :aria-label="t('profileTitle')">
+        {{ (state.driverProfile && state.driverProfile.avatar) || driverProfile.avatar || '🙂' }}
+      </button>
+      <button type="button" class="taxi-appbar__settings taxi-action taxi-action--tertiary" @click="hud.toggleSettings()" aria-label="Settings">
+        <span v-if="!settingsOpen">&#9881;</span><span v-if="settingsOpen">&#215;</span>
+      </button>
+    </div>
+
+    <div class="taxi-passenger-chat" v-if="passengerChat &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; state.phase === 'toPickup'" :class="'taxi-passenger-chat--' + passengerChat.mood">
+      <div class="taxi-passenger-chat__avatar">{{ getInitials(passengerChat.passengerName) }}</div>
+      <div class="taxi-passenger-chat__body">
+        <div class="taxi-passenger-chat__header">
+          <strong>{{ passengerChat.passengerName }}</strong>
+          <time>{{ passengerChat.sentAt }}</time>
+        </div>
+        <div class="taxi-passenger-chat__message">{{ passengerChat.content }}</div>
+      </div>
+    </div>
+
+    <div class="taxi-phone-toast" v-if="phoneToast" :class="'taxi-phone-toast--' + phoneToast.severity">
+      <span class="taxi-phone-toast__icon">{{ phoneToast.severity === 'success' ? '✓' : '!' }}</span>
+      <span class="taxi-phone-toast__text">{{ getPhoneNotificationText() }}</span>
+    </div>
+
+    <div class="taxi-settings" v-if="settingsOpen">
+      <div class="taxi-settings__intro">
+        <div><h2>{{ t('settingsTitle') }}</h2><span>{{ t('settingsAutoApply') }}</span></div>
+        <strong :class="{'taxi-settings__status--pending': !settingsSaved}">{{ settingsSaved ? t('settingsApplied') : t('settingsSaving') }}</strong>
+      </div>
+
+      <nav class="taxi-settings__nav" :aria-label="t('settingsTitle')">
+        <button type="button" v-for="(item, index) in settingsNavigation" :key="item.key"
+          :class="{'taxi-settings__nav-active': settingsSections[item.key], 'taxi-settings__nav-danger': item.danger}"
+          :aria-current="settingsSections[item.key] ? 'page' : undefined"
+          @click="hud.toggleSettingsSection(item.key)">
+          <span>{{ item.icon }}</span><strong>{{ t(item.label) }}</strong><i aria-hidden="true">&#8250;</i>
+        </button>
+      </nav>
+
+      <section class="taxi-settings__group" :class="{'taxi-settings__group--open': settingsSections.general}">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" @click="hud.toggleSettingsSection('general')" :aria-expanded="settingsSections.general" aria-controls="taxi-settings-general">
+          <span class="taxi-settings__group-icon">Aa</span><strong>{{ t('settingsGeneral') }}</strong><i>{{ settingsSections.general ? '-' : '+' }}</i>
+        </button>
+        <div id="taxi-settings-general" class="taxi-settings__group-body" v-if="settingsSections.general">
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('language') }}</div>
+            <div class="taxi-settings__help">{{ t('languageHelp') }}</div>
+            <div class="taxi-settings__languages">
+              <button type="button" class="taxi-settings__language" v-for="(lang, index) in languages" :key="lang.code" :class="{'taxi-settings__language--active': settings.language === lang.code}" @click="hud.selectLanguage(lang.code)">
+                <span>{{ lang.label }}</span><i v-if="settings.language === lang.code">&#10003;</i>
+              </button>
+            </div>
+            <label class="taxi-settings__check"><input type="checkbox" v-model="settings.rememberLanguage" @change="hud.settingsChanged()">{{ t('rememberLanguage') }}</label>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('fontSize') }}</span><span>{{ getUiScalePercent() }}%</span></div>
+            <div class="taxi-settings__help">{{ t('fontSizeHelp') }}</div>
+            <input class="taxi-settings__range" type="range" min="80" max="180" step="10" v-model.number="settings.uiScalePercent" @input="hud.settingsChanged()">
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('units') }}</div>
+            <div class="taxi-settings__help">{{ t('unitsHelp') }}</div>
+            <div class="taxi-settings__segmented">
+              <button type="button" :class="{'taxi-settings__segmented-active': settings.unitSystem === 'metric'}" @click="hud.selectUnitSystem('metric')">{{ t('unitsMetric') }}</button>
+              <button type="button" :class="{'taxi-settings__segmented-active': settings.unitSystem === 'imperial'}" @click="hud.selectUnitSystem('imperial')">{{ t('unitsImperial') }}</button>
+            </div>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('timeFormat') }}</div>
+            <div class="taxi-settings__help">{{ t('timeFormatHelp') }}</div>
+            <div class="taxi-settings__segmented">
+              <button type="button" :class="{'taxi-settings__segmented-active': settings.timeFormat === '24h'}" @click="hud.selectTimeFormat('24h')">{{ t('time24') }}</button>
+              <button type="button" :class="{'taxi-settings__segmented-active': settings.timeFormat === '12h'}" @click="hud.selectTimeFormat('12h')">{{ t('time12') }}</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="taxi-settings__group" :class="{'taxi-settings__group--open': settingsSections.gameplay}">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" @click="hud.toggleSettingsSection('gameplay')" :aria-expanded="settingsSections.gameplay" aria-controls="taxi-settings-gameplay">
+          <span class="taxi-settings__group-icon">!</span><strong>{{ t('settingsGameplay') }}</strong><i>{{ settingsSections.gameplay ? '-' : '+' }}</i>
+        </button>
+        <div id="taxi-settings-gameplay" class="taxi-settings__group-body" v-if="settingsSections.gameplay">
+          <div class="taxi-settings__section">
+            <label class="taxi-settings__label" for="taxi-initial-fuel"><span>{{ t('initialFuelPercent') }}</span><span>{{ formatNumber(settings.initialFuelPercent, 0) }}%</span></label>
+            <div class="taxi-settings__help">{{ t('initialFuelPercentHelp') }}</div>
+            <input id="taxi-initial-fuel" class="taxi-settings__range" type="range" min="5" max="30" step="1" v-model.number="settings.initialFuelPercent" @input="hud.settingsChanged()">
+            <div class="taxi-settings__range-ends"><span>5%</span><span>30%</span></div>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('difficulty') }}</div>
+            <div class="taxi-settings__help">{{ t('difficultyHelp') }}</div>
+            <div class="taxi-settings__difficulty">
+              <button type="button" class="taxi-settings__preset" v-for="(preset, index) in difficulties" :key="preset" :class="{'taxi-settings__preset--active': settings.difficulty === preset, 'taxi-settings__preset--custom': preset === 'custom'}" @click="hud.selectDifficulty(preset)">
+                <strong>{{ t('difficulty_' + preset) }}</strong><span>{{ t('desc_' + preset) }}</span>
+              </button>
+            </div>
+          </div>
+          <div class="taxi-settings__custom" v-if="settings.difficulty === 'custom'">
+            <p>{{ t('customDifficultyHelp') }}</p>
+            <div class="taxi-settings__custom-group" v-for="(group, index) in customDifficultyGroups" :key="group.title">
+              <h3>{{ t(group.title) }}</h3>
+              <label class="taxi-settings__custom-control" v-for="(control, index) in group.controls" :key="control.key">
+                <span><strong>{{ t(control.label) }}</strong><b>{{ formatCustomDifficultyValue(control) }}</b></span>
+                <input class="taxi-settings__range" type="range" :min="control.min" :max="control.max" :step="control.step" v-model.number="settings.customDifficulty[control.key]" @input="hud.settingsChanged()">
+              </label>
+            </div>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('orderMix') }}</span><span>{{ formatNumber(settings.deliveryOrderSharePercent, 0) }}% {{ t('deliveriesShort') }}</span></div>
+            <div class="taxi-settings__help">{{ t('orderMixHelp') }}</div>
+            <input class="taxi-settings__range" type="range" min="0" max="100" step="5" v-model.number="settings.deliveryOrderSharePercent" @input="hud.settingsChanged()">
+            <div class="taxi-settings__mix-labels">
+              <span>{{ t('passengerOrders') }} {{ formatNumber(getPassengerOrderShare(), 0) }}%</span>
+              <span>{{ t('deliveryOrders') }} {{ formatNumber(settings.deliveryOrderSharePercent, 0) }}%</span>
+            </div>
+          </div>
+          <div class="taxi-settings__section">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('unlimitedRouteDistance') }}</strong><span>{{ t('unlimitedRouteDistanceHelp') }}</span></span>
+              <input type="checkbox" v-model="settings.unlimitedRouteDistance" @change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('penaltyToggles') }}</div>
+            <div class="taxi-settings__help">{{ t('penaltyTogglesHelp') }}</div>
+            <div class="taxi-settings__penalty-toggles">
+              <label class="taxi-settings__switch-row taxi-settings__switch-row--compact" v-for="(option, index) in penaltyToggleOptions" :key="option.key">
+                <span class="taxi-settings__switch-copy"><strong>{{ t(option.label) }}</strong><span>{{ t(option.help) }}</span></span>
+                <input type="checkbox" v-model="settings.penaltyToggles[option.key]" @change="hud.settingsChanged()">
+                <span class="taxi-settings__switch"></span>
+              </label>
+            </div>
+          </div>
+          <div class="taxi-settings__portable">
+            <span>{{ t('difficultyFileHelp') }}</span>
+            <code>settings/TaxiDriver/difficulty.json</code>
+          </div>
+        </div>
+      </section>
+
+      <section class="taxi-settings__group" :class="{'taxi-settings__group--open': settingsSections.randomEvents}">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" @click="hud.toggleSettingsSection('randomEvents')" :aria-expanded="settingsSections.randomEvents" aria-controls="taxi-settings-random-events">
+          <span class="taxi-settings__group-icon">⚡</span><strong>{{ t('randomEvents') }}</strong><i>{{ settingsSections.randomEvents ? '-' : '+' }}</i>
+        </button>
+        <div id="taxi-settings-random-events" class="taxi-settings__group-body" v-if="settingsSections.randomEvents">
+          <div class="taxi-settings__section">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('randomEventsEnabled') }}</strong><span>{{ t('randomEventsSettingsHelp') }}</span></span>
+              <input type="checkbox" v-model="settings.randomEventsEnabled" @change="hud.toggleRandomEvents()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <div class="taxi-settings__section" v-for="(option, index) in randomEventOptions" :key="option.key">
+            <label class="taxi-settings__switch-row taxi-settings__switch-row--compact">
+              <span class="taxi-settings__switch-copy"><strong>{{ t(option.label) }}</strong><span>{{ t(option.help) }}</span></span>
+              <input type="checkbox" v-model="settings.randomEvents[option.key].enabled" @change="hud.toggleRandomEvent(option)">
+              <span class="taxi-settings__switch"></span>
+            </label>
+            <div class="taxi-settings__label">
+              <span>{{ t('randomEventProbability') }}</span>
+              <span>{{ formatNumber(settings.randomEvents[option.key].chancePercent, 0) }}%</span>
+            </div>
+            <input class="taxi-settings__range" type="range" min="0" max="100" step="1"
+              v-model.number="settings.randomEvents[option.key].chancePercent"
+              :disabled="!settings.randomEvents[option.key].enabled"
+              @input="hud.settingsChanged()">
+          </div>
+          <div class="taxi-settings__portable">{{ t('randomEventsExclusiveHelp') }}</div>
+        </div>
+      </section>
+
+      <section class="taxi-settings__group" :class="{'taxi-settings__group--open': settingsSections.aiDriver}">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" @click="hud.toggleSettingsSection('aiDriver')" :aria-expanded="settingsSections.aiDriver" aria-controls="taxi-settings-ai-driver">
+          <span class="taxi-settings__group-icon">AI</span><strong>{{ t('settingsAiDriver') }}</strong><i>{{ settingsSections.aiDriver ? '-' : '+' }}</i>
+        </button>
+        <div id="taxi-settings-ai-driver" class="taxi-settings__group-body" v-if="settingsSections.aiDriver">
+          <div class="taxi-settings__section taxi-settings__section--ai-master">
+            <label class="taxi-settings__switch-row taxi-settings__switch-row--warning">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('aiDriverEnabled') }}</strong><span>{{ t('aiDriverEnabledHelp') }}</span></span>
+              <input type="checkbox" v-model="settings.aiDriver.enabled" @change="hud.aiDriverToggleChanged()"><span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <div class="taxi-settings__ai-disabled" v-if="!settings.aiDriver.enabled">{{ t('aiDriverDisabledHelp') }}</div>
+          <div class="taxi-settings__ai-options" v-if="settings.aiDriver.enabled">
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('aiPreset') }}</div>
+            <div class="taxi-settings__help">{{ t('aiPresetHelp') }}</div>
+            <div class="taxi-settings__difficulty taxi-settings__difficulty--ai">
+              <button type="button" class="taxi-settings__preset" v-for="(preset, index) in aiDriverPresets" :key="preset" :class="{'taxi-settings__preset--active': settings.aiDriver.preset === preset, 'taxi-settings__preset--custom': preset === 'custom'}" @click="hud.selectAiDriverPreset(preset)">
+                <strong>{{ t('aiPreset_' + preset) }}</strong><span>{{ t('aiPresetDesc_' + preset) }}</span>
+              </button>
+            </div>
+          </div>
+          <div class="taxi-settings__section taxi-settings__section--stacked-switches">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('aiStrictGpsRoute') }}</strong><span>{{ t('aiStrictGpsRouteHelp') }}</span></span>
+              <input type="checkbox" v-model="settings.aiDriver.strictGpsRoute" @change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+            </label>
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('aiDebugLogger') }}</strong><span>{{ t('aiDebugLoggerHelp') }}</span></span>
+              <input type="checkbox" v-model="settings.aiDebugLogging" @change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <div class="taxi-settings__custom" v-if="settings.aiDriver.preset === 'custom'">
+            <p>{{ t('aiCustomHelp') }}</p>
+            <div class="taxi-settings__portable"><strong>{{ t('aiTrafficAwareness') }}</strong><br>{{ t('aiTrafficAwarenessHelp') }}</div>
+            <div class="taxi-settings__section">
+              <div class="taxi-settings__label"><span>{{ t('aiAggression') }}</span><span>{{ formatNumber(settings.aiDriver.aggressionPercent, 0) }}%</span></div>
+              <div class="taxi-settings__help">{{ t('aiAggressionHelp') }}</div>
+              <input class="taxi-settings__range" type="range" min="30" max="100" step="5" v-model.number="settings.aiDriver.aggressionPercent" @input="hud.settingsChanged()">
+              <div class="taxi-settings__range-ends"><span>{{ t('aiCalm') }}</span><span>{{ t('aiAssertive') }}</span></div>
+            </div>
+            <div class="taxi-settings__section">
+              <div class="taxi-settings__label"><span>{{ t('aiFollowingGap') }}</span><span>{{ formatNumber(settings.aiDriver.followingTimeGap, 1) }} s</span></div>
+              <div class="taxi-settings__help">{{ t('aiFollowingGapHelp') }}</div>
+              <input class="taxi-settings__range" type="range" min="1" max="4" step="0.1" v-model.number="settings.aiDriver.followingTimeGap" @input="hud.settingsChanged()">
+            </div>
+            <div class="taxi-settings__section">
+              <div class="taxi-settings__label"><span>{{ t('aiMinimumGap') }}</span><span>{{ formatNumber(settings.aiDriver.minimumFollowingDistance, 1) }} m</span></div>
+              <div class="taxi-settings__help">{{ t('aiMinimumGapHelp') }}</div>
+              <input class="taxi-settings__range" type="range" min="2" max="10" step="0.5" v-model.number="settings.aiDriver.minimumFollowingDistance" @input="hud.settingsChanged()">
+            </div>
+            <div class="taxi-settings__section">
+              <div class="taxi-settings__label"><span>{{ t('aiBraking') }}</span><span>{{ formatNumber(settings.aiDriver.brakingDeceleration, 1) }} m/s²</span></div>
+              <div class="taxi-settings__help">{{ t('aiBrakingHelp') }}</div>
+              <input class="taxi-settings__range" type="range" min="2" max="8" step="0.5" v-model.number="settings.aiDriver.brakingDeceleration" @input="hud.settingsChanged()">
+            </div>
+            <div class="taxi-settings__section">
+              <div class="taxi-settings__label"><span>{{ t('aiTrafficWait') }}</span><span>{{ formatNumber(settings.aiDriver.trafficWaitSeconds, 0) }} s</span></div>
+              <div class="taxi-settings__help">{{ t('aiTrafficWaitHelp') }}</div>
+              <input class="taxi-settings__range" type="range" min="1" max="10" step="1" v-model.number="settings.aiDriver.trafficWaitSeconds" @input="hud.settingsChanged()">
+            </div>
+            <div class="taxi-settings__section taxi-settings__section--stacked-switches">
+              <label class="taxi-settings__switch-row">
+                <span class="taxi-settings__switch-copy"><strong>{{ t('aiObeySpeedLimits') }}</strong><span>{{ t('aiObeySpeedLimitsHelp') }}</span></span>
+                <input type="checkbox" v-model="settings.aiDriver.obeySpeedLimits" @change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+              </label>
+              <label class="taxi-settings__switch-row">
+                <span class="taxi-settings__switch-copy"><strong>{{ t('aiLaneDiscipline') }}</strong><span>{{ t('aiLaneDisciplineHelp') }}</span></span>
+                <input type="checkbox" v-model="settings.aiDriver.laneDiscipline" @change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+              </label>
+            </div>
+          </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="taxi-settings__group" :class="{'taxi-settings__group--open': settingsSections.fleet}">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" @click="hud.toggleSettingsSection('fleet')" :aria-expanded="settingsSections.fleet" aria-controls="taxi-settings-fleet">
+          <span class="taxi-settings__group-icon">F</span><strong>{{ t('settingsFleet') }}</strong><i>{{ settingsSections.fleet ? '-' : '+' }}</i>
+        </button>
+        <div id="taxi-settings-fleet" class="taxi-settings__group-body" v-if="settingsSections.fleet">
+          <div class="taxi-settings__section">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('fleetEnabled') }}</strong><span>{{ t('fleetEnabledHelp') }}</span></span>
+              <input type="checkbox" v-model="settings.fleet.enabled" @change="hud.settingsChanged()"><span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('fleetAiPreset') }}</div>
+            <div class="taxi-settings__help">{{ t('fleetAiPresetHelp') }}</div>
+            <div class="taxi-settings__segmented taxi-settings__segmented--three">
+              <button type="button" :class="{'taxi-settings__segmented-active': settings.fleet.aiPreset === 'careful'}" @click="settings.fleet.aiPreset='careful'; hud.settingsChanged()">{{ t('fleetAiCareful') }}</button>
+              <button type="button" :class="{'taxi-settings__segmented-active': settings.fleet.aiPreset === 'standard'}" @click="settings.fleet.aiPreset='standard'; hud.settingsChanged()">{{ t('fleetAiStandard') }}</button>
+              <button type="button" :class="{'taxi-settings__segmented-active': settings.fleet.aiPreset === 'fast'}" @click="settings.fleet.aiPreset='fast'; hud.settingsChanged()">{{ t('fleetAiFast') }}</button>
+            </div>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('fleetOwnerShare') }}</span><span>{{ formatNumber(settings.fleet.ownerSharePercent, 0) }}%</span></div>
+            <input class="taxi-settings__range" type="range" min="10" max="90" step="5" v-model.number="settings.fleet.ownerSharePercent" @input="hud.settingsChanged()">
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('fleetHiringFee') }}</span><span>{{ formatMoney(settings.fleet.hiringFee) }}</span></div>
+            <input class="taxi-settings__range" type="range" min="0" max="1000" step="5" v-model.number="settings.fleet.hiringFee" @input="hud.settingsChanged()">
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('fleetWage') }}</span><span>{{ formatMoney(settings.fleet.wagePerTenMinutes) }}</span></div>
+            <input class="taxi-settings__range" type="range" min="0" max="250" step="1" v-model.number="settings.fleet.wagePerTenMinutes" @input="hud.settingsChanged()">
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('fleetMaxDrivers') }}</span><span>{{ formatNumber(settings.fleet.maxDrivers, 0) }}</span></div>
+            <input class="taxi-settings__range" type="range" min="1" max="12" step="1" v-model.number="settings.fleet.maxDrivers" @input="hud.settingsChanged()">
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('fleetWorldLabelDistance') }}</span><span>{{ formatNumber(settings.fleet.worldLabelDistance, 0) }} m</span></div>
+            <input class="taxi-settings__range" type="range" min="50" max="1000" step="50" v-model.number="settings.fleet.worldLabelDistance" @input="hud.settingsChanged()">
+          </div>
+          <div class="taxi-settings__section taxi-settings__section--stacked-switches">
+            <label class="taxi-settings__switch-row"><span class="taxi-settings__switch-copy"><strong>{{ t('fleetPassengerJobs') }}</strong></span><input type="checkbox" v-model="settings.fleet.passengerJobs" @change="hud.settingsChanged()"><span class="taxi-settings__switch"></span></label>
+            <label class="taxi-settings__switch-row"><span class="taxi-settings__switch-copy"><strong>{{ t('fleetDeliveryJobs') }}</strong></span><input type="checkbox" v-model="settings.fleet.deliveryJobs" @change="hud.settingsChanged()"><span class="taxi-settings__switch"></span></label>
+          </div>
+        </div>
+      </section>
+
+      <section class="taxi-settings__group" :class="{'taxi-settings__group--open': settingsSections.navigation}">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" @click="hud.toggleSettingsSection('navigation')" :aria-expanded="settingsSections.navigation" aria-controls="taxi-settings-navigation">
+          <span class="taxi-settings__group-icon">&#8594;</span><strong>{{ t('settingsNavigation') }}</strong><i>{{ settingsSections.navigation ? '-' : '+' }}</i>
+        </button>
+        <div id="taxi-settings-navigation" class="taxi-settings__group-body" v-if="settingsSections.navigation">
+          <div class="taxi-settings__section">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('routeGuidance') }}</strong><span>{{ t('routeGuidanceHelp') }}</span></span>
+              <input type="checkbox" v-model="settings.showRouteGuidance" @change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('dynamicZoom') }}</span><span>{{ formatNumber(settings.dynamicZoomIntensity, 0) }}%</span></div>
+            <div class="taxi-settings__help">{{ t('dynamicZoomHelp') }}</div>
+            <input class="taxi-settings__range" type="range" min="0" max="200" step="10" v-model.number="settings.dynamicZoomIntensity" @input="hud.settingsChanged()">
+            <div class="taxi-settings__range-ends"><span>{{ t('zoomFixed') }}</span><span>{{ t('zoomAggressive') }}</span></div>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('overspeedWarning') }}</span><span>{{ formatSpeedValue(settings.overspeedWarningKmh) }} {{ getSpeedUnit() }}</span></div>
+            <div class="taxi-settings__help">{{ t('overspeedWarningHelp') }}</div>
+            <input class="taxi-settings__range" type="range" min="0" max="30" step="1" v-model.number="settings.overspeedWarningKmh" @input="hud.settingsChanged()">
+          </div>
+        </div>
+      </section>
+
+      <section class="taxi-settings__group" :class="{'taxi-settings__group--open': settingsSections.audio}">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" @click="hud.toggleSettingsSection('audio')" :aria-expanded="settingsSections.audio" aria-controls="taxi-settings-audio">
+          <span class="taxi-settings__group-icon">&#9835;</span><strong>{{ t('settingsAudio') }}</strong><i>{{ settingsSections.audio ? '-' : '+' }}</i>
+        </button>
+        <div id="taxi-settings-audio" class="taxi-settings__group-body" v-if="settingsSections.audio">
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label"><span>{{ t('appVolume') }}</span><span>{{ getAppVolumePercent() }}%</span></div>
+            <div class="taxi-settings__help">{{ t('appVolumeHelp') }}</div>
+            <div class="taxi-settings__volume-control">
+              <input class="taxi-settings__range" type="range" min="0" max="1" step="0.05" v-model.number="settings.appVolume" @input="hud.previewAppVolume()">
+              <button type="button" class="taxi-settings__volume-test" data-taxi-no-click-sound="true" @click="hud.testAppVolume()">{{ t('testSound') }}</button>
+            </div>
+          </div>
+          <div class="taxi-settings__section">
+            <div class="taxi-settings__label">{{ t('soundGroups') }}</div>
+            <div class="taxi-settings__help">{{ t('soundGroupsHelp') }}</div>
+            <div class="taxi-settings__penalty-toggles taxi-settings__sound-toggles">
+              <label class="taxi-settings__switch-row taxi-settings__switch-row--compact" v-for="(option, index) in soundToggleOptions" :key="option.key">
+                <span class="taxi-settings__switch-copy"><strong>{{ t(option.label) }}</strong></span>
+                <input type="checkbox" v-model="settings.soundToggles[option.key]" @change="hud.settingsChanged()">
+                <span class="taxi-settings__switch"></span>
+              </label>
+            </div>
+          </div>
+          <div class="taxi-settings__section">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('silentMode') }}</strong><span>{{ t('silentModeHelp') }}</span></span>
+              <input type="checkbox" v-model="settings.silentMode" @change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="taxi-settings__group" :class="{'taxi-settings__group--open': settingsSections.connectivity}">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" @click="hud.toggleSettingsSection('connectivity')" :aria-expanded="settingsSections.connectivity" aria-controls="taxi-settings-connectivity">
+          <span class="taxi-settings__group-icon">&#128241;</span><strong>{{ t('settingsConnectivity') }}</strong><i>{{ settingsSections.connectivity ? '-' : '+' }}</i>
+        </button>
+        <div id="taxi-settings-connectivity" class="taxi-settings__group-body" v-if="settingsSections.connectivity">
+          <div class="taxi-settings__section">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('externalPhone') }}</strong><span>{{ t('externalPhoneHelp') }}</span></span>
+              <input type="checkbox" v-model="settings.lanEnabled" @change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <div class="taxi-settings__section" v-if="settings.lanEnabled">
+            <div class="taxi-settings__label"><span>{{ t('lanManualAddress') }}</span></div>
+            <div class="taxi-settings__help">{{ t('lanManualAddressHelp') }}</div>
+            <input class="taxi-lan__url" type="text" v-model="settings.lanManualAddress" @input="hud.settingsChanged()" placeholder="192.168.1.50">
+          </div>
+          <div class="taxi-settings__section taxi-settings__section--remote-performance">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('externalMapEnabled') }}</strong><span>{{ t('externalMapEnabledHelp') }}</span></span>
+              <input type="checkbox" v-model="settings.externalMapEnabled" @change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+            <label class="taxi-settings__switch-row taxi-settings__switch-row--subtle" :class="{'taxi-settings__switch-row--disabled': !settings.externalMapEnabled}">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('externalTerrainEnabled') }}</strong><span>{{ t('externalTerrainEnabledHelp') }}</span></span>
+              <input type="checkbox" v-model="settings.externalTerrainEnabled" :disabled="!settings.externalMapEnabled" @change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+            <div class="taxi-settings__label"><span>{{ t('externalMapQuality') }}</span></div>
+            <div class="taxi-settings__help">{{ t('externalMapQualityHelp') }}</div>
+            <div class="taxi-settings__segmented taxi-settings__segmented--three">
+              <button type="button" :class="{'taxi-settings__segmented-active': settings.externalMapQuality === 'eco'}" @click="hud.selectExternalMapQuality('eco')">{{ t('externalMapEco') }}</button>
+              <button type="button" :class="{'taxi-settings__segmented-active': settings.externalMapQuality === 'balanced'}" @click="hud.selectExternalMapQuality('balanced')">{{ t('externalMapBalanced') }}</button>
+              <button type="button" :class="{'taxi-settings__segmented-active': settings.externalMapQuality === 'smooth'}" @click="hud.selectExternalMapQuality('smooth')">{{ t('externalMapSmooth') }}</button>
+            </div>
+          </div>
+          <div class="taxi-lan" v-if="settings.lanEnabled">
+            <div class="taxi-lan__status" :class="{'taxi-lan__status--connected': state.lan.connected > 0, 'taxi-lan__status--error': state.lan.bridgeError}">
+              <i></i><strong>{{ state.lan.bridgeError ? t('externalUnavailable') : (state.lan.connected > 0 ? t('externalConnected') : (state.lan.enabled ? t('externalWaiting') : t('externalStarting'))) }}</strong>
+              <span v-if="state.lan.connected > 0">{{ state.lan.connected }}</span>
+            </div>
+            <div class="taxi-lan__connect" v-if="state.lan.enabled &amp;&amp; state.lan.url">
+              <div class="taxi-lan__qr"><div class="taxi-lan__qr-code" aria-label="QR code"></div></div>
+              <div class="taxi-lan__link">
+                <div class="taxi-settings__help">{{ t('externalOpenHelp') }}</div>
+                <input class="taxi-lan__url" type="text" readonly :value="state.lan.url" @click="$event.target.select()" @focus="$event.target.select()">
+              </div>
+            </div>
+            <div class="taxi-lan__error" v-if="state.lan.bridgeError">{{ state.lan.bridgeError }}</div>
+            <div class="taxi-settings__help taxi-lan__warning">{{ t('externalSecurityHelp') }}</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="taxi-settings__group taxi-settings__group--danger" :class="{'taxi-settings__group--open': settingsSections.cheats}">
+        <button type="button" class="taxi-settings__group-head taxi-disclosure" @click="hud.toggleSettingsSection('cheats')" :aria-expanded="settingsSections.cheats" aria-controls="taxi-settings-cheats">
+          <span class="taxi-settings__group-icon">!</span><strong>{{ t('settingsCheats') }}</strong><i>{{ settingsSections.cheats ? '-' : '+' }}</i>
+        </button>
+        <div id="taxi-settings-cheats" class="taxi-settings__group-body" v-if="settingsSections.cheats">
+          <p class="taxi-settings__danger-help">{{ t('cheatZoneHelp') }}</p>
+          <div class="taxi-settings__cheat-stats">
+            <span>{{ t('cheatCurrentRating') }} <strong>{{ formatNumber(state.rating, 2) }}</strong></span>
+            <span>{{ t('cheatCurrentBalance') }} <strong>{{ formatMoney(state.balance) }}</strong></span>
+          </div>
+          <div class="taxi-settings__cheat-card">
+            <div class="taxi-settings__label"><span>{{ t('cheatSetRating') }}</span><span>{{ formatNumber(cheatRating, 2) }}</span></div>
+            <div class="taxi-settings__cheat-rating">
+              <input class="taxi-settings__range" type="range" min="0" max="5" step="0.01" v-model.number="cheatRating">
+              <button type="button" @click="hud.cheatSetRating()">{{ t('set') }}</button>
+            </div>
+          </div>
+          <div class="taxi-settings__cheat-card">
+            <div class="taxi-settings__label"><span>{{ t('cheatSetEnergy') }}</span><span>{{ formatNumber(cheatEnergyPercent, 0) }}%</span></div>
+            <div class="taxi-settings__help">{{ t('cheatSetEnergyHelp') }}</div>
+            <div class="taxi-settings__cheat-rating">
+              <input class="taxi-settings__range" type="range" min="0" max="100" step="1" v-model.number="cheatEnergyPercent" @input="hud.cheatEnergyChanged()">
+              <button type="button" @click="hud.cheatSetEnergyPercent($event)">{{ t('set') }}</button>
+            </div>
+          </div>
+          <div class="taxi-settings__cheat-card">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('cheatGodMode') }}</strong><span>{{ t('cheatGodModeHelp') }}</span></span>
+              <input type="checkbox" v-model="settings.godMode" @change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <div class="taxi-settings__cheat-card">
+            <label class="taxi-settings__switch-row">
+              <span class="taxi-settings__switch-copy"><strong>{{ t('cheatDebugLogging') }}</strong><span>{{ t('cheatDebugLoggingHelp') }}</span></span>
+              <input type="checkbox" v-model="settings.debugLogging" @change="hud.settingsChanged()">
+              <span class="taxi-settings__switch"></span>
+            </label>
+          </div>
+          <button type="button" class="taxi-settings__cheat-action" @click="hud.cheatAddRandomReview()">{{ t('cheatRandomReview') }}</button>
+          <button type="button" class="taxi-settings__cheat-action" @click="hud.cheatRepairVehicle()">{{ t('cheatRepairVehicle') }}</button>
+          <div class="taxi-settings__cheat-card">
+            <div class="taxi-settings__label">{{ t('cheatAddMoney') }}</div>
+            <div class="taxi-settings__money-grid">
+              <button type="button" @click="hud.cheatAddMoney(1)">+$1</button>
+              <button type="button" @click="hud.cheatAddMoney(5)">+$5</button>
+              <button type="button" @click="hud.cheatAddMoney(10)">+$10</button>
+              <button type="button" @click="hud.cheatAddMoney(50)">+$50</button>
+            </div>
+          </div>
+          <div class="taxi-settings__cheat-card">
+            <div class="taxi-settings__label"><span>{{ t('cheatEconomyMultiplier') }}</span><span>{{ formatEconomyMultiplier() }}</span></div>
+            <div class="taxi-settings__help">{{ t('cheatEconomyMultiplierHelp') }}</div>
+            <input class="taxi-settings__range" type="range" min="0.25" max="5" step="0.05" v-model.number="settings.economyMultiplier" @input="hud.settingsChanged()">
+          </div>
+          <button type="button" class="taxi-settings__reset" v-if="!cheatResetArmed" @click="hud.armCheatReset()">{{ t('cheatResetStats') }}</button>
+          <div class="taxi-settings__reset-confirm" v-if="cheatResetArmed">
+            <strong>{{ t('cheatResetWarning') }}</strong>
+            <div><button type="button" @click="hud.cancelCheatReset()">{{ t('cheatCancel') }}</button><button type="button" @click="hud.confirmCheatReset()">{{ t('cheatConfirmReset') }}</button></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="taxi-profile" v-if="profileOpen">
+      <div class="taxi-profile__hero">
+        <div class="taxi-profile__hero-avatar">{{ profileDraft.avatar }}</div>
+        <div class="taxi-profile__hero-copy">
+          <span :title="(profileProgress.completedRides || 0) + &quot; &quot; + (t('rides')) + &quot; · &quot; + (formatMoneyFull(profileProgress.balance))">{{ formatAggregateNumber(profileProgress.completedRides) }} {{ t('rides') }} · {{ formatMoney(profileProgress.balance) }}</span>
+        </div>
+        <div class="taxi-profile__hero-rating">{{ formatNumber(profileProgress.rating, 2) }} ★</div>
+      </div>
+      <div class="taxi-profile__tabs">
+        <button type="button" class="taxi-profile__tab" :class="{'taxi-profile__tab--active': profileTab === 'identity'}" @click="hud.selectProfileTab('identity')">{{ t('tabIdentity') }}</button>
+        <button type="button" class="taxi-profile__tab" :class="{'taxi-profile__tab--active': profileTab === 'reviews'}" @click="hud.selectProfileTab('reviews')">{{ t('tabReviews') }}</button>
+        <button type="button" class="taxi-profile__tab" :class="{'taxi-profile__tab--active': profileTab === 'analytics'}" @click="hud.selectProfileTab('analytics')">{{ t('tabAnalytics') }}</button>
+        <button type="button" class="taxi-profile__tab" :class="{'taxi-profile__tab--active': profileTab === 'vehicles'}" @click="hud.selectProfileTab('vehicles')">{{ t('tabVehicles') }}</button>
+        <button type="button" class="taxi-profile__tab" :class="{'taxi-profile__tab--active': profileTab === 'shifts'}" @click="hud.selectProfileTab('shifts')">{{ t('tabShifts') }}</button>
+      </div>
+      <div class="taxi-profile__content">
+        <div class="taxi-profile__panel" v-if="profileTab === 'identity'">
+          <label class="taxi-profile__field">
+            <span>{{ t('fullName') }}</span>
+            <input class="taxi-profile__input" type="text" maxlength="60" v-model="profileDraft.fullName" @input="profileSaved = false">
+          </label>
+          <label class="taxi-profile__field">
+            <span>{{ t('birthDate') }}</span>
+            <input class="taxi-profile__input" type="text" maxlength="10" placeholder="YYYY-MM-DD" v-model="profileDraft.birthDate" @input="profileSaved = false">
+          </label>
+          <div class="taxi-profile__age"><span>{{ t('age') }}</span><strong>{{ getAge(profileDraft.birthDate) }} {{ getAge(profileDraft.birthDate) === '—' ? '' : t('years') }}</strong></div>
+          <div class="taxi-profile__field">
+            <span>{{ t('avatar') }}</span>
+            <div class="taxi-profile__avatars">
+              <button type="button" class="taxi-profile__avatar-option" v-for="(avatar, index) in avatarOptions" :key="index" :class="{'taxi-profile__avatar-option--active': profileDraft.avatar === avatar}" @click="hud.selectAvatar(avatar)">{{ avatar }}</button>
+            </div>
+          </div>
+          <button type="button" class="taxi-profile__save" @click="hud.saveProfile()">{{ t('saveProfile') }}</button>
+          <div class="taxi-profile__saved" v-if="profileSaved">{{ t('profileSaved') }}</div>
+        </div>
+
+        <div class="taxi-profile__panel taxi-profile__panel--reviews" v-if="profileTab === 'reviews'">
+          <div class="taxi-profile__empty" v-if="!profileReviews.length">{{ t('noReviews') }}</div>
+          <div class="taxi-review taxi-review--measure" data-review-measure="regular" aria-hidden="true">
+            <div class="taxi-review__emoji">&#128522;</div>
+            <div class="taxi-review__copy"><strong>{{ t('deliveryOrder') }}</strong><span>Sep 30, 2026 · $99999.99</span></div>
+            <div class="taxi-review__ratings"><strong>{{ t('orderRating') }} 5.00 ★</strong><span>{{ t('profileRating') }} 5.00 ★</span></div>
+          </div>
+          <div class="taxi-review taxi-review--measure" data-review-measure="ai" aria-hidden="true">
+            <div class="taxi-review__emoji">&#128522;</div>
+            <div class="taxi-review__copy"><strong>{{ t('deliveryOrder') }}</strong><span>Sep 30, 2026 · $99999.99</span><b>AI · {{ t('aiAssisted') }}</b></div>
+            <div class="taxi-review__ratings"><strong>{{ t('orderRating') }} 5.00 ★</strong><span>{{ t('profileRating') }} 5.00 ★</span></div>
+          </div>
+          <div class="taxi-review-wrap" v-for="(review, index) in getPagedReviews()" :key="review.id" :class="{'taxi-review-wrap--open': expandedReviewId === review.id}">
+            <button type="button" class="taxi-review taxi-disclosure taxi-action taxi-action--tertiary" @click="hud.toggleReviewDetails(review)" :aria-expanded="expandedReviewId === review.id" :aria-controls="&quot;taxi-review-details-&quot; + (review.id)">
+              <span class="taxi-review__emoji">{{ review.emoji }}</span>
+              <span class="taxi-review__copy"><strong>{{ (review.outcome === 'delivery' || review.outcome === 'deliveryAbandonment') ? t('deliveryOrder') : review.passengerName }}</strong><span>{{ formatReviewDate(review.timestamp) }} · {{ formatMoney(review.fare) }}</span><b v-if="review.usedAutopilot">AI · {{ t('aiAssisted') }}</b></span>
+              <span class="taxi-review__ratings"><strong :class="'taxi-review__order-rating--' + getReviewRatingClass(review)">{{ t('orderRating') }} {{ formatNumber(review.orderRating, 2) }} ★</strong><span>{{ t('profileRating') }} {{ formatNumber(review.rating, 2) }} ★</span></span>
+              <i class="taxi-review__expand" aria-hidden="true"></i>
+            </button>
+            <div class="taxi-review-details" v-if="expandedReviewId === review.id" :id="&quot;taxi-review-details-&quot; + (review.id)">
+              <div class="taxi-review-details__summary">
+                <span><small>{{ t('tripHistoryOutcome') }}</small><strong>{{ t('tripOutcome_' + review.outcome) }}</strong></span>
+                <span><small>{{ t('tripHistoryFare') }}</small><strong>{{ formatMoney(review.fare) }}</strong></span>
+                <span><small>{{ t('tripHistoryDate') }}</small><strong>{{ formatReviewDate(review.timestamp) }}</strong></span>
+              </div>
+              <section>
+                <h4>{{ t('tripHistoryPenalties') }}</h4>
+                <p v-if="!review.penalties.length">{{ t('tripHistoryNoPenalties') }}</p>
+                <div class="taxi-review-details__line" v-for="(penalty, index) in review.penalties" :key="index">
+                  <span><strong>{{ getPenaltyHistoryLabel(penalty) }}</strong><small v-if="penalty.detail">{{ penalty.detail }}</small></span>
+                  <b>{{ formatPenaltyHistory(penalty) }}</b>
+                </div>
+              </section>
+              <section>
+                <h4>{{ t('tripHistoryRandomEvents') }}</h4>
+                <p v-if="!review.randomEvents.length">{{ t('tripHistoryNoRandomEvents') }}</p>
+                <div class="taxi-review-details__line" v-for="(event, index) in review.randomEvents" :key="index">
+                  <span><strong>{{ getRandomEventLabel(event) }}</strong><small>{{ getRandomEventStatus(event) }}</small></span>
+                  <b v-if="event.amount > 0">{{ formatMoney(event.amount) }}</b>
+                </div>
+              </section>
+            </div>
+          </div>
+          <div class="taxi-profile__pager" v-if="profileReviews.length">
+            <button type="button" class="taxi-action taxi-action--secondary" @click="hud.previousReviewPage()" :disabled="reviewPage <= 1" :aria-label="t('reviewPage', {current: reviewPage - 1, total: getReviewPageCount()})">‹</button>
+            <span>{{ t('reviewPage', {current: reviewPage, total: getReviewPageCount()}) }}</span>
+            <button type="button" class="taxi-action taxi-action--secondary" @click="hud.nextReviewPage()" :disabled="reviewPage >= getReviewPageCount()" :aria-label="t('reviewPage', {current: reviewPage + 1, total: getReviewPageCount()})">›</button>
+          </div>
+        </div>
+
+        <div v-if="profileTab === 'analytics'">
+          <div class="taxi-chart-card">
+            <div class="taxi-chart-card__head"><strong>{{ t('ratingTrend') }}</strong><span>{{ formatNumber(profileProgress.rating, 2) }} ★</span></div>
+            <svg class="taxi-chart" viewBox="0 0 320 92" preserveAspectRatio="none">
+              <line class="taxi-chart__grid" x1="8" y1="8" x2="312" y2="8"></line><line class="taxi-chart__grid" x1="8" y1="46" x2="312" y2="46"></line><line class="taxi-chart__grid" x1="8" y1="84" x2="312" y2="84"></line>
+              <polyline class="taxi-chart__line" :points="getChartPoints(profileProgress.ratingHistory, 'rating')"></polyline>
+            </svg>
+            <div class="taxi-chart-card__hint">{{ t('historyHint') }}</div>
+          </div>
+          <div class="taxi-chart-card">
+            <div class="taxi-chart-card__head"><strong>{{ t('balanceTrend') }}</strong><span>{{ formatMoney(profileProgress.balance) }}</span></div>
+            <svg class="taxi-chart" viewBox="0 0 320 92" preserveAspectRatio="none">
+              <line class="taxi-chart__grid" x1="8" y1="8" x2="312" y2="8"></line><line class="taxi-chart__grid" x1="8" y1="46" x2="312" y2="46"></line><line class="taxi-chart__grid" x1="8" y1="84" x2="312" y2="84"></line>
+              <polyline class="taxi-chart__line taxi-chart__line--balance" :points="getChartPoints(profileProgress.balanceHistory, 'balance')"></polyline>
+            </svg>
+            <div class="taxi-chart-card__hint">{{ t('historyHint') }}</div>
+          </div>
+          <div class="taxi-ai-ride-counter">
+            <span>AI</span>
+            <div><strong>{{ t('aiRideTrend') }}</strong><small>{{ t('aiRideCount') }}</small></div>
+            <b :title="profileProgress.aiRideCount || 0">{{ formatAggregateNumber(profileProgress.aiRideCount) }}</b>
+          </div>
+        </div>
+
+        <div class="taxi-profile__panel taxi-profile__panel--vehicles" v-if="profileTab === 'vehicles'">
+          <div class="taxi-profile__empty" v-if="!profileVehicles.length">{{ t('noVehicleHistory') }}</div>
+          <div class="taxi-vehicle-history__sort" v-if="profileVehicles.length">
+            <span>{{ t('sortBy') }}</span>
+            <div class="taxi-sort-menu" :class="{'taxi-sort-menu--open': vehicleSortMenuOpen}">
+              <button type="button" class="taxi-sort-menu__trigger" @click="hud.toggleVehicleSortMenu()" aria-haspopup="listbox" :aria-expanded="vehicleSortMenuOpen">
+                <span>{{ getVehicleSortLabel() }}</span><i>⌄</i>
+              </button>
+              <div class="taxi-sort-menu__options" v-if="vehicleSortMenuOpen" role="listbox">
+                <button type="button" v-for="(option, index) in vehicleSortOptions" :key="option.value" :class="{'taxi-sort-menu__option--active': vehicleSort === option.value}" @click="hud.selectVehicleSort(option.value)" role="option" :aria-selected="vehicleSort === option.value">{{ t(option.label) }}</button>
+              </div>
+            </div>
+          </div>
+          <div class="taxi-vehicle-history" v-for="(vehicle, index) in getSortedProfileVehicles()" :key="vehicle.key">
+            <div class="taxi-vehicle-history__preview"><span>🚘</span><img v-if="vehicle.preview" :src="vehicle.preview" :alt="vehicle.name" @error="$event.target.style.display = 'none'"></div>
+            <div class="taxi-vehicle-history__head">
+              <strong>{{ vehicle.name }}</strong>
+              <span>{{ formatOdometer(vehicle.distanceMeters) }}</span>
+            </div>
+            <div class="taxi-vehicle-history__stats">
+              <span>{{ t('vehicleTrips') }}<strong :title="vehicle.completedRides || 0">{{ formatCount(vehicle.completedRides) }}</strong></span>
+              <span>{{ t('vehicleAiTrips') }}<strong :title="vehicle.aiRides || 0">{{ formatCount(vehicle.aiRides) }}</strong></span>
+              <span>{{ t('vehicleIncome') }}<strong>{{ formatMoney(vehicle.income) }}</strong></span>
+              <span>{{ t('averageIncome') }}<strong>{{ formatMoney(vehicle.averageIncome) }}</strong></span>
+              <span>{{ t('averageRating') }}<strong>{{ formatNumber(vehicle.averageRating, 2) }} ★</strong></span>
+              <span>{{ t('passengerTrips') }} / {{ t('cargoTrips') }}<strong>{{ vehicle.passengerRides }} / {{ vehicle.deliveryRides }}</strong></span>
+              <span>{{ t('penaltyLosses') }}<strong>−{{ formatMoney(vehicle.penaltyLoss) }}</strong></span>
+              <span>{{ t('cargoDamageLosses') }}<strong>−{{ formatMoney(vehicle.cargoDamageLoss) }}</strong></span>
+              <span v-if="vehicle.fuelConsumed > 0">{{ t('fuelConsumed') }}<strong>{{ formatNumber(vehicle.fuelConsumed, 1) }} · {{ formatMoney(vehicle.fuelCost) }}</strong></span>
+              <span>{{ t('profitPerDistance') }}<strong>{{ formatMoney(getVehicleProfitPerDistance(vehicle)) }}/{{ settings.unitSystem === 'imperial' ? t('unitMile') : t('unitKm') }}</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="taxi-profile__panel taxi-profile__panel--shifts" v-if="profileTab === 'shifts'">
+          <div class="taxi-profile__empty" v-if="!state.shiftHistory.items.length">{{ t('noShiftHistory') }}</div>
+          <button type="button" class="taxi-shift-card" v-for="(shift, index) in state.shiftHistory.items.slice(0, shiftHistoryVisibleCount)" :key="shift.id" @click="hud.resumeShift(shift.id)" :disabled="state.active || state.shiftHistory.restoring">
+            <div class="taxi-shift-card__preview"><span>&#128663;</span><img v-if="shift.preview" :src="shift.preview" :alt="shift.vehicleName" @error="$event.target.style.display = 'none'"></div>
+            <div class="taxi-shift-card__copy"><strong :title="shift.vehicleName">{{ shift.vehicleName }}</strong><small>{{ formatShiftDate(shift.lastSavedAt || shift.startedAt) }}</small><div><span :title="shift.rides || 0">{{ formatCount(shift.rides) }} {{ t('rides') }}</span><span v-if="shift.aiRides" :title="shift.aiRides">AI {{ formatCount(shift.aiRides) }}</span><span :title="formatMoneyFull(shift.netIncome)">{{ formatMoney(shift.netIncome) }}</span><span>{{ formatNumber(shift.energyPercent, 0) }}%</span></div></div>
+            <i v-if="state.shiftHistory.restoringId !== shift.id">&#8250;</i>
+            <div class="taxi-shift-card__loading" v-if="state.shiftHistory.restoringId === shift.id"><span></span>{{ t('restoringShift') }}</div>
+          </button>
+          <button type="button" class="taxi-shift-history__more" v-if="shiftHistoryVisibleCount < state.shiftHistory.items.length" @click="hud.loadMoreShifts()">{{ t('showMoreShifts', {shown: shiftHistoryVisibleCount, total: state.shiftHistory.items.length}) }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="taxi-fleet" v-if="fleetOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen">
+      <div class="taxi-map taxi-fleet__map">
+        <div class="taxi-minimap-surface"></div>
+        <canvas class="taxi-external-minimap" v-if="externalPhoneMode"></canvas>
+        <div class="taxi-map-interaction" :class="{'taxi-map-interaction--panned': !mapFollowing}" :aria-label="t('mapDrag')"></div>
+        <div class="taxi-map-toolbar">
+          <button type="button" class="taxi-map__autopilot" v-if="settings.aiDriver.enabled &amp;&amp; state.active &amp;&amp; (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination' || state.phase === 'toFuelStation')" :class="{'taxi-map__autopilot--active': state.autopilot.enabled, 'taxi-map__autopilot--recovering': state.autopilot.status === 'recovering'}" @click="hud.toggleAutopilot()" :disabled="!state.autopilot.available">
+          <strong>AI</strong><span>{{ t(state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable') }}</span>
+        </button>
+          <div class="taxi-map-controls" :aria-label="t('mapControls')">
+          <button type="button" @click="hud.zoomMap(0.8)" :title="t('mapZoomIn')" :aria-label="t('mapZoomIn')">+</button>
+          <button type="button" @click="hud.zoomMap(1.25)" :title="t('mapZoomOut')" :aria-label="t('mapZoomOut')">−</button>
+          <button type="button" @click="hud.followMap()" :class="{'taxi-map-controls--following': mapFollowing}" :title="t('mapFollow')" :aria-label="t('mapFollow')">◎</button>
+        </div>
+        </div>
+        <div class="taxi-map__route-info" v-if="state.active &amp;&amp; (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination' || state.phase === 'toFuelStation')">
+          <span>{{ t('arrival') }}</span><strong>{{ getArrivalTime(state.etaMinutes) }}</strong><small>{{ formatEta(state.etaMinutes) }} · {{ formatDistance(state.distanceToTarget) }}</small>
+        </div>
+        <div class="taxi-map__speed" :class="{'taxi-map__speed--warning': overspeedWarningActive}" v-if="state.active &amp;&amp; state.speedLimit > 0">{{ formatSpeedValue(state.speedLimit) }}</div>
+
+        <div class="taxi-fleet__map-status"><i>F</i><strong>{{ state.fleet.activeDrivers }}</strong><span>{{ t('fleetActiveDrivers') }}</span></div>
+      </div>
+      <div class="taxi-fleet__panel">
+       <div class="taxi-fleet__head">
+        <button type="button" class="taxi-action taxi-action--tertiary" @click="hud.toggleFleet()" :aria-label="t('back')">&#8249;</button>
+        <div><h2>{{ t('fleetTitle') }}</h2><p>{{ t('fleetSubtitle') }}</p></div>
+        <span :title="(state.fleet.activeDrivers) + &quot;/&quot; + (state.fleet.maxDrivers)">{{ state.fleet.activeDrivers }}/{{ state.fleet.maxDrivers }}</span>
+      </div>
+      <div class="taxi-fleet__scroll">
+        <div class="taxi-fleet__stats">
+          <span><small>{{ t('fleetTrips') }}</small><strong :title="state.fleet.stats.rides || 0">{{ formatAggregateNumber(state.fleet.stats.rides) }}</strong></span>
+          <span><small>{{ t('fleetGross') }}</small><strong>{{ formatMoney(state.fleet.stats.grossRevenue) }}</strong></span>
+          <span><small>{{ t('fleetProfit') }}</small><strong :class="{'taxi-fleet__negative': state.fleet.stats.netProfit < 0}">{{ formatMoney(state.fleet.stats.netProfit) }}</strong></span>
+        </div>
+        <div class="taxi-fleet__economy"><span>{{ t('fleetOwnerShare') }} <b>{{ state.fleet.ownerSharePercent }}%</b></span><span>{{ t('fleetHiringFee') }} <b>{{ formatMoney(state.fleet.hiringFee) }}</b></span><span>{{ t('fleetWageShort') }} <b>{{ formatMoney(state.fleet.wagePerTenMinutes) }}</b></span></div>
+        <section class="taxi-fleet__section" v-if="state.fleet.drivers.length">
+          <h3>{{ t('fleetActiveDrivers') }}</h3>
+          <article class="taxi-fleet__driver" v-for="(driver, index) in state.fleet.drivers" :key="driver.id">
+            <div class="taxi-fleet__vehicle"><div><span>&#128663;</span><img v-if="driver.preview" :src="driver.preview" :alt="driver.name"></div><p><strong :title="driver.name">{{ driver.name }}</strong><small>{{ driver.status === 'unpaid' ? t('fleetUnpaid') : (driver.jobType === 'delivery' ? t('fleetDelivery') : t('fleetPassenger')) }}</small></p><i></i></div>
+            <div class="taxi-fleet__progress"><span :style="{'width': (driver.progress * 100) + '%'}"></span></div>
+            <div class="taxi-fleet__driver-stats"><span :title="driver.stats.rides || 0">{{ formatCount(driver.stats.rides) }} {{ t('rides') }}</span><span :title="(driver.remainingMeters) + &quot; m&quot;">{{ formatDistance(driver.remainingMeters) }}</span><span :title="formatMoneyFull(driver.stats.ownerRevenue)">{{ formatMoney(driver.stats.ownerRevenue) }}</span></div>
+            <button type="button" class="taxi-fleet__dismiss taxi-action taxi-action--danger-secondary" @click="hud.fleetCommand('dismiss', {id: driver.id})">{{ t('fleetDismiss') }}</button>
+          </article>
+        </section>
+        <section class="taxi-fleet__section">
+          <h3>{{ t('fleetSpawnVehicle') }}</h3>
+          <p class="taxi-fleet__hint">{{ t('fleetSpawnHelp') }}</p>
+          <div class="taxi-fleet__empty" v-if="!state.fleet.garage.length">{{ t('fleetNoGarageCars') }}</div>
+          <button type="button" class="taxi-fleet__candidate taxi-action taxi-action--secondary" v-for="(vehicle, index) in state.fleet.garage" :key="vehicle.key" :disabled="!state.fleet.canAffordHire || state.fleet.activeDrivers >= state.fleet.maxDrivers || !state.fleet.enabled" @click="hud.fleetCommand('hireGarage', vehicle)">
+            <div><span>&#128663;</span><img v-if="vehicle.preview" :src="vehicle.preview" :alt="vehicle.name"></div><p><strong :title="vehicle.name">{{ vehicle.name }}</strong><small :title="vehicle.completedRides || 0">{{ formatCount(vehicle.completedRides) }} {{ t('rides') }}</small></p><b>{{ t('fleetHire') }} · {{ formatMoney(state.fleet.hiringFee) }}</b>
+          </button>
+        </section>
+        <section class="taxi-fleet__section">
+          <h3>{{ t('fleetRecruitTraffic') }}</h3>
+          <p class="taxi-fleet__hint">{{ t('fleetRecruitHelp') }}</p>
+          <div class="taxi-fleet__empty" v-if="!state.fleet.trafficCandidates.length">{{ t('fleetNoTrafficCars') }}</div>
+          <button type="button" class="taxi-fleet__candidate taxi-fleet__candidate--traffic taxi-action taxi-action--secondary" v-for="(vehicle, index) in state.fleet.trafficCandidates" :key="vehicle.vehicleId" :disabled="!state.fleet.canAffordHire || state.fleet.activeDrivers >= state.fleet.maxDrivers || !state.fleet.enabled" @click="hud.fleetCommand('hireTraffic', {vehicleId: vehicle.vehicleId})">
+            <div><span>&#9679;</span></div><p><strong :title="vehicle.name">{{ vehicle.name }}</strong><small>{{ formatDistance(vehicle.distance) }}</small></p><b>{{ t('fleetHire') }}</b>
+          </button>
+        </section>
+      </div>
+      </div>
+    </div>
+
+    <div class="taxi-home" :class="{'taxi-home--presets': !shiftHistoryOpen}" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; !state.active">
+      <div class="taxi-home__shade"></div>
+      <div class="taxi-home__content" v-if="!shiftHistoryOpen">
+        <section class="taxi-home__presets" :aria-label="t('homeDifficultyTitle')">
+          <div class="taxi-home__presets-heading">
+            <h3>{{ t('homeDifficultyTitle') }}</h3>
+            <span v-if="!hasHomeDifficultyPreset()">{{ t('difficulty_custom') }}</span>
+          </div>
+          <div class="taxi-home__presets-grid">
+            <button type="button" class="taxi-home__preset" v-for="preset in homeDifficultyPresets" :key="preset"
+              :class="{'taxi-home__preset--selected': isHomeDifficultySelected(preset)}"
+              :aria-pressed="isHomeDifficultySelected(preset)" @click="hud.selectHomeDifficulty(preset)">
+              <strong>{{ t('difficulty_' + preset) }}</strong>
+              <small>{{ t('homeDifficulty_' + preset) }}</small>
+              <i v-if="isHomeDifficultySelected(preset)" aria-hidden="true">✓</i>
+            </button>
+          </div>
+        </section>
+        <div class="taxi-home__pin"><span>T</span></div>
+        <h2>{{ t('homeTitle') }}</h2>
+        <p>{{ t('homeDesc') }}</p>
+        <button type="button" class="taxi-home__vehicle" v-if="state.currentVehicle.available" @click="hud.openVehicleSelector()" :title="t('selectVehicle')" :aria-label="t('selectVehicle')">
+          <div class="taxi-home__vehicle-preview">
+            <span class="taxi-home__vehicle-fallback">&#128663;</span>
+            <img v-if="state.currentVehicle.preview" :src="state.currentVehicle.preview" :alt="state.currentVehicle.name" @error="$event.target.style.display = 'none'">
+          </div>
+          <div class="taxi-home__vehicle-copy">
+            <strong :title="state.currentVehicle.name">{{ state.currentVehicle.name }}</strong>
+            <span>{{ formatOdometer(state.currentVehicle.distanceMeters) }}</span>
+            <span v-if="state.vehicleEnergy.available">{{ formatDashboardEnergy() }} · ≈ {{ formatEnergyRange(state.vehicleEnergy.estimatedRangeKm) }}</span>
+          </div>
+        </button>
+        <div class="taxi-home__modes">
+        <label class="taxi-home__realistic taxi-home__realistic--fuel" :class="{'taxi-home__realistic--active': settings.realisticMode}" :title="t('realisticMode')">
+          <span class="taxi-home__realistic-icon">⛽</span>
+          <strong>{{ t('realisticMode') }}</strong>
+          <input type="checkbox" v-model="settings.realisticMode" @change="hud.toggleRealisticMode()" :aria-label="t('realisticMode')">
+          <span class="taxi-home__realistic-switch"></span>
+        </label>
+        <label class="taxi-home__realistic taxi-home__realistic--events" :class="{'taxi-home__realistic--active': settings.randomEventsEnabled}" :title="t('randomEvents')">
+          <span class="taxi-home__realistic-icon">⚡</span>
+          <strong>{{ t('randomEvents') }}</strong>
+          <input type="checkbox" v-model="settings.randomEventsEnabled" @change="hud.toggleRandomEvents()" :aria-label="t('randomEvents')">
+          <span class="taxi-home__realistic-switch"></span>
+        </label>
+        </div>
+        <div class="taxi-home__last-shift" v-if="state.shift.last.rides > 0">
+          <strong>{{ t('lastShift') }}</strong>
+          <span>{{ t('rides') }} <b :title="state.shift.last.rides">{{ formatCount(state.shift.last.rides) }}</b></span>
+          <span>{{ t('netIncome') }} <b :title="formatMoneyFull(state.shift.last.netIncome)">{{ formatMoney(state.shift.last.netIncome) }}</b></span>
+          <span>{{ t('averageRating') }} <b>{{ formatNumber(state.shift.last.averageRating, 2) }} ★</b></span>
+        </div>
+        <div class="taxi-home__actions">
+          <button type="button" class="taxi-start taxi-action taxi-action--primary" :class="{'taxi-start--intro': newShiftSheenActive}" @click="hud.startMode()">{{ t('newShift') }}</button>
+          <button type="button" class="taxi-fleet-button taxi-action taxi-action--secondary" @click="hud.toggleFleet()"><span class="taxi-action-label" :title="t('fleetTitle')">{{ t('fleetTitle') }}</span><span class="taxi-count-badge" v-if="state.fleet.activeDrivers" :title="state.fleet.activeDrivers">{{ formatCount(state.fleet.activeDrivers) }}</span></button>
+          <button type="button" class="taxi-shift-history-button taxi-action taxi-action--secondary" @click="hud.toggleShiftHistory()" :disabled="!state.shiftHistory.items.length || state.shiftHistory.restoring">
+            <span class="taxi-action-label" :title="t('previousShift')">{{ t('previousShift') }}</span>
+            <span class="taxi-count-badge" v-if="state.shiftHistory.items.length" :title="state.shiftHistory.items.length">{{ formatCount(state.shiftHistory.items.length) }}</span>
+          </button>
+        </div>
+        <div class="taxi-home__stats">
+          <span>{{ t('balance') }}<br><b :title="formatMoneyFull(state.balance)">{{ formatMoney(state.balance) }}</b></span>
+          <span>{{ t('rides') }}<br><b :title="state.completedRides">{{ formatCount(state.completedRides) }}</b></span>
+          <span>{{ t('rating') }}<br><b>{{ formatNumber(state.rating, 2) }} ★</b></span>
+        </div>
+      </div>
+      <div class="taxi-home__content taxi-shift-history" v-if="shiftHistoryOpen">
+        <div class="taxi-shift-history__head">
+          <button type="button" class="taxi-action taxi-action--tertiary" @click="hud.toggleShiftHistory()" :disabled="state.shiftHistory.restoring" :aria-label="t('back')">&#8249;</button>
+          <div><h2>{{ t('shiftHistoryTitle') }}</h2><p>{{ t('shiftHistoryHelp') }}</p></div>
+        </div>
+        <div class="taxi-shift-history__list">
+          <button type="button" class="taxi-shift-card" v-for="(shift, index) in state.shiftHistory.items.slice(0, shiftHistoryVisibleCount)" :key="shift.id" @click="hud.resumeShift(shift.id)" :disabled="state.shiftHistory.restoring">
+            <div class="taxi-shift-card__preview">
+              <span>&#128663;</span>
+              <img v-if="shift.preview" :src="shift.preview" :alt="shift.vehicleName" @error="$event.target.style.display = 'none'">
+            </div>
+            <div class="taxi-shift-card__copy">
+              <strong :title="shift.vehicleName">{{ shift.vehicleName }}</strong>
+              <small>{{ formatShiftDate(shift.lastSavedAt || shift.startedAt) }}</small>
+              <div><span>{{ formatNumber(shift.energyPercent, 1) }}%</span><span :title="shift.rides || 0">{{ t('rides') }} {{ formatCount(shift.rides) }}</span><span :title="formatMoneyFull(shift.netIncome)">{{ formatMoney(shift.netIncome) }}</span></div>
+            </div>
+            <i v-if="state.shiftHistory.restoringId !== shift.id">&#8250;</i>
+            <div class="taxi-shift-card__loading" v-if="state.shiftHistory.restoringId === shift.id"><span></span>{{ t('restoringShift') }}</div>
+          </button>
+          <button type="button" class="taxi-shift-history__more" v-if="shiftHistoryVisibleCount < state.shiftHistory.items.length" @click="hud.loadMoreShifts()">{{ t('showMoreShifts', {shown: shiftHistoryVisibleCount, total: state.shiftHistory.items.length}) }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="taxi-orders" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'searching'">
+      <div class="taxi-orders__sheet">
+        <div class="taxi-orders__search">
+          <div class="taxi-orders__spinner" v-if="state.offers.length < state.offerTargetCount"></div>
+          <div><strong>{{ state.offers.length ? t('chooseOrder') : t('searchOrders') }}</strong><span>{{ getStatusText() }}</span></div>
+        </div>
+        <div class="taxi-orders__sort">
+          <span>{{ t('sortBy') }}</span>
+          <div class="taxi-sort-menu" :class="{'taxi-sort-menu--open': offerSortMenuOpen}">
+            <button type="button" class="taxi-sort-menu__trigger" @click="hud.toggleOfferSortMenu()" aria-haspopup="true" :aria-expanded="offerSortMenuOpen">
+              <span>{{ getOfferSortLabel() }}</span><i>⌄</i>
+            </button>
+            <div class="taxi-sort-menu__options" v-if="offerSortMenuOpen">
+              <button type="button" v-for="(option, index) in offerSortOptions" :key="option.value" :class="{'taxi-sort-menu__option--active': offerSort === option.value}" @click="hud.selectOfferSort(option.value)">{{ t(option.label) }}</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="taxi-orders__list">
+          <div class="taxi-orders__empty" v-if="!state.offers.length">
+            {{ t('emptyOffers') }}
+          </div>
+
+          <div class="taxi-order-card" :class="{'taxi-order-card--rush': offer.isRush, 'taxi-order-card--multi': offer.isMultiStop, 'taxi-order-card--delivery': offer.isDelivery}" v-for="(offer, index) in getSortedOffers()" :key="offer.id">
+            <div class="taxi-order-card__top">
+              <div class="taxi-order-card__avatar">{{ offer.isDelivery ? '📦' : getInitials(offer.passengerName) }}</div>
+              <div class="taxi-order-card__name">
+                <strong :title="getOfferName(offer)">{{ getOfferName(offer) }}</strong>
+                <span v-if="!offer.isDelivery">{{ t('toPassenger') }} {{ formatEta(offer.pickupEtaMinutes) }} · {{ t('pickupWindow', {time: formatCountdown(offer.pickupWaitSeconds)}) }}</span>
+                <span v-if="offer.isDelivery">{{ t('toCargo') }} {{ formatEta(offer.pickupEtaMinutes) }} · {{ t('longDistance') }}</span>
+              </div>
+              <div class="taxi-calmness-emoji" v-if="!offer.isDelivery" role="img" :title="(t('passengerCalmness')) + &quot; · &quot; + (formatNumber(offer.passengerCalmness, 0)) + &quot;%&quot;" :aria-label="(t('passengerCalmness')) + &quot; · &quot; + (formatNumber(offer.passengerCalmness, 0)) + &quot;%&quot;">
+                {{ getCalmnessEmoji(offer.passengerCalmness) }}
+                <small class="taxi-calmness-emoji__percent">{{ formatNumber(offer.passengerCalmness, 0) }}%</small>
+              </div>
+              <div class="taxi-delivery-weight" v-if="offer.isDelivery"><span>📦</span><strong>{{ formatCargoWeight(offer.cargoWeightKg) }}</strong></div>
+              <div class="taxi-order-card__badge" v-if="offer.isRush">+{{ offer.bonusPercent }}%</div>
+              <div class="taxi-order-card__badge taxi-order-card__badge--multi" v-if="offer.isMultiStop">{{ t('multiStopBadge', {count: offer.stopCount}) }}</div>
+            </div>
+            <div class="taxi-order-card__efficiency"><span>{{ formatMoney(getOfferIncomePerMinute(offer)) }}/{{ t('minuteShort') }}</span><span>{{ formatMoney(getOfferIncomePerKm(offer)) }}/{{ settings.unitSystem === 'imperial' ? t('unitMile') : t('unitKm') }}</span></div>
+            <div class="taxi-order-card__metrics">
+              <div class="taxi-order-card__metric"><span>{{ t('trip') }}</span><b>{{ formatEta(offer.etaMinutes) }}</b></div>
+              <div class="taxi-order-card__metric"><span>{{ t('distance') }}</span><b>{{ formatDistance(offer.rideDistance) }}</b></div>
+              <div class="taxi-order-card__metric taxi-order-card__metric--fare"><span>{{ t('payment') }}</span><b :title="formatMoneyFull(offer.estimatedFare)">{{ formatMoneyFull(offer.estimatedFare) }}</b></div>
+            </div>
+            <div class="taxi-order-card__rush" v-if="offer.isRush">
+              {{ t('rushDeliver', {time: formatCountdown(offer.timeLimitMinutes * 60)}) }} · {{ t('bonus') }} {{ formatMoney(offer.bonusAmount) }}
+            </div>
+            <div class="taxi-order-card__multi" v-if="offer.isMultiStop">{{ t('multiStopRide') }} · {{ t('multiStopSummary', {count: offer.stopCount, time: formatCountdown(offer.stopWaitSeconds)}) }}</div>
+            <div class="taxi-order-card__delivery" v-if="offer.isDelivery">
+              {{ t('deliverySummary', {weight: formatCargoWeight(offer.cargoWeightKg)}) }}
+              <span v-if="offer.cargoWeightBonusPercent > 0"> · {{ t('bonus') }} +{{ formatNumber(offer.cargoWeightBonusPercent, 0) }}%</span>
+            </div>
+            <div class="taxi-order-card__rating-bonus" v-if="offer.ratingBonusPercent > 0">{{ t('ratingBonusLine', {percent: formatBonusPercent(offer.ratingBonusPercent), amount: formatMoney(offer.ratingBonusAmount)}) }}</div>
+            <button type="button" class="taxi-order-card__accept taxi-action taxi-action--primary" @click="hud.acceptOrder(offer.id)">{{ t('accept') }}</button>
+          </div>
+        </div>
+
+        <div class="taxi-orders__footer">
+          <span>{{ t('offersDynamic', {count: state.offers.length, target: state.offerTargetCount}) }}</span>
+          <button type="button" class="taxi-offline-hold taxi-offline-hold--compact taxi-action taxi-action--danger-secondary" @mousedown="hud.beginOfflineHold($event)" @mouseup="hud.cancelOfflineHold()" @mouseleave="hud.cancelOfflineHold()">
+            <span class="taxi-offline-hold__fill"></span>
+            <span class="taxi-offline-hold__copy"><span>{{ t('holdOffline') }}</span></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="taxi-transfer" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; (state.phase === 'boarding' || state.phase === 'alighting')">
+      <div class="taxi-transfer__loader"><div :class="state.isDelivery ? 'taxi-transfer__cargo' : 'taxi-transfer__door'"></div></div>
+      <h2>{{ getPhaseLabel() }}</h2>
+      <div class="taxi-transfer__passenger">{{ state.isDelivery ? formatCargoWeight(state.cargoWeightKg) : state.passengerName }}</div>
+      <div class="taxi-calmness-emoji taxi-calmness-emoji--transfer" v-if="state.phase === 'boarding' &amp;&amp; !state.isDelivery" role="img" :title="(t('passengerCalmness')) + &quot; · &quot; + (formatNumber(state.passengerCalmness, 0)) + &quot;%&quot;" :aria-label="(t('passengerCalmness')) + &quot; · &quot; + (formatNumber(state.passengerCalmness, 0)) + &quot;%&quot;">
+        {{ getCalmnessEmoji(state.passengerCalmness) }}
+        <small class="taxi-calmness-emoji__percent">{{ formatNumber(state.passengerCalmness, 0) }}%</small>
+      </div>
+      <p>{{ state.isDelivery ? (state.phase === 'boarding' ? t('loadingCargoDesc') : t('unloadingCargoDesc')) : (state.phase === 'boarding' ? t('boardingDesc') : t('alightingDesc')) }}</p>
+      <div class="taxi-transfer__progress"></div>
+    </div>
+
+    <div class="taxi-transfer taxi-transfer--critical" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'passengerStopDemand'">
+      <div class="taxi-transfer__alert">!</div>
+      <h2>{{ t('stopDemandTitle') }}</h2>
+      <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
+      <p>{{ t('stopDemandDesc') }}</p>
+      <div class="taxi-transfer__progress"></div>
+    </div>
+
+    <div class="taxi-transfer taxi-transfer--critical" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'passengerForcedExit'">
+      <div class="taxi-transfer__loader"><div class="taxi-transfer__door"></div></div>
+      <h2>{{ t('forcedExitTitle') }}</h2>
+      <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
+      <p>{{ t('forcedExitDesc') }}</p>
+      <div class="taxi-transfer__rating-loss">{{ t('ratingLoss', {percent: formatBonusPercent(state.earlyExitRatingLossPercent)}) }}</div>
+      <div class="taxi-transfer__progress taxi-transfer__progress--determinate"><div class="taxi-transfer__progress-fill" :style="{'width': ((state.forcedExitDuration - state.forcedExitRemaining) / state.forcedExitDuration * 100) + '%'}"></div></div>
+    </div>
+
+    <div class="taxi-transfer taxi-transfer--critical" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'driverAbandoning'">
+      <div class="taxi-transfer__loader"><div class="taxi-transfer__door"></div></div>
+      <h2>{{ t('driverAbandoningTitle') }}</h2>
+      <div class="taxi-transfer__passenger">{{ state.passengerName }}</div>
+      <p>{{ t('driverAbandoningDesc') }}</p>
+      <div class="taxi-transfer__rating-loss">{{ t('driverAbandoningPenalty', {loss: formatBonusPercent(state.driverAbandonmentRatingLoss), percent: formatBonusPercent(state.driverAbandonmentExtraPercent)}) }}</div>
+      <div class="taxi-transfer__progress taxi-transfer__progress--determinate"><div class="taxi-transfer__progress-fill" :style="{'width': ((state.forcedExitDuration - state.forcedExitRemaining) / state.forcedExitDuration * 100) + '%'}"></div></div>
+    </div>
+
+    <div class="taxi-transfer" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'stopWaiting'">
+      <div class="taxi-transfer__stop">{{ state.currentStopIndex }}</div>
+      <h2>{{ getPhaseLabel() }}</h2>
+      <div class="taxi-transfer__passenger">{{ t('stopProgress', {current: state.currentStopIndex, total: state.stopCount}) }}</div>
+      <p>{{ t('stopWaitingDesc') }}</p>
+      <div class="taxi-transfer__countdown">{{ formatCountdown(state.stopWaitRemaining) }}</div>
+      <div class="taxi-transfer__progress taxi-transfer__progress--determinate"><div class="taxi-transfer__progress-fill" :style="{'width': ((state.stopWaitDuration - state.stopWaitRemaining) / state.stopWaitDuration * 100) + '%'}"></div></div>
+    </div>
+
+    <div class="taxi-transfer" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'complete'">
+      <div class="taxi-transfer__check">✓</div>
+      <h2>{{ state.isDelivery ? t('deliveryComplete') : t('complete') }}</h2>
+      <div class="taxi-transfer__passenger">{{ t('payout') }} {{ formatMoney(state.adjustedFare) }}</div>
+      <p v-if="!state.isDelivery">{{ t('completeDesc', {rating: formatRating(state.rating)}) }}</p>
+      <p v-if="state.isDelivery">{{ t('deliveryCompleteDesc', {rating: formatRating(state.rideRating), fare: formatMoney(state.finalFare)}) }}</p>
+      <div class="taxi-transfer__progress"></div>
+    </div>
+
+    <div class="taxi-fuel-route" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; state.phase === 'toFuelStation'">
+      <div class="taxi-map">
+        <div class="taxi-minimap-surface"></div>
+        <canvas class="taxi-external-minimap" v-if="externalPhoneMode"></canvas>
+        <div class="taxi-map-interaction" :class="{'taxi-map-interaction--panned': !mapFollowing}" :aria-label="t('mapDrag')"></div>
+        <div class="taxi-map-toolbar">
+          <button type="button" class="taxi-map__autopilot" v-if="settings.aiDriver.enabled" :class="{'taxi-map__autopilot--active': state.autopilot.enabled, 'taxi-map__autopilot--recovering': state.autopilot.status === 'recovering'}" @click="hud.toggleAutopilot()" :disabled="!state.autopilot.available" :title="t(state.autopilot.available ? (state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable') : 'autopilotUnavailable')">
+          <strong>AI</strong>
+          <span>{{ t(state.autopilot.status === 'recovering' ? 'autopilotRecovering' : (state.autopilot.status === 'waitingTraffic' ? 'autopilotWaitingTraffic' : (state.autopilot.status === 'waitingSignal' ? 'autopilotWaiting' : (state.autopilot.status === 'planning' ? 'autopilotPlanning' : (state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable'))))) }}</span>
+        </button>
+          <div class="taxi-map-controls" :aria-label="t('mapControls')">
+          <button type="button" @click="hud.zoomMap(0.8)" :title="t('mapZoomIn')" :aria-label="t('mapZoomIn')">+</button>
+          <button type="button" @click="hud.zoomMap(1.25)" :title="t('mapZoomOut')" :aria-label="t('mapZoomOut')">−</button>
+          <button type="button" @click="hud.followMap()" :class="{'taxi-map-controls--following': mapFollowing}" :title="t('mapFollow')" :aria-label="t('mapFollow')">◎</button>
+        </div>
+        </div>
+        <div class="taxi-map__route-info">
+          <span>{{ t('arrival') }}</span>
+          <strong>{{ getArrivalTime(state.etaMinutes) }}</strong>
+          <small>{{ formatEta(state.etaMinutes) }} · {{ formatDistance(state.distanceToTarget) }}</small>
+        </div>
+        <div class="taxi-map__speed" :class="{'taxi-map__speed--warning': overspeedWarningActive}" v-if="state.speedLimit > 0">{{ formatSpeedValue(state.speedLimit) }}</div>
+
+        <button type="button" class="taxi-map__fleet" @click="hud.toggleFleet()" :title="t('fleetTitle')" :aria-label="t('fleetTitle')"><strong>F</strong><span>{{ state.fleet.activeDrivers || 0 }}</span></button>
+      </div>
+      <div class="taxi-fuel-route__sheet">
+        <div class="taxi-fuel-route__head">
+          <div class="taxi-fuel-route__icon">⛽</div>
+          <div class="taxi-fuel-route__copy"><strong>{{ state.fuelDetour.stationName || t('fuelRouteTitle') }}</strong><span>{{ t('fuelRouteDesc', {station: state.fuelDetour.stationName}) }}</span></div>
+          <div class="taxi-fuel-route__distance">{{ formatDistance(state.distanceToTarget) }}</div>
+        </div>
+        <div class="taxi-fuel-route__gauge" v-if="state.vehicleEnergy.available" :style="{'background': getRouteFuelGaugeBackground()}" :title="t('estimatedRange')">
+          <div class="taxi-fuel-route__gauge-core">
+            <span>{{ t('fuelRemainingAmount') }}</span>
+            <strong>{{ formatDashboardEnergy() }}</strong>
+            <small>{{ t('estimatedRange') }} · {{ formatEnergyRange(state.vehicleEnergy.estimatedRangeKm) }}</small>
+          </div>
+        </div>
+        <div class="taxi-fuel-route__context" v-if="!state.fuelDetour.hadTrip">{{ t('fuelRouteSearch') }}</div>
+        <div class="taxi-fuel-route__context" v-if="state.fuelDetour.hadTrip &amp;&amp; !state.fuelDetour.passengerOnboard"><span>{{ state.isDelivery ? t('toCargo') : t('toPassenger') }}</span><strong>{{ state.isDelivery ? t('deliveryOrder') : state.passengerName }}</strong></div>
+        <div class="taxi-fuel-route__context taxi-fuel-route__context--penalty" v-if="state.fuelDetour.passengerOnboard"><span>{{ t('fuelRoutePassenger') }}</span><strong>−{{ formatNumber(state.fuelDetour.penaltyPercent, 2) }}%</strong></div>
+        <div class="taxi-fuel-route__progress">
+          <div class="taxi-fuel-route__progress-head"><span>{{ t('progress_fuel') }}</span><span>{{ formatNumber(getProgressPercent(), 0) }}%</span></div>
+          <div class="taxi-fuel-route__track"><span :style="{'width': getProgressPercent() + '%'}"></span></div>
+        </div>
+        <div class="taxi-fuel-route__stats">
+          <div class="taxi-fuel-route__stat"><span>{{ t('arrival') }}</span><strong>{{ getArrivalTime(state.etaMinutes) }}</strong></div>
+          <div class="taxi-fuel-route__stat"><span>{{ t('balance') }}</span><strong>{{ formatMoney(state.balance) }}</strong></div>
+        </div>
+        <button type="button" class="taxi-fuel-route__cancel taxi-action taxi-action--secondary" @click="hud.cancelFuelRoute()">{{ t('cancelFuelRoute') }}</button>
+      </div>
+    </div>
+
+    <div class="taxi-trip-layout" v-if="!settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; state.active &amp;&amp; (state.phase === 'toPickup' || state.phase === 'toStop' || state.phase === 'toDestination')">
+      <div class="taxi-map">
+        <div class="taxi-minimap-surface"></div>
+        <canvas class="taxi-external-minimap" v-if="externalPhoneMode"></canvas>
+        <div class="taxi-map-interaction" :class="{'taxi-map-interaction--panned': !mapFollowing}" :aria-label="t('mapDrag')"></div>
+        <div class="taxi-map-toolbar">
+          <button type="button" class="taxi-map__autopilot" v-if="settings.aiDriver.enabled" :class="{'taxi-map__autopilot--active': state.autopilot.enabled, 'taxi-map__autopilot--recovering': state.autopilot.status === 'recovering'}" @click="hud.toggleAutopilot()" :disabled="!state.autopilot.available" :title="t(state.autopilot.available ? (state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable') : 'autopilotUnavailable')">
+          <strong>AI</strong>
+          <span>{{ t(state.autopilot.status === 'recovering' ? 'autopilotRecovering' : (state.autopilot.status === 'waitingTraffic' ? 'autopilotWaitingTraffic' : (state.autopilot.status === 'waitingSignal' ? 'autopilotWaiting' : (state.autopilot.status === 'planning' ? 'autopilotPlanning' : (state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable'))))) }}</span>
+        </button>
+          <div class="taxi-map-controls" :aria-label="t('mapControls')">
+          <button type="button" @click="hud.zoomMap(0.8)" :title="t('mapZoomIn')" :aria-label="t('mapZoomIn')">+</button>
+          <button type="button" @click="hud.zoomMap(1.25)" :title="t('mapZoomOut')" :aria-label="t('mapZoomOut')">−</button>
+          <button type="button" @click="hud.followMap()" :class="{'taxi-map-controls--following': mapFollowing}" :title="t('mapFollow')" :aria-label="t('mapFollow')">◎</button>
+        </div>
+        </div>
+        <div class="taxi-map__route-info">
+          <span>{{ t('arrival') }}</span>
+          <strong>{{ getArrivalTime(state.etaMinutes) }}</strong>
+          <small>{{ formatEta(state.etaMinutes) }} · {{ formatDistance(state.distanceToTarget) }}</small>
+        </div>
+        <div class="taxi-map__speed" :class="{'taxi-map__speed--warning': overspeedWarningActive}" v-if="state.speedLimit > 0">{{ formatSpeedValue(state.speedLimit) }}</div>
+
+        <button type="button" class="taxi-map__fleet" @click="hud.toggleFleet()" :title="t('fleetTitle')" :aria-label="t('fleetTitle')"><strong>F</strong><span>{{ state.fleet.activeDrivers || 0 }}</span></button>
+      </div>
+
+      <div class="taxi-sheet">
+        <div class="taxi-sheet__heading">
+          <div class="taxi-sheet__avatar">{{ state.isDelivery ? '📦' : getInitials(state.passengerName) }}</div>
+          <div class="taxi-sheet__heading-text">
+            <strong :title="state.isDelivery ? t('deliveryOrder') : (state.passengerName || getPhaseLabel())">{{ state.isDelivery ? t('deliveryOrder') : (state.passengerName || getPhaseLabel()) }}</strong>
+            <span>{{ getPhaseLabel() }} · {{ getStatusText() }}</span>
+          </div>
+          <div class="taxi-sheet__distance">{{ formatDistance(state.distanceToTarget) }}</div>
+        </div>
+
+        <div class="taxi-queued-order" v-if="shouldShowQueuedOrder()">{{ t('nextOfferAccepted') }} · {{ getOfferName(state.nextOffer) }}</div>
+
+        <div class="taxi-trip-dashboard">
+          <div class="taxi-trip-dashboard__metric taxi-trip-dashboard__metric--calmness" v-if="!state.isDelivery" :class="passengerMoodFlash ? 'taxi-trip-dashboard__metric--mood-' + passengerMoodFlash : ''" :title="(t('passengerCalmness')) + &quot; · &quot; + (formatNumber(state.passengerCalmness, 0)) + &quot;%&quot;">
+            <div class="taxi-calmness-emoji" role="img" :aria-label="(t('passengerCalmness')) + &quot; · &quot; + (formatNumber(state.passengerCalmness, 0)) + &quot;%&quot;">
+              {{ getCalmnessEmoji(state.passengerCalmness) }}
+            </div>
+            <strong class="taxi-trip-dashboard__calmness-value">{{ formatNumber(state.passengerCalmness, 0) }}%</strong>
+          </div>
+
+          <div class="taxi-trip-dashboard__metric taxi-trip-dashboard__metric--cargo" v-if="state.isDelivery" :title="t('cargoWeight')">
+            <span class="taxi-trip-dashboard__label">{{ t('cargoWeight') }}</span>
+            <div class="taxi-trip-dashboard__value">
+              <strong>{{ formatCargoWeight(state.cargoWeightKg) }}</strong>
+              <small v-if="state.cargoWeightBonusPercent > 0">+{{ formatNumber(state.cargoWeightBonusPercent, 0) }}%</small>
+            </div>
+          </div>
+
+          <div class="taxi-trip-dashboard__metric" v-if="state.isDelivery" :class="{'taxi-trip-dashboard__metric--danger': state.cargoDamagePercent > 0}" :title="t('cargoDamage')">
+            <span class="taxi-trip-dashboard__label">{{ t('cargoDamage') }}</span>
+            <div class="taxi-trip-dashboard__value"><strong>{{ formatNumber(state.cargoDamagePercent, 1) }}%</strong></div>
+          </div>
+
+          <div class="taxi-trip-dashboard__metric" v-if="state.phase === 'toPickup' &amp;&amp; !state.isDelivery" :class="{'taxi-trip-dashboard__metric--danger': state.pickupLate}" :title="state.pickupLate ? t('pickupLate', {time: formatCountdown(state.pickupLateSeconds)}) : t('pickupDeadline')">
+            <span class="taxi-trip-dashboard__label">{{ t('dashPickup') }}</span>
+            <div class="taxi-trip-dashboard__value">
+              <strong v-if="!state.pickupLate">{{ formatCountdown(state.pickupTimeRemaining) }}</strong>
+              <strong v-if="state.pickupLate">−{{ formatNumber(state.penalties.pickupPercent, 1) }}%</strong>
+              <small v-if="state.pickupLate">+{{ formatCountdown(state.pickupLateSeconds) }}</small>
+            </div>
+          </div>
+
+          <div class="taxi-trip-dashboard__metric" v-if="state.phase === 'toStop'" :title="t('stopProgress', {current: state.currentStopIndex, total: state.stopCount})">
+            <span class="taxi-trip-dashboard__label">{{ t('dashStop') }}</span>
+            <div class="taxi-trip-dashboard__value"><strong>{{ state.currentStopIndex }}/{{ state.stopCount }}</strong></div>
+          </div>
+
+          <div class="taxi-trip-dashboard__metric" v-if="state.rushOrder" :class="{'taxi-trip-dashboard__metric--danger': state.rushBonusLost}" :title="state.rushBonusLost ? t('rushLost') : t('rushBonus', {amount: formatMoney(state.rushBonusAmount)})">
+            <span class="taxi-trip-dashboard__label">{{ t('dashRush') }}</span>
+            <div class="taxi-trip-dashboard__value">
+              <strong v-if="!state.rushBonusLost">{{ formatCountdown(state.rushTimeRemaining) }}</strong>
+              <strong v-if="state.rushBonusLost">{{ t('dashLost') }}</strong>
+              <small v-if="!state.rushBonusLost">+{{ formatMoney(state.rushBonusAmount) }}</small>
+            </div>
+          </div>
+
+          <div class="taxi-trip-dashboard__metric" v-if="state.ratingBonusPercent > 0" :title="t('ratingBonusLine', {percent: formatBonusPercent(state.ratingBonusPercent), amount: formatMoney(state.ratingBonusAmount)})">
+            <span class="taxi-trip-dashboard__label">{{ t('dashRating') }}</span>
+            <div class="taxi-trip-dashboard__value">
+              <strong>+{{ formatBonusPercent(state.ratingBonusPercent) }}%</strong>
+              <small>+{{ formatMoney(state.ratingBonusAmount) }}</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="taxi-progress">
+          <div class="taxi-progress__labels"><span>{{ getProgressLabel() }}</span><span>{{ formatNumber(getProgressPercent(), 0) }}%</span></div>
+          <div class="taxi-progress__track">
+            <div class="taxi-progress__fill" :style="{'width': getProgressPercent() + '%'}"></div>
+            <div class="taxi-progress__markers" v-if="state.isMultiStop &amp;&amp; (state.phase === 'toStop' || state.phase === 'toDestination')">
+              <span
+                class="taxi-progress__marker"
+                v-for="(marker, index) in state.stopProgressMarkers" :key="marker.index"
+                :class="{'taxi-progress__marker--active': marker.active, 'taxi-progress__marker--completed': marker.completed}"
+                :style="{'left': marker.progressPercent + '%'}"
+                :title="t('stopProgress', {current: marker.index, total: state.stopCount})">
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="taxi-trip-notice" v-if="state.isMultiStop &amp;&amp; state.nextStopDistance > 0">{{ t('nextStop') }} · {{ formatDistance(state.nextStopDistance) }}</div>
+        <div class="taxi-trip-notice taxi-trip-notice--fuel" v-if="state.vehicleEnergy.available" :class="{'taxi-trip-notice--good': state.fuelEnoughForTrip, 'taxi-trip-notice--danger': !state.fuelEnoughForTrip}">{{ state.fuelEnoughForTrip ? t('fuelEnough') : t('fuelNotEnough') }}</div>
+        <div class="taxi-trip-notice taxi-trip-notice--event" v-if="state.tripEvent.kind === 'fragileCargo'">{{ t('fragileCargo') }}</div>
+
+        <button type="button" class="taxi-trip-primary-action taxi-offline-hold taxi-action taxi-action--danger-secondary" @mousedown="hud.beginOfflineHold($event)" @mouseup="hud.cancelOfflineHold()" @mouseleave="hud.cancelOfflineHold()">
+          <span class="taxi-offline-hold__fill"></span>
+          <span class="taxi-offline-hold__copy"><span>{{ t('holdOffline') }}</span></span>
+        </button>
+
+        <div class="taxi-metrics">
+          <div class="taxi-metric taxi-metric--fare"><span>{{ t('projectedPayout') }}</span><strong :title="formatMoneyFull(state.adjustedFare + state.tipAmount)">{{ formatMoneyFull(state.adjustedFare + state.tipAmount) }}</strong></div>
+          <div class="taxi-metric"><span>{{ t('estimate') }}</span><strong :title="formatMoneyFull(state.estimatedFare)">{{ formatMoneyFull(state.estimatedFare) }}</strong></div>
+          <div class="taxi-metric taxi-metric--penalty"><span>{{ state.isDelivery ? t('cargoDamage') : t('reduction') }}</span><strong>−{{ formatNumber(state.penaltyPercent, 1) }}%</strong></div>
+        </div>
+
+        <div class="taxi-penalty-log">
+          <button type="button" class="taxi-penalty-log__header taxi-disclosure taxi-action taxi-action--tertiary" @click="penaltiesExpanded = !penaltiesExpanded" :aria-expanded="penaltiesExpanded" aria-controls="taxi-penalty-events">
+            <strong>{{ t('violationSummary', {count: state.penaltyEvents.length, amount: formatMoney(getPenaltyFareLoss())}) }}</strong>
+            <span>{{ penaltiesExpanded ? '−' : '+' }}</span>
+          </button>
+          <div id="taxi-penalty-events" class="taxi-penalty-log__empty" v-if="penaltiesExpanded &amp;&amp; !state.penaltyEvents.length">{{ state.isDelivery ? t('noCargoDamage') : t('noViolations') }}</div>
+          <div id="taxi-penalty-events" class="taxi-penalty-log__events" v-if="penaltiesExpanded &amp;&amp; state.penaltyEvents.length">
+            <div class="taxi-penalty-event" v-for="(event, index) in state.penaltyEvents" :key="event.id">
+              <div class="taxi-penalty-event__icon">!</div>
+              <div class="taxi-penalty-event__text"><strong>{{ getPenaltyLabel(event) }}</strong><span>{{ getPenaltyDetail(event) }}</span></div>
+              <div class="taxi-penalty-event__value" v-if="event.fareAmount > 0">−{{ formatMoney(event.fareAmount) }}</div>
+              <div class="taxi-penalty-event__value" v-if="!event.fareAmount">−{{ formatNumber(event.penaltyPercent, 2) }}%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="taxi-ride-footer">
+          <div class="taxi-ride-footer__rating-head"><strong>{{ t('yourRating') }}</strong><span>{{ formatNumber(state.rating, 2) }} / 5.00</span></div>
+          <div class="taxi-ride-footer__rating-track">
+            <div class="taxi-ride-footer__rating-line"><div class="taxi-ride-footer__rating-fill" :style="{'width': getRatingPercent() + '%'}"></div></div>
+            <div class="taxi-ride-footer__stars"><span class="taxi-star" v-for="(star, index) in stars" :key="star">★<span class="taxi-star__fill" :style="{'width': getStarFill(star) + '%'}">★</span></span></div>
+          </div>
+          <div class="taxi-ride-footer__energy" v-if="state.vehicleEnergy.available" :title="t('estimatedRange')">
+            <span class="taxi-ride-footer__energy-icon">⛽</span>
+            <span class="taxi-ride-footer__energy-type">{{ t('fuel_' + state.vehicleEnergy.energyType) }}</span>
+            <strong>{{ formatDashboardEnergy() }}</strong>
+            <span class="taxi-ride-footer__energy-range">≈ {{ formatEnergyRange(state.vehicleEnergy.estimatedRangeKm) }}</span>
+          </div>
+          <div class="taxi-ride-footer__bottom">
+            <div class="taxi-ride-footer__stats">
+              <div class="taxi-ride-footer__stat"><span>{{ t('balance') }}</span><strong>{{ formatMoney(state.balance) }}</strong></div>
+              <div class="taxi-ride-footer__stat"><span>{{ t('rides') }}</span><strong :title="state.completedRides">{{ formatCount(state.completedRides) }}</strong></div>
+            </div>
+            <button type="button" class="taxi-offline-hold taxi-action taxi-action--danger-secondary" @mousedown="hud.beginOfflineHold($event)" @mouseup="hud.cancelOfflineHold()" @mouseleave="hud.cancelOfflineHold()">
+              <span class="taxi-offline-hold__fill"></span>
+              <span class="taxi-offline-hold__copy"><span>{{ t('holdOffline') }}</span></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="taxi-fuel" :class="{'taxi-fuel--magic': state.fuelStation.magic}" v-if="fuelStationOpen &amp;&amp; (state.fuelStation.available || state.repairStation.available)">
+      <div class="taxi-fuel__head">
+        <div class="taxi-fuel__icon">⛽</div>
+        <div class="taxi-fuel__title"><strong>{{ state.fuelStation.available ? (state.fuelStation.magic ? t('magicFuelTitle') : (state.fuelStation.name || t('refuelTitle'))) : t('repairTitle') }}</strong></div>
+        <button type="button" class="taxi-fuel__close taxi-action taxi-action--tertiary" @click="hud.closeFuelStation()" :disabled="state.fuelStation.refueling.active || state.repairStation.repairing.active" :aria-label="t('refuelClose')">×</button>
+      </div>
+      <div class="taxi-fuel__magic" v-if="state.fuelStation.magic">
+        <strong>{{ t('magicFuelNoStations') }}</strong>
+        <span>{{ t('magicFuelDesc') }}</span>
+      </div>
+      <div class="taxi-fuel__dashboard" v-if="getSelectedFuelOption()">
+        <div class="taxi-fuel__metric"><span>{{ t('refuelBalance') }}</span><strong>{{ formatMoney(state.balance) }}</strong></div>
+        <div class="taxi-fuel__metric"><span>{{ t('fuel_' + selectedFuelType) }}</span><strong>{{ formatNumber(getDisplayedFuelPercent(), 0) }}%</strong></div>
+        <div class="taxi-fuel__metric"><span>{{ t('refuelPrice') }}</span><strong>{{ formatMoney(getFuelDisplayPrice(getSelectedFuelOption())) }}/{{ getFuelDisplayUnit(getSelectedFuelOption()) }}</strong></div>
+      </div>
+      <div class="taxi-fuel__types" v-if="state.fuelStation.options.length > 1">
+        <button type="button" class="taxi-fuel__type" v-for="(option, index) in state.fuelStation.options" :key="option.energyType" :class="{'taxi-fuel__type--active': selectedFuelType === option.energyType}" @click="hud.selectFuelType(option.energyType)" :disabled="state.fuelStation.refueling.active">{{ t('fuel_' + option.energyType) }}</button>
+      </div>
+      <div class="taxi-fuel__card" v-if="getSelectedFuelOption()">
+        <div class="taxi-fuel__smart-head">
+          <span>{{ state.fuelStation.refueling.active ? t('refuelProgress') : t('refuelAmount') }}</span>
+          <strong>{{ formatNumber(getFuelDisplayQuantity((state.fuelStation.refueling.active ? state.fuelStation.refueling.quantity : refuel.amount), getSelectedFuelOption()), 1) }} {{ getFuelDisplayUnit(getSelectedFuelOption()) }}</strong>
+        </div>
+        <div class="taxi-fuel__tank-change" v-show="!state.fuelStation.refueling.active">{{ formatNumber(getSelectedFuelOption().currentPercent, 0) }}% → {{ formatNumber(getProjectedFuelPercent(), 0) }}%</div>
+        <div v-show="!state.fuelStation.refueling.active">
+          <div class="taxi-fuel__presets"><button type="button" @click="hud.setRefuelPreset(5)">+5 {{ getFuelDisplayUnit(getSelectedFuelOption()) }}</button><button type="button" @click="hud.setRefuelPreset(10)">+10 {{ getFuelDisplayUnit(getSelectedFuelOption()) }}</button><button type="button" @click="hud.setRefuelPreset('half')">50%</button><button type="button" @click="hud.setRefuelPreset('full')">{{ t('refuelFullPreset') }}</button></div>
+          <div class="taxi-fuel__selector">
+            <div class="taxi-fuel__selector-track"><span class="taxi-fuel__selector-fill" :style="{'width': getRefuelSelectionPercent() + '%'}"></span></div>
+            <span class="taxi-fuel__selector-thumb" :style="{'left': getRefuelSelectionPercent() + '%'}"></span>
+            <input class="taxi-fuel__range" type="range" min="0" :max="getRefuelMaximum()" step="0.1" v-model.number="refuel.amount" @input="hud.updateRefuelAmount()" :disabled="!state.fuelStation.vehicleStopped">
+          </div>
+          <div class="taxi-fuel__selection-meta"><span>{{ t('refuelAvailable') }} · {{ formatNumber(getFuelDisplayQuantity(getRefuelMaximum(), getSelectedFuelOption()), 1) }} {{ getFuelDisplayUnit(getSelectedFuelOption()) }}</span><strong :title="formatMoneyFull(getRefuelCost())">{{ formatMoneyFull(getRefuelCost()) }}</strong></div>
+          <div class="taxi-fuel__projection"><span>{{ t('projectedRange') }}</span><strong>≈ {{ formatEnergyRange(getProjectedFuelRange()) }}</strong><small v-if="state.distanceToTarget > 0" :class="{'is-good': isProjectedFuelEnough(), 'is-danger': !isProjectedFuelEnough()}">{{ isProjectedFuelEnough() ? t('fuelEnough') : t('fuelNotEnough') }}</small></div>
+        </div>
+        <div class="taxi-fuel__progress" v-show="state.fuelStation.refueling.active">
+          <div class="taxi-fuel__progress-track"><span :style="{'width': (state.fuelStation.refueling.progress * 100) + '%'}"></span></div>
+          <div class="taxi-fuel__progress-meta"><span>{{ formatNumber(state.fuelStation.refueling.progress * 100, 0) }}%</span><span>{{ t('refuelRemaining') }} · {{ formatNumber(state.fuelStation.refueling.remainingSeconds, 1) }} s</span></div>
+        </div>
+      </div>
+      <div class="taxi-fuel__empty" v-if="!state.fuelStation.options.length">…</div>
+      <button type="button" class="taxi-fuel__buy taxi-action taxi-action--primary" @click="hud.purchaseFuel()" :disabled="state.fuelStation.refueling.active || state.repairStation.repairing.active || !state.fuelStation.vehicleStopped || !getSelectedFuelOption() || refuel.amount <= 0">
+        <span v-if="state.fuelStation.refueling.active">{{ t('refuelProgress') }} · {{ formatNumber(state.fuelStation.refueling.progress * 100, 0) }}%</span>
+        <span v-if="!state.fuelStation.refueling.active &amp;&amp; !state.fuelStation.vehicleStopped">{{ t('refuelStayStopped') }}</span>
+        <span v-if="!state.fuelStation.refueling.active &amp;&amp; state.fuelStation.vehicleStopped &amp;&amp; getSelectedFuelOption() &amp;&amp; getSelectedFuelOption().missingQuantity <= 0.01">{{ t('refuelFull') }}</span>
+        <span v-if="!state.fuelStation.refueling.active &amp;&amp; state.fuelStation.vehicleStopped &amp;&amp; getSelectedFuelOption() &amp;&amp; getSelectedFuelOption().missingQuantity > 0.01 &amp;&amp; getRefuelMaximum() <= 0">{{ t('refuelNoMoney') }}</span>
+        <span v-if="!state.fuelStation.refueling.active &amp;&amp; state.fuelStation.vehicleStopped &amp;&amp; (!getSelectedFuelOption() || (getSelectedFuelOption().missingQuantity > 0.01 &amp;&amp; getRefuelMaximum() > 0))">{{ t('refuelBuy') }}</span>
+      </button>
+
+      <div class="taxi-fuel__repair" v-if="state.repairStation.available">
+        <div class="taxi-fuel__metric"><span>{{ t('repairDamage') }}</span><strong>{{ formatNumber(state.repairStation.damagePercent, 0) }}%</strong></div>
+        <div class="taxi-fuel__metric" v-if="state.repairStation.canRepair"><span>{{ t('repairPrice') }}</span><strong>{{ formatMoney(state.repairStation.price) }}</strong></div>
+        <div class="taxi-fuel__progress" v-show="state.repairStation.repairing.active">
+          <div class="taxi-fuel__progress-track"><span :style="{'width': (state.repairStation.repairing.progress * 100) + '%'}"></span></div>
+          <div class="taxi-fuel__progress-meta"><span>{{ formatNumber(state.repairStation.repairing.progress * 100, 0) }}%</span><span>{{ t('refuelRemaining') }} · {{ formatNumber(state.repairStation.repairing.remainingSeconds, 1) }} s</span></div>
+        </div>
+        <button type="button" class="taxi-fuel__buy" v-if="state.repairStation.canRepair" @click="hud.purchaseRepair()" :disabled="state.repairStation.repairing.active || state.fuelStation.refueling.active || !state.repairStation.vehicleStopped || state.repairStation.balance < state.repairStation.price">
+          <span v-if="state.repairStation.repairing.active">{{ t('repairProgress') }} · {{ formatNumber(state.repairStation.repairing.progress * 100, 0) }}%</span>
+          <span v-if="!state.repairStation.repairing.active &amp;&amp; !state.repairStation.vehicleStopped">{{ t('refuelStayStopped') }}</span>
+          <span v-if="!state.repairStation.repairing.active &amp;&amp; state.repairStation.vehicleStopped &amp;&amp; state.repairStation.balance < state.repairStation.price">{{ t('repairNoMoney') }}</span>
+          <span v-if="!state.repairStation.repairing.active &amp;&amp; state.repairStation.vehicleStopped &amp;&amp; state.repairStation.balance >= state.repairStation.price">{{ t('repairBuy') }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="taxi-offline-confirm" v-if="offlineConfirmOpen" role="dialog" aria-modal="true" aria-labelledby="taxi-offline-confirm-title" aria-describedby="taxi-offline-confirm-description">
+      <div class="taxi-offline-confirm__card" tabindex="-1">
+        <div class="taxi-offline-confirm__icon">⚠️</div>
+        <h2 id="taxi-offline-confirm-title">{{ state.deliveryOnboard ? t('offlineDeliveryTitle') : t('offlineConfirmTitle') }}</h2>
+        <p id="taxi-offline-confirm-description">{{ state.deliveryOnboard ? t('offlineDeliveryDesc') : t('offlineConfirmDesc') }}</p>
+        <div class="taxi-offline-confirm__penalty">{{ t('offlinePenaltyWarning', {percent: formatBonusPercent(state.offlinePenaltyExtraPercent), rating: formatRating(state.offlinePenaltyFinalRating)}) }}</div>
+        <div class="taxi-offline-confirm__actions">
+          <button type="button" class="taxi-offline-confirm__cancel" @click="hud.cancelOfflineConfirmation()">{{ t('cancel') }}</button>
+          <button type="button" class="taxi-offline-confirm__confirm" @click="hud.confirmOfflineWithPassenger()">{{ t('confirmOffline') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="taxi-offline-confirm taxi-police-confirm" v-if="policeCheckConfirmOpen" role="dialog" aria-modal="true" aria-labelledby="taxi-police-confirm-title" aria-describedby="taxi-police-confirm-description">
+      <div class="taxi-offline-confirm__card" tabindex="-1">
+        <div class="taxi-offline-confirm__icon">🚓</div>
+        <h2 id="taxi-police-confirm-title">{{ t('policeCheckEnableTitle') }}</h2>
+        <p id="taxi-police-confirm-description">{{ t('policeCheckEnableDesc') }}</p>
+        <div class="taxi-offline-confirm__actions">
+          <button type="button" class="taxi-offline-confirm__cancel" @click="hud.cancelPoliceCheckEnable()">{{ t('cancel') }}</button>
+          <button type="button" class="taxi-offline-confirm__confirm" @click="hud.confirmPoliceCheckEnable()">{{ t('policeCheckEnableConfirm') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="taxi-offline-confirm taxi-ai-confirm" v-if="aiDriverConfirmOpen" role="dialog" aria-modal="true" aria-labelledby="taxi-ai-confirm-title" aria-describedby="taxi-ai-confirm-description">
+      <div class="taxi-offline-confirm__card" tabindex="-1">
+        <div class="taxi-offline-confirm__icon">AI</div>
+        <h2 id="taxi-ai-confirm-title">{{ t('aiDriverConfirmTitle') }}</h2>
+        <p id="taxi-ai-confirm-description">{{ t('aiDriverConfirmDesc') }}</p>
+        <div class="taxi-offline-confirm__actions">
+          <button type="button" class="taxi-offline-confirm__cancel" @click="hud.cancelAiDriverEnable()">{{ t('cancel') }}</button>
+          <button type="button" class="taxi-offline-confirm__confirm" @click="hud.confirmAiDriverEnable()">{{ t('aiDriverConfirmEnable') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="taxi-next-offer" v-if="shouldShowNextOffer()">
+      <div class="taxi-next-offer__card">
+        <button type="button" class="taxi-next-offer__close taxi-action taxi-action--tertiary" v-if="!state.nextOffer.accepted" @click="hud.dismissNextOffer(state.nextOffer.id)" :title="t('dismissNextOffer')" :aria-label="t('dismissNextOffer')">&times;</button>
+        <div class="taxi-next-offer__eyebrow">{{ t('nextOfferTitle') }}</div>
+        <div class="taxi-next-offer__head">
+          <div class="taxi-next-offer__avatar">{{ state.nextOffer.isDelivery ? '📦' : getInitials(state.nextOffer.passengerName) }}</div>
+          <div class="taxi-next-offer__passenger">
+            <strong>{{ getOfferName(state.nextOffer) }}</strong>
+            <span>{{ t('nextOfferDesc') }}</span>
+          </div>
+          <div class="taxi-calmness-emoji" v-if="!state.nextOffer.isDelivery" role="img" :title="(t('passengerCalmness')) + &quot; · &quot; + (formatNumber(state.nextOffer.passengerCalmness, 0)) + &quot;%&quot;" :aria-label="(t('passengerCalmness')) + &quot; · &quot; + (formatNumber(state.nextOffer.passengerCalmness, 0)) + &quot;%&quot;">
+            {{ getCalmnessEmoji(state.nextOffer.passengerCalmness) }}
+            <small class="taxi-calmness-emoji__percent">{{ formatNumber(state.nextOffer.passengerCalmness, 0) }}%</small>
+          </div>
+          <div class="taxi-delivery-weight" v-if="state.nextOffer.isDelivery"><span>📦</span><strong>{{ formatCargoWeight(state.nextOffer.cargoWeightKg) }}</strong></div>
+          <div class="taxi-next-offer__time" v-if="!state.nextOffer.accepted">{{ formatNumber(nextOfferUiRemaining, 1) }}</div>
+        </div>
+        <div class="taxi-next-offer__metrics">
+          <div class="taxi-next-offer__metric"><span>{{ state.nextOffer.isDelivery ? t('cargoWeight') : t('pickupDeadline') }}</span><strong>{{ state.nextOffer.isDelivery ? formatCargoWeight(state.nextOffer.cargoWeightKg) : formatCountdown(state.nextOffer.pickupWaitSeconds) }}</strong></div>
+          <div class="taxi-next-offer__metric"><span>{{ t('distance') }}</span><strong>{{ formatDistance(state.nextOffer.rideDistance) }}</strong></div>
+          <div class="taxi-next-offer__metric taxi-next-offer__metric--fare"><span>{{ t('payment') }}</span><strong :title="formatMoneyFull(state.nextOffer.estimatedFare)">{{ formatMoneyFull(state.nextOffer.estimatedFare) }}</strong></div>
+        </div>
+        <div class="taxi-next-offer__meta taxi-next-offer__meta--multi" v-if="state.nextOffer.isMultiStop">{{ t('multiStopSummary', {count: state.nextOffer.stopCount, time: formatCountdown(state.nextOffer.stopWaitSeconds)}) }}</div>
+        <div class="taxi-next-offer__meta taxi-next-offer__meta--rating" v-if="state.nextOffer.ratingBonusPercent > 0">{{ t('ratingBonusLine', {percent: formatBonusPercent(state.nextOffer.ratingBonusPercent), amount: formatMoney(state.nextOffer.ratingBonusAmount)}) }}</div>
+        <div class="taxi-next-offer__countdown" v-if="!state.nextOffer.accepted"><span :style="{'width': (nextOfferUiRemaining / state.nextOffer.duration * 100) + '%'}"></span></div>
+        <button type="button" class="taxi-next-offer__accept taxi-action taxi-action--primary" v-if="!state.nextOffer.accepted" @click="hud.acceptNextOffer(state.nextOffer.id)">{{ t('accept') }}</button>
+        <div class="taxi-next-offer__accepted" v-if="state.nextOffer.accepted">{{ t('nextOfferAccepted') }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>

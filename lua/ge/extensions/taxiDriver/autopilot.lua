@@ -81,6 +81,8 @@ function M.new(options)
   local service = {}
   local runtime = {
     enabled = false,
+    featureEnabled = true,
+    continuationPending = false,
     suspended = false,
     status = "off",
     reason = "",
@@ -106,6 +108,9 @@ function M.new(options)
     stationarySeconds = 0,
     stuckRecoveryAttempt = 0,
     stuckRecoveryPosition = nil,
+    circlingRecoveryAttempt = 0,
+    motionWindow = nil,
+    lastMotionWindow = nil,
     elapsed = 0,
     commandCount = 0,
     parking = nil,
@@ -240,7 +245,7 @@ function M.new(options)
     return nodes
   end
 
-  local function observerConfig(sequence)
+  local function observerConfig(sequence, nodes)
     local target = runtime.target or {}
     local pos, dir = target.pos or {}, target.dir or {}
     return table.concat({
@@ -258,7 +263,11 @@ function M.new(options)
       ",targetZ=", string.format("%.3f", number(pos.z, 0)),
       ",targetDirX=", string.format("%.4f", number(dir.x, 0)),
       ",targetDirY=", string.format("%.4f", number(dir.y, 0)),
-      ",arrivalRadius=", string.format("%.2f", number(options.arrivalRadius, 14)),
+      -- Stop inside the GE completion trigger (8 m by default). Aiming at the
+      -- old 14 m boundary left the cab stationary outside pickup/arrival range.
+      ",arrivalRadius=", string.format("%.2f", math.max(1,
+        math.min(8, math.max(2, number(options.arrivalRadius, 14))) - 2)),
+      ",routeNodes=", serializePath(nodes or runtime.routeNodes),
       -- The order state machine may tolerate a small sensor epsilon, but the
       -- AI speed target itself must be a complete stop.
       ",maximumArrivalSpeed=0",
@@ -283,15 +292,21 @@ function M.new(options)
       -- driveUsingPath switches to Arcade synchronously. Capture the player's
       -- gearbox mode before that call so handoff can restore it correctly.
       "if taxiObserver and type(taxiObserver.watch)=='function' then taxiObserver.watch(",
-      observerConfig(sequence), ") end;",
-      "ai.driveUsingPath({wpTargetList=", serializePath(nodes),
+      observerConfig(sequence, nodes), ") end;",
+      -- Native manual path assumes an existing road ingress. Seed only its
+      -- first edge through native point-to-node planning; the observer appends
+      -- the exact resolved suffix after the native initialization frame.
+      "local taxiPathArgs={path=", serializePath(nodes),
       ",noOfLaps=1,aggression=", string.format("%.2f", runtime.profile.aggression),
       ",avoidCars='on',driveInLane=", quote(laneMode),
       ",routeSpeedMode=", quote(runtime.profile.obeySpeedLimits and "legal" or "off"),
       ",targetSpeedSmootherRate=7,lookAheadKv=0.65,",
       "understeerThrottleControl='on',oversteerThrottleControl='on',",
-      "throttleTcs='on',abBrakeControl='on',underSteerBrakeControl='on'});",
-      -- BeamNG 0.39 applies these reliably after driveUsingPath initializes the
+      "throttleTcs='on',abBrakeControl='on',underSteerBrakeControl='on'};",
+      "if taxiObserver and type(taxiObserver.prepareRouteIngress)=='function' then ",
+      "taxiObserver.prepareRouteIngress(taxiPathArgs) end;",
+      "ai.driveUsingPath(taxiPathArgs);",
+      -- BeamNG 0.40 applies these after driveUsingPath initializes the
       -- native route. Every optional call is capability-gated for older builds.
       "if type(ai.setParameters)=='function' then ai.setParameters({",
       "awarenessForceCoef=0.35,trafficWaitTime=",
@@ -316,6 +331,7 @@ function M.new(options)
     runtime.commandCount = runtime.commandCount + 1
     runtime.lastPosition = copyPosition(vehicle:getPosition())
     runtime.stationarySeconds = 0
+    runtime.motionWindow = nil
     logger.info("autopilot", "route_started", {
       sessionId = runtime.sessionId,
       routeRevision = runtime.routeRevision,
@@ -370,14 +386,10 @@ function M.new(options)
     if not runtime.parking then return end
     vehicle = resolveVehicle(vehicle)
     local sequence = nextSequence()
-    -- Every reason that reaches a full park (destination arrival, shift
-    -- stopped, feature disabled, driver toggle, faults, ...) is a genuine
-    -- handoff back to the player, not a temporary pause: mid-trip pauses
-    -- that resume the same AI session on their own (boarding, waiting at a
-    -- fuel-station detour) go through suspend()/resume, never park(). So
-    -- finalizing a park always hands full manual control back instead of
-    -- latching the parking brake with nothing left to ever release it again
-    -- outside of starting another AI route.
+    -- A confirmed park releases native control and restores the player's
+    -- gearbox. Intermediate arrivals retain only the intent to drive the
+    -- next leg; boarding/waiting holds the car until gameplay supplies that
+    -- next target and a fresh native route takes ownership again.
     if vehicle then
       queue(vehicle, table.concat({
         "if ai then ",
@@ -395,6 +407,13 @@ function M.new(options)
       }))
     end
     local reason = runtime.parking.reason
+    -- Pickup and intermediate-stop parking ends native control while people
+    -- board/wait, but the driver's AI request still applies to the next leg.
+    -- A destination, fault, or explicit stop remains terminal.
+    runtime.continuationPending = runtime.featureEnabled and
+      (reason == "targetReached" or reason == "nativeRouteDone") and
+      (runtime.phase == phases.toPickup or runtime.phase == phases.toStop or
+        runtime.phase == phases.toFuelStation)
     runtime.parking = nil
     runtime.enabled = false
     runtime.suspended = false
@@ -642,7 +661,7 @@ function M.new(options)
     end
 
     local ok, accepted = pcall(route.request, route, vehicle, requestedTarget,
-      requestedRevision, onRoute)
+      requestedRevision, onRoute, {strictGpsRoute = runtime.profile.strictGpsRoute})
     if not ok or accepted == false then
       runtime.routeRequestPending = false
       routeFailure(vehicle, ok and "routeRequestRejected" or tostring(accepted), {
@@ -657,6 +676,13 @@ function M.new(options)
 
   function service:configure(profile)
     profile = type(profile) == "table" and profile or {}
+    if profile.enabled ~= nil then runtime.featureEnabled = profile.enabled == true end
+    if not runtime.featureEnabled then
+      runtime.continuationPending = false
+      if runtime.enabled and not runtime.parking then
+        requestPark(resolveVehicle(nil), "featureDisabled")
+      end
+    end
     local aggression = clamp(number(profile.aggressionPercent, 40) / 100, 0.3, 0.85)
     local predictiveWarningScale = aggression <= 0.35 and 1.15 or
       aggression <= 0.45 and 1 or 0.9
@@ -701,6 +727,7 @@ function M.new(options)
   end
 
   function service:enable(vehicle, phase, target)
+    if not runtime.featureEnabled then runtime.reason = "featureDisabled"; return false end
     vehicle = resolveVehicle(vehicle)
     if runtime.enabled and not runtime.parking then return true end
     if not vehicle or not isCurrentPlayerVehicle(vehicle) or
@@ -711,6 +738,7 @@ function M.new(options)
 
     cancelRouteRequest("newSession")
     runtime.enabled = true
+    runtime.continuationPending = false
     runtime.suspended = false
     runtime.status = "planning"
     runtime.reason = ""
@@ -733,6 +761,9 @@ function M.new(options)
     runtime.lastPosition = copyPosition(vehicle:getPosition())
     runtime.movedDistance = 0
     runtime.stationarySeconds = 0
+    runtime.circlingRecoveryAttempt = 0
+    runtime.motionWindow = nil
+    runtime.lastMotionWindow = nil
     runtime.stuckRecoveryAttempt = 0
     runtime.stuckRecoveryPosition = nil
     runtime.elapsed = 0
@@ -753,6 +784,7 @@ function M.new(options)
   end
 
   function service:disable(vehicle, reason, park)
+    runtime.continuationPending = false
     vehicle = resolveVehicle(vehicle)
     local wasActive = runtime.enabled or runtime.parking ~= nil or
       runtime.status == "planning" or runtime.status == "driving" or
@@ -775,7 +807,7 @@ function M.new(options)
   end
 
   function service:toggle(vehicle, phase, target)
-    if runtime.enabled or runtime.parking then
+    if runtime.enabled or runtime.parking or runtime.continuationPending then
       self:disable(vehicle, "driver")
       return false
     end
@@ -807,7 +839,9 @@ function M.new(options)
     else
       runtime.status = "planning"
       runtime.reason = "resumed"
-      requestRoute(vehicle, "resumed")
+      -- The orchestrator resumes before update() supplies the next leg's
+      -- target. Defer planning to that update instead of reissuing the pickup.
+      runtime.routeDirty = true
     end
   end
 
@@ -899,7 +933,32 @@ function M.new(options)
   function service:update(vehicle, phase, target, dt)
     vehicle = resolveVehicle(vehicle)
     if runtime.parking then return updateParking(vehicle, dt) end
-    if not runtime.enabled then return false end
+    if not runtime.enabled then
+      if runtime.continuationPending then
+        if not vehicle or vehicleId(vehicle) ~= runtime.vehicleId or
+          not isCurrentPlayerVehicle(vehicle) then
+          runtime.continuationPending = false
+          return false
+        end
+        local nextLeg = runtime.phase == phases.toPickup and
+          (phase == phases.toStop or phase == phases.toDestination) or
+          runtime.phase == phases.toStop and
+          (phase == phases.toStop or phase == phases.toDestination) or
+          runtime.phase == phases.toFuelStation and isDrivingPhase(phase) and
+          phase ~= phases.toFuelStation
+        if nextLeg and target and target.pos and
+          makeTargetKey(phase, target) ~= runtime.targetKey then
+          return self:enable(vehicle, phase, target)
+        end
+        local waitingForLeg = phase == phases.boarding or phase == phases.stopWaiting or
+          phase == runtime.phase and
+            (not target or makeTargetKey(phase, target) == runtime.targetKey)
+        if not nextLeg and not waitingForLeg then
+          runtime.continuationPending = false
+        end
+      end
+      return false
+    end
     if not vehicle or not isCurrentPlayerVehicle(vehicle) then
       requestPark(vehicle, "playerVehicleChanged")
       return false
@@ -922,6 +981,8 @@ function M.new(options)
       runtime.targetKey = key
       runtime.routeDirty = true
       runtime.routeDoneRetryCount = 0
+      runtime.circlingRecoveryAttempt = 0
+      runtime.motionWindow = nil
     end
     if runtime.routeDirty and not runtime.routeRequestPending then
       requestRoute(vehicle, "routeChanged")
@@ -988,6 +1049,51 @@ function M.new(options)
     local safetyHold = type(safety) == "table" and
       (safety.emergencyBraking == true or safety.safetyHolding == true or
         closeLead)
+    -- A stationary-only watchdog cannot detect native AI repeatedly steering
+    -- around an unreachable first waypoint. Compare travelled distance with
+    -- displacement over a bounded window; a normal bend or traffic wait does
+    -- not qualify. Recovery remains a native route replan, with one retry until
+    -- the cab demonstrates substantial progress on the repaired route.
+    if runtime.enabled and not runtime.parking and not runtime.routeRequestPending and
+      runtime.status == "driving" and not safetyHold and
+      runtime.targetDistance > completionRadius then
+      local window = runtime.motionWindow
+      if not window then
+        window = {position = copyPosition(position),
+          targetDistance = runtime.targetDistance, elapsed = 0, travelled = 0}
+        runtime.motionWindow = window
+      end
+      window.elapsed = window.elapsed + dt
+      window.travelled = window.travelled + moved
+      if window.elapsed >= 30 then
+        local displacement = distance(position, window.position)
+        local targetProgress = window.targetDistance - runtime.targetDistance
+        runtime.lastMotionWindow = {elapsed = window.elapsed,
+          travelled = window.travelled, displacement = displacement,
+          targetProgress = targetProgress}
+        runtime.motionWindow = nil
+        if displacement >= 40 or targetProgress >= 30 then
+          runtime.circlingRecoveryAttempt = 0
+        elseif window.travelled >= 90 and displacement <= 30 then
+          if runtime.circlingRecoveryAttempt < 1 then
+            runtime.circlingRecoveryAttempt = runtime.circlingRecoveryAttempt + 1
+            logger.warn("autopilot", "circling_recovery_requested", {
+              sessionId = runtime.sessionId, routeRevision = runtime.routeRevision,
+              travelled = window.travelled, displacement = displacement,
+              targetProgress = targetProgress})
+            return requestRoute(vehicle, "circlingRecovery")
+          end
+          logger.error("autopilot", "circling_recovery_exhausted", {
+            sessionId = runtime.sessionId, routeRevision = runtime.routeRevision,
+            travelled = window.travelled, displacement = displacement,
+            targetProgress = targetProgress})
+          requestPark(vehicle, "circlingAfterRecovery")
+          return false
+        end
+      end
+    else
+      runtime.motionWindow = nil
+    end
     local trafficAhead = type(safety) == "table" and
       (safety.leadConfirmed == true or safety.obstacleDetected == true)
     local stuckDelay = trafficAhead and 25 or
@@ -1097,6 +1203,7 @@ function M.new(options)
     return {
       available = available == true and vehicle ~= nil,
       enabled = runtime.enabled == true,
+      continuationPending = runtime.continuationPending == true,
       suspended = runtime.suspended == true,
       status = runtime.status,
       reason = runtime.reason,
@@ -1134,10 +1241,14 @@ function M.new(options)
       targetDistance = targetDistance,
       routeNodeCount = #runtime.routeNodes,
       routeDone = runtime.routeDone == true,
+      continuationPending = runtime.continuationPending == true,
       routeDoneDistance = runtime.routeDoneDistance,
       routeDoneRetryCount = runtime.routeDoneRetryCount,
       stationarySeconds = runtime.stationarySeconds,
       stuckRecoveryAttempt = runtime.stuckRecoveryAttempt,
+      circlingRecoveryAttempt = runtime.circlingRecoveryAttempt,
+      motionWindow = runtime.motionWindow,
+      lastMotionWindow = runtime.lastMotionWindow,
       movedDistance = runtime.movedDistance,
       elapsed = runtime.elapsed,
       commandCount = runtime.commandCount,

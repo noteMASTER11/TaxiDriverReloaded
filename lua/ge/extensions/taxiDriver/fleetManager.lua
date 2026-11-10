@@ -383,39 +383,45 @@ function M.new(options)
     return result
   end
 
-  local function drawMinimapMarkers()
-    if not minimap.td or not ui_apps_minimap_utils then return end
+  local function drawMinimapMarkers(context)
+    if not context.active or not context.td or not context.utils or next(drivers) == nil then return end
     local purple, border = color(154, 74, 255, 255), color(25, 15, 40, 255)
     for _, driver in pairs(drivers) do
       local vehicle = getObjectByID(driver.vehicleId)
       if vehicle then
         local point = vec3(vehicle:getPosition())
-        ui_apps_minimap_utils.worldToMapXYZ(point, point)
-        minimap.td:circle(point.x, point.y, 7 * minimap.dpi, 0, border, border, 0, 0, 0, 95)
-        minimap.td:circle(point.x, point.y, 4.5 * minimap.dpi, 0, purple, purple, 0, 0, 0, 96)
+        context.utils.worldToMapXYZ(point, point)
+        context.td:circle(point.x, point.y, 7 * context.dpi, 0, border, border, 0, 0, 0, 95)
+        context.td:circle(point.x, point.y, 4.5 * context.dpi, 0, purple, purple, 0, 0, 0, 96)
       end
     end
   end
 
-  function service:installMinimapMarkers()
-    if minimap.installed then return end
-    if not ui_apps_minimap_vehicles and extensions then extensions.load("ui_apps_minimap_vehicles") end
-    local module = ui_apps_minimap_vehicles
+  function service:installMinimapMarkers(modules)
+    local module = modules and modules.vehicles
     if not module or type(module.setMinimapState) ~= "function" or type(module.drawOtherVehicles) ~= "function" then return end
+    if minimap.installed and minimap.module == module then return end
+    self:restoreMinimapMarkers()
+    minimap.module, minimap.utils, minimap.active = module, modules.utils, true
     minimap.originalSetState, minimap.originalDraw = module.setMinimapState, module.drawOtherVehicles
+    -- Other wrappers can retain these closures past teardown. Capture stable
+    -- originals/context rather than following the mutable minimap upvalue.
+    local context = minimap
+    local originalSetState, originalDraw = module.setMinimapState, module.drawOtherVehicles
     minimap.wrappedSetState = function(...)
-      local args = {...}; minimap.td, minimap.dpi = args[10], tonumber(args[13]) or 1
-      return minimap.originalSetState(...)
+      context.td, context.dpi = select(10, ...), tonumber((select(13, ...))) or 1
+      return originalSetState(...)
     end
     minimap.wrappedDraw = function(...)
-      local result = minimap.originalDraw(...); drawMinimapMarkers(); return result
+      local result = originalDraw(...); drawMinimapMarkers(context); return result
     end
     module.setMinimapState, module.drawOtherVehicles = minimap.wrappedSetState, minimap.wrappedDraw
     minimap.installed = true
   end
 
   function service:restoreMinimapMarkers()
-    local module = ui_apps_minimap_vehicles
+    local module = minimap.module
+    minimap.active = false
     if minimap.installed and module then
       if module.setMinimapState == minimap.wrappedSetState then module.setMinimapState = minimap.originalSetState end
       if module.drawOtherVehicles == minimap.wrappedDraw then module.drawOtherVehicles = minimap.originalDraw end

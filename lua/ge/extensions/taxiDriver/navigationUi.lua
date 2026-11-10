@@ -13,6 +13,17 @@ end
 function M.new(options)
   options = type(options) == "table" and options or {}
   local service = {}
+  local nativeMinimap = options.nativeMinimap or require("taxiDriver/nativeMinimap").new()
+  local ui_apps_minimap_minimap, ui_apps_minimap_utils, ui_apps_minimap_vehicles
+  local function loadMinimap()
+    local modules = nativeMinimap:getModules()
+    if not modules then return false end
+    ui_apps_minimap_minimap = modules.minimap
+    ui_apps_minimap_utils = modules.utils
+    ui_apps_minimap_vehicles = modules.vehicles
+    if options.onMinimapReady then options.onMinimapReady(modules) end
+    return true
+  end
   local originalMode = nil
   local owned = false
   local appVisible = true
@@ -115,8 +126,7 @@ function M.new(options)
   end
 
   local function installDynamicZoom()
-    if not ui_apps_minimap_vehicles then extensions.load("ui_apps_minimap_vehicles") end
-    if not ui_apps_minimap_vehicles then return end
+    if not ui_apps_minimap_vehicles and not loadMinimap() then return end
 
     if ui_apps_minimap_utils and not wrappedSetUtilsState and
       type(ui_apps_minimap_utils.setMinimapState) == "function" then
@@ -245,6 +255,14 @@ function M.new(options)
     end
   end
 
+  function service:updateMinimap(dtReal, dtSim)
+    nativeMinimap:update(dtReal, dtSim)
+  end
+
+  function service:getMinimapModules()
+    return nativeMinimap:getModules()
+  end
+
   function service:hideMinimap()
     restoreDynamicZoom()
     if ui_apps_minimap_minimap then
@@ -255,12 +273,6 @@ function M.new(options)
         ui_apps_minimap_minimap.resetOcclusionTransform(id)
       end
       if owned then ui_apps_minimap_minimap.hide() end
-    end
-    if owned and originalMode and originalMode ~= "rect" then
-      settings.setValue("minimapMode", originalMode)
-      if ui_apps_minimap_minimap then
-        ui_apps_minimap_minimap.onMinimapSettingsChanged()
-      end
     end
     originalMode, owned, lastTransform = nil, false, nil
   end
@@ -289,6 +301,12 @@ function M.new(options)
   function service:resetVisibility()
     appVisible, uiBlocked = true, false
     self:resetMinimapView()
+  end
+
+  function service:resetMinimap()
+    self:hideMinimap()
+    nativeMinimap:reset()
+    ui_apps_minimap_minimap, ui_apps_minimap_utils, ui_apps_minimap_vehicles = nil, nil, nil
   end
 
   function service:panMinimap(dx, dy)
@@ -329,11 +347,8 @@ function M.new(options)
       math.abs(lastTransform[2] - y) < 0.00001 and
       math.abs(lastTransform[3] - width) < 0.00001 and
       math.abs(lastTransform[4] - height) < 0.00001 then return end
-    if not ui_apps_minimap_minimap then extensions.load("ui_apps_minimap_minimap") end
-    if not ui_apps_minimap_minimap then return end
+    if not ui_apps_minimap_minimap and not loadMinimap() then return end
     if not owned then
-      originalMode = settings.getValue("minimapMode") or "circle"
-      if originalMode ~= "rect" then settings.setValue("minimapMode", "rect") end
       ui_apps_minimap_minimap.onMinimapSettingsChanged()
       owned = true
     end
@@ -344,8 +359,7 @@ function M.new(options)
 
   function service:setOcclusions(values, allowFleet)
     if not self:canShow(allowFleet) then return end
-    if not ui_apps_minimap_minimap then extensions.load("ui_apps_minimap_minimap") end
-    if not ui_apps_minimap_minimap then return end
+    if not ui_apps_minimap_minimap and not loadMinimap() then return end
     local ids = {
       "taxiDriverRouteInfo", "taxiDriverSpeedLimit", "taxiDriverNotification",
       "taxiDriverAutopilot", "taxiDriverFleetStatus", "taxiDriverMapControls"

@@ -225,6 +225,7 @@ assert(routeCache.appendOffer(cachedOfferSource, {x = 0, y = 0, z = 0}))
 local restoredRouteOffers = routeCache.loadOffers()
 assert(#restoredRouteOffers == 1)
 assert(restoredRouteOffers[1].passengerName == "Cache Passenger")
+assert(routeCache.flush())
 assert(routeCacheFiles[routeCacheDescriptor.filePath].routes[1].rideDistance == 7200)
 FS, jsonReadFile, jsonWriteFile = originalRouteCacheFs, originalJsonReadFile,
   originalJsonWriteFile
@@ -315,6 +316,9 @@ end
 
 do
 local orientedMap = map
+local orientedGetObjectByID = getObjectByID
+local orientedRouteDependency = package.loaded["gameplay/route/route"]
+local orientedAdapterDependency = package.loaded["taxiDriver/aiDriverRoute"]
 local orientedNodes = {
   roadStart = {pos = {x = -100, y = 0, z = 0}, links = {}},
   targetA = {pos = {x = 0, y = 0, z = 0}, links = {}},
@@ -360,6 +364,24 @@ local orientedVehicle = {
     orientedCommands[#orientedCommands + 1] = command
   end
 }
+local orientedObjectPresent = true
+getObjectByID = function(id)
+  return orientedObjectPresent and tonumber(id) == 7 and orientedVehicle or nil
+end
+-- Exercise the real async route adapter with native Route's current callback
+-- contract. The former fixture supplied neither async nor filtered planning.
+package.loaded["gameplay/route/route"] = function() return {
+  setRouteParams = function() end,
+  setupPathMultiJob = function(self, positions, callback)
+    if positions[1].x > 100 then self.path = {"targetB"}
+    elseif positions[1].x > 0 then self.path = {"targetB", "targetA"}
+    else self.path = {"targetA"} end
+    self.distance = 100
+    callback(self)
+  end
+} end
+package.loaded["taxiDriver/aiDriverRoute"] = nil
+local orientedAutopilotModule = dofile("lua/ge/extensions/taxiDriver/autopilot.lua")
 local orientedPhases = {
   toPickup = "toPickup", toStop = "toStop",
   toDestination = "toDestination", toFuelStation = "toFuelStation"
@@ -368,12 +390,12 @@ local orientedTarget = {
   pos = {x = 40, y = 4, z = 0}, dir = {x = 1, y = 0, z = 0},
   nodeA = "targetA", nodeB = "targetB"
 }
-local orientedAutopilot = autopilotModule.new({
+local orientedAutopilot = orientedAutopilotModule.new({
   phases = orientedPhases, arrivalRadius = 14, maxArrivalSpeedKmh = 4,
   getSpeedKmh = function() return 0 end
 })
 assert(orientedAutopilot:enable(orientedVehicle, "toPickup", orientedTarget))
-assert(load(orientedCommands[#orientedCommands]))
+assert((loadstring or load)(orientedCommands[#orientedCommands]))
 assert(orientedAutopilot:isTargetAligned(orientedVehicle, orientedTarget))
 orientedDirection = {x = -1, y = 0, z = 0}
 assert(not orientedAutopilot:isTargetAligned(orientedVehicle, orientedTarget))
@@ -390,15 +412,14 @@ assert(#orientedCommands == 2)
 local prematureDiagnostics = orientedAutopilot:getDiagnostics(
   orientedVehicle, orientedTarget, "toPickup")
 assert(prematureDiagnostics.routeDoneRetryCount == 1)
-assert(prematureDiagnostics.orientedApproach and
-  prematureDiagnostics.approachNode == "targetA" and
-  prematureDiagnostics.departureNode == "targetB")
+assert(prematureDiagnostics.routeSource == "beamngRouteAsync" and
+  prematureDiagnostics.routeDiagnostics.async == true)
 orientedAutopilot:disable(orientedVehicle, "test")
 
 orientedCommands, orientedPosition, orientedDirection =
   {}, {x = 150, y = 0, z = 0}, {x = -1, y = 0, z = 0}
 orientedTarget.dir = {x = -1, y = 0, z = 0}
-orientedAutopilot = autopilotModule.new({
+orientedAutopilot = orientedAutopilotModule.new({
   phases = orientedPhases, arrivalRadius = 14,
   getSpeedKmh = function() return 0 end
 })
@@ -407,27 +428,33 @@ assert(orientedCommands[#orientedCommands]:find(
   'path={"targetB","targetA"}', 1, true))
 orientedAutopilot:disable(orientedVehicle, "test")
 
--- When already travelling the wrong way on the target edge, route through a
--- legal loop and return from the correct side instead of reversing immediately.
+-- A bidirectional target edge may be crossed in the current travel direction;
+-- preserve native planning instead of adding an artificial turnaround loop.
 orientedCommands, orientedPosition, orientedDirection =
   {}, {x = 50, y = 0, z = 0}, {x = -1, y = 0, z = 0}
 orientedTarget.dir = {x = 1, y = 0, z = 0}
-orientedAutopilot = autopilotModule.new({
+orientedAutopilot = orientedAutopilotModule.new({
   phases = orientedPhases, arrivalRadius = 14,
   getSpeedKmh = function() return 0 end
 })
 assert(orientedAutopilot:enable(orientedVehicle, "toPickup", orientedTarget))
 assert(orientedCommands[#orientedCommands]:find(
-  'path={"targetA","loop1","loop2","targetA","targetB"}', 1, true) or
-  orientedCommands[#orientedCommands]:find(
-    'path={"targetA","loop2","loop1","targetA","targetB"}', 1, true))
+  'path={"targetB","targetA"}', 1, true))
+assert(orientedAutopilot:getDiagnostics().routeDiagnostics.bidirectionalPass)
 assert(not orientedCommands[#orientedCommands]:find(
   'path={"targetA","targetB"}', 1, true))
 orientedAutopilot:disable(orientedVehicle, "test")
 
 orientedCommands, orientedPosition, orientedDirection =
   {}, {x = -100, y = 0, z = 0}, {x = 1, y = 0, z = 0}
-local strictGpsAutopilot = autopilotModule.new({
+orientedNodes.gpsA = {pos = {x = -100, y = 0, z = 0}, links = {}}
+orientedNodes.gpsB = {pos = {x = 0, y = 0, z = 0}, links = {}}
+orientedNodes.gpsC = {pos = {x = 100, y = 0, z = 0}, links = {}}
+orientedLink("gpsA", "gpsB")
+orientedLink("gpsB", "gpsC")
+local strictGpsTarget = {pos = orientedTarget.pos, dir = orientedTarget.dir,
+  nodeA = "gpsB", nodeB = "gpsC"}
+local strictGpsAutopilot = orientedAutopilotModule.new({
   phases = orientedPhases, arrivalRadius = 14,
   getSpeedKmh = function() return 0 end,
   getRoutePath = function() return {
@@ -439,13 +466,13 @@ local strictGpsAutopilot = autopilotModule.new({
 strictGpsAutopilot:configure({
   strictGpsRoute = true, obeySpeedLimits = true, laneDiscipline = true
 })
-assert(strictGpsAutopilot:enable(orientedVehicle, "toPickup", orientedTarget))
+assert(strictGpsAutopilot:enable(orientedVehicle, "toPickup", strictGpsTarget))
 assert(orientedCommands[#orientedCommands]:find(
   'path={"gpsA","gpsB","gpsC"}', 1, true))
 assert(not orientedCommands[#orientedCommands]:find('"loop1"', 1, true))
 strictGpsAutopilot:disable(orientedVehicle, "test")
 orientedCommands = {}
-local parkingAutopilot = autopilotModule.new({
+local parkingAutopilot = orientedAutopilotModule.new({
   phases = orientedPhases, arrivalRadius = 14,
   getSpeedKmh = function() return 2 end
 })
@@ -462,12 +489,17 @@ assert(not orientedCommands[#orientedCommands]:find(
 -- on that fault, every later toggle() would keep taking the disable() branch
 -- and never re-enable, hanging the AI Driver button forever.
 assert(parkingAutopilot:enable(orientedVehicle, "toDestination", orientedTarget))
+orientedObjectPresent = false
 parkingAutopilot:park(nil, "vehicleMissingTest")
 assert(not parkingAutopilot:isEnabled())
+orientedObjectPresent = true
 assert(parkingAutopilot:toggle(orientedVehicle, "toDestination", orientedTarget))
 assert(parkingAutopilot:isEnabled())
 parkingAutopilot:disable(orientedVehicle, "test")
 map = orientedMap
+getObjectByID = orientedGetObjectByID
+package.loaded["gameplay/route/route"] = orientedRouteDependency
+package.loaded["taxiDriver/aiDriverRoute"] = orientedAdapterDependency
 end
 
 do
@@ -508,7 +540,7 @@ local autopilot = autopilotModule.new({
   end
 })
 assert(autopilot:enable(autopilotVehicle, "toDestination", autopilotTarget))
-assert(load(autopilotCommands[#autopilotCommands]))
+assert((loadstring or load)(autopilotCommands[#autopilotCommands]))
 assert(autopilotCommands[#autopilotCommands]:find("ai.driveUsingPath", 1, true))
 assert(autopilotCommands[#autopilotCommands]:find('avoidCars="on"', 1, true))
 assert(autopilotCommands[#autopilotCommands]:find("enableElectrics=true", 1, true))
@@ -1051,6 +1083,26 @@ stockVehicle = {
   getPosition = function() return stockPosition end,
   queueLuaCommand = function(_, command) stockCommands[#stockCommands + 1] = command end
 }
+stockSavedMap, stockSavedLookup = map, getObjectByID
+do
+local edge = {oneWay = false, drivability = 1}
+local nodes = {
+  road0 = {pos = {x = 0, y = 0, z = 0}},
+  road1 = {pos = {x = 100, y = 0, z = 0}},
+  road2 = {pos = {x = 200, y = 0, z = 0}}
+}
+map = {
+  getMap = function() return {nodes = nodes} end,
+  getGraphpath = function() return {
+    graph = {road0 = {road1 = edge}, road1 = {road0 = edge, road2 = edge},
+      road2 = {road1 = edge}},
+    getFilteredPath = function() return {"road0", "road1", "road2"} end
+  } end,
+  findClosestRoad = function() return "road1", "road2" end,
+  findBestRoad = function() return "road0", "road1" end
+}
+end
+getObjectByID = function(id) return tonumber(id) == 1 and stockVehicle or nil end
 stockAutopilot = autopilotModule.new({
   phases = stockPhases,
   isPlayerVehicle = function(vehicle) return vehicle == stockVehicle end,
@@ -1069,8 +1121,7 @@ assert(stockCommands[1]:find('routeSpeedMode="legal"', 1, true))
 assert(stockCommands[1]:find("followingTimeGap=2.30", 1, true))
 assert(stockCommands[1]:find("minimumGap=4.00", 1, true))
 assert(stockCommands[1]:find("predictiveWarningScale=1.00", 1, true))
-assert(stockCommands[1]:find("extensions.unload('taxiDriverAutopilotRecovery')", 1, true))
-assert(stockCommands[1]:find("taxiDriverStockAiObserver.watch({", 1, true))
+assert(stockCommands[1]:find("taxiObserver.watch({", 1, true))
 assert(not stockCommands[1]:find("taxiDriverAutopilotRecovery.start", 1, true))
 assert(stockCommands[1]:find("ai.setRecoverOnCrash(false)", 1, true))
 assert(not stockCommands[1]:find("ai.setRecoverOnCrash(true)", 1, true))
@@ -1082,13 +1133,16 @@ assert(stockDiagnostics.stockAi and not stockDiagnostics.customPerception and
 stockPosition = {x = 91, y = 0, z = 0}
 assert(stockAutopilot:onRouteDone(stockVehicle, stockTarget))
 stockDiagnostics = stockAutopilot:getDiagnostics(stockVehicle, stockTarget, "toDestination")
-assert(stockDiagnostics.routeDone and stockDiagnostics.routeDoneDistance == 9)
+assert(not stockDiagnostics.routeDone and stockDiagnostics.targetDistance == 9 and
+  stockDiagnostics.routeDoneRetryCount == 1)
 stockAutopilot:markRouteDirty()
 stockAutopilot:update(stockVehicle, "toDestination", stockTarget, 0.2)
-assert(#stockCommands == 2 and stockCommands[2]:find("ai.driveUsingPath", 1, true))
+assert(#stockCommands == 3 and stockCommands[3]:find("ai.driveUsingPath", 1, true))
 stockAutopilot:suspend(stockVehicle, true)
 assert(stockAutopilot:getHud(true, stockVehicle).status == "paused")
 stockAutopilot:suspend(stockVehicle, false)
+assert(stockAutopilot:getHud(true, stockVehicle).status == "planning")
+stockAutopilot:update(stockVehicle, "toDestination", stockTarget, 0.1)
 assert(stockAutopilot:getHud(true, stockVehicle).status == "driving")
 assert(not stockAutopilot:onBypassComplete())
 stockAutopilot:disable(stockVehicle, "test")
@@ -1107,12 +1161,13 @@ local playerOnlyAutopilot = autopilotModule.new({
 })
 assert(not playerOnlyAutopilot:enable(npcVehicle, "toDestination", stockTarget))
 assert(#npcCommands == 0 and not playerOnlyAutopilot:isEnabled())
+map, getObjectByID = stockSavedMap, stockSavedLookup
 
-local logLines = {}
+logLines = {}
 log = function(level, tag, message)
   logLines[#logLines + 1] = {level = level, tag = tag, message = message}
 end
-local debugLogging = true
+debugLogging = true
 end
 local debugLogger = dofile("lua/ge/extensions/taxiDriver/logger.lua")
 debugLogger.setEnabledProvider(function() return debugLogging end)
@@ -1557,7 +1612,6 @@ assert(shiftHistory.get(savedShiftId).energy.fuelPercent == 51)
 shiftHistory.setRestoring(savedShiftId)
 assert(shiftHistory.buildHud().restoringId == savedShiftId)
 shiftHistory.setRestoring(nil)
-end
 local vehicleHistory = dofile("lua/ge/extensions/taxiDriver/vehicleHistory.lua")
 vehicleHistory.load("test")
 assert(vehicleHistory.refreshCurrentVehicle())
@@ -1571,7 +1625,10 @@ for _ = 1, 500 do
 end
 end
 assert(detailLookups == 1)
+end
 
+do
+local vehicleScanGuard = require("taxiDriver/vehicleScanGuard")
 assert(not vehicleScanGuard.isSuspended())
 assert(vehicleScanGuard.onUiChangedState("menu.vehicleconfig.parts", "play"))
 do
@@ -1631,6 +1688,7 @@ do
   assert(boundary:cleanup("independentCleanup", function() isolatedCleanupRan = true end))
   assert(isolatedCleanupRan)
 end
+end
 
 do
 local perceptionVehicle = {}
@@ -1658,7 +1716,6 @@ map = {
   }} end
 }
 castRayStatic = nil
-end
 local perceptionModule = dofile("lua/ge/extensions/taxiDriver/autopilotPerception.lua")
 do
 local perception = perceptionModule.new({followScanDistance = 80, bypassControllerSpeed = 7})
@@ -1874,6 +1931,7 @@ getAllVehicles = nil
 getObjectByID = perceptionGetObjectByID
 end
 end
+end
 castRayStatic = nil
 
 do
@@ -1916,7 +1974,6 @@ mainController.shiftToGearIndex = function(index)
 end
 controller = {mainController = mainController}
 guihooks = {trigger = function() end}
-end
 local recoveryController = dofile("lua/vehicle/extensions/taxiDriverAutopilotRecovery.lua")
 assert(recoveryController.watchRouteDone())
 recoveryController.setGearboxOverride(true)
@@ -2115,6 +2172,7 @@ local function guardVector(x, y, z)
   })
 end
 local guardSpeedCalls = {}
+electrics.values.wheelspeed = 20
 local guardObjects = {
   [42] = {pos = guardVector(0, 0, 0), vel = guardVector(20, 0, 0)},
   [88] = {pos = guardVector(60, 0, 0), vel = guardVector(10, 0, 0)}
@@ -2140,7 +2198,6 @@ ai = {
   setSpeedMode = function() end
 }
 guihooks = {trigger = function() end}
-end
 local stockAiObserver = dofile("lua/vehicle/extensions/taxiDriverStockAiObserver.lua")
 assert(stockAiObserver.watch({
   followingTimeGap = 2.3, minimumGap = 4, brakingDeceleration = 3.5
@@ -2174,7 +2231,7 @@ do
 local emergencyGuardState = stockAiObserver.getDebugState()
 assert(guardSpeedCalls[#guardSpeedCalls].value == 0)
 assert(emergencyGuardState.emergencyBraking and
-  emergencyGuardState.appliedDeceleration == 8.5)
+  emergencyGuardState.appliedDeceleration == 8)
 end
 
 stockAiObserver.unwatch()
@@ -2199,12 +2256,16 @@ input.state.steering.val = 0.65
 assert(stockAiObserver.watch())
 stockAiObserver.updateGFX(0.1)
 do
-local curvedPathGuardState = stockAiObserver.getDebugState()
-assert(curvedPathGuardState.safetyHolding and
-  curvedPathGuardState.curvedPathRisk and
-  curvedPathGuardState.curvedPathRiskTime > 0)
+local outsideCorridorState = stockAiObserver.getDebugState()
+assert(not outsideCorridorState.safetyHolding and not outsideCorridorState.obstacleDetected,
+  "steering input alone must not turn a stationary object outside the physical corridor into a collision threat")
 end
-assert(#guardSpeedCalls == 1 and guardSpeedCalls[1].value < 8)
+assert(#guardSpeedCalls == 0)
+guardObjects[88].pos = guardVector(7, 0, 0)
+stockAiObserver.updateGFX(0.1)
+assert(stockAiObserver.getDebugState().emergencyBraking and
+  guardSpeedCalls[#guardSpeedCalls].value == 0,
+  "the same stationary object inside the physical corridor must cause immediate braking")
 stockAiObserver.unwatch()
 input.state.steering.val = 0
 
@@ -2253,13 +2314,19 @@ assert(stockAiObserver.watch({
   arrivalRadius = 14, maximumArrivalSpeed = 0
 }))
 stockAiObserver.updateGFX(0.1)
-assert(not stockAiObserver.getDebugState().targetApproachActive)
-assert(#guardSpeedCalls == 0)
+assert(stockAiObserver.getDebugState().targetApproachActive and
+  guardSpeedCalls[#guardSpeedCalls].value < 15,
+  "arrival braking must also work when the native bidirectional route reaches the target from its opposite orientation")
 stockAiObserver.unwatch()
 
 do
 local parkingModes = {}
 local parkingControlState = {grb_bhv = "arcade", grb_mde = "D"}
+local previousSetGearboxMode = mainController.setGearboxMode
+mainController.setGearboxMode = function(mode)
+  previousSetGearboxMode(mode)
+  parkingControlState.grb_bhv = mode
+end
 mainController.gearboxBehavior = "arcade"
 mainController.getState = function()
   local result = {}
@@ -2322,8 +2389,11 @@ assert(manualParkingState.parked and manualParkingState.parkingGearTarget == "N"
   manualParkingState.parkingGearActual == "N" and
   parkingControlState.grb_idx == 0 and electrics.values.gear == 0 and
   mainController.gearboxBehavior == "realistic")
+mainController.setGearboxMode = previousSetGearboxMode
 end
 stockAiObserver.unwatch()
+end
+end
 
 do
 local defaultFleet = taxiConfig.sanitizeFleet(nil)
@@ -2417,7 +2487,6 @@ map = {
   end
 }
 
-end
 do
 local nativeFleetWorker = dofile("lua/ge/extensions/taxiDriver/fleetWorker.lua")
 local nativeVehicle = mockFleetVehicle(303, "etk800", "base", fleetVector(0, 0, 0))
@@ -2493,7 +2562,6 @@ local workerFactory = {new = function()
   workerInstances[#workerInstances + 1] = worker
   return worker
 end}
-end
 local fleetManager = dofile("lua/ge/extensions/taxiDriver/fleetManager.lua")
 do
 local fleetService = fleetManager.new({modVersion = "test", workerFactory = workerFactory})
@@ -2538,6 +2606,8 @@ assert(dismissed and trafficInserted)
 fleetService:shutdown()
 end
 assert(deletedVehicles[101])
+end
+end
 
 assert(repairPricing.calculateRepairPrice(0, taxiConfig.repair) == taxiConfig.repair.minimumRepairPrice)
 assert(repairPricing.calculateRepairPrice(-50, taxiConfig.repair) == taxiConfig.repair.minimumRepairPrice)

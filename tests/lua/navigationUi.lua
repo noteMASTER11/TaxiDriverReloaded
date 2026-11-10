@@ -38,6 +38,10 @@ settings = {
 }
 
 local navigationUi = require("taxiDriver/navigationUi").new({
+  nativeMinimap = {getModules = function() return {
+    minimap = ui_apps_minimap_minimap, utils = ui_apps_minimap_utils,
+    vehicles = ui_apps_minimap_vehicles
+  } end},
   isActive = function() return true end,
   isRouteActive = function() return true end,
   getZoomIntensity = function() return 100 end

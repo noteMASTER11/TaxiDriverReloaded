@@ -6,3 +6,7 @@ https://www.beamng.com/resources/taxidriver.28763/
 The original idea of taxi-driver gameplay in BeamNG.drive belongs to Incognito.
 This package is an independent modernization and reimplementation for current
 free-roam gameplay. It is not an official update of the original resource.
+
+Connected Phone bundles Vue 3.5.43 (MIT), copyright Yuxi (Evan) You and Vue
+contributors. See ui/modules/apps/TaxiDriverHUD/external/THIRD-PARTY-NOTICES.txt
+and hud.bundle.js.LEGAL.txt for the bundled runtime notices.

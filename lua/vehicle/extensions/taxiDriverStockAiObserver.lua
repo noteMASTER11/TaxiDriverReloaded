@@ -1,4 +1,4 @@
--- TaxiDriver safety supervisor for BeamNG 0.39 stock AI.
+-- TaxiDriver supervisor for BeamNG 0.40 stock AI.
 --
 -- Stock ai.lua remains the sole owner of steering, throttle and braking. This
 -- extension only supplies bounded speed caps and invokes native high-level
@@ -41,6 +41,8 @@ local parkingGearboxBehavior = nil
 -- the start of parking and can therefore already reflect a mode the native
 -- AI itself switched to while driving, not the player's true original mode.
 local originalGearboxBehavior = nil
+local pendingRouteSuffix = nil
+local junctionSignals = {enabled = false, side = 0, cursor = 1}
 
 local capabilities = {}
 local settings = {
@@ -50,9 +52,10 @@ local settings = {
   predictiveWarningScale = 1,
   emergencyDeceleration = 8,
   routeSpeedMode = "legal",
+  routeNodes = {},
   targetPos = nil,
   targetDir = nil,
-  arrivalRadius = 14,
+  arrivalRadius = 6,
   maximumArrivalSpeed = 0,
   broadPhaseRange = 100,
   maximumTrackedVehicles = 16,
@@ -122,6 +125,8 @@ local state = {
   parkingBrakeConfirmed = false,
   parkingGearboxBehavior = nil,
   status = "inactive",
+  routeIngress = "inactive",
+  junctionSignal = "off",
   updateInterval = 0.1,
   updateTimeUs = 0,
   updateAverageUs = 0,
@@ -397,7 +402,161 @@ local function restoreRouteSpeed()
   state.speedCapSource = nil
 end
 
+local function setJunctionSignal(side)
+  local values = electrics and electrics.values or {}
+  local hazards = values.hazard_enabled == true or values.hazard_enabled == 1
+  if hazards then side = 0 end
+  local previous = junctionSignals.side
+  if previous == side then return end
+  if electrics and not hazards then
+    local name = side < 0 and 'set_left_signal' or side > 0 and 'set_right_signal'
+      or previous < 0 and 'set_left_signal' or 'set_right_signal'
+    if type(electrics[name]) == 'function' then
+      -- Repeating these setters resets BeamNG's flasher pulse. Issue only
+      -- state changes; route progress owns cancellation through a turn.
+      pcall(electrics[name], side ~= 0, false)
+    end
+  end
+  junctionSignals.side = side
+  state.junctionSignal = side < 0 and 'left' or side > 0 and 'right' or 'off'
+end
+
+local function resetJunctionSignals(enabled)
+  setJunctionSignal(0)
+  junctionSignals.enabled = enabled == true
+  junctionSignals.cursor = 1
+  junctionSignals.turnCursor = 1
+  junctionSignals.distances, junctionSignals.turns, junctionSignals.active = nil, nil, nil
+end
+
+local function prepareJunctionRoute(context)
+  local data = mapmgr and mapmgr.mapData
+  local positions, graph = data and data.positions, data and data.graph
+  local nodes = settings.routeNodes
+  if not (positions and graph and #nodes >= 3) then return false end
+  local distances, turns, junctions = {0}, {}, {}
+  for index = 1, #nodes do
+    local pos = positions[nodes[index]]
+    if not pos then return false end
+    local degree = 0
+    for neighbour, edge in pairs(graph[nodes[index]] or {}) do
+      if positions[neighbour] and number(edge.drivability, 1) >= 0.25 then degree = degree + 1 end
+    end
+    junctions[index] = degree >= 3
+    if index > 1 then
+      local prev = positions[nodes[index - 1]]
+      local dx, dy, dz = pos.x - prev.x, pos.y - prev.y,
+        number(pos.z, 0) - number(prev.z, 0)
+      distances[index] = distances[index - 1] + math.sqrt(dx * dx + dy * dy + dz * dz)
+    end
+  end
+  local function direction(index, step)
+    local center, target = positions[nodes[index]], index + step
+    while target >= 1 and target <= #nodes and math.abs(target - index) <= 16 do
+      local other = positions[nodes[target]]
+      local dx, dy = (other.x - center.x) * step, (other.y - center.y) * step
+      local length = length2(dx, dy)
+      if length >= 12 or junctions[target] or target + step < 1 or target + step > #nodes then
+        if length > 0.1 then return dx / length, dy / length, target end
+        return nil
+      end
+      target = target + step
+    end
+  end
+  for index = 2, #nodes - 1 do
+    if junctions[index] then
+      local inX, inY = direction(index, -1)
+      local outX, outY, exitIndex = direction(index, 1)
+      if inX and outX then
+        local cross, dot = inX * outY - inY * outX, inX * outX + inY * outY
+        if dot < 0.866 and math.abs(cross) > 0.2 then
+          local apex = index
+          -- An exit can begin with a short straight connector. Cancel after
+          -- the actual direction change, not eight metres after its entrance.
+          for edgeIndex = index, exitIndex - 1 do
+            local a, b = positions[nodes[edgeIndex]], positions[nodes[edgeIndex + 1]]
+            local dx, dy = b.x - a.x, b.y - a.y
+            local length = length2(dx, dy)
+            if length > 0.1 and (inX * dx + inY * dy) / length < 0.866 then
+              apex = edgeIndex
+              break
+            end
+          end
+          local clearance = math.max(8, context.length + 3,
+            math.min(20, number(data.radius and data.radius[nodes[index]], 0)))
+          turns[#turns + 1] = {distance = distances[index], side = cross > 0 and -1 or 1,
+            apexDistance = distances[apex], finishDistance = distances[apex] + clearance}
+        end
+      end
+    end
+  end
+  for index = 1, #turns - 1 do
+    turns[index].finishDistance = math.min(turns[index].finishDistance,
+      math.max(turns[index].apexDistance, turns[index + 1].distance - 2))
+  end
+  junctionSignals.distances, junctionSignals.turns = distances, turns
+  return true
+end
+
+local function updateJunctionSignals(context)
+  -- Native traffic owns its own indicators; manual path driving omits that
+  -- native trafficActions branch even with enableElectrics=true.
+  if not junctionSignals.enabled or not state.active or not ai or ai.mode ~= 'manual' or
+    state.nativeRacing or state.overtaking then setJunctionSignal(0); return end
+  if not (mapmgr and mapmgr.mapData and mapmgr.mapData.positions) then
+    resetJunctionSignals(true)
+    return
+  end
+  if not junctionSignals.distances and not prepareJunctionRoute(context) then return end
+  local positions = mapmgr.mapData.positions
+  local nodes, distances = settings.routeNodes, junctionSignals.distances
+  local pos = obj:getPosition()
+  local bestDistance, progress, segment = math.huge, nil, nil
+  -- Progress is monotonic within one assigned route. Inspect a bounded local
+  -- window, rather than rescan the entire road graph on every supervisor tick.
+  for index = junctionSignals.cursor, math.min(#nodes - 1, junctionSignals.cursor + 24) do
+    local a, b = positions[nodes[index]], positions[nodes[index + 1]]
+    if not (a and b) then resetJunctionSignals(false); return end
+    local dx, dy, dz = b.x - a.x, b.y - a.y, number(b.z, 0) - number(a.z, 0)
+    local lengthSquared = dx * dx + dy * dy + dz * dz
+    if lengthSquared > 0.01 then
+      local px, py, pz = pos.x - a.x, pos.y - a.y, number(pos.z, 0) - number(a.z, 0)
+      local along = clamp((px * dx + py * dy + pz * dz) / lengthSquared, 0, 1)
+      local ex, ey, ez = px - along * dx, py - along * dy, pz - along * dz
+      local distance = ex * ex + ey * ey + ez * ez
+      if distance < bestDistance then
+        bestDistance, segment = distance, index
+        progress = distances[index] + along * math.sqrt(lengthSquared)
+      end
+    end
+  end
+  if not progress or bestDistance > 625 then setJunctionSignal(0); return end
+  junctionSignals.cursor = segment
+  local active = junctionSignals.active
+  if active and progress >= active.finishDistance then
+    junctionSignals.active = nil
+    active = nil
+    setJunctionSignal(0)
+  end
+  if not active then
+    local lookAhead = clamp(context.speed * 3, 20, 60)
+    for index = junctionSignals.turnCursor, #junctionSignals.turns do
+      local turn = junctionSignals.turns[index]
+      if progress >= turn.finishDistance then
+        junctionSignals.turnCursor = index + 1
+      elseif turn.distance - progress <= lookAhead then
+        active, junctionSignals.active = turn, turn
+        break
+      else
+        break
+      end
+    end
+  end
+  setJunctionSignal(active and active.side or 0)
+end
+
 local function resetTransientState()
+  resetJunctionSignals(watching)
   state.mode = watching and "cruise" or "inactive"
   state.supervisorMode = state.mode
   state.selectedManeuver = "none"
@@ -788,12 +947,31 @@ local function currentRoadContext(context)
   end
   local degree = 0
   for _ in pairs(graph[second] or {}) do degree = degree + 1 end
+  local legalSpeed = tonumber(edge.speedLimit)
+  -- Native 'limit' and 'legal' are mutually exclusive. Retain the current
+  -- road limit and braking for the next planned edge while applying a cap.
+  -- Inspect only the planned continuation, so a slow side street cannot
+  -- reduce the speed of a cab continuing straight through a junction.
+  for index, node in ipairs(settings.routeNodes) do
+    if tostring(node) == tostring(second) then
+      local nextNode = settings.routeNodes[index + 1]
+      local nextEdge = nextNode and graph[second] and graph[second][nextNode]
+      local nextLimit = nextEdge and tonumber(nextEdge.speedLimit)
+      if nextLimit and nextLimit >= 0 then
+        local distanceToChange = math.max(0, edgeLength - along - 2)
+        local approachLimit = math.sqrt(nextLimit * nextLimit +
+          2 * settings.brakingDeceleration * distanceToChange)
+        legalSpeed = math.min(legalSpeed or math.huge, approachLimit)
+      end
+      break
+    end
+  end
   return {from = first, to = second, edge = edge, lanes = lanes,
     plusCount = plusCount, minusCount = minusCount,
     radius = radius, lateral = lateral,
     alignment = edgeDirX * context.forwardX + edgeDirY * context.forwardY,
     remainingEdgeDistance = math.max(0, edgeLength - along),
-    nextNodeDegree = degree}
+    nextNodeDegree = degree, legalSpeed = legalSpeed}
 end
 
 local function corridorGaps(objects, sideOffset, context)
@@ -964,7 +1142,9 @@ local function updateOvertaking(context, objects, lead, threat, road, scanDt)
     state.overtakeReason = "junctionNear"; return
   end
   if math.abs(road.alignment) < 0.96 then state.overtakeReason = "roadNotStraight"; return end
-  local passSide = mapmgr and mapmgr.rules and mapmgr.rules.rightHandDrive and -1 or 1
+  -- Lateral offsets use the vehicle's right vector. Pass on the left for
+  -- right-side traffic, on the right for maps with right-hand-drive rules.
+  local passSide = mapmgr and mapmgr.rules and mapmgr.rules.rightHandDrive and 1 or -1
   local laneWidth = clamp((road.radius * 2) / math.max(2, #(road.lanes or "")), 3, 4.2)
   local sideOffset = passSide * laneWidth
   if math.abs(road.lateral + sideOffset) + context.width * 0.5 + 0.25 > road.radius then
@@ -993,7 +1173,10 @@ local function addCap(caps, source, value, requestedDeceleration, emergency)
     emergency = emergency == true}
 end
 
-local function applySpeedCaps(caps, context, scanDt)
+local function applySpeedCaps(caps, context, scanDt, road)
+  local legalCeiling = settings.routeSpeedMode == "legal" and road and
+    road.legalSpeed or math.huge
+  if not legalCeiling or legalCeiling < 0 then legalCeiling = math.huge end
   local winner = nil
   for _, cap in ipairs(caps) do
     if not winner or cap.value < winner.value or
@@ -1006,6 +1189,7 @@ local function applySpeedCaps(caps, context, scanDt)
     if speedLimited and smoothedSpeedLimit then
       smoothedSpeedLimit = math.max(context.speed,
         smoothedSpeedLimit + 4.5 * scanDt)
+      smoothedSpeedLimit = math.min(smoothedSpeedLimit, legalCeiling)
       safeAiCall("setSpeed", smoothedSpeedLimit)
       safeAiCall("setSpeedMode", "limit")
       state.targetSpeed = smoothedSpeedLimit
@@ -1033,6 +1217,7 @@ local function applySpeedCaps(caps, context, scanDt)
         smoothedSpeedLimit + 1.5 * scanDt)
     end
   end
+  smoothedSpeedLimit = math.min(smoothedSpeedLimit, legalCeiling)
   if capabilities.setSpeed then safeAiCall("setSpeed", smoothedSpeedLimit) end
   if capabilities.setSpeedMode then safeAiCall("setSpeedMode", "limit") end
   speedLimited = true
@@ -1224,7 +1409,7 @@ local function supervisorStep(scanDt)
     end
   end
 
-  applySpeedCaps(caps, context, scanDt)
+  applySpeedCaps(caps, context, scanDt, road)
   if state.emergencyBraking and state.supervisorMode ~= "emergencyEvade" then
     state.supervisorMode = "emergencyBrake"
     if state.selectedManeuver == "none" then
@@ -1241,12 +1426,15 @@ local function supervisorStep(scanDt)
   end
   state.mode = state.supervisorMode
   state.status = state.supervisorMode
+  updateJunctionSignals(context)
   notifyRouteDoneIfReached(context)
   updateTiming(startedAt)
 end
 
 local function requestPark(data)
   if not controlMatches(data) then return false end
+  resetJunctionSignals(false)
+  pendingRouteSuffix = nil
   parkingRequested = true
   parkingConfirmed = false
   parkingCommitRequested = false
@@ -1423,6 +1611,8 @@ end
 
 local function pause(data)
   if not controlMatches(data) then return false end
+  resetJunctionSignals(false)
+  pendingRouteSuffix = nil
   parkingRequested, parkingConfirmed = false, false
   parkingCommitRequested, parkingStableChecks = false, 0
   parkingGearTarget, parkingGearboxBehavior = nil, nil
@@ -1439,6 +1629,8 @@ local function pause(data)
 end
 
 local function fail(config, reason)
+  resetJunctionSignals(false)
+  pendingRouteSuffix = nil
   config = type(config) == "table" and config or {}
   if config.sessionId ~= nil then state.sessionId = config.sessionId end
   if config.routeRevision ~= nil then
@@ -1456,6 +1648,8 @@ local function fail(config, reason)
 end
 
 local function watch(config)
+  pendingRouteSuffix = nil
+  state.routeIngress = "manualPath"
   config = type(config) == "table" and config or {}
   -- Capture the player's true gearbox mode before anything below (or the
   -- native AI itself, once driving starts) can change it, so a driver-
@@ -1480,12 +1674,13 @@ local function watch(config)
     number(config.predictiveWarningScale, 1), 0.8, 1.2)
   settings.emergencyDeceleration = clamp(number(config.emergencyDeceleration, 8), 6, 10)
   settings.routeSpeedMode = config.routeSpeedMode == "off" and "off" or "legal"
+  settings.routeNodes = type(config.routeNodes) == "table" and config.routeNodes or {}
   settings.targetPos = config.targetX ~= nil and
     {x = number(config.targetX, 0), y = number(config.targetY, 0),
       z = number(config.targetZ, 0)} or nil
   settings.targetDir = config.targetDirX ~= nil and
     {x = number(config.targetDirX, 0), y = number(config.targetDirY, 0)} or nil
-  settings.arrivalRadius = clamp(number(config.arrivalRadius, 14), 4, 30)
+  settings.arrivalRadius = clamp(number(config.arrivalRadius, 6), 1, 30)
   settings.maximumArrivalSpeed = clamp(number(config.maximumArrivalSpeed, 0), 0, 3)
   settings.broadPhaseRange = clamp(number(config.broadPhaseRange, 100), 40, 100)
   settings.maximumTrackedVehicles = math.floor(clamp(
@@ -1521,6 +1716,7 @@ local function watch(config)
 end
 
 local function unwatch()
+  pendingRouteSuffix = nil
   restoreParkingGearboxBehavior()
   watching = false
   state.active = false
@@ -1535,8 +1731,39 @@ local function unwatch()
   updateTimer, staticTimer, clearSeconds = 0, 0, 0
 end
 
+local function prepareRouteIngress(args)
+  if not watching or type(args) ~= "table" or type(args.path) ~= "table" or
+    #args.path < 2 or not ai or type(ai.setPath) ~= "function" then return false end
+  local path = args.path
+  args.wpTargetList = {path[1], path[2]}
+  args.path = nil
+  pendingRouteSuffix = nil
+  if #path > 2 then
+    pendingRouteSuffix = {}
+    -- Native pathExtend requires the existing final node as its first value.
+    for index = 2, #path do pendingRouteSuffix[#pendingRouteSuffix + 1] = path[index] end
+  end
+  state.routeIngress = pendingRouteSuffix and "waitingNativePrefix" or "nativePrefix"
+  return true
+end
+
 local function updateGFX(dt)
   if not watching then return end
+  -- vehicle/main.lua calls ai.updateGFX before extension updateGFX. Once map
+  -- data exists that native frame has run newManualPath's point-to-node ingress
+  -- and established currentRoute. Wait through map loading; setPath beforehand
+  -- would recreate the original direct-path ingress bug. Keep the native plan
+  -- and append only the already resolved suffix on its following update.
+  if pendingRouteSuffix and not parkingRequested and
+    mapmgr and mapmgr.mapData and ai and ai.mode == "manual" then
+    local suffix = pendingRouteSuffix
+    pendingRouteSuffix = nil
+    if safeAiCall("setPath", suffix) then
+      state.routeIngress = "suffixQueued"
+    else
+      state.routeIngress = "suffixFailed"
+    end
+  end
   dt = math.max(0, number(dt, 0))
   if parkingRequested then
     holdParkingGearboxBehavior()
@@ -1595,6 +1822,7 @@ local function onExtensionUnloaded()
 end
 
 M.watch = watch
+M.prepareRouteIngress = prepareRouteIngress
 -- Passenger stops may overlap native AI driving/parking. They must restore
 -- the driver's mode, rather than capture the AI's temporary Arcade override.
 function M.getDriverGearboxBehavior()
