@@ -297,3 +297,27 @@ test('Earth personal routes have an explicit checkbox, separate navigation and a
     assert.deepEqual(errors,[]);
   } finally {window.__taxiHudHandle?.unmount();await window.happyDOM.cancelAsync();window.close()}
 });
+
+test('a personal route exposes fuel and repair without activating a taxi shift', async () => {
+  const {window,errors}=await openHarness('magicFuel',false);
+  try {
+    const {view,hud}=window.__taxiHudModel;
+    const station=JSON.parse(JSON.stringify(view.state.fuelStation));
+    const repair=JSON.parse(JSON.stringify(view.state.repairStation));
+    window.__taxiSetState({active:false,phase:'inactive',realisticMode:false,
+      fuelStation:{...station,available:false},repairStation:{...repair,available:false},
+      earth:{available:true,status:'ready',freeRoute:{active:true,leg:'b',name:'Destination',remainingM:50000,etaS:2000}}});
+    await new Promise(r=>setTimeout(r,0));
+    const button=window.document.querySelector('.taxi-appbar__fuel');assert(button);
+    button.click();await new Promise(r=>setTimeout(r,0));
+    assert(window.__taxiEngineLuaCommands.some(c=>c.includes('requestFuelStop')));
+    window.__taxiSetState({fuelStation:{...station,available:true},repairStation:{...repair,available:true}});
+    await new Promise(r=>setTimeout(r,0));
+    assert(window.document.querySelector('.taxi-fuel'));
+    assert(window.document.querySelector('.taxi-fuel__repair'));
+    hud.closeFuelStation();await new Promise(r=>setTimeout(r,0));
+    assert(window.document.querySelector('.taxi-personal-route'));
+    assert.equal(view.state.active,false);assert.equal(view.earth.freeRoute.active,true);
+    assert.deepEqual(errors,[]);
+  } finally {window.__taxiHudHandle?.unmount();await window.happyDOM.cancelAsync();window.close()}
+});

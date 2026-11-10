@@ -299,6 +299,7 @@ test("relaxed retains normal fuel and repair purchase costs", function()
   fuel.readableUnit = {gasoline = "L"}; fuel.deferDashboardEnergy = noop
   execute(extract("function realisticFuel.resetRefueling", "function realisticFuel.clearStation"), env)
   execute(extract("function realisticFuel.resetRepairing", "function realisticFuel.clearRepairStation"), env)
+  execute(extract("function realisticFuel.serviceVehicle", "function realisticFuel.buildHud"), env)
   execute(extract("function realisticFuel.finishPurchase", "function realisticFuel.updateRefueling"), env)
   execute(extract("function realisticFuel.finishRepair", "function realisticFuel.updateRepairing"), env)
   fuel.refueling = {active = true, vehicleId = 42, stationId = "fuel", cost = 20,

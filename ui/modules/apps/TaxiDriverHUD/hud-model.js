@@ -1377,6 +1377,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
     hud.setEarthWithoutPassenger = () => earthCommand('setWithoutPassenger', {value: view.earth.withoutPassenger === true});
     hud.stopEarthFreeRoute = () => earthCommand('stopFreeRoute');
     view.hasPersonalRoute = () => view.earth.available && view.earth.freeRoute?.active === true;
+    view.canUseFuelService = () => view.hasPersonalRoute() || (view.state.active && view.state.realisticMode);
     view.getNavigationRemaining = () => view.hasPersonalRoute() ? view.earth.freeRoute.remainingM : view.state.distanceToTarget;
     view.getNavigationEta = () => view.hasPersonalRoute() ? view.earth.freeRoute.etaS / 60 : view.state.etaMinutes;
     hud.setEarthRandomLimit = value => {
@@ -2937,7 +2938,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
       );
     };
     hud.openFuelStation = () => {
-      if (!view.state.fuelStation || !view.state.fuelStation.available) return;
+      if (!view.state.fuelStation.available && !view.state.repairStation.available) return;
       view.fuelStationOpen = true;
       view.settingsOpen = false;
       view.profileOpen = false;
@@ -2949,8 +2950,9 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
       );
     };
     hud.handleFuelAction = () => {
-      if (!view.state.active || !view.state.realisticMode) return;
-      if (view.state.fuelDetour.active && view.state.fuelStation.available) {
+      if (!view.canUseFuelService()) return;
+      if (view.phoneMinimized) hud.toggleMinimized();
+      if (view.state.fuelStation.available || view.state.repairStation.available) {
         hud.openFuelStation();
         return;
       }

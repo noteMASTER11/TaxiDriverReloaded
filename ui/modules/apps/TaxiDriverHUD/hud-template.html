@@ -61,6 +61,7 @@
           <strong>{{ getCompactTitle() }}</strong>
           <span>{{ getPhaseLabel() }}</span>
         </div>
+        <button type="button" class="taxi-compact__fuel taxi-action taxi-action--secondary" v-if="canUseFuelService()" @click="hud.handleFuelAction()" :aria-label="t('refuelAction')">⛽</button>
         <strong class="taxi-compact__distance" v-if="isNavigationPhase()">{{ formatDistance(getNavigationRemaining()) }}</strong>
       </div>
       <div class="taxi-compact__progress">
@@ -101,7 +102,7 @@
         <span>{{ fuelStationOpen ? (state.fuelStation.magic ? t('magicFuelTitle') : (state.fuelStation.name || t('refuelTitle'))) : (settingsOpen ? t('settingsTitle') : (profileOpen ? t('profileTitle') : (fleetOpen ? (state.fleet.activeDrivers + ' ' + t('fleetActiveDrivers')) : (state.active ? getPhaseLabel() : t('appSubtitle'))))) }}</span>
       </div>
       <div class="taxi-appbar__live" v-if="state.active &amp;&amp; !earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen">{{ t('online') }}</div>
-      <button type="button" class="taxi-appbar__fuel taxi-action taxi-action--secondary" :class="{'taxi-appbar__fuel--warning': state.vehicleEnergy.available &amp;&amp; state.vehicleEnergy.percent <= 15}" v-if="state.active &amp;&amp; state.realisticMode &amp;&amp; !earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen" @click="hud.handleFuelAction()" :aria-label="t('refuelAction')"><span>{{ t('refuelAction') }}</span></button>
+      <button type="button" class="taxi-appbar__fuel taxi-action taxi-action--secondary" :class="{'taxi-appbar__fuel--warning': state.vehicleEnergy.available &amp;&amp; state.vehicleEnergy.percent <= 15}" v-if="canUseFuelService() &amp;&amp; !earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen" @click="hud.handleFuelAction()" :aria-label="t('refuelAction')"><span>{{ t('refuelAction') }}</span></button>
       <button type="button" class="taxi-appbar__profile taxi-action taxi-action--tertiary" :class="{'taxi-appbar__profile--active': profileOpen}" @click="hud.toggleProfile()" :aria-label="t('profileTitle')">
         {{ (state.driverProfile && state.driverProfile.avatar) || driverProfile.avatar || '🙂' }}
       </button>

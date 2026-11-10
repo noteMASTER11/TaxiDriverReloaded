@@ -4978,3 +4978,4 @@
 .taxi-shell .taxi-personal-route__details { padding: 18px; }
 .taxi-shell .taxi-personal-route__details button { width: 100%; min-height: 46px; margin-top: 10px; }
 .taxi-shell .taxi-compact__map-status { inset: 12px auto auto 12px; max-width: calc(100% - 160px); padding: 8px 12px; background: rgba(16, 20, 25, .86); border-radius: 6px; pointer-events: none; align-items: flex-start; text-align: left; }
+.taxi-shell .taxi-compact__fuel { flex: 0 0 auto; width: 40px; min-width: 40px; min-height: 38px; padding: 5px; margin-left: auto; font-size: 21px; }

@@ -13591,6 +13591,7 @@ Component that was made reactive: `,
       hud.setEarthWithoutPassenger = () => earthCommand("setWithoutPassenger", { value: view.earth.withoutPassenger === true });
       hud.stopEarthFreeRoute = () => earthCommand("stopFreeRoute");
       view.hasPersonalRoute = () => view.earth.available && view.earth.freeRoute?.active === true;
+      view.canUseFuelService = () => view.hasPersonalRoute() || view.state.active && view.state.realisticMode;
       view.getNavigationRemaining = () => view.hasPersonalRoute() ? view.earth.freeRoute.remainingM : view.state.distanceToTarget;
       view.getNavigationEta = () => view.hasPersonalRoute() ? view.earth.freeRoute.etaS / 60 : view.state.etaMinutes;
       hud.setEarthRandomLimit = (value) => {
@@ -15095,7 +15096,7 @@ Component that was made reactive: `,
         );
       };
       hud.openFuelStation = () => {
-        if (!view.state.fuelStation || !view.state.fuelStation.available) return;
+        if (!view.state.fuelStation.available && !view.state.repairStation.available) return;
         view.fuelStationOpen = true;
         view.settingsOpen = false;
         view.profileOpen = false;
@@ -15107,8 +15108,9 @@ Component that was made reactive: `,
         );
       };
       hud.handleFuelAction = () => {
-        if (!view.state.active || !view.state.realisticMode) return;
-        if (view.state.fuelDetour.active && view.state.fuelStation.available) {
+        if (!view.canUseFuelService()) return;
+        if (view.phoneMinimized) hud.toggleMinimized();
+        if (view.state.fuelStation.available || view.state.repairStation.available) {
           hud.openFuelStation();
           return;
         }
@@ -16244,999 +16246,1000 @@ Component that was made reactive: `,
   var _hoisted_24 = { class: "taxi-compact__heading" };
   var _hoisted_25 = { class: "taxi-compact__icon" };
   var _hoisted_26 = { class: "taxi-compact__copy" };
-  var _hoisted_27 = {
-    key: 0,
+  var _hoisted_27 = ["aria-label"];
+  var _hoisted_28 = {
+    key: 1,
     class: "taxi-compact__distance"
   };
-  var _hoisted_28 = { class: "taxi-compact__progress" };
-  var _hoisted_29 = { class: "taxi-compact__progress-labels" };
-  var _hoisted_30 = { class: "taxi-compact__progress-track" };
-  var _hoisted_31 = { class: "taxi-compact__metrics" };
-  var _hoisted_32 = { class: "taxi-compact__metric" };
+  var _hoisted_29 = { class: "taxi-compact__progress" };
+  var _hoisted_30 = { class: "taxi-compact__progress-labels" };
+  var _hoisted_31 = { class: "taxi-compact__progress-track" };
+  var _hoisted_32 = { class: "taxi-compact__metrics" };
   var _hoisted_33 = { class: "taxi-compact__metric" };
   var _hoisted_34 = { class: "taxi-compact__metric" };
-  var _hoisted_35 = {
+  var _hoisted_35 = { class: "taxi-compact__metric" };
+  var _hoisted_36 = {
     key: 0,
     class: "taxi-compact__metric"
   };
-  var _hoisted_36 = { key: 0 };
-  var _hoisted_37 = {
+  var _hoisted_37 = { key: 0 };
+  var _hoisted_38 = {
     key: 1,
     class: "taxi-compact__metric"
   };
-  var _hoisted_38 = ["title"];
-  var _hoisted_39 = {
+  var _hoisted_39 = ["title"];
+  var _hoisted_40 = {
     key: 3,
     class: "taxi-phone"
   };
-  var _hoisted_40 = { class: "taxi-phone__screen" };
-  var _hoisted_41 = { class: "phone-status" };
-  var _hoisted_42 = ["title"];
-  var _hoisted_43 = { class: "phone-odometer__vehicle" };
-  var _hoisted_44 = { class: "taxi-appbar" };
-  var _hoisted_45 = { class: "taxi-appbar__title" };
-  var _hoisted_46 = ["title"];
-  var _hoisted_47 = {
+  var _hoisted_41 = { class: "taxi-phone__screen" };
+  var _hoisted_42 = { class: "phone-status" };
+  var _hoisted_43 = ["title"];
+  var _hoisted_44 = { class: "phone-odometer__vehicle" };
+  var _hoisted_45 = { class: "taxi-appbar" };
+  var _hoisted_46 = { class: "taxi-appbar__title" };
+  var _hoisted_47 = ["title"];
+  var _hoisted_48 = {
     key: 0,
     class: "taxi-appbar__live"
   };
-  var _hoisted_48 = ["aria-label"];
   var _hoisted_49 = ["aria-label"];
-  var _hoisted_50 = { key: 0 };
-  var _hoisted_51 = { key: 1 };
-  var _hoisted_52 = { class: "taxi-passenger-chat__avatar" };
-  var _hoisted_53 = { class: "taxi-passenger-chat__body" };
-  var _hoisted_54 = { class: "taxi-passenger-chat__header" };
-  var _hoisted_55 = { class: "taxi-passenger-chat__message" };
-  var _hoisted_56 = { class: "taxi-phone-toast__icon" };
-  var _hoisted_57 = { class: "taxi-phone-toast__text" };
-  var _hoisted_58 = {
+  var _hoisted_50 = ["aria-label"];
+  var _hoisted_51 = { key: 0 };
+  var _hoisted_52 = { key: 1 };
+  var _hoisted_53 = { class: "taxi-passenger-chat__avatar" };
+  var _hoisted_54 = { class: "taxi-passenger-chat__body" };
+  var _hoisted_55 = { class: "taxi-passenger-chat__header" };
+  var _hoisted_56 = { class: "taxi-passenger-chat__message" };
+  var _hoisted_57 = { class: "taxi-phone-toast__icon" };
+  var _hoisted_58 = { class: "taxi-phone-toast__text" };
+  var _hoisted_59 = {
     key: 3,
     class: "taxi-settings"
   };
-  var _hoisted_59 = { class: "taxi-settings__intro" };
-  var _hoisted_60 = ["aria-label"];
-  var _hoisted_61 = ["aria-current", "onClick"];
-  var _hoisted_62 = ["aria-expanded"];
-  var _hoisted_63 = {
+  var _hoisted_60 = { class: "taxi-settings__intro" };
+  var _hoisted_61 = ["aria-label"];
+  var _hoisted_62 = ["aria-current", "onClick"];
+  var _hoisted_63 = ["aria-expanded"];
+  var _hoisted_64 = {
     key: 0,
     id: "taxi-settings-general",
     class: "taxi-settings__group-body"
   };
-  var _hoisted_64 = { class: "taxi-settings__section" };
-  var _hoisted_65 = { class: "taxi-settings__label" };
-  var _hoisted_66 = { class: "taxi-settings__help" };
-  var _hoisted_67 = { class: "taxi-settings__languages" };
-  var _hoisted_68 = ["onClick"];
-  var _hoisted_69 = { key: 0 };
-  var _hoisted_70 = { class: "taxi-settings__check" };
-  var _hoisted_71 = { class: "taxi-settings__section" };
-  var _hoisted_72 = { class: "taxi-settings__label" };
-  var _hoisted_73 = { class: "taxi-settings__help" };
-  var _hoisted_74 = { class: "taxi-settings__section" };
-  var _hoisted_75 = { class: "taxi-settings__label" };
-  var _hoisted_76 = { class: "taxi-settings__help" };
-  var _hoisted_77 = { class: "taxi-settings__segmented" };
-  var _hoisted_78 = { class: "taxi-settings__section" };
-  var _hoisted_79 = { class: "taxi-settings__label" };
-  var _hoisted_80 = { class: "taxi-settings__help" };
-  var _hoisted_81 = { class: "taxi-settings__segmented" };
-  var _hoisted_82 = ["aria-expanded"];
-  var _hoisted_83 = {
+  var _hoisted_65 = { class: "taxi-settings__section" };
+  var _hoisted_66 = { class: "taxi-settings__label" };
+  var _hoisted_67 = { class: "taxi-settings__help" };
+  var _hoisted_68 = { class: "taxi-settings__languages" };
+  var _hoisted_69 = ["onClick"];
+  var _hoisted_70 = { key: 0 };
+  var _hoisted_71 = { class: "taxi-settings__check" };
+  var _hoisted_72 = { class: "taxi-settings__section" };
+  var _hoisted_73 = { class: "taxi-settings__label" };
+  var _hoisted_74 = { class: "taxi-settings__help" };
+  var _hoisted_75 = { class: "taxi-settings__section" };
+  var _hoisted_76 = { class: "taxi-settings__label" };
+  var _hoisted_77 = { class: "taxi-settings__help" };
+  var _hoisted_78 = { class: "taxi-settings__segmented" };
+  var _hoisted_79 = { class: "taxi-settings__section" };
+  var _hoisted_80 = { class: "taxi-settings__label" };
+  var _hoisted_81 = { class: "taxi-settings__help" };
+  var _hoisted_82 = { class: "taxi-settings__segmented" };
+  var _hoisted_83 = ["aria-expanded"];
+  var _hoisted_84 = {
     key: 0,
     id: "taxi-settings-gameplay",
     class: "taxi-settings__group-body"
   };
-  var _hoisted_84 = {
+  var _hoisted_85 = {
     key: 0,
     class: "taxi-settings__section"
   };
-  var _hoisted_85 = {
+  var _hoisted_86 = {
     class: "taxi-settings__label",
     for: "taxi-earth-random-limit"
   };
-  var _hoisted_86 = { class: "taxi-settings__help" };
-  var _hoisted_87 = { class: "taxi-earth-limit" };
-  var _hoisted_88 = { class: "taxi-settings__section" };
-  var _hoisted_89 = {
+  var _hoisted_87 = { class: "taxi-settings__help" };
+  var _hoisted_88 = { class: "taxi-earth-limit" };
+  var _hoisted_89 = { class: "taxi-settings__section" };
+  var _hoisted_90 = {
     class: "taxi-settings__label",
     for: "taxi-initial-fuel"
   };
-  var _hoisted_90 = { class: "taxi-settings__help" };
-  var _hoisted_91 = { class: "taxi-settings__section" };
-  var _hoisted_92 = { class: "taxi-settings__label" };
-  var _hoisted_93 = { class: "taxi-settings__help" };
-  var _hoisted_94 = { class: "taxi-settings__difficulty" };
-  var _hoisted_95 = ["onClick"];
-  var _hoisted_96 = {
+  var _hoisted_91 = { class: "taxi-settings__help" };
+  var _hoisted_92 = { class: "taxi-settings__section" };
+  var _hoisted_93 = { class: "taxi-settings__label" };
+  var _hoisted_94 = { class: "taxi-settings__help" };
+  var _hoisted_95 = { class: "taxi-settings__difficulty" };
+  var _hoisted_96 = ["onClick"];
+  var _hoisted_97 = {
     key: 1,
     class: "taxi-settings__custom"
   };
-  var _hoisted_97 = ["min", "max", "step", "onUpdate:modelValue"];
-  var _hoisted_98 = { class: "taxi-settings__section" };
-  var _hoisted_99 = { class: "taxi-settings__label" };
-  var _hoisted_100 = { class: "taxi-settings__help" };
-  var _hoisted_101 = { class: "taxi-settings__mix-labels" };
-  var _hoisted_102 = { class: "taxi-settings__section" };
-  var _hoisted_103 = { class: "taxi-settings__switch-row" };
-  var _hoisted_104 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_105 = { class: "taxi-settings__section" };
-  var _hoisted_106 = { class: "taxi-settings__label" };
-  var _hoisted_107 = { class: "taxi-settings__help" };
-  var _hoisted_108 = { class: "taxi-settings__penalty-toggles" };
-  var _hoisted_109 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_110 = ["onUpdate:modelValue"];
-  var _hoisted_111 = { class: "taxi-settings__portable" };
-  var _hoisted_112 = ["aria-expanded"];
-  var _hoisted_113 = {
+  var _hoisted_98 = ["min", "max", "step", "onUpdate:modelValue"];
+  var _hoisted_99 = { class: "taxi-settings__section" };
+  var _hoisted_100 = { class: "taxi-settings__label" };
+  var _hoisted_101 = { class: "taxi-settings__help" };
+  var _hoisted_102 = { class: "taxi-settings__mix-labels" };
+  var _hoisted_103 = { class: "taxi-settings__section" };
+  var _hoisted_104 = { class: "taxi-settings__switch-row" };
+  var _hoisted_105 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_106 = { class: "taxi-settings__section" };
+  var _hoisted_107 = { class: "taxi-settings__label" };
+  var _hoisted_108 = { class: "taxi-settings__help" };
+  var _hoisted_109 = { class: "taxi-settings__penalty-toggles" };
+  var _hoisted_110 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_111 = ["onUpdate:modelValue"];
+  var _hoisted_112 = { class: "taxi-settings__portable" };
+  var _hoisted_113 = ["aria-expanded"];
+  var _hoisted_114 = {
     key: 0,
     id: "taxi-settings-random-events",
     class: "taxi-settings__group-body"
   };
-  var _hoisted_114 = { class: "taxi-settings__section" };
-  var _hoisted_115 = { class: "taxi-settings__switch-row" };
-  var _hoisted_116 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_117 = { class: "taxi-settings__switch-row taxi-settings__switch-row--compact" };
-  var _hoisted_118 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_119 = ["onUpdate:modelValue", "onChange"];
-  var _hoisted_120 = { class: "taxi-settings__label" };
-  var _hoisted_121 = ["onUpdate:modelValue", "disabled"];
-  var _hoisted_122 = { class: "taxi-settings__portable" };
-  var _hoisted_123 = ["aria-expanded"];
-  var _hoisted_124 = {
+  var _hoisted_115 = { class: "taxi-settings__section" };
+  var _hoisted_116 = { class: "taxi-settings__switch-row" };
+  var _hoisted_117 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_118 = { class: "taxi-settings__switch-row taxi-settings__switch-row--compact" };
+  var _hoisted_119 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_120 = ["onUpdate:modelValue", "onChange"];
+  var _hoisted_121 = { class: "taxi-settings__label" };
+  var _hoisted_122 = ["onUpdate:modelValue", "disabled"];
+  var _hoisted_123 = { class: "taxi-settings__portable" };
+  var _hoisted_124 = ["aria-expanded"];
+  var _hoisted_125 = {
     key: 0,
     id: "taxi-settings-ai-driver",
     class: "taxi-settings__group-body"
   };
-  var _hoisted_125 = { class: "taxi-settings__section taxi-settings__section--ai-master" };
-  var _hoisted_126 = { class: "taxi-settings__switch-row taxi-settings__switch-row--warning" };
-  var _hoisted_127 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_128 = {
+  var _hoisted_126 = { class: "taxi-settings__section taxi-settings__section--ai-master" };
+  var _hoisted_127 = { class: "taxi-settings__switch-row taxi-settings__switch-row--warning" };
+  var _hoisted_128 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_129 = {
     key: 0,
     class: "taxi-settings__ai-disabled"
   };
-  var _hoisted_129 = {
+  var _hoisted_130 = {
     key: 1,
     class: "taxi-settings__ai-options"
   };
-  var _hoisted_130 = { class: "taxi-settings__section" };
-  var _hoisted_131 = { class: "taxi-settings__label" };
-  var _hoisted_132 = { class: "taxi-settings__help" };
-  var _hoisted_133 = { class: "taxi-settings__difficulty taxi-settings__difficulty--ai" };
-  var _hoisted_134 = ["onClick"];
-  var _hoisted_135 = { class: "taxi-settings__section taxi-settings__section--stacked-switches" };
-  var _hoisted_136 = { class: "taxi-settings__switch-row" };
-  var _hoisted_137 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_138 = { class: "taxi-settings__switch-row" };
-  var _hoisted_139 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_140 = {
+  var _hoisted_131 = { class: "taxi-settings__section" };
+  var _hoisted_132 = { class: "taxi-settings__label" };
+  var _hoisted_133 = { class: "taxi-settings__help" };
+  var _hoisted_134 = { class: "taxi-settings__difficulty taxi-settings__difficulty--ai" };
+  var _hoisted_135 = ["onClick"];
+  var _hoisted_136 = { class: "taxi-settings__section taxi-settings__section--stacked-switches" };
+  var _hoisted_137 = { class: "taxi-settings__switch-row" };
+  var _hoisted_138 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_139 = { class: "taxi-settings__switch-row" };
+  var _hoisted_140 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_141 = {
     key: 0,
     class: "taxi-settings__custom"
   };
-  var _hoisted_141 = { class: "taxi-settings__portable" };
-  var _hoisted_142 = { class: "taxi-settings__section" };
-  var _hoisted_143 = { class: "taxi-settings__label" };
-  var _hoisted_144 = { class: "taxi-settings__help" };
-  var _hoisted_145 = { class: "taxi-settings__range-ends" };
-  var _hoisted_146 = { class: "taxi-settings__section" };
-  var _hoisted_147 = { class: "taxi-settings__label" };
-  var _hoisted_148 = { class: "taxi-settings__help" };
-  var _hoisted_149 = { class: "taxi-settings__section" };
-  var _hoisted_150 = { class: "taxi-settings__label" };
-  var _hoisted_151 = { class: "taxi-settings__help" };
-  var _hoisted_152 = { class: "taxi-settings__section" };
-  var _hoisted_153 = { class: "taxi-settings__label" };
-  var _hoisted_154 = { class: "taxi-settings__help" };
-  var _hoisted_155 = { class: "taxi-settings__section" };
-  var _hoisted_156 = { class: "taxi-settings__label" };
-  var _hoisted_157 = { class: "taxi-settings__help" };
-  var _hoisted_158 = { class: "taxi-settings__section taxi-settings__section--stacked-switches" };
-  var _hoisted_159 = { class: "taxi-settings__switch-row" };
-  var _hoisted_160 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_161 = { class: "taxi-settings__switch-row" };
-  var _hoisted_162 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_163 = ["aria-expanded"];
-  var _hoisted_164 = {
+  var _hoisted_142 = { class: "taxi-settings__portable" };
+  var _hoisted_143 = { class: "taxi-settings__section" };
+  var _hoisted_144 = { class: "taxi-settings__label" };
+  var _hoisted_145 = { class: "taxi-settings__help" };
+  var _hoisted_146 = { class: "taxi-settings__range-ends" };
+  var _hoisted_147 = { class: "taxi-settings__section" };
+  var _hoisted_148 = { class: "taxi-settings__label" };
+  var _hoisted_149 = { class: "taxi-settings__help" };
+  var _hoisted_150 = { class: "taxi-settings__section" };
+  var _hoisted_151 = { class: "taxi-settings__label" };
+  var _hoisted_152 = { class: "taxi-settings__help" };
+  var _hoisted_153 = { class: "taxi-settings__section" };
+  var _hoisted_154 = { class: "taxi-settings__label" };
+  var _hoisted_155 = { class: "taxi-settings__help" };
+  var _hoisted_156 = { class: "taxi-settings__section" };
+  var _hoisted_157 = { class: "taxi-settings__label" };
+  var _hoisted_158 = { class: "taxi-settings__help" };
+  var _hoisted_159 = { class: "taxi-settings__section taxi-settings__section--stacked-switches" };
+  var _hoisted_160 = { class: "taxi-settings__switch-row" };
+  var _hoisted_161 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_162 = { class: "taxi-settings__switch-row" };
+  var _hoisted_163 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_164 = ["aria-expanded"];
+  var _hoisted_165 = {
     key: 0,
     id: "taxi-settings-fleet",
     class: "taxi-settings__group-body"
   };
-  var _hoisted_165 = { class: "taxi-settings__section" };
-  var _hoisted_166 = { class: "taxi-settings__switch-row" };
-  var _hoisted_167 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_168 = { class: "taxi-settings__section" };
-  var _hoisted_169 = { class: "taxi-settings__label" };
-  var _hoisted_170 = { class: "taxi-settings__help" };
-  var _hoisted_171 = { class: "taxi-settings__segmented taxi-settings__segmented--three" };
-  var _hoisted_172 = { class: "taxi-settings__section" };
-  var _hoisted_173 = { class: "taxi-settings__label" };
-  var _hoisted_174 = { class: "taxi-settings__section" };
-  var _hoisted_175 = { class: "taxi-settings__label" };
-  var _hoisted_176 = { class: "taxi-settings__section" };
-  var _hoisted_177 = { class: "taxi-settings__label" };
-  var _hoisted_178 = { class: "taxi-settings__section" };
-  var _hoisted_179 = { class: "taxi-settings__label" };
-  var _hoisted_180 = { class: "taxi-settings__section" };
-  var _hoisted_181 = { class: "taxi-settings__label" };
-  var _hoisted_182 = { class: "taxi-settings__section taxi-settings__section--stacked-switches" };
-  var _hoisted_183 = { class: "taxi-settings__switch-row" };
-  var _hoisted_184 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_185 = { class: "taxi-settings__switch-row" };
-  var _hoisted_186 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_187 = ["aria-expanded"];
-  var _hoisted_188 = {
+  var _hoisted_166 = { class: "taxi-settings__section" };
+  var _hoisted_167 = { class: "taxi-settings__switch-row" };
+  var _hoisted_168 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_169 = { class: "taxi-settings__section" };
+  var _hoisted_170 = { class: "taxi-settings__label" };
+  var _hoisted_171 = { class: "taxi-settings__help" };
+  var _hoisted_172 = { class: "taxi-settings__segmented taxi-settings__segmented--three" };
+  var _hoisted_173 = { class: "taxi-settings__section" };
+  var _hoisted_174 = { class: "taxi-settings__label" };
+  var _hoisted_175 = { class: "taxi-settings__section" };
+  var _hoisted_176 = { class: "taxi-settings__label" };
+  var _hoisted_177 = { class: "taxi-settings__section" };
+  var _hoisted_178 = { class: "taxi-settings__label" };
+  var _hoisted_179 = { class: "taxi-settings__section" };
+  var _hoisted_180 = { class: "taxi-settings__label" };
+  var _hoisted_181 = { class: "taxi-settings__section" };
+  var _hoisted_182 = { class: "taxi-settings__label" };
+  var _hoisted_183 = { class: "taxi-settings__section taxi-settings__section--stacked-switches" };
+  var _hoisted_184 = { class: "taxi-settings__switch-row" };
+  var _hoisted_185 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_186 = { class: "taxi-settings__switch-row" };
+  var _hoisted_187 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_188 = ["aria-expanded"];
+  var _hoisted_189 = {
     key: 0,
     id: "taxi-settings-navigation",
     class: "taxi-settings__group-body"
   };
-  var _hoisted_189 = { class: "taxi-settings__section" };
-  var _hoisted_190 = { class: "taxi-settings__switch-row" };
-  var _hoisted_191 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_192 = { class: "taxi-settings__section" };
-  var _hoisted_193 = { class: "taxi-settings__label" };
-  var _hoisted_194 = { class: "taxi-settings__help" };
-  var _hoisted_195 = { class: "taxi-settings__range-ends" };
-  var _hoisted_196 = { class: "taxi-settings__section" };
-  var _hoisted_197 = { class: "taxi-settings__label" };
-  var _hoisted_198 = { class: "taxi-settings__help" };
-  var _hoisted_199 = ["aria-expanded"];
-  var _hoisted_200 = {
+  var _hoisted_190 = { class: "taxi-settings__section" };
+  var _hoisted_191 = { class: "taxi-settings__switch-row" };
+  var _hoisted_192 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_193 = { class: "taxi-settings__section" };
+  var _hoisted_194 = { class: "taxi-settings__label" };
+  var _hoisted_195 = { class: "taxi-settings__help" };
+  var _hoisted_196 = { class: "taxi-settings__range-ends" };
+  var _hoisted_197 = { class: "taxi-settings__section" };
+  var _hoisted_198 = { class: "taxi-settings__label" };
+  var _hoisted_199 = { class: "taxi-settings__help" };
+  var _hoisted_200 = ["aria-expanded"];
+  var _hoisted_201 = {
     key: 0,
     id: "taxi-settings-audio",
     class: "taxi-settings__group-body"
   };
-  var _hoisted_201 = { class: "taxi-settings__section" };
-  var _hoisted_202 = { class: "taxi-settings__label" };
-  var _hoisted_203 = { class: "taxi-settings__help" };
-  var _hoisted_204 = { class: "taxi-settings__volume-control" };
-  var _hoisted_205 = { class: "taxi-settings__section" };
-  var _hoisted_206 = { class: "taxi-settings__label" };
-  var _hoisted_207 = { class: "taxi-settings__help" };
-  var _hoisted_208 = { class: "taxi-settings__penalty-toggles taxi-settings__sound-toggles" };
-  var _hoisted_209 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_210 = ["onUpdate:modelValue"];
-  var _hoisted_211 = { class: "taxi-settings__section" };
-  var _hoisted_212 = { class: "taxi-settings__switch-row" };
-  var _hoisted_213 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_214 = ["aria-expanded"];
-  var _hoisted_215 = {
+  var _hoisted_202 = { class: "taxi-settings__section" };
+  var _hoisted_203 = { class: "taxi-settings__label" };
+  var _hoisted_204 = { class: "taxi-settings__help" };
+  var _hoisted_205 = { class: "taxi-settings__volume-control" };
+  var _hoisted_206 = { class: "taxi-settings__section" };
+  var _hoisted_207 = { class: "taxi-settings__label" };
+  var _hoisted_208 = { class: "taxi-settings__help" };
+  var _hoisted_209 = { class: "taxi-settings__penalty-toggles taxi-settings__sound-toggles" };
+  var _hoisted_210 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_211 = ["onUpdate:modelValue"];
+  var _hoisted_212 = { class: "taxi-settings__section" };
+  var _hoisted_213 = { class: "taxi-settings__switch-row" };
+  var _hoisted_214 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_215 = ["aria-expanded"];
+  var _hoisted_216 = {
     key: 0,
     id: "taxi-settings-connectivity",
     class: "taxi-settings__group-body"
   };
-  var _hoisted_216 = { class: "taxi-settings__section" };
-  var _hoisted_217 = { class: "taxi-settings__switch-row" };
-  var _hoisted_218 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_219 = {
+  var _hoisted_217 = { class: "taxi-settings__section" };
+  var _hoisted_218 = { class: "taxi-settings__switch-row" };
+  var _hoisted_219 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_220 = {
     key: 0,
     class: "taxi-settings__section"
   };
-  var _hoisted_220 = { class: "taxi-settings__label" };
-  var _hoisted_221 = { class: "taxi-settings__help" };
-  var _hoisted_222 = { class: "taxi-settings__section taxi-settings__section--remote-performance" };
-  var _hoisted_223 = { class: "taxi-settings__switch-row" };
-  var _hoisted_224 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_221 = { class: "taxi-settings__label" };
+  var _hoisted_222 = { class: "taxi-settings__help" };
+  var _hoisted_223 = { class: "taxi-settings__section taxi-settings__section--remote-performance" };
+  var _hoisted_224 = { class: "taxi-settings__switch-row" };
   var _hoisted_225 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_226 = ["disabled"];
-  var _hoisted_227 = { class: "taxi-settings__label" };
-  var _hoisted_228 = { class: "taxi-settings__help" };
-  var _hoisted_229 = { class: "taxi-settings__segmented taxi-settings__segmented--three" };
-  var _hoisted_230 = {
+  var _hoisted_226 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_227 = ["disabled"];
+  var _hoisted_228 = { class: "taxi-settings__label" };
+  var _hoisted_229 = { class: "taxi-settings__help" };
+  var _hoisted_230 = { class: "taxi-settings__segmented taxi-settings__segmented--three" };
+  var _hoisted_231 = {
     key: 1,
     class: "taxi-lan"
   };
-  var _hoisted_231 = { key: 0 };
-  var _hoisted_232 = {
+  var _hoisted_232 = { key: 0 };
+  var _hoisted_233 = {
     key: 0,
     class: "taxi-lan__connect"
   };
-  var _hoisted_233 = { class: "taxi-lan__link" };
-  var _hoisted_234 = { class: "taxi-settings__help" };
-  var _hoisted_235 = ["value"];
-  var _hoisted_236 = {
+  var _hoisted_234 = { class: "taxi-lan__link" };
+  var _hoisted_235 = { class: "taxi-settings__help" };
+  var _hoisted_236 = ["value"];
+  var _hoisted_237 = {
     key: 1,
     class: "taxi-lan__error"
   };
-  var _hoisted_237 = { class: "taxi-settings__help taxi-lan__warning" };
-  var _hoisted_238 = ["aria-expanded"];
-  var _hoisted_239 = {
+  var _hoisted_238 = { class: "taxi-settings__help taxi-lan__warning" };
+  var _hoisted_239 = ["aria-expanded"];
+  var _hoisted_240 = {
     key: 0,
     id: "taxi-settings-cheats",
     class: "taxi-settings__group-body"
   };
-  var _hoisted_240 = { class: "taxi-settings__danger-help" };
-  var _hoisted_241 = { class: "taxi-settings__cheat-stats" };
-  var _hoisted_242 = { class: "taxi-settings__cheat-card" };
-  var _hoisted_243 = { class: "taxi-settings__label" };
-  var _hoisted_244 = { class: "taxi-settings__cheat-rating" };
-  var _hoisted_245 = { class: "taxi-settings__cheat-card" };
-  var _hoisted_246 = { class: "taxi-settings__label" };
-  var _hoisted_247 = { class: "taxi-settings__help" };
-  var _hoisted_248 = { class: "taxi-settings__cheat-rating" };
-  var _hoisted_249 = { class: "taxi-settings__cheat-card" };
-  var _hoisted_250 = { class: "taxi-settings__switch-row" };
-  var _hoisted_251 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_252 = { class: "taxi-settings__cheat-card" };
-  var _hoisted_253 = { class: "taxi-settings__switch-row" };
-  var _hoisted_254 = { class: "taxi-settings__switch-copy" };
-  var _hoisted_255 = { class: "taxi-settings__cheat-card" };
-  var _hoisted_256 = { class: "taxi-settings__label" };
-  var _hoisted_257 = { class: "taxi-settings__money-grid" };
-  var _hoisted_258 = { class: "taxi-settings__cheat-card" };
-  var _hoisted_259 = { class: "taxi-settings__label" };
-  var _hoisted_260 = { class: "taxi-settings__help" };
-  var _hoisted_261 = {
+  var _hoisted_241 = { class: "taxi-settings__danger-help" };
+  var _hoisted_242 = { class: "taxi-settings__cheat-stats" };
+  var _hoisted_243 = { class: "taxi-settings__cheat-card" };
+  var _hoisted_244 = { class: "taxi-settings__label" };
+  var _hoisted_245 = { class: "taxi-settings__cheat-rating" };
+  var _hoisted_246 = { class: "taxi-settings__cheat-card" };
+  var _hoisted_247 = { class: "taxi-settings__label" };
+  var _hoisted_248 = { class: "taxi-settings__help" };
+  var _hoisted_249 = { class: "taxi-settings__cheat-rating" };
+  var _hoisted_250 = { class: "taxi-settings__cheat-card" };
+  var _hoisted_251 = { class: "taxi-settings__switch-row" };
+  var _hoisted_252 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_253 = { class: "taxi-settings__cheat-card" };
+  var _hoisted_254 = { class: "taxi-settings__switch-row" };
+  var _hoisted_255 = { class: "taxi-settings__switch-copy" };
+  var _hoisted_256 = { class: "taxi-settings__cheat-card" };
+  var _hoisted_257 = { class: "taxi-settings__label" };
+  var _hoisted_258 = { class: "taxi-settings__money-grid" };
+  var _hoisted_259 = { class: "taxi-settings__cheat-card" };
+  var _hoisted_260 = { class: "taxi-settings__label" };
+  var _hoisted_261 = { class: "taxi-settings__help" };
+  var _hoisted_262 = {
     key: 1,
     class: "taxi-settings__reset-confirm"
   };
-  var _hoisted_262 = {
+  var _hoisted_263 = {
     key: 4,
     class: "taxi-profile"
   };
-  var _hoisted_263 = { class: "taxi-profile__hero" };
-  var _hoisted_264 = { class: "taxi-profile__hero-avatar" };
-  var _hoisted_265 = { class: "taxi-profile__hero-copy" };
-  var _hoisted_266 = ["title"];
-  var _hoisted_267 = { class: "taxi-profile__hero-rating" };
-  var _hoisted_268 = { class: "taxi-profile__tabs" };
-  var _hoisted_269 = { class: "taxi-profile__content" };
-  var _hoisted_270 = {
+  var _hoisted_264 = { class: "taxi-profile__hero" };
+  var _hoisted_265 = { class: "taxi-profile__hero-avatar" };
+  var _hoisted_266 = { class: "taxi-profile__hero-copy" };
+  var _hoisted_267 = ["title"];
+  var _hoisted_268 = { class: "taxi-profile__hero-rating" };
+  var _hoisted_269 = { class: "taxi-profile__tabs" };
+  var _hoisted_270 = { class: "taxi-profile__content" };
+  var _hoisted_271 = {
     key: 0,
     class: "taxi-profile__panel"
   };
-  var _hoisted_271 = { class: "taxi-profile__field" };
   var _hoisted_272 = { class: "taxi-profile__field" };
-  var _hoisted_273 = { class: "taxi-profile__age" };
-  var _hoisted_274 = { class: "taxi-profile__field" };
-  var _hoisted_275 = { class: "taxi-profile__avatars" };
-  var _hoisted_276 = ["onClick"];
-  var _hoisted_277 = {
+  var _hoisted_273 = { class: "taxi-profile__field" };
+  var _hoisted_274 = { class: "taxi-profile__age" };
+  var _hoisted_275 = { class: "taxi-profile__field" };
+  var _hoisted_276 = { class: "taxi-profile__avatars" };
+  var _hoisted_277 = ["onClick"];
+  var _hoisted_278 = {
     key: 0,
     class: "taxi-profile__saved"
   };
-  var _hoisted_278 = {
+  var _hoisted_279 = {
     key: 1,
     class: "taxi-profile__panel taxi-profile__panel--reviews"
   };
-  var _hoisted_279 = {
+  var _hoisted_280 = {
     key: 0,
     class: "taxi-profile__empty"
   };
-  var _hoisted_280 = {
+  var _hoisted_281 = {
     class: "taxi-review taxi-review--measure",
     "data-review-measure": "regular",
     "aria-hidden": "true"
   };
-  var _hoisted_281 = { class: "taxi-review__copy" };
-  var _hoisted_282 = { class: "taxi-review__ratings" };
-  var _hoisted_283 = {
+  var _hoisted_282 = { class: "taxi-review__copy" };
+  var _hoisted_283 = { class: "taxi-review__ratings" };
+  var _hoisted_284 = {
     class: "taxi-review taxi-review--measure",
     "data-review-measure": "ai",
     "aria-hidden": "true"
   };
-  var _hoisted_284 = { class: "taxi-review__copy" };
-  var _hoisted_285 = { class: "taxi-review__ratings" };
-  var _hoisted_286 = ["onClick", "aria-expanded", "aria-controls"];
-  var _hoisted_287 = { class: "taxi-review__emoji" };
-  var _hoisted_288 = { class: "taxi-review__copy" };
-  var _hoisted_289 = { key: 0 };
-  var _hoisted_290 = { class: "taxi-review__ratings" };
-  var _hoisted_291 = ["id"];
-  var _hoisted_292 = { class: "taxi-review-details__summary" };
-  var _hoisted_293 = { key: 0 };
+  var _hoisted_285 = { class: "taxi-review__copy" };
+  var _hoisted_286 = { class: "taxi-review__ratings" };
+  var _hoisted_287 = ["onClick", "aria-expanded", "aria-controls"];
+  var _hoisted_288 = { class: "taxi-review__emoji" };
+  var _hoisted_289 = { class: "taxi-review__copy" };
+  var _hoisted_290 = { key: 0 };
+  var _hoisted_291 = { class: "taxi-review__ratings" };
+  var _hoisted_292 = ["id"];
+  var _hoisted_293 = { class: "taxi-review-details__summary" };
   var _hoisted_294 = { key: 0 };
   var _hoisted_295 = { key: 0 };
   var _hoisted_296 = { key: 0 };
-  var _hoisted_297 = {
+  var _hoisted_297 = { key: 0 };
+  var _hoisted_298 = {
     key: 1,
     class: "taxi-profile__pager"
   };
-  var _hoisted_298 = ["disabled", "aria-label"];
   var _hoisted_299 = ["disabled", "aria-label"];
-  var _hoisted_300 = { key: 2 };
-  var _hoisted_301 = { class: "taxi-chart-card" };
-  var _hoisted_302 = { class: "taxi-chart-card__head" };
-  var _hoisted_303 = {
+  var _hoisted_300 = ["disabled", "aria-label"];
+  var _hoisted_301 = { key: 2 };
+  var _hoisted_302 = { class: "taxi-chart-card" };
+  var _hoisted_303 = { class: "taxi-chart-card__head" };
+  var _hoisted_304 = {
     class: "taxi-chart",
     viewBox: "0 0 320 92",
     preserveAspectRatio: "none"
   };
-  var _hoisted_304 = ["points"];
-  var _hoisted_305 = { class: "taxi-chart-card__hint" };
-  var _hoisted_306 = { class: "taxi-chart-card" };
-  var _hoisted_307 = { class: "taxi-chart-card__head" };
-  var _hoisted_308 = {
+  var _hoisted_305 = ["points"];
+  var _hoisted_306 = { class: "taxi-chart-card__hint" };
+  var _hoisted_307 = { class: "taxi-chart-card" };
+  var _hoisted_308 = { class: "taxi-chart-card__head" };
+  var _hoisted_309 = {
     class: "taxi-chart",
     viewBox: "0 0 320 92",
     preserveAspectRatio: "none"
   };
-  var _hoisted_309 = ["points"];
-  var _hoisted_310 = { class: "taxi-chart-card__hint" };
-  var _hoisted_311 = { class: "taxi-ai-ride-counter" };
-  var _hoisted_312 = ["title"];
-  var _hoisted_313 = {
+  var _hoisted_310 = ["points"];
+  var _hoisted_311 = { class: "taxi-chart-card__hint" };
+  var _hoisted_312 = { class: "taxi-ai-ride-counter" };
+  var _hoisted_313 = ["title"];
+  var _hoisted_314 = {
     key: 3,
     class: "taxi-profile__panel taxi-profile__panel--vehicles"
   };
-  var _hoisted_314 = {
+  var _hoisted_315 = {
     key: 0,
     class: "taxi-profile__empty"
   };
-  var _hoisted_315 = {
+  var _hoisted_316 = {
     key: 1,
     class: "taxi-vehicle-history__sort"
   };
-  var _hoisted_316 = ["aria-expanded"];
-  var _hoisted_317 = {
+  var _hoisted_317 = ["aria-expanded"];
+  var _hoisted_318 = {
     key: 0,
     class: "taxi-sort-menu__options",
     role: "listbox"
   };
-  var _hoisted_318 = ["onClick", "aria-selected"];
-  var _hoisted_319 = { class: "taxi-vehicle-history__preview" };
-  var _hoisted_320 = ["src", "alt"];
-  var _hoisted_321 = { class: "taxi-vehicle-history__head" };
-  var _hoisted_322 = { class: "taxi-vehicle-history__stats" };
-  var _hoisted_323 = ["title"];
+  var _hoisted_319 = ["onClick", "aria-selected"];
+  var _hoisted_320 = { class: "taxi-vehicle-history__preview" };
+  var _hoisted_321 = ["src", "alt"];
+  var _hoisted_322 = { class: "taxi-vehicle-history__head" };
+  var _hoisted_323 = { class: "taxi-vehicle-history__stats" };
   var _hoisted_324 = ["title"];
-  var _hoisted_325 = { key: 0 };
-  var _hoisted_326 = {
+  var _hoisted_325 = ["title"];
+  var _hoisted_326 = { key: 0 };
+  var _hoisted_327 = {
     key: 4,
     class: "taxi-profile__panel taxi-profile__panel--shifts"
   };
-  var _hoisted_327 = {
+  var _hoisted_328 = {
     key: 0,
     class: "taxi-profile__empty"
   };
-  var _hoisted_328 = ["onClick", "disabled"];
-  var _hoisted_329 = { class: "taxi-shift-card__preview" };
-  var _hoisted_330 = ["src", "alt"];
-  var _hoisted_331 = { class: "taxi-shift-card__copy" };
-  var _hoisted_332 = ["title"];
+  var _hoisted_329 = ["onClick", "disabled"];
+  var _hoisted_330 = { class: "taxi-shift-card__preview" };
+  var _hoisted_331 = ["src", "alt"];
+  var _hoisted_332 = { class: "taxi-shift-card__copy" };
   var _hoisted_333 = ["title"];
   var _hoisted_334 = ["title"];
   var _hoisted_335 = ["title"];
-  var _hoisted_336 = { key: 0 };
-  var _hoisted_337 = {
+  var _hoisted_336 = ["title"];
+  var _hoisted_337 = { key: 0 };
+  var _hoisted_338 = {
     key: 1,
     class: "taxi-shift-card__loading"
   };
-  var _hoisted_338 = {
+  var _hoisted_339 = {
     key: 5,
     class: "taxi-fleet"
   };
-  var _hoisted_339 = { class: "taxi-map taxi-fleet__map" };
-  var _hoisted_340 = {
+  var _hoisted_340 = { class: "taxi-map taxi-fleet__map" };
+  var _hoisted_341 = {
     key: 0,
     class: "taxi-external-minimap"
   };
-  var _hoisted_341 = ["aria-label"];
-  var _hoisted_342 = { class: "taxi-map-toolbar" };
-  var _hoisted_343 = ["disabled"];
-  var _hoisted_344 = ["aria-label"];
-  var _hoisted_345 = ["title", "aria-label"];
+  var _hoisted_342 = ["aria-label"];
+  var _hoisted_343 = { class: "taxi-map-toolbar" };
+  var _hoisted_344 = ["disabled"];
+  var _hoisted_345 = ["aria-label"];
   var _hoisted_346 = ["title", "aria-label"];
   var _hoisted_347 = ["title", "aria-label"];
-  var _hoisted_348 = {
+  var _hoisted_348 = ["title", "aria-label"];
+  var _hoisted_349 = {
     key: 1,
     class: "taxi-map__route-info"
   };
-  var _hoisted_349 = { class: "taxi-fleet__map-status" };
-  var _hoisted_350 = { class: "taxi-fleet__panel" };
-  var _hoisted_351 = { class: "taxi-fleet__head" };
-  var _hoisted_352 = ["aria-label"];
-  var _hoisted_353 = ["title"];
-  var _hoisted_354 = { class: "taxi-fleet__scroll" };
-  var _hoisted_355 = { class: "taxi-fleet__stats" };
-  var _hoisted_356 = ["title"];
-  var _hoisted_357 = { class: "taxi-fleet__economy" };
-  var _hoisted_358 = {
+  var _hoisted_350 = { class: "taxi-fleet__map-status" };
+  var _hoisted_351 = { class: "taxi-fleet__panel" };
+  var _hoisted_352 = { class: "taxi-fleet__head" };
+  var _hoisted_353 = ["aria-label"];
+  var _hoisted_354 = ["title"];
+  var _hoisted_355 = { class: "taxi-fleet__scroll" };
+  var _hoisted_356 = { class: "taxi-fleet__stats" };
+  var _hoisted_357 = ["title"];
+  var _hoisted_358 = { class: "taxi-fleet__economy" };
+  var _hoisted_359 = {
     key: 0,
     class: "taxi-fleet__section"
   };
-  var _hoisted_359 = { class: "taxi-fleet__vehicle" };
-  var _hoisted_360 = ["src", "alt"];
-  var _hoisted_361 = ["title"];
-  var _hoisted_362 = { class: "taxi-fleet__progress" };
-  var _hoisted_363 = { class: "taxi-fleet__driver-stats" };
-  var _hoisted_364 = ["title"];
+  var _hoisted_360 = { class: "taxi-fleet__vehicle" };
+  var _hoisted_361 = ["src", "alt"];
+  var _hoisted_362 = ["title"];
+  var _hoisted_363 = { class: "taxi-fleet__progress" };
+  var _hoisted_364 = { class: "taxi-fleet__driver-stats" };
   var _hoisted_365 = ["title"];
   var _hoisted_366 = ["title"];
-  var _hoisted_367 = ["onClick"];
-  var _hoisted_368 = { class: "taxi-fleet__section" };
-  var _hoisted_369 = { class: "taxi-fleet__hint" };
-  var _hoisted_370 = {
+  var _hoisted_367 = ["title"];
+  var _hoisted_368 = ["onClick"];
+  var _hoisted_369 = { class: "taxi-fleet__section" };
+  var _hoisted_370 = { class: "taxi-fleet__hint" };
+  var _hoisted_371 = {
     key: 0,
     class: "taxi-fleet__empty"
   };
-  var _hoisted_371 = ["disabled", "onClick"];
-  var _hoisted_372 = ["src", "alt"];
-  var _hoisted_373 = ["title"];
+  var _hoisted_372 = ["disabled", "onClick"];
+  var _hoisted_373 = ["src", "alt"];
   var _hoisted_374 = ["title"];
-  var _hoisted_375 = { class: "taxi-fleet__section" };
-  var _hoisted_376 = { class: "taxi-fleet__hint" };
-  var _hoisted_377 = {
+  var _hoisted_375 = ["title"];
+  var _hoisted_376 = { class: "taxi-fleet__section" };
+  var _hoisted_377 = { class: "taxi-fleet__hint" };
+  var _hoisted_378 = {
     key: 0,
     class: "taxi-fleet__empty"
   };
-  var _hoisted_378 = ["disabled", "onClick"];
-  var _hoisted_379 = ["title"];
-  var _hoisted_380 = ["aria-label"];
-  var _hoisted_381 = { class: "taxi-earth__head" };
-  var _hoisted_382 = ["aria-label"];
-  var _hoisted_383 = { class: "taxi-earth__scroll" };
-  var _hoisted_384 = ["aria-label"];
-  var _hoisted_385 = ["disabled", "aria-pressed"];
+  var _hoisted_379 = ["disabled", "onClick"];
+  var _hoisted_380 = ["title"];
+  var _hoisted_381 = ["aria-label"];
+  var _hoisted_382 = { class: "taxi-earth__head" };
+  var _hoisted_383 = ["aria-label"];
+  var _hoisted_384 = { class: "taxi-earth__scroll" };
+  var _hoisted_385 = ["aria-label"];
   var _hoisted_386 = ["disabled", "aria-pressed"];
-  var _hoisted_387 = {
+  var _hoisted_387 = ["disabled", "aria-pressed"];
+  var _hoisted_388 = {
     key: 0,
     class: "taxi-earth__status",
     role: "status"
   };
-  var _hoisted_388 = {
+  var _hoisted_389 = {
     key: 1,
     class: "taxi-earth__vehicle"
   };
-  var _hoisted_389 = {
+  var _hoisted_390 = {
     key: 0,
     class: "taxi-earth__field"
   };
-  var _hoisted_390 = { class: "taxi-earth__field-head" };
-  var _hoisted_391 = ["for"];
-  var _hoisted_392 = ["disabled"];
-  var _hoisted_393 = { class: "taxi-earth__search" };
-  var _hoisted_394 = ["id", "disabled", "aria-controls", "aria-expanded", "aria-activedescendant", "value", "placeholder", "onInput", "onKeydown", "onFocus"];
-  var _hoisted_395 = ["disabled", "onClick"];
-  var _hoisted_396 = {
+  var _hoisted_391 = { class: "taxi-earth__field-head" };
+  var _hoisted_392 = ["for"];
+  var _hoisted_393 = ["disabled"];
+  var _hoisted_394 = { class: "taxi-earth__search" };
+  var _hoisted_395 = ["id", "disabled", "aria-controls", "aria-expanded", "aria-activedescendant", "value", "placeholder", "onInput", "onKeydown", "onFocus"];
+  var _hoisted_396 = ["disabled", "onClick"];
+  var _hoisted_397 = {
     key: 0,
     class: "taxi-earth__status",
     role: "status"
   };
-  var _hoisted_397 = {
+  var _hoisted_398 = {
     key: 1,
     class: "taxi-earth__error",
     role: "alert"
   };
-  var _hoisted_398 = ["id", "aria-label"];
-  var _hoisted_399 = ["disabled", "id", "aria-selected", "onClick"];
-  var _hoisted_400 = {
+  var _hoisted_399 = ["id", "aria-label"];
+  var _hoisted_400 = ["disabled", "id", "aria-selected", "onClick"];
+  var _hoisted_401 = {
     key: 3,
     class: "taxi-earth__selected"
   };
-  var _hoisted_401 = ["disabled"];
   var _hoisted_402 = ["disabled"];
-  var _hoisted_403 = {
+  var _hoisted_403 = ["disabled"];
+  var _hoisted_404 = {
     key: 2,
     class: "taxi-earth__status",
     role: "status"
   };
-  var _hoisted_404 = { key: 0 };
-  var _hoisted_405 = {
+  var _hoisted_405 = { key: 0 };
+  var _hoisted_406 = {
     key: 3,
     class: "taxi-earth__metrics"
   };
-  var _hoisted_406 = { class: "taxi-earth__personal" };
-  var _hoisted_407 = ["disabled"];
+  var _hoisted_407 = { class: "taxi-earth__personal" };
   var _hoisted_408 = ["disabled"];
-  var _hoisted_409 = {
+  var _hoisted_409 = ["disabled"];
+  var _hoisted_410 = {
     key: 4,
     class: "taxi-earth__error",
     role: "alert"
   };
-  var _hoisted_410 = { class: "taxi-earth__navigate" };
-  var _hoisted_411 = ["disabled"];
+  var _hoisted_411 = { class: "taxi-earth__navigate" };
   var _hoisted_412 = ["disabled"];
-  var _hoisted_413 = { class: "taxi-earth__hint" };
-  var _hoisted_414 = {
+  var _hoisted_413 = ["disabled"];
+  var _hoisted_414 = { class: "taxi-earth__hint" };
+  var _hoisted_415 = {
     key: 5,
     class: "taxi-earth__status",
     role: "status"
   };
-  var _hoisted_415 = {
+  var _hoisted_416 = {
     key: 7,
     class: "taxi-personal-route taxi-trip-layout"
   };
-  var _hoisted_416 = { class: "taxi-map" };
-  var _hoisted_417 = {
+  var _hoisted_417 = { class: "taxi-map" };
+  var _hoisted_418 = {
     key: 0,
     class: "taxi-external-minimap"
   };
-  var _hoisted_418 = ["aria-label"];
-  var _hoisted_419 = { class: "taxi-map-toolbar" };
-  var _hoisted_420 = ["aria-label"];
+  var _hoisted_419 = ["aria-label"];
+  var _hoisted_420 = { class: "taxi-map-toolbar" };
   var _hoisted_421 = ["aria-label"];
   var _hoisted_422 = ["aria-label"];
   var _hoisted_423 = ["aria-label"];
-  var _hoisted_424 = { class: "taxi-map__route-info" };
-  var _hoisted_425 = { class: "taxi-personal-route__details" };
-  var _hoisted_426 = {
+  var _hoisted_424 = ["aria-label"];
+  var _hoisted_425 = { class: "taxi-map__route-info" };
+  var _hoisted_426 = { class: "taxi-personal-route__details" };
+  var _hoisted_427 = {
     key: 0,
     class: "taxi-home__content"
   };
-  var _hoisted_427 = ["aria-label"];
-  var _hoisted_428 = { class: "taxi-home__presets-heading" };
-  var _hoisted_429 = { key: 0 };
-  var _hoisted_430 = { class: "taxi-home__presets-grid" };
-  var _hoisted_431 = ["aria-pressed", "onClick"];
-  var _hoisted_432 = {
+  var _hoisted_428 = ["aria-label"];
+  var _hoisted_429 = { class: "taxi-home__presets-heading" };
+  var _hoisted_430 = { key: 0 };
+  var _hoisted_431 = { class: "taxi-home__presets-grid" };
+  var _hoisted_432 = ["aria-pressed", "onClick"];
+  var _hoisted_433 = {
     key: 0,
     "aria-hidden": "true"
   };
-  var _hoisted_433 = ["title", "aria-label"];
-  var _hoisted_434 = { class: "taxi-home__vehicle-preview" };
-  var _hoisted_435 = ["src", "alt"];
-  var _hoisted_436 = { class: "taxi-home__vehicle-copy" };
-  var _hoisted_437 = ["title"];
-  var _hoisted_438 = { key: 0 };
-  var _hoisted_439 = { class: "taxi-home__modes" };
-  var _hoisted_440 = ["title"];
-  var _hoisted_441 = ["aria-label"];
-  var _hoisted_442 = ["title"];
-  var _hoisted_443 = ["aria-label"];
-  var _hoisted_444 = {
+  var _hoisted_434 = ["title", "aria-label"];
+  var _hoisted_435 = { class: "taxi-home__vehicle-preview" };
+  var _hoisted_436 = ["src", "alt"];
+  var _hoisted_437 = { class: "taxi-home__vehicle-copy" };
+  var _hoisted_438 = ["title"];
+  var _hoisted_439 = { key: 0 };
+  var _hoisted_440 = { class: "taxi-home__modes" };
+  var _hoisted_441 = ["title"];
+  var _hoisted_442 = ["aria-label"];
+  var _hoisted_443 = ["title"];
+  var _hoisted_444 = ["aria-label"];
+  var _hoisted_445 = {
     key: 1,
     class: "taxi-home__last-shift"
   };
-  var _hoisted_445 = ["title"];
   var _hoisted_446 = ["title"];
-  var _hoisted_447 = { class: "taxi-home__actions" };
-  var _hoisted_448 = ["title"];
+  var _hoisted_447 = ["title"];
+  var _hoisted_448 = { class: "taxi-home__actions" };
   var _hoisted_449 = ["title"];
-  var _hoisted_450 = ["disabled"];
-  var _hoisted_451 = ["title"];
+  var _hoisted_450 = ["title"];
+  var _hoisted_451 = ["disabled"];
   var _hoisted_452 = ["title"];
-  var _hoisted_453 = { class: "taxi-home__stats" };
-  var _hoisted_454 = ["title"];
+  var _hoisted_453 = ["title"];
+  var _hoisted_454 = { class: "taxi-home__stats" };
   var _hoisted_455 = ["title"];
-  var _hoisted_456 = {
+  var _hoisted_456 = ["title"];
+  var _hoisted_457 = {
     key: 1,
     class: "taxi-home__content taxi-shift-history"
   };
-  var _hoisted_457 = { class: "taxi-shift-history__head" };
-  var _hoisted_458 = ["disabled", "aria-label"];
-  var _hoisted_459 = { class: "taxi-shift-history__list" };
-  var _hoisted_460 = ["onClick", "disabled"];
-  var _hoisted_461 = { class: "taxi-shift-card__preview" };
-  var _hoisted_462 = ["src", "alt"];
-  var _hoisted_463 = { class: "taxi-shift-card__copy" };
-  var _hoisted_464 = ["title"];
+  var _hoisted_458 = { class: "taxi-shift-history__head" };
+  var _hoisted_459 = ["disabled", "aria-label"];
+  var _hoisted_460 = { class: "taxi-shift-history__list" };
+  var _hoisted_461 = ["onClick", "disabled"];
+  var _hoisted_462 = { class: "taxi-shift-card__preview" };
+  var _hoisted_463 = ["src", "alt"];
+  var _hoisted_464 = { class: "taxi-shift-card__copy" };
   var _hoisted_465 = ["title"];
   var _hoisted_466 = ["title"];
-  var _hoisted_467 = { key: 0 };
-  var _hoisted_468 = {
+  var _hoisted_467 = ["title"];
+  var _hoisted_468 = { key: 0 };
+  var _hoisted_469 = {
     key: 1,
     class: "taxi-shift-card__loading"
   };
-  var _hoisted_469 = {
+  var _hoisted_470 = {
     key: 9,
     class: "taxi-orders"
   };
-  var _hoisted_470 = { class: "taxi-orders__sheet" };
-  var _hoisted_471 = { class: "taxi-orders__search" };
-  var _hoisted_472 = {
+  var _hoisted_471 = { class: "taxi-orders__sheet" };
+  var _hoisted_472 = { class: "taxi-orders__search" };
+  var _hoisted_473 = {
     key: 0,
     class: "taxi-orders__spinner"
   };
-  var _hoisted_473 = { class: "taxi-orders__sort" };
-  var _hoisted_474 = ["aria-expanded"];
-  var _hoisted_475 = {
+  var _hoisted_474 = { class: "taxi-orders__sort" };
+  var _hoisted_475 = ["aria-expanded"];
+  var _hoisted_476 = {
     key: 0,
     class: "taxi-sort-menu__options"
   };
-  var _hoisted_476 = ["onClick"];
-  var _hoisted_477 = { class: "taxi-orders__list" };
-  var _hoisted_478 = {
+  var _hoisted_477 = ["onClick"];
+  var _hoisted_478 = { class: "taxi-orders__list" };
+  var _hoisted_479 = {
     key: 0,
     class: "taxi-orders__empty"
   };
-  var _hoisted_479 = { class: "taxi-order-card__top" };
-  var _hoisted_480 = { class: "taxi-order-card__avatar" };
-  var _hoisted_481 = { class: "taxi-order-card__name" };
-  var _hoisted_482 = ["title"];
-  var _hoisted_483 = { key: 0 };
-  var _hoisted_484 = { key: 1 };
-  var _hoisted_485 = ["title", "aria-label"];
-  var _hoisted_486 = { class: "taxi-calmness-emoji__percent" };
-  var _hoisted_487 = {
+  var _hoisted_480 = { class: "taxi-order-card__top" };
+  var _hoisted_481 = { class: "taxi-order-card__avatar" };
+  var _hoisted_482 = { class: "taxi-order-card__name" };
+  var _hoisted_483 = ["title"];
+  var _hoisted_484 = { key: 0 };
+  var _hoisted_485 = { key: 1 };
+  var _hoisted_486 = ["title", "aria-label"];
+  var _hoisted_487 = { class: "taxi-calmness-emoji__percent" };
+  var _hoisted_488 = {
     key: 1,
     class: "taxi-delivery-weight"
   };
-  var _hoisted_488 = {
+  var _hoisted_489 = {
     key: 2,
     class: "taxi-order-card__badge"
   };
-  var _hoisted_489 = {
+  var _hoisted_490 = {
     key: 3,
     class: "taxi-order-card__badge taxi-order-card__badge--multi"
   };
-  var _hoisted_490 = ["title"];
-  var _hoisted_491 = { class: "taxi-order-card__efficiency" };
-  var _hoisted_492 = { class: "taxi-order-card__metrics" };
-  var _hoisted_493 = { class: "taxi-order-card__metric" };
+  var _hoisted_491 = ["title"];
+  var _hoisted_492 = { class: "taxi-order-card__efficiency" };
+  var _hoisted_493 = { class: "taxi-order-card__metrics" };
   var _hoisted_494 = { class: "taxi-order-card__metric" };
-  var _hoisted_495 = { class: "taxi-order-card__metric taxi-order-card__metric--fare" };
-  var _hoisted_496 = ["title"];
-  var _hoisted_497 = {
+  var _hoisted_495 = { class: "taxi-order-card__metric" };
+  var _hoisted_496 = { class: "taxi-order-card__metric taxi-order-card__metric--fare" };
+  var _hoisted_497 = ["title"];
+  var _hoisted_498 = {
     key: 1,
     class: "taxi-order-card__rush"
   };
-  var _hoisted_498 = {
+  var _hoisted_499 = {
     key: 2,
     class: "taxi-order-card__multi"
   };
-  var _hoisted_499 = {
+  var _hoisted_500 = {
     key: 3,
     class: "taxi-order-card__delivery"
   };
-  var _hoisted_500 = { key: 0 };
-  var _hoisted_501 = {
+  var _hoisted_501 = { key: 0 };
+  var _hoisted_502 = {
     key: 4,
     class: "taxi-order-card__rating-bonus"
   };
-  var _hoisted_502 = ["onClick"];
-  var _hoisted_503 = { class: "taxi-orders__footer" };
-  var _hoisted_504 = { class: "taxi-offline-hold__copy" };
-  var _hoisted_505 = {
+  var _hoisted_503 = ["onClick"];
+  var _hoisted_504 = { class: "taxi-orders__footer" };
+  var _hoisted_505 = { class: "taxi-offline-hold__copy" };
+  var _hoisted_506 = {
     key: 10,
     class: "taxi-transfer"
   };
-  var _hoisted_506 = { class: "taxi-transfer__loader" };
-  var _hoisted_507 = { class: "taxi-transfer__passenger" };
-  var _hoisted_508 = ["title", "aria-label"];
-  var _hoisted_509 = { class: "taxi-calmness-emoji__percent" };
-  var _hoisted_510 = {
+  var _hoisted_507 = { class: "taxi-transfer__loader" };
+  var _hoisted_508 = { class: "taxi-transfer__passenger" };
+  var _hoisted_509 = ["title", "aria-label"];
+  var _hoisted_510 = { class: "taxi-calmness-emoji__percent" };
+  var _hoisted_511 = {
     key: 11,
     class: "taxi-transfer taxi-transfer--critical"
   };
-  var _hoisted_511 = { class: "taxi-transfer__passenger" };
-  var _hoisted_512 = {
+  var _hoisted_512 = { class: "taxi-transfer__passenger" };
+  var _hoisted_513 = {
     key: 12,
     class: "taxi-transfer taxi-transfer--critical"
   };
-  var _hoisted_513 = { class: "taxi-transfer__passenger" };
-  var _hoisted_514 = { class: "taxi-transfer__rating-loss" };
-  var _hoisted_515 = { class: "taxi-transfer__progress taxi-transfer__progress--determinate" };
-  var _hoisted_516 = {
+  var _hoisted_514 = { class: "taxi-transfer__passenger" };
+  var _hoisted_515 = { class: "taxi-transfer__rating-loss" };
+  var _hoisted_516 = { class: "taxi-transfer__progress taxi-transfer__progress--determinate" };
+  var _hoisted_517 = {
     key: 13,
     class: "taxi-transfer taxi-transfer--critical"
   };
-  var _hoisted_517 = { class: "taxi-transfer__passenger" };
-  var _hoisted_518 = { class: "taxi-transfer__rating-loss" };
-  var _hoisted_519 = { class: "taxi-transfer__progress taxi-transfer__progress--determinate" };
-  var _hoisted_520 = {
+  var _hoisted_518 = { class: "taxi-transfer__passenger" };
+  var _hoisted_519 = { class: "taxi-transfer__rating-loss" };
+  var _hoisted_520 = { class: "taxi-transfer__progress taxi-transfer__progress--determinate" };
+  var _hoisted_521 = {
     key: 14,
     class: "taxi-transfer"
   };
-  var _hoisted_521 = { class: "taxi-transfer__stop" };
-  var _hoisted_522 = { class: "taxi-transfer__passenger" };
-  var _hoisted_523 = { class: "taxi-transfer__countdown" };
-  var _hoisted_524 = { class: "taxi-transfer__progress taxi-transfer__progress--determinate" };
-  var _hoisted_525 = {
+  var _hoisted_522 = { class: "taxi-transfer__stop" };
+  var _hoisted_523 = { class: "taxi-transfer__passenger" };
+  var _hoisted_524 = { class: "taxi-transfer__countdown" };
+  var _hoisted_525 = { class: "taxi-transfer__progress taxi-transfer__progress--determinate" };
+  var _hoisted_526 = {
     key: 15,
     class: "taxi-transfer"
   };
-  var _hoisted_526 = { class: "taxi-transfer__passenger" };
-  var _hoisted_527 = { key: 0 };
-  var _hoisted_528 = { key: 1 };
-  var _hoisted_529 = {
+  var _hoisted_527 = { class: "taxi-transfer__passenger" };
+  var _hoisted_528 = { key: 0 };
+  var _hoisted_529 = { key: 1 };
+  var _hoisted_530 = {
     key: 16,
     class: "taxi-fuel-route"
   };
-  var _hoisted_530 = { class: "taxi-map" };
-  var _hoisted_531 = {
+  var _hoisted_531 = { class: "taxi-map" };
+  var _hoisted_532 = {
     key: 0,
     class: "taxi-external-minimap"
   };
-  var _hoisted_532 = ["aria-label"];
-  var _hoisted_533 = { class: "taxi-map-toolbar" };
-  var _hoisted_534 = ["disabled", "title"];
-  var _hoisted_535 = ["aria-label"];
-  var _hoisted_536 = ["title", "aria-label"];
+  var _hoisted_533 = ["aria-label"];
+  var _hoisted_534 = { class: "taxi-map-toolbar" };
+  var _hoisted_535 = ["disabled", "title"];
+  var _hoisted_536 = ["aria-label"];
   var _hoisted_537 = ["title", "aria-label"];
   var _hoisted_538 = ["title", "aria-label"];
-  var _hoisted_539 = { class: "taxi-map__route-info" };
-  var _hoisted_540 = ["title", "aria-label"];
-  var _hoisted_541 = { class: "taxi-fuel-route__sheet" };
-  var _hoisted_542 = { class: "taxi-fuel-route__head" };
-  var _hoisted_543 = { class: "taxi-fuel-route__copy" };
-  var _hoisted_544 = { class: "taxi-fuel-route__distance" };
-  var _hoisted_545 = ["title"];
-  var _hoisted_546 = { class: "taxi-fuel-route__gauge-core" };
-  var _hoisted_547 = {
-    key: 1,
-    class: "taxi-fuel-route__context"
-  };
+  var _hoisted_539 = ["title", "aria-label"];
+  var _hoisted_540 = { class: "taxi-map__route-info" };
+  var _hoisted_541 = ["title", "aria-label"];
+  var _hoisted_542 = { class: "taxi-fuel-route__sheet" };
+  var _hoisted_543 = { class: "taxi-fuel-route__head" };
+  var _hoisted_544 = { class: "taxi-fuel-route__copy" };
+  var _hoisted_545 = { class: "taxi-fuel-route__distance" };
+  var _hoisted_546 = ["title"];
+  var _hoisted_547 = { class: "taxi-fuel-route__gauge-core" };
   var _hoisted_548 = {
-    key: 2,
+    key: 1,
     class: "taxi-fuel-route__context"
   };
   var _hoisted_549 = {
+    key: 2,
+    class: "taxi-fuel-route__context"
+  };
+  var _hoisted_550 = {
     key: 3,
     class: "taxi-fuel-route__context taxi-fuel-route__context--penalty"
   };
-  var _hoisted_550 = { class: "taxi-fuel-route__progress" };
-  var _hoisted_551 = { class: "taxi-fuel-route__progress-head" };
-  var _hoisted_552 = { class: "taxi-fuel-route__track" };
-  var _hoisted_553 = { class: "taxi-fuel-route__stats" };
-  var _hoisted_554 = { class: "taxi-fuel-route__stat" };
+  var _hoisted_551 = { class: "taxi-fuel-route__progress" };
+  var _hoisted_552 = { class: "taxi-fuel-route__progress-head" };
+  var _hoisted_553 = { class: "taxi-fuel-route__track" };
+  var _hoisted_554 = { class: "taxi-fuel-route__stats" };
   var _hoisted_555 = { class: "taxi-fuel-route__stat" };
-  var _hoisted_556 = {
+  var _hoisted_556 = { class: "taxi-fuel-route__stat" };
+  var _hoisted_557 = {
     key: 17,
     class: "taxi-trip-layout"
   };
-  var _hoisted_557 = { class: "taxi-map" };
-  var _hoisted_558 = {
+  var _hoisted_558 = { class: "taxi-map" };
+  var _hoisted_559 = {
     key: 0,
     class: "taxi-external-minimap"
   };
-  var _hoisted_559 = ["aria-label"];
-  var _hoisted_560 = { class: "taxi-map-toolbar" };
-  var _hoisted_561 = ["disabled", "title"];
-  var _hoisted_562 = ["aria-label"];
-  var _hoisted_563 = ["title", "aria-label"];
+  var _hoisted_560 = ["aria-label"];
+  var _hoisted_561 = { class: "taxi-map-toolbar" };
+  var _hoisted_562 = ["disabled", "title"];
+  var _hoisted_563 = ["aria-label"];
   var _hoisted_564 = ["title", "aria-label"];
   var _hoisted_565 = ["title", "aria-label"];
-  var _hoisted_566 = { class: "taxi-map__route-info" };
-  var _hoisted_567 = ["title", "aria-label"];
-  var _hoisted_568 = { class: "taxi-sheet" };
-  var _hoisted_569 = { class: "taxi-sheet__heading" };
-  var _hoisted_570 = { class: "taxi-sheet__avatar" };
-  var _hoisted_571 = { class: "taxi-sheet__heading-text" };
-  var _hoisted_572 = ["title"];
-  var _hoisted_573 = { class: "taxi-sheet__distance" };
-  var _hoisted_574 = {
+  var _hoisted_566 = ["title", "aria-label"];
+  var _hoisted_567 = { class: "taxi-map__route-info" };
+  var _hoisted_568 = ["title", "aria-label"];
+  var _hoisted_569 = { class: "taxi-sheet" };
+  var _hoisted_570 = { class: "taxi-sheet__heading" };
+  var _hoisted_571 = { class: "taxi-sheet__avatar" };
+  var _hoisted_572 = { class: "taxi-sheet__heading-text" };
+  var _hoisted_573 = ["title"];
+  var _hoisted_574 = { class: "taxi-sheet__distance" };
+  var _hoisted_575 = {
     key: 0,
     class: "taxi-queued-order"
   };
-  var _hoisted_575 = { class: "taxi-trip-dashboard" };
-  var _hoisted_576 = ["title"];
-  var _hoisted_577 = ["aria-label"];
-  var _hoisted_578 = { class: "taxi-trip-dashboard__calmness-value" };
-  var _hoisted_579 = ["title"];
-  var _hoisted_580 = { class: "taxi-trip-dashboard__label" };
-  var _hoisted_581 = { class: "taxi-trip-dashboard__value" };
-  var _hoisted_582 = { key: 0 };
-  var _hoisted_583 = ["title"];
-  var _hoisted_584 = { class: "taxi-trip-dashboard__label" };
-  var _hoisted_585 = { class: "taxi-trip-dashboard__value" };
-  var _hoisted_586 = ["title"];
-  var _hoisted_587 = { class: "taxi-trip-dashboard__label" };
-  var _hoisted_588 = { class: "taxi-trip-dashboard__value" };
-  var _hoisted_589 = { key: 0 };
-  var _hoisted_590 = { key: 1 };
-  var _hoisted_591 = { key: 2 };
-  var _hoisted_592 = ["title"];
-  var _hoisted_593 = { class: "taxi-trip-dashboard__label" };
-  var _hoisted_594 = { class: "taxi-trip-dashboard__value" };
-  var _hoisted_595 = ["title"];
-  var _hoisted_596 = { class: "taxi-trip-dashboard__label" };
-  var _hoisted_597 = { class: "taxi-trip-dashboard__value" };
-  var _hoisted_598 = { key: 0 };
-  var _hoisted_599 = { key: 1 };
-  var _hoisted_600 = { key: 2 };
-  var _hoisted_601 = ["title"];
-  var _hoisted_602 = { class: "taxi-trip-dashboard__label" };
-  var _hoisted_603 = { class: "taxi-trip-dashboard__value" };
-  var _hoisted_604 = { class: "taxi-progress" };
-  var _hoisted_605 = { class: "taxi-progress__labels" };
-  var _hoisted_606 = { class: "taxi-progress__track" };
-  var _hoisted_607 = {
+  var _hoisted_576 = { class: "taxi-trip-dashboard" };
+  var _hoisted_577 = ["title"];
+  var _hoisted_578 = ["aria-label"];
+  var _hoisted_579 = { class: "taxi-trip-dashboard__calmness-value" };
+  var _hoisted_580 = ["title"];
+  var _hoisted_581 = { class: "taxi-trip-dashboard__label" };
+  var _hoisted_582 = { class: "taxi-trip-dashboard__value" };
+  var _hoisted_583 = { key: 0 };
+  var _hoisted_584 = ["title"];
+  var _hoisted_585 = { class: "taxi-trip-dashboard__label" };
+  var _hoisted_586 = { class: "taxi-trip-dashboard__value" };
+  var _hoisted_587 = ["title"];
+  var _hoisted_588 = { class: "taxi-trip-dashboard__label" };
+  var _hoisted_589 = { class: "taxi-trip-dashboard__value" };
+  var _hoisted_590 = { key: 0 };
+  var _hoisted_591 = { key: 1 };
+  var _hoisted_592 = { key: 2 };
+  var _hoisted_593 = ["title"];
+  var _hoisted_594 = { class: "taxi-trip-dashboard__label" };
+  var _hoisted_595 = { class: "taxi-trip-dashboard__value" };
+  var _hoisted_596 = ["title"];
+  var _hoisted_597 = { class: "taxi-trip-dashboard__label" };
+  var _hoisted_598 = { class: "taxi-trip-dashboard__value" };
+  var _hoisted_599 = { key: 0 };
+  var _hoisted_600 = { key: 1 };
+  var _hoisted_601 = { key: 2 };
+  var _hoisted_602 = ["title"];
+  var _hoisted_603 = { class: "taxi-trip-dashboard__label" };
+  var _hoisted_604 = { class: "taxi-trip-dashboard__value" };
+  var _hoisted_605 = { class: "taxi-progress" };
+  var _hoisted_606 = { class: "taxi-progress__labels" };
+  var _hoisted_607 = { class: "taxi-progress__track" };
+  var _hoisted_608 = {
     key: 0,
     class: "taxi-progress__markers"
   };
-  var _hoisted_608 = ["title"];
-  var _hoisted_609 = {
+  var _hoisted_609 = ["title"];
+  var _hoisted_610 = {
     key: 1,
     class: "taxi-trip-notice"
   };
-  var _hoisted_610 = {
+  var _hoisted_611 = {
     key: 3,
     class: "taxi-trip-notice taxi-trip-notice--event"
   };
-  var _hoisted_611 = { class: "taxi-offline-hold__copy" };
-  var _hoisted_612 = { class: "taxi-metrics" };
-  var _hoisted_613 = { class: "taxi-metric taxi-metric--fare" };
-  var _hoisted_614 = ["title"];
-  var _hoisted_615 = { class: "taxi-metric" };
-  var _hoisted_616 = ["title"];
-  var _hoisted_617 = { class: "taxi-metric taxi-metric--penalty" };
-  var _hoisted_618 = { class: "taxi-penalty-log" };
-  var _hoisted_619 = ["aria-expanded"];
-  var _hoisted_620 = {
+  var _hoisted_612 = { class: "taxi-offline-hold__copy" };
+  var _hoisted_613 = { class: "taxi-metrics" };
+  var _hoisted_614 = { class: "taxi-metric taxi-metric--fare" };
+  var _hoisted_615 = ["title"];
+  var _hoisted_616 = { class: "taxi-metric" };
+  var _hoisted_617 = ["title"];
+  var _hoisted_618 = { class: "taxi-metric taxi-metric--penalty" };
+  var _hoisted_619 = { class: "taxi-penalty-log" };
+  var _hoisted_620 = ["aria-expanded"];
+  var _hoisted_621 = {
     key: 0,
     id: "taxi-penalty-events",
     class: "taxi-penalty-log__empty"
   };
-  var _hoisted_621 = {
+  var _hoisted_622 = {
     key: 1,
     id: "taxi-penalty-events",
     class: "taxi-penalty-log__events"
   };
-  var _hoisted_622 = { class: "taxi-penalty-event__text" };
-  var _hoisted_623 = {
+  var _hoisted_623 = { class: "taxi-penalty-event__text" };
+  var _hoisted_624 = {
     key: 0,
     class: "taxi-penalty-event__value"
   };
-  var _hoisted_624 = {
+  var _hoisted_625 = {
     key: 1,
     class: "taxi-penalty-event__value"
   };
-  var _hoisted_625 = { class: "taxi-ride-footer" };
-  var _hoisted_626 = { class: "taxi-ride-footer__rating-head" };
-  var _hoisted_627 = { class: "taxi-ride-footer__rating-track" };
-  var _hoisted_628 = { class: "taxi-ride-footer__rating-line" };
-  var _hoisted_629 = { class: "taxi-ride-footer__stars" };
-  var _hoisted_630 = ["title"];
-  var _hoisted_631 = { class: "taxi-ride-footer__energy-type" };
-  var _hoisted_632 = { class: "taxi-ride-footer__energy-range" };
-  var _hoisted_633 = { class: "taxi-ride-footer__bottom" };
-  var _hoisted_634 = { class: "taxi-ride-footer__stats" };
-  var _hoisted_635 = { class: "taxi-ride-footer__stat" };
+  var _hoisted_626 = { class: "taxi-ride-footer" };
+  var _hoisted_627 = { class: "taxi-ride-footer__rating-head" };
+  var _hoisted_628 = { class: "taxi-ride-footer__rating-track" };
+  var _hoisted_629 = { class: "taxi-ride-footer__rating-line" };
+  var _hoisted_630 = { class: "taxi-ride-footer__stars" };
+  var _hoisted_631 = ["title"];
+  var _hoisted_632 = { class: "taxi-ride-footer__energy-type" };
+  var _hoisted_633 = { class: "taxi-ride-footer__energy-range" };
+  var _hoisted_634 = { class: "taxi-ride-footer__bottom" };
+  var _hoisted_635 = { class: "taxi-ride-footer__stats" };
   var _hoisted_636 = { class: "taxi-ride-footer__stat" };
-  var _hoisted_637 = ["title"];
-  var _hoisted_638 = { class: "taxi-offline-hold__copy" };
-  var _hoisted_639 = { class: "taxi-fuel__head" };
-  var _hoisted_640 = { class: "taxi-fuel__title" };
-  var _hoisted_641 = ["disabled", "aria-label"];
-  var _hoisted_642 = {
+  var _hoisted_637 = { class: "taxi-ride-footer__stat" };
+  var _hoisted_638 = ["title"];
+  var _hoisted_639 = { class: "taxi-offline-hold__copy" };
+  var _hoisted_640 = { class: "taxi-fuel__head" };
+  var _hoisted_641 = { class: "taxi-fuel__title" };
+  var _hoisted_642 = ["disabled", "aria-label"];
+  var _hoisted_643 = {
     key: 0,
     class: "taxi-fuel__magic"
   };
-  var _hoisted_643 = {
+  var _hoisted_644 = {
     key: 1,
     class: "taxi-fuel__dashboard"
   };
-  var _hoisted_644 = { class: "taxi-fuel__metric" };
   var _hoisted_645 = { class: "taxi-fuel__metric" };
   var _hoisted_646 = { class: "taxi-fuel__metric" };
-  var _hoisted_647 = {
+  var _hoisted_647 = { class: "taxi-fuel__metric" };
+  var _hoisted_648 = {
     key: 2,
     class: "taxi-fuel__types"
   };
-  var _hoisted_648 = ["onClick", "disabled"];
-  var _hoisted_649 = {
+  var _hoisted_649 = ["onClick", "disabled"];
+  var _hoisted_650 = {
     key: 3,
     class: "taxi-fuel__card"
   };
-  var _hoisted_650 = { class: "taxi-fuel__smart-head" };
-  var _hoisted_651 = { class: "taxi-fuel__presets" };
-  var _hoisted_652 = { class: "taxi-fuel__selector" };
-  var _hoisted_653 = { class: "taxi-fuel__selector-track" };
-  var _hoisted_654 = ["max", "disabled"];
-  var _hoisted_655 = { class: "taxi-fuel__selection-meta" };
-  var _hoisted_656 = ["title"];
-  var _hoisted_657 = { class: "taxi-fuel__projection" };
-  var _hoisted_658 = { class: "taxi-fuel__progress" };
-  var _hoisted_659 = { class: "taxi-fuel__progress-track" };
-  var _hoisted_660 = { class: "taxi-fuel__progress-meta" };
-  var _hoisted_661 = {
+  var _hoisted_651 = { class: "taxi-fuel__smart-head" };
+  var _hoisted_652 = { class: "taxi-fuel__presets" };
+  var _hoisted_653 = { class: "taxi-fuel__selector" };
+  var _hoisted_654 = { class: "taxi-fuel__selector-track" };
+  var _hoisted_655 = ["max", "disabled"];
+  var _hoisted_656 = { class: "taxi-fuel__selection-meta" };
+  var _hoisted_657 = ["title"];
+  var _hoisted_658 = { class: "taxi-fuel__projection" };
+  var _hoisted_659 = { class: "taxi-fuel__progress" };
+  var _hoisted_660 = { class: "taxi-fuel__progress-track" };
+  var _hoisted_661 = { class: "taxi-fuel__progress-meta" };
+  var _hoisted_662 = {
     key: 4,
     class: "taxi-fuel__empty"
   };
-  var _hoisted_662 = ["disabled"];
-  var _hoisted_663 = { key: 0 };
-  var _hoisted_664 = { key: 1 };
-  var _hoisted_665 = { key: 2 };
-  var _hoisted_666 = { key: 3 };
-  var _hoisted_667 = { key: 4 };
-  var _hoisted_668 = {
+  var _hoisted_663 = ["disabled"];
+  var _hoisted_664 = { key: 0 };
+  var _hoisted_665 = { key: 1 };
+  var _hoisted_666 = { key: 2 };
+  var _hoisted_667 = { key: 3 };
+  var _hoisted_668 = { key: 4 };
+  var _hoisted_669 = {
     key: 5,
     class: "taxi-fuel__repair"
   };
-  var _hoisted_669 = { class: "taxi-fuel__metric" };
-  var _hoisted_670 = {
+  var _hoisted_670 = { class: "taxi-fuel__metric" };
+  var _hoisted_671 = {
     key: 0,
     class: "taxi-fuel__metric"
   };
-  var _hoisted_671 = { class: "taxi-fuel__progress" };
-  var _hoisted_672 = { class: "taxi-fuel__progress-track" };
-  var _hoisted_673 = { class: "taxi-fuel__progress-meta" };
-  var _hoisted_674 = ["disabled"];
-  var _hoisted_675 = { key: 0 };
-  var _hoisted_676 = { key: 1 };
-  var _hoisted_677 = { key: 2 };
-  var _hoisted_678 = { key: 3 };
-  var _hoisted_679 = {
+  var _hoisted_672 = { class: "taxi-fuel__progress" };
+  var _hoisted_673 = { class: "taxi-fuel__progress-track" };
+  var _hoisted_674 = { class: "taxi-fuel__progress-meta" };
+  var _hoisted_675 = ["disabled"];
+  var _hoisted_676 = { key: 0 };
+  var _hoisted_677 = { key: 1 };
+  var _hoisted_678 = { key: 2 };
+  var _hoisted_679 = { key: 3 };
+  var _hoisted_680 = {
     key: 19,
     class: "taxi-offline-confirm",
     role: "dialog",
@@ -17244,15 +17247,15 @@ Component that was made reactive: `,
     "aria-labelledby": "taxi-offline-confirm-title",
     "aria-describedby": "taxi-offline-confirm-description"
   };
-  var _hoisted_680 = {
+  var _hoisted_681 = {
     class: "taxi-offline-confirm__card",
     tabindex: "-1"
   };
-  var _hoisted_681 = { id: "taxi-offline-confirm-title" };
-  var _hoisted_682 = { id: "taxi-offline-confirm-description" };
-  var _hoisted_683 = { class: "taxi-offline-confirm__penalty" };
-  var _hoisted_684 = { class: "taxi-offline-confirm__actions" };
-  var _hoisted_685 = {
+  var _hoisted_682 = { id: "taxi-offline-confirm-title" };
+  var _hoisted_683 = { id: "taxi-offline-confirm-description" };
+  var _hoisted_684 = { class: "taxi-offline-confirm__penalty" };
+  var _hoisted_685 = { class: "taxi-offline-confirm__actions" };
+  var _hoisted_686 = {
     key: 20,
     class: "taxi-offline-confirm taxi-police-confirm",
     role: "dialog",
@@ -17260,14 +17263,14 @@ Component that was made reactive: `,
     "aria-labelledby": "taxi-police-confirm-title",
     "aria-describedby": "taxi-police-confirm-description"
   };
-  var _hoisted_686 = {
+  var _hoisted_687 = {
     class: "taxi-offline-confirm__card",
     tabindex: "-1"
   };
-  var _hoisted_687 = { id: "taxi-police-confirm-title" };
-  var _hoisted_688 = { id: "taxi-police-confirm-description" };
-  var _hoisted_689 = { class: "taxi-offline-confirm__actions" };
-  var _hoisted_690 = {
+  var _hoisted_688 = { id: "taxi-police-confirm-title" };
+  var _hoisted_689 = { id: "taxi-police-confirm-description" };
+  var _hoisted_690 = { class: "taxi-offline-confirm__actions" };
+  var _hoisted_691 = {
     key: 21,
     class: "taxi-offline-confirm taxi-ai-confirm",
     role: "dialog",
@@ -17275,51 +17278,51 @@ Component that was made reactive: `,
     "aria-labelledby": "taxi-ai-confirm-title",
     "aria-describedby": "taxi-ai-confirm-description"
   };
-  var _hoisted_691 = {
+  var _hoisted_692 = {
     class: "taxi-offline-confirm__card",
     tabindex: "-1"
   };
-  var _hoisted_692 = { id: "taxi-ai-confirm-title" };
-  var _hoisted_693 = { id: "taxi-ai-confirm-description" };
-  var _hoisted_694 = { class: "taxi-offline-confirm__actions" };
-  var _hoisted_695 = {
+  var _hoisted_693 = { id: "taxi-ai-confirm-title" };
+  var _hoisted_694 = { id: "taxi-ai-confirm-description" };
+  var _hoisted_695 = { class: "taxi-offline-confirm__actions" };
+  var _hoisted_696 = {
     key: 22,
     class: "taxi-next-offer"
   };
-  var _hoisted_696 = { class: "taxi-next-offer__card" };
-  var _hoisted_697 = ["title", "aria-label"];
-  var _hoisted_698 = { class: "taxi-next-offer__eyebrow" };
-  var _hoisted_699 = { class: "taxi-next-offer__head" };
-  var _hoisted_700 = { class: "taxi-next-offer__avatar" };
-  var _hoisted_701 = { class: "taxi-next-offer__passenger" };
-  var _hoisted_702 = ["title", "aria-label"];
-  var _hoisted_703 = { class: "taxi-calmness-emoji__percent" };
-  var _hoisted_704 = {
+  var _hoisted_697 = { class: "taxi-next-offer__card" };
+  var _hoisted_698 = ["title", "aria-label"];
+  var _hoisted_699 = { class: "taxi-next-offer__eyebrow" };
+  var _hoisted_700 = { class: "taxi-next-offer__head" };
+  var _hoisted_701 = { class: "taxi-next-offer__avatar" };
+  var _hoisted_702 = { class: "taxi-next-offer__passenger" };
+  var _hoisted_703 = ["title", "aria-label"];
+  var _hoisted_704 = { class: "taxi-calmness-emoji__percent" };
+  var _hoisted_705 = {
     key: 1,
     class: "taxi-delivery-weight"
   };
-  var _hoisted_705 = {
+  var _hoisted_706 = {
     key: 2,
     class: "taxi-next-offer__time"
   };
-  var _hoisted_706 = { class: "taxi-next-offer__metrics" };
-  var _hoisted_707 = { class: "taxi-next-offer__metric" };
+  var _hoisted_707 = { class: "taxi-next-offer__metrics" };
   var _hoisted_708 = { class: "taxi-next-offer__metric" };
-  var _hoisted_709 = { class: "taxi-next-offer__metric taxi-next-offer__metric--fare" };
-  var _hoisted_710 = ["title"];
-  var _hoisted_711 = {
+  var _hoisted_709 = { class: "taxi-next-offer__metric" };
+  var _hoisted_710 = { class: "taxi-next-offer__metric taxi-next-offer__metric--fare" };
+  var _hoisted_711 = ["title"];
+  var _hoisted_712 = {
     key: 1,
     class: "taxi-next-offer__meta taxi-next-offer__meta--multi"
   };
-  var _hoisted_712 = {
+  var _hoisted_713 = {
     key: 2,
     class: "taxi-next-offer__meta taxi-next-offer__meta--rating"
   };
-  var _hoisted_713 = {
+  var _hoisted_714 = {
     key: 3,
     class: "taxi-next-offer__countdown"
   };
-  var _hoisted_714 = {
+  var _hoisted_715 = {
     key: 5,
     class: "taxi-next-offer__accepted"
   };
@@ -17344,7 +17347,7 @@ Component that was made reactive: `,
               onClick: _cache[0] || (_cache[0] = ($event) => _ctx.hud.toggleLocalPhone()),
               "aria-label": _ctx.localPhoneOpen ? _ctx.t("externalHideLocal") : _ctx.t("externalShowLocal")
             }, [
-              _cache[214] || (_cache[214] = createBaseVNode(
+              _cache[215] || (_cache[215] = createBaseVNode(
                 "span",
                 null,
                 "\u{1F4F1}",
@@ -17368,7 +17371,7 @@ Component that was made reactive: `,
                   title: _ctx.phoneMinimized ? _ctx.t("expand") : _ctx.t("minimize"),
                   "aria-label": _ctx.phoneMinimized ? _ctx.t("expand") : _ctx.t("minimize")
                 }, [
-                  !_ctx.phoneMinimized ? (openBlock(), createElementBlock("svg", _hoisted_4, [..._cache[215] || (_cache[215] = [
+                  !_ctx.phoneMinimized ? (openBlock(), createElementBlock("svg", _hoisted_4, [..._cache[216] || (_cache[216] = [
                     createBaseVNode(
                       "rect",
                       {
@@ -17390,7 +17393,7 @@ Component that was made reactive: `,
                       /* CACHED */
                     )
                   ])])) : createCommentVNode("v-if", true),
-                  _ctx.phoneMinimized ? (openBlock(), createElementBlock("svg", _hoisted_5, [..._cache[216] || (_cache[216] = [
+                  _ctx.phoneMinimized ? (openBlock(), createElementBlock("svg", _hoisted_5, [..._cache[217] || (_cache[217] = [
                     createBaseVNode(
                       "rect",
                       {
@@ -17428,7 +17431,7 @@ Component that was made reactive: `,
                   title: _ctx.phoneSuperMinimized ? _ctx.t("superExpand") : _ctx.t("superMinimize"),
                   "aria-label": _ctx.phoneSuperMinimized ? _ctx.t("superExpand") : _ctx.t("superMinimize")
                 }, [
-                  !_ctx.phoneSuperMinimized ? (openBlock(), createElementBlock("svg", _hoisted_8, [..._cache[217] || (_cache[217] = [
+                  !_ctx.phoneSuperMinimized ? (openBlock(), createElementBlock("svg", _hoisted_8, [..._cache[218] || (_cache[218] = [
                     createBaseVNode(
                       "path",
                       { d: "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" },
@@ -17444,7 +17447,7 @@ Component that was made reactive: `,
                       /* CACHED */
                     )
                   ])])) : createCommentVNode("v-if", true),
-                  _ctx.phoneSuperMinimized ? (openBlock(), createElementBlock("svg", _hoisted_9, [..._cache[218] || (_cache[218] = [
+                  _ctx.phoneSuperMinimized ? (openBlock(), createElementBlock("svg", _hoisted_9, [..._cache[219] || (_cache[219] = [
                     createBaseVNode(
                       "rect",
                       {
@@ -17481,7 +17484,7 @@ Component that was made reactive: `,
             )) : createCommentVNode("v-if", true),
             !_ctx.externalPhoneMode && _ctx.phoneMinimized && !_ctx.phoneSuperMinimized && (_ctx.state.lan.connected < 1 || _ctx.localPhoneOpen) ? (openBlock(), createElementBlock("div", _hoisted_12, [
               createBaseVNode("div", _hoisted_13, [
-                _cache[219] || (_cache[219] = createBaseVNode(
+                _cache[220] || (_cache[220] = createBaseVNode(
                   "div",
                   { class: "taxi-minimap-surface" },
                   null,
@@ -17594,16 +17597,23 @@ Component that was made reactive: `,
                       /* TEXT */
                     )
                   ]),
+                  _ctx.canUseFuelService() ? (openBlock(), createElementBlock("button", {
+                    key: 0,
+                    type: "button",
+                    class: "taxi-compact__fuel taxi-action taxi-action--secondary",
+                    onClick: _cache[6] || (_cache[6] = ($event) => _ctx.hud.handleFuelAction()),
+                    "aria-label": _ctx.t("refuelAction")
+                  }, "\u26FD", 8, _hoisted_27)) : createCommentVNode("v-if", true),
                   _ctx.isNavigationPhase() ? (openBlock(), createElementBlock(
                     "strong",
-                    _hoisted_27,
+                    _hoisted_28,
                     toDisplayString(_ctx.formatDistance(_ctx.getNavigationRemaining())),
                     1
                     /* TEXT */
                   )) : createCommentVNode("v-if", true)
                 ]),
-                createBaseVNode("div", _hoisted_28, [
-                  createBaseVNode("div", _hoisted_29, [
+                createBaseVNode("div", _hoisted_29, [
+                  createBaseVNode("div", _hoisted_30, [
                     createBaseVNode(
                       "span",
                       null,
@@ -17619,7 +17629,7 @@ Component that was made reactive: `,
                       /* TEXT */
                     )
                   ]),
-                  createBaseVNode("div", _hoisted_30, [
+                  createBaseVNode("div", _hoisted_31, [
                     createBaseVNode(
                       "span",
                       {
@@ -17631,8 +17641,8 @@ Component that was made reactive: `,
                     )
                   ])
                 ]),
-                createBaseVNode("div", _hoisted_31, [
-                  createBaseVNode("div", _hoisted_32, [
+                createBaseVNode("div", _hoisted_32, [
+                  createBaseVNode("div", _hoisted_33, [
                     createBaseVNode(
                       "span",
                       null,
@@ -17648,7 +17658,7 @@ Component that was made reactive: `,
                       /* TEXT */
                     )
                   ]),
-                  createBaseVNode("div", _hoisted_33, [
+                  createBaseVNode("div", _hoisted_34, [
                     createBaseVNode(
                       "span",
                       null,
@@ -17664,7 +17674,7 @@ Component that was made reactive: `,
                       /* TEXT */
                     )
                   ]),
-                  createBaseVNode("div", _hoisted_34, [
+                  createBaseVNode("div", _hoisted_35, [
                     createBaseVNode(
                       "span",
                       null,
@@ -17680,7 +17690,7 @@ Component that was made reactive: `,
                       /* TEXT */
                     )
                   ]),
-                  _ctx.state.isDelivery ? (openBlock(), createElementBlock("div", _hoisted_35, [
+                  _ctx.state.isDelivery ? (openBlock(), createElementBlock("div", _hoisted_36, [
                     createBaseVNode(
                       "span",
                       null,
@@ -17697,13 +17707,13 @@ Component that was made reactive: `,
                     ),
                     _ctx.state.cargoWeightBonusPercent > 0 ? (openBlock(), createElementBlock(
                       "small",
-                      _hoisted_36,
+                      _hoisted_37,
                       "+" + toDisplayString(_ctx.formatNumber(_ctx.state.cargoWeightBonusPercent, 0)) + "%",
                       1
                       /* TEXT */
                     )) : createCommentVNode("v-if", true)
                   ])) : createCommentVNode("v-if", true),
-                  !_ctx.state.isDelivery ? (openBlock(), createElementBlock("div", _hoisted_37, [
+                  !_ctx.state.isDelivery ? (openBlock(), createElementBlock("div", _hoisted_38, [
                     createBaseVNode(
                       "span",
                       null,
@@ -17725,11 +17735,11 @@ Component that was made reactive: `,
                 key: 0,
                 class: "taxi-compact__location",
                 title: _ctx.earth.location
-              }, toDisplayString(_ctx.earth.location), 9, _hoisted_38)) : createCommentVNode("v-if", true)
+              }, toDisplayString(_ctx.earth.location), 9, _hoisted_39)) : createCommentVNode("v-if", true)
             ])) : createCommentVNode("v-if", true),
-            _ctx.externalPhoneMode || !_ctx.phoneMinimized && !_ctx.phoneSuperMinimized && (_ctx.state.lan.connected < 1 || _ctx.localPhoneOpen) ? (openBlock(), createElementBlock("div", _hoisted_39, [
-              createBaseVNode("div", _hoisted_40, [
-                createBaseVNode("div", _hoisted_41, [
+            _ctx.externalPhoneMode || !_ctx.phoneMinimized && !_ctx.phoneSuperMinimized && (_ctx.state.lan.connected < 1 || _ctx.localPhoneOpen) ? (openBlock(), createElementBlock("div", _hoisted_40, [
+              createBaseVNode("div", _hoisted_41, [
+                createBaseVNode("div", _hoisted_42, [
                   createBaseVNode(
                     "span",
                     null,
@@ -17737,7 +17747,7 @@ Component that was made reactive: `,
                     1
                     /* TEXT */
                   ),
-                  _cache[220] || (_cache[220] = createBaseVNode(
+                  _cache[221] || (_cache[221] = createBaseVNode(
                     "span",
                     { class: "phone-status__icons" },
                     [
@@ -17756,7 +17766,7 @@ Component that was made reactive: `,
                 }, [
                   createBaseVNode(
                     "span",
-                    _hoisted_43,
+                    _hoisted_44,
                     toDisplayString(_ctx.state.currentVehicle.name),
                     1
                     /* TEXT */
@@ -17768,19 +17778,19 @@ Component that was made reactive: `,
                     1
                     /* TEXT */
                   )
-                ], 8, _hoisted_42)) : createCommentVNode("v-if", true),
-                createBaseVNode("div", _hoisted_44, [
-                  _cache[221] || (_cache[221] = createBaseVNode(
+                ], 8, _hoisted_43)) : createCommentVNode("v-if", true),
+                createBaseVNode("div", _hoisted_45, [
+                  _cache[222] || (_cache[222] = createBaseVNode(
                     "div",
                     { class: "taxi-appbar__logo" },
                     "T",
                     -1
                     /* CACHED */
                   )),
-                  createBaseVNode("div", _hoisted_45, [
+                  createBaseVNode("div", _hoisted_46, [
                     createBaseVNode("strong", {
                       title: _ctx.profileOpen ? _ctx.profileDraft.fullName || "John Doe" : _ctx.fleetOpen ? _ctx.t("fleetTitle") : "TaxiDriver"
-                    }, toDisplayString(_ctx.profileOpen ? _ctx.profileDraft.fullName || "John Doe" : _ctx.fleetOpen ? _ctx.t("fleetTitle") : "TaxiDriver"), 9, _hoisted_46),
+                    }, toDisplayString(_ctx.profileOpen ? _ctx.profileDraft.fullName || "John Doe" : _ctx.fleetOpen ? _ctx.t("fleetTitle") : "TaxiDriver"), 9, _hoisted_47),
                     createBaseVNode(
                       "span",
                       null,
@@ -17791,16 +17801,16 @@ Component that was made reactive: `,
                   ]),
                   _ctx.state.active && !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen ? (openBlock(), createElementBlock(
                     "div",
-                    _hoisted_47,
+                    _hoisted_48,
                     toDisplayString(_ctx.t("online")),
                     1
                     /* TEXT */
                   )) : createCommentVNode("v-if", true),
-                  _ctx.state.active && _ctx.state.realisticMode && !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen ? (openBlock(), createElementBlock("button", {
+                  _ctx.canUseFuelService() && !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen ? (openBlock(), createElementBlock("button", {
                     key: 1,
                     type: "button",
                     class: normalizeClass(["taxi-appbar__fuel taxi-action taxi-action--secondary", { "taxi-appbar__fuel--warning": _ctx.state.vehicleEnergy.available && _ctx.state.vehicleEnergy.percent <= 15 }]),
-                    onClick: _cache[6] || (_cache[6] = ($event) => _ctx.hud.handleFuelAction()),
+                    onClick: _cache[7] || (_cache[7] = ($event) => _ctx.hud.handleFuelAction()),
                     "aria-label": _ctx.t("refuelAction")
                   }, [
                     createBaseVNode(
@@ -17810,21 +17820,21 @@ Component that was made reactive: `,
                       1
                       /* TEXT */
                     )
-                  ], 10, _hoisted_48)) : createCommentVNode("v-if", true),
+                  ], 10, _hoisted_49)) : createCommentVNode("v-if", true),
                   createBaseVNode("button", {
                     type: "button",
                     class: normalizeClass(["taxi-appbar__profile taxi-action taxi-action--tertiary", { "taxi-appbar__profile--active": _ctx.profileOpen }]),
-                    onClick: _cache[7] || (_cache[7] = ($event) => _ctx.hud.toggleProfile()),
+                    onClick: _cache[8] || (_cache[8] = ($event) => _ctx.hud.toggleProfile()),
                     "aria-label": _ctx.t("profileTitle")
-                  }, toDisplayString(_ctx.state.driverProfile && _ctx.state.driverProfile.avatar || _ctx.driverProfile.avatar || "\u{1F642}"), 11, _hoisted_49),
+                  }, toDisplayString(_ctx.state.driverProfile && _ctx.state.driverProfile.avatar || _ctx.driverProfile.avatar || "\u{1F642}"), 11, _hoisted_50),
                   createBaseVNode("button", {
                     type: "button",
                     class: "taxi-appbar__settings taxi-action taxi-action--tertiary",
-                    onClick: _cache[8] || (_cache[8] = ($event) => _ctx.hud.toggleSettings()),
+                    onClick: _cache[9] || (_cache[9] = ($event) => _ctx.hud.toggleSettings()),
                     "aria-label": "Settings"
                   }, [
-                    !_ctx.settingsOpen ? (openBlock(), createElementBlock("span", _hoisted_50, "\u2699")) : createCommentVNode("v-if", true),
-                    _ctx.settingsOpen ? (openBlock(), createElementBlock("span", _hoisted_51, "\xD7")) : createCommentVNode("v-if", true)
+                    !_ctx.settingsOpen ? (openBlock(), createElementBlock("span", _hoisted_51, "\u2699")) : createCommentVNode("v-if", true),
+                    _ctx.settingsOpen ? (openBlock(), createElementBlock("span", _hoisted_52, "\xD7")) : createCommentVNode("v-if", true)
                   ])
                 ]),
                 _ctx.passengerChat && !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && _ctx.state.phase === "toPickup" ? (openBlock(), createElementBlock(
@@ -17836,13 +17846,13 @@ Component that was made reactive: `,
                   [
                     createBaseVNode(
                       "div",
-                      _hoisted_52,
+                      _hoisted_53,
                       toDisplayString(_ctx.getInitials(_ctx.passengerChat.passengerName)),
                       1
                       /* TEXT */
                     ),
-                    createBaseVNode("div", _hoisted_53, [
-                      createBaseVNode("div", _hoisted_54, [
+                    createBaseVNode("div", _hoisted_54, [
+                      createBaseVNode("div", _hoisted_55, [
                         createBaseVNode(
                           "strong",
                           null,
@@ -17860,7 +17870,7 @@ Component that was made reactive: `,
                       ]),
                       createBaseVNode(
                         "div",
-                        _hoisted_55,
+                        _hoisted_56,
                         toDisplayString(_ctx.passengerChat.content),
                         1
                         /* TEXT */
@@ -17879,14 +17889,14 @@ Component that was made reactive: `,
                   [
                     createBaseVNode(
                       "span",
-                      _hoisted_56,
+                      _hoisted_57,
                       toDisplayString(_ctx.phoneToast.severity === "success" ? "\u2713" : "!"),
                       1
                       /* TEXT */
                     ),
                     createBaseVNode(
                       "span",
-                      _hoisted_57,
+                      _hoisted_58,
                       toDisplayString(_ctx.getPhoneNotificationText()),
                       1
                       /* TEXT */
@@ -17895,8 +17905,8 @@ Component that was made reactive: `,
                   2
                   /* CLASS */
                 )) : createCommentVNode("v-if", true),
-                _ctx.settingsOpen ? (openBlock(), createElementBlock("div", _hoisted_58, [
-                  createBaseVNode("div", _hoisted_59, [
+                _ctx.settingsOpen ? (openBlock(), createElementBlock("div", _hoisted_59, [
+                  createBaseVNode("div", _hoisted_60, [
                     createBaseVNode("div", null, [
                       createBaseVNode(
                         "h2",
@@ -17952,19 +17962,19 @@ Component that was made reactive: `,
                             1
                             /* TEXT */
                           ),
-                          _cache[222] || (_cache[222] = createBaseVNode(
+                          _cache[223] || (_cache[223] = createBaseVNode(
                             "i",
                             { "aria-hidden": "true" },
                             "\u203A",
                             -1
                             /* CACHED */
                           ))
-                        ], 10, _hoisted_61);
+                        ], 10, _hoisted_62);
                       }),
                       128
                       /* KEYED_FRAGMENT */
                     ))
-                  ], 8, _hoisted_60),
+                  ], 8, _hoisted_61),
                   createBaseVNode(
                     "section",
                     {
@@ -17974,11 +17984,11 @@ Component that was made reactive: `,
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-settings__group-head taxi-disclosure",
-                        onClick: _cache[9] || (_cache[9] = ($event) => _ctx.hud.toggleSettingsSection("general")),
+                        onClick: _cache[10] || (_cache[10] = ($event) => _ctx.hud.toggleSettingsSection("general")),
                         "aria-expanded": _ctx.settingsSections.general,
                         "aria-controls": "taxi-settings-general"
                       }, [
-                        _cache[223] || (_cache[223] = createBaseVNode(
+                        _cache[224] || (_cache[224] = createBaseVNode(
                           "span",
                           { class: "taxi-settings__group-icon" },
                           "Aa",
@@ -17999,24 +18009,24 @@ Component that was made reactive: `,
                           1
                           /* TEXT */
                         )
-                      ], 8, _hoisted_62),
-                      _ctx.settingsSections.general ? (openBlock(), createElementBlock("div", _hoisted_63, [
-                        createBaseVNode("div", _hoisted_64, [
+                      ], 8, _hoisted_63),
+                      _ctx.settingsSections.general ? (openBlock(), createElementBlock("div", _hoisted_64, [
+                        createBaseVNode("div", _hoisted_65, [
                           createBaseVNode(
                             "div",
-                            _hoisted_65,
+                            _hoisted_66,
                             toDisplayString(_ctx.t("language")),
                             1
                             /* TEXT */
                           ),
                           createBaseVNode(
                             "div",
-                            _hoisted_66,
+                            _hoisted_67,
                             toDisplayString(_ctx.t("languageHelp")),
                             1
                             /* TEXT */
                           ),
-                          createBaseVNode("div", _hoisted_67, [
+                          createBaseVNode("div", _hoisted_68, [
                             (openBlock(true), createElementBlock(
                               Fragment,
                               null,
@@ -18034,20 +18044,20 @@ Component that was made reactive: `,
                                     1
                                     /* TEXT */
                                   ),
-                                  _ctx.settings.language === lang.code ? (openBlock(), createElementBlock("i", _hoisted_69, "\u2713")) : createCommentVNode("v-if", true)
-                                ], 10, _hoisted_68);
+                                  _ctx.settings.language === lang.code ? (openBlock(), createElementBlock("i", _hoisted_70, "\u2713")) : createCommentVNode("v-if", true)
+                                ], 10, _hoisted_69);
                               }),
                               128
                               /* KEYED_FRAGMENT */
                             ))
                           ]),
-                          createBaseVNode("label", _hoisted_70, [
+                          createBaseVNode("label", _hoisted_71, [
                             withDirectives(createBaseVNode(
                               "input",
                               {
                                 type: "checkbox",
-                                "onUpdate:modelValue": _cache[10] || (_cache[10] = ($event) => _ctx.settings.rememberLanguage = $event),
-                                onChange: _cache[11] || (_cache[11] = ($event) => _ctx.hud.settingsChanged())
+                                "onUpdate:modelValue": _cache[11] || (_cache[11] = ($event) => _ctx.settings.rememberLanguage = $event),
+                                onChange: _cache[12] || (_cache[12] = ($event) => _ctx.hud.settingsChanged())
                               },
                               null,
                               544
@@ -18062,8 +18072,8 @@ Component that was made reactive: `,
                             )
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_71, [
-                          createBaseVNode("div", _hoisted_72, [
+                        createBaseVNode("div", _hoisted_72, [
+                          createBaseVNode("div", _hoisted_73, [
                             createBaseVNode(
                               "span",
                               null,
@@ -18081,7 +18091,7 @@ Component that was made reactive: `,
                           ]),
                           createBaseVNode(
                             "div",
-                            _hoisted_73,
+                            _hoisted_74,
                             toDisplayString(_ctx.t("fontSizeHelp")),
                             1
                             /* TEXT */
@@ -18094,8 +18104,8 @@ Component that was made reactive: `,
                               min: "80",
                               max: "180",
                               step: "10",
-                              "onUpdate:modelValue": _cache[12] || (_cache[12] = ($event) => _ctx.settings.uiScalePercent = $event),
-                              onInput: _cache[13] || (_cache[13] = ($event) => _ctx.hud.settingsChanged())
+                              "onUpdate:modelValue": _cache[13] || (_cache[13] = ($event) => _ctx.settings.uiScalePercent = $event),
+                              onInput: _cache[14] || (_cache[14] = ($event) => _ctx.hud.settingsChanged())
                             },
                             null,
                             544
@@ -18109,28 +18119,28 @@ Component that was made reactive: `,
                             ]
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_74, [
+                        createBaseVNode("div", _hoisted_75, [
                           createBaseVNode(
                             "div",
-                            _hoisted_75,
+                            _hoisted_76,
                             toDisplayString(_ctx.t("units")),
                             1
                             /* TEXT */
                           ),
                           createBaseVNode(
                             "div",
-                            _hoisted_76,
+                            _hoisted_77,
                             toDisplayString(_ctx.t("unitsHelp")),
                             1
                             /* TEXT */
                           ),
-                          createBaseVNode("div", _hoisted_77, [
+                          createBaseVNode("div", _hoisted_78, [
                             createBaseVNode(
                               "button",
                               {
                                 type: "button",
                                 class: normalizeClass({ "taxi-settings__segmented-active": _ctx.settings.unitSystem === "metric" }),
-                                onClick: _cache[14] || (_cache[14] = ($event) => _ctx.hud.selectUnitSystem("metric"))
+                                onClick: _cache[15] || (_cache[15] = ($event) => _ctx.hud.selectUnitSystem("metric"))
                               },
                               toDisplayString(_ctx.t("unitsMetric")),
                               3
@@ -18141,7 +18151,7 @@ Component that was made reactive: `,
                               {
                                 type: "button",
                                 class: normalizeClass({ "taxi-settings__segmented-active": _ctx.settings.unitSystem === "imperial" }),
-                                onClick: _cache[15] || (_cache[15] = ($event) => _ctx.hud.selectUnitSystem("imperial"))
+                                onClick: _cache[16] || (_cache[16] = ($event) => _ctx.hud.selectUnitSystem("imperial"))
                               },
                               toDisplayString(_ctx.t("unitsImperial")),
                               3
@@ -18149,28 +18159,28 @@ Component that was made reactive: `,
                             )
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_78, [
+                        createBaseVNode("div", _hoisted_79, [
                           createBaseVNode(
                             "div",
-                            _hoisted_79,
+                            _hoisted_80,
                             toDisplayString(_ctx.t("timeFormat")),
                             1
                             /* TEXT */
                           ),
                           createBaseVNode(
                             "div",
-                            _hoisted_80,
+                            _hoisted_81,
                             toDisplayString(_ctx.t("timeFormatHelp")),
                             1
                             /* TEXT */
                           ),
-                          createBaseVNode("div", _hoisted_81, [
+                          createBaseVNode("div", _hoisted_82, [
                             createBaseVNode(
                               "button",
                               {
                                 type: "button",
                                 class: normalizeClass({ "taxi-settings__segmented-active": _ctx.settings.timeFormat === "24h" }),
-                                onClick: _cache[16] || (_cache[16] = ($event) => _ctx.hud.selectTimeFormat("24h"))
+                                onClick: _cache[17] || (_cache[17] = ($event) => _ctx.hud.selectTimeFormat("24h"))
                               },
                               toDisplayString(_ctx.t("time24")),
                               3
@@ -18181,7 +18191,7 @@ Component that was made reactive: `,
                               {
                                 type: "button",
                                 class: normalizeClass({ "taxi-settings__segmented-active": _ctx.settings.timeFormat === "12h" }),
-                                onClick: _cache[17] || (_cache[17] = ($event) => _ctx.hud.selectTimeFormat("12h"))
+                                onClick: _cache[18] || (_cache[18] = ($event) => _ctx.hud.selectTimeFormat("12h"))
                               },
                               toDisplayString(_ctx.t("time12")),
                               3
@@ -18203,11 +18213,11 @@ Component that was made reactive: `,
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-settings__group-head taxi-disclosure",
-                        onClick: _cache[18] || (_cache[18] = ($event) => _ctx.hud.toggleSettingsSection("gameplay")),
+                        onClick: _cache[19] || (_cache[19] = ($event) => _ctx.hud.toggleSettingsSection("gameplay")),
                         "aria-expanded": _ctx.settingsSections.gameplay,
                         "aria-controls": "taxi-settings-gameplay"
                       }, [
-                        _cache[224] || (_cache[224] = createBaseVNode(
+                        _cache[225] || (_cache[225] = createBaseVNode(
                           "span",
                           { class: "taxi-settings__group-icon" },
                           "!",
@@ -18228,24 +18238,24 @@ Component that was made reactive: `,
                           1
                           /* TEXT */
                         )
-                      ], 8, _hoisted_82),
-                      _ctx.settingsSections.gameplay ? (openBlock(), createElementBlock("div", _hoisted_83, [
-                        _ctx.earth.available ? (openBlock(), createElementBlock("div", _hoisted_84, [
+                      ], 8, _hoisted_83),
+                      _ctx.settingsSections.gameplay ? (openBlock(), createElementBlock("div", _hoisted_84, [
+                        _ctx.earth.available ? (openBlock(), createElementBlock("div", _hoisted_85, [
                           createBaseVNode(
                             "label",
-                            _hoisted_85,
+                            _hoisted_86,
                             toDisplayString(_ctx.t("earthRandomLimit")),
                             1
                             /* TEXT */
                           ),
                           createBaseVNode(
                             "p",
-                            _hoisted_86,
+                            _hoisted_87,
                             toDisplayString(_ctx.t("earthRandomLimitHelp")),
                             1
                             /* TEXT */
                           ),
-                          createBaseVNode("div", _hoisted_87, [
+                          createBaseVNode("div", _hoisted_88, [
                             withDirectives(createBaseVNode(
                               "input",
                               {
@@ -18254,8 +18264,8 @@ Component that was made reactive: `,
                                 min: "1",
                                 max: "600",
                                 step: "1",
-                                "onUpdate:modelValue": _cache[19] || (_cache[19] = ($event) => _ctx.earth.maxRandomKm = $event),
-                                onChange: _cache[20] || (_cache[20] = ($event) => _ctx.hud.setEarthRandomLimit(_ctx.earth.maxRandomKm))
+                                "onUpdate:modelValue": _cache[20] || (_cache[20] = ($event) => _ctx.earth.maxRandomKm = $event),
+                                onChange: _cache[21] || (_cache[21] = ($event) => _ctx.hud.setEarthRandomLimit(_ctx.earth.maxRandomKm))
                               },
                               null,
                               544
@@ -18277,8 +18287,8 @@ Component that was made reactive: `,
                             )
                           ])
                         ])) : createCommentVNode("v-if", true),
-                        createBaseVNode("div", _hoisted_88, [
-                          createBaseVNode("label", _hoisted_89, [
+                        createBaseVNode("div", _hoisted_89, [
+                          createBaseVNode("label", _hoisted_90, [
                             createBaseVNode(
                               "span",
                               null,
@@ -18296,7 +18306,7 @@ Component that was made reactive: `,
                           ]),
                           createBaseVNode(
                             "div",
-                            _hoisted_90,
+                            _hoisted_91,
                             toDisplayString(_ctx.t("initialFuelPercentHelp")),
                             1
                             /* TEXT */
@@ -18310,8 +18320,8 @@ Component that was made reactive: `,
                               min: "5",
                               max: "30",
                               step: "1",
-                              "onUpdate:modelValue": _cache[21] || (_cache[21] = ($event) => _ctx.settings.initialFuelPercent = $event),
-                              onInput: _cache[22] || (_cache[22] = ($event) => _ctx.hud.settingsChanged())
+                              "onUpdate:modelValue": _cache[22] || (_cache[22] = ($event) => _ctx.settings.initialFuelPercent = $event),
+                              onInput: _cache[23] || (_cache[23] = ($event) => _ctx.hud.settingsChanged())
                             },
                             null,
                             544
@@ -18324,7 +18334,7 @@ Component that was made reactive: `,
                               { number: true }
                             ]
                           ]),
-                          _cache[225] || (_cache[225] = createBaseVNode(
+                          _cache[226] || (_cache[226] = createBaseVNode(
                             "div",
                             { class: "taxi-settings__range-ends" },
                             [
@@ -18335,22 +18345,22 @@ Component that was made reactive: `,
                             /* CACHED */
                           ))
                         ]),
-                        createBaseVNode("div", _hoisted_91, [
+                        createBaseVNode("div", _hoisted_92, [
                           createBaseVNode(
                             "div",
-                            _hoisted_92,
+                            _hoisted_93,
                             toDisplayString(_ctx.t("difficulty")),
                             1
                             /* TEXT */
                           ),
                           createBaseVNode(
                             "div",
-                            _hoisted_93,
+                            _hoisted_94,
                             toDisplayString(_ctx.t("difficultyHelp")),
                             1
                             /* TEXT */
                           ),
-                          createBaseVNode("div", _hoisted_94, [
+                          createBaseVNode("div", _hoisted_95, [
                             (openBlock(true), createElementBlock(
                               Fragment,
                               null,
@@ -18375,14 +18385,14 @@ Component that was made reactive: `,
                                     1
                                     /* TEXT */
                                   )
-                                ], 10, _hoisted_95);
+                                ], 10, _hoisted_96);
                               }),
                               128
                               /* KEYED_FRAGMENT */
                             ))
                           ])
                         ]),
-                        _ctx.settings.difficulty === "custom" ? (openBlock(), createElementBlock("div", _hoisted_96, [
+                        _ctx.settings.difficulty === "custom" ? (openBlock(), createElementBlock("div", _hoisted_97, [
                           createBaseVNode(
                             "p",
                             null,
@@ -18436,8 +18446,8 @@ Component that was made reactive: `,
                                         max: control.max,
                                         step: control.step,
                                         "onUpdate:modelValue": ($event) => _ctx.settings.customDifficulty[control.key] = $event,
-                                        onInput: _cache[23] || (_cache[23] = ($event) => _ctx.hud.settingsChanged())
-                                      }, null, 40, _hoisted_97), [
+                                        onInput: _cache[24] || (_cache[24] = ($event) => _ctx.hud.settingsChanged())
+                                      }, null, 40, _hoisted_98), [
                                         [
                                           vModelText,
                                           _ctx.settings.customDifficulty[control.key],
@@ -18456,8 +18466,8 @@ Component that was made reactive: `,
                             /* KEYED_FRAGMENT */
                           ))
                         ])) : createCommentVNode("v-if", true),
-                        createBaseVNode("div", _hoisted_98, [
-                          createBaseVNode("div", _hoisted_99, [
+                        createBaseVNode("div", _hoisted_99, [
+                          createBaseVNode("div", _hoisted_100, [
                             createBaseVNode(
                               "span",
                               null,
@@ -18475,7 +18485,7 @@ Component that was made reactive: `,
                           ]),
                           createBaseVNode(
                             "div",
-                            _hoisted_100,
+                            _hoisted_101,
                             toDisplayString(_ctx.t("orderMixHelp")),
                             1
                             /* TEXT */
@@ -18488,8 +18498,8 @@ Component that was made reactive: `,
                               min: "0",
                               max: "100",
                               step: "5",
-                              "onUpdate:modelValue": _cache[24] || (_cache[24] = ($event) => _ctx.settings.deliveryOrderSharePercent = $event),
-                              onInput: _cache[25] || (_cache[25] = ($event) => _ctx.hud.settingsChanged())
+                              "onUpdate:modelValue": _cache[25] || (_cache[25] = ($event) => _ctx.settings.deliveryOrderSharePercent = $event),
+                              onInput: _cache[26] || (_cache[26] = ($event) => _ctx.hud.settingsChanged())
                             },
                             null,
                             544
@@ -18502,7 +18512,7 @@ Component that was made reactive: `,
                               { number: true }
                             ]
                           ]),
-                          createBaseVNode("div", _hoisted_101, [
+                          createBaseVNode("div", _hoisted_102, [
                             createBaseVNode(
                               "span",
                               null,
@@ -18519,9 +18529,9 @@ Component that was made reactive: `,
                             )
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_102, [
-                          createBaseVNode("label", _hoisted_103, [
-                            createBaseVNode("span", _hoisted_104, [
+                        createBaseVNode("div", _hoisted_103, [
+                          createBaseVNode("label", _hoisted_104, [
+                            createBaseVNode("span", _hoisted_105, [
                               createBaseVNode(
                                 "strong",
                                 null,
@@ -18541,8 +18551,8 @@ Component that was made reactive: `,
                               "input",
                               {
                                 type: "checkbox",
-                                "onUpdate:modelValue": _cache[26] || (_cache[26] = ($event) => _ctx.settings.unlimitedRouteDistance = $event),
-                                onChange: _cache[27] || (_cache[27] = ($event) => _ctx.hud.settingsChanged())
+                                "onUpdate:modelValue": _cache[27] || (_cache[27] = ($event) => _ctx.settings.unlimitedRouteDistance = $event),
+                                onChange: _cache[28] || (_cache[28] = ($event) => _ctx.hud.settingsChanged())
                               },
                               null,
                               544
@@ -18550,7 +18560,7 @@ Component that was made reactive: `,
                             ), [
                               [vModelCheckbox, _ctx.settings.unlimitedRouteDistance]
                             ]),
-                            _cache[226] || (_cache[226] = createBaseVNode(
+                            _cache[227] || (_cache[227] = createBaseVNode(
                               "span",
                               { class: "taxi-settings__switch" },
                               null,
@@ -18559,22 +18569,22 @@ Component that was made reactive: `,
                             ))
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_105, [
+                        createBaseVNode("div", _hoisted_106, [
                           createBaseVNode(
                             "div",
-                            _hoisted_106,
+                            _hoisted_107,
                             toDisplayString(_ctx.t("penaltyToggles")),
                             1
                             /* TEXT */
                           ),
                           createBaseVNode(
                             "div",
-                            _hoisted_107,
+                            _hoisted_108,
                             toDisplayString(_ctx.t("penaltyTogglesHelp")),
                             1
                             /* TEXT */
                           ),
-                          createBaseVNode("div", _hoisted_108, [
+                          createBaseVNode("div", _hoisted_109, [
                             (openBlock(true), createElementBlock(
                               Fragment,
                               null,
@@ -18583,7 +18593,7 @@ Component that was made reactive: `,
                                   class: "taxi-settings__switch-row taxi-settings__switch-row--compact",
                                   key: option.key
                                 }, [
-                                  createBaseVNode("span", _hoisted_109, [
+                                  createBaseVNode("span", _hoisted_110, [
                                     createBaseVNode(
                                       "strong",
                                       null,
@@ -18602,11 +18612,11 @@ Component that was made reactive: `,
                                   withDirectives(createBaseVNode("input", {
                                     type: "checkbox",
                                     "onUpdate:modelValue": ($event) => _ctx.settings.penaltyToggles[option.key] = $event,
-                                    onChange: _cache[28] || (_cache[28] = ($event) => _ctx.hud.settingsChanged())
-                                  }, null, 40, _hoisted_110), [
+                                    onChange: _cache[29] || (_cache[29] = ($event) => _ctx.hud.settingsChanged())
+                                  }, null, 40, _hoisted_111), [
                                     [vModelCheckbox, _ctx.settings.penaltyToggles[option.key]]
                                   ]),
-                                  _cache[227] || (_cache[227] = createBaseVNode(
+                                  _cache[228] || (_cache[228] = createBaseVNode(
                                     "span",
                                     { class: "taxi-settings__switch" },
                                     null,
@@ -18620,7 +18630,7 @@ Component that was made reactive: `,
                             ))
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_111, [
+                        createBaseVNode("div", _hoisted_112, [
                           createBaseVNode(
                             "span",
                             null,
@@ -18628,7 +18638,7 @@ Component that was made reactive: `,
                             1
                             /* TEXT */
                           ),
-                          _cache[228] || (_cache[228] = createBaseVNode(
+                          _cache[229] || (_cache[229] = createBaseVNode(
                             "code",
                             null,
                             "settings/TaxiDriver/difficulty.json",
@@ -18650,11 +18660,11 @@ Component that was made reactive: `,
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-settings__group-head taxi-disclosure",
-                        onClick: _cache[29] || (_cache[29] = ($event) => _ctx.hud.toggleSettingsSection("randomEvents")),
+                        onClick: _cache[30] || (_cache[30] = ($event) => _ctx.hud.toggleSettingsSection("randomEvents")),
                         "aria-expanded": _ctx.settingsSections.randomEvents,
                         "aria-controls": "taxi-settings-random-events"
                       }, [
-                        _cache[229] || (_cache[229] = createBaseVNode(
+                        _cache[230] || (_cache[230] = createBaseVNode(
                           "span",
                           { class: "taxi-settings__group-icon" },
                           "\u26A1",
@@ -18675,11 +18685,11 @@ Component that was made reactive: `,
                           1
                           /* TEXT */
                         )
-                      ], 8, _hoisted_112),
-                      _ctx.settingsSections.randomEvents ? (openBlock(), createElementBlock("div", _hoisted_113, [
-                        createBaseVNode("div", _hoisted_114, [
-                          createBaseVNode("label", _hoisted_115, [
-                            createBaseVNode("span", _hoisted_116, [
+                      ], 8, _hoisted_113),
+                      _ctx.settingsSections.randomEvents ? (openBlock(), createElementBlock("div", _hoisted_114, [
+                        createBaseVNode("div", _hoisted_115, [
+                          createBaseVNode("label", _hoisted_116, [
+                            createBaseVNode("span", _hoisted_117, [
                               createBaseVNode(
                                 "strong",
                                 null,
@@ -18699,8 +18709,8 @@ Component that was made reactive: `,
                               "input",
                               {
                                 type: "checkbox",
-                                "onUpdate:modelValue": _cache[30] || (_cache[30] = ($event) => _ctx.settings.randomEventsEnabled = $event),
-                                onChange: _cache[31] || (_cache[31] = ($event) => _ctx.hud.toggleRandomEvents())
+                                "onUpdate:modelValue": _cache[31] || (_cache[31] = ($event) => _ctx.settings.randomEventsEnabled = $event),
+                                onChange: _cache[32] || (_cache[32] = ($event) => _ctx.hud.toggleRandomEvents())
                               },
                               null,
                               544
@@ -18708,7 +18718,7 @@ Component that was made reactive: `,
                             ), [
                               [vModelCheckbox, _ctx.settings.randomEventsEnabled]
                             ]),
-                            _cache[230] || (_cache[230] = createBaseVNode(
+                            _cache[231] || (_cache[231] = createBaseVNode(
                               "span",
                               { class: "taxi-settings__switch" },
                               null,
@@ -18725,8 +18735,8 @@ Component that was made reactive: `,
                               class: "taxi-settings__section",
                               key: option.key
                             }, [
-                              createBaseVNode("label", _hoisted_117, [
-                                createBaseVNode("span", _hoisted_118, [
+                              createBaseVNode("label", _hoisted_118, [
+                                createBaseVNode("span", _hoisted_119, [
                                   createBaseVNode(
                                     "strong",
                                     null,
@@ -18746,10 +18756,10 @@ Component that was made reactive: `,
                                   type: "checkbox",
                                   "onUpdate:modelValue": ($event) => _ctx.settings.randomEvents[option.key].enabled = $event,
                                   onChange: ($event) => _ctx.hud.toggleRandomEvent(option)
-                                }, null, 40, _hoisted_119), [
+                                }, null, 40, _hoisted_120), [
                                   [vModelCheckbox, _ctx.settings.randomEvents[option.key].enabled]
                                 ]),
-                                _cache[231] || (_cache[231] = createBaseVNode(
+                                _cache[232] || (_cache[232] = createBaseVNode(
                                   "span",
                                   { class: "taxi-settings__switch" },
                                   null,
@@ -18757,7 +18767,7 @@ Component that was made reactive: `,
                                   /* CACHED */
                                 ))
                               ]),
-                              createBaseVNode("div", _hoisted_120, [
+                              createBaseVNode("div", _hoisted_121, [
                                 createBaseVNode(
                                   "span",
                                   null,
@@ -18781,8 +18791,8 @@ Component that was made reactive: `,
                                 step: "1",
                                 "onUpdate:modelValue": ($event) => _ctx.settings.randomEvents[option.key].chancePercent = $event,
                                 disabled: !_ctx.settings.randomEvents[option.key].enabled,
-                                onInput: _cache[32] || (_cache[32] = ($event) => _ctx.hud.settingsChanged())
-                              }, null, 40, _hoisted_121), [
+                                onInput: _cache[33] || (_cache[33] = ($event) => _ctx.hud.settingsChanged())
+                              }, null, 40, _hoisted_122), [
                                 [
                                   vModelText,
                                   _ctx.settings.randomEvents[option.key].chancePercent,
@@ -18797,7 +18807,7 @@ Component that was made reactive: `,
                         )),
                         createBaseVNode(
                           "div",
-                          _hoisted_122,
+                          _hoisted_123,
                           toDisplayString(_ctx.t("randomEventsExclusiveHelp")),
                           1
                           /* TEXT */
@@ -18816,11 +18826,11 @@ Component that was made reactive: `,
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-settings__group-head taxi-disclosure",
-                        onClick: _cache[33] || (_cache[33] = ($event) => _ctx.hud.toggleSettingsSection("aiDriver")),
+                        onClick: _cache[34] || (_cache[34] = ($event) => _ctx.hud.toggleSettingsSection("aiDriver")),
                         "aria-expanded": _ctx.settingsSections.aiDriver,
                         "aria-controls": "taxi-settings-ai-driver"
                       }, [
-                        _cache[232] || (_cache[232] = createBaseVNode(
+                        _cache[233] || (_cache[233] = createBaseVNode(
                           "span",
                           { class: "taxi-settings__group-icon" },
                           "AI",
@@ -18841,11 +18851,11 @@ Component that was made reactive: `,
                           1
                           /* TEXT */
                         )
-                      ], 8, _hoisted_123),
-                      _ctx.settingsSections.aiDriver ? (openBlock(), createElementBlock("div", _hoisted_124, [
-                        createBaseVNode("div", _hoisted_125, [
-                          createBaseVNode("label", _hoisted_126, [
-                            createBaseVNode("span", _hoisted_127, [
+                      ], 8, _hoisted_124),
+                      _ctx.settingsSections.aiDriver ? (openBlock(), createElementBlock("div", _hoisted_125, [
+                        createBaseVNode("div", _hoisted_126, [
+                          createBaseVNode("label", _hoisted_127, [
+                            createBaseVNode("span", _hoisted_128, [
                               createBaseVNode(
                                 "strong",
                                 null,
@@ -18865,8 +18875,8 @@ Component that was made reactive: `,
                               "input",
                               {
                                 type: "checkbox",
-                                "onUpdate:modelValue": _cache[34] || (_cache[34] = ($event) => _ctx.settings.aiDriver.enabled = $event),
-                                onChange: _cache[35] || (_cache[35] = ($event) => _ctx.hud.aiDriverToggleChanged())
+                                "onUpdate:modelValue": _cache[35] || (_cache[35] = ($event) => _ctx.settings.aiDriver.enabled = $event),
+                                onChange: _cache[36] || (_cache[36] = ($event) => _ctx.hud.aiDriverToggleChanged())
                               },
                               null,
                               544
@@ -18874,7 +18884,7 @@ Component that was made reactive: `,
                             ), [
                               [vModelCheckbox, _ctx.settings.aiDriver.enabled]
                             ]),
-                            _cache[233] || (_cache[233] = createBaseVNode(
+                            _cache[234] || (_cache[234] = createBaseVNode(
                               "span",
                               { class: "taxi-settings__switch" },
                               null,
@@ -18885,28 +18895,28 @@ Component that was made reactive: `,
                         ]),
                         !_ctx.settings.aiDriver.enabled ? (openBlock(), createElementBlock(
                           "div",
-                          _hoisted_128,
+                          _hoisted_129,
                           toDisplayString(_ctx.t("aiDriverDisabledHelp")),
                           1
                           /* TEXT */
                         )) : createCommentVNode("v-if", true),
-                        _ctx.settings.aiDriver.enabled ? (openBlock(), createElementBlock("div", _hoisted_129, [
-                          createBaseVNode("div", _hoisted_130, [
+                        _ctx.settings.aiDriver.enabled ? (openBlock(), createElementBlock("div", _hoisted_130, [
+                          createBaseVNode("div", _hoisted_131, [
                             createBaseVNode(
                               "div",
-                              _hoisted_131,
+                              _hoisted_132,
                               toDisplayString(_ctx.t("aiPreset")),
                               1
                               /* TEXT */
                             ),
                             createBaseVNode(
                               "div",
-                              _hoisted_132,
+                              _hoisted_133,
                               toDisplayString(_ctx.t("aiPresetHelp")),
                               1
                               /* TEXT */
                             ),
-                            createBaseVNode("div", _hoisted_133, [
+                            createBaseVNode("div", _hoisted_134, [
                               (openBlock(true), createElementBlock(
                                 Fragment,
                                 null,
@@ -18931,16 +18941,16 @@ Component that was made reactive: `,
                                       1
                                       /* TEXT */
                                     )
-                                  ], 10, _hoisted_134);
+                                  ], 10, _hoisted_135);
                                 }),
                                 128
                                 /* KEYED_FRAGMENT */
                               ))
                             ])
                           ]),
-                          createBaseVNode("div", _hoisted_135, [
-                            createBaseVNode("label", _hoisted_136, [
-                              createBaseVNode("span", _hoisted_137, [
+                          createBaseVNode("div", _hoisted_136, [
+                            createBaseVNode("label", _hoisted_137, [
+                              createBaseVNode("span", _hoisted_138, [
                                 createBaseVNode(
                                   "strong",
                                   null,
@@ -18960,8 +18970,8 @@ Component that was made reactive: `,
                                 "input",
                                 {
                                   type: "checkbox",
-                                  "onUpdate:modelValue": _cache[36] || (_cache[36] = ($event) => _ctx.settings.aiDriver.strictGpsRoute = $event),
-                                  onChange: _cache[37] || (_cache[37] = ($event) => _ctx.hud.settingsChanged())
+                                  "onUpdate:modelValue": _cache[37] || (_cache[37] = ($event) => _ctx.settings.aiDriver.strictGpsRoute = $event),
+                                  onChange: _cache[38] || (_cache[38] = ($event) => _ctx.hud.settingsChanged())
                                 },
                                 null,
                                 544
@@ -18969,7 +18979,7 @@ Component that was made reactive: `,
                               ), [
                                 [vModelCheckbox, _ctx.settings.aiDriver.strictGpsRoute]
                               ]),
-                              _cache[234] || (_cache[234] = createBaseVNode(
+                              _cache[235] || (_cache[235] = createBaseVNode(
                                 "span",
                                 { class: "taxi-settings__switch" },
                                 null,
@@ -18977,8 +18987,8 @@ Component that was made reactive: `,
                                 /* CACHED */
                               ))
                             ]),
-                            createBaseVNode("label", _hoisted_138, [
-                              createBaseVNode("span", _hoisted_139, [
+                            createBaseVNode("label", _hoisted_139, [
+                              createBaseVNode("span", _hoisted_140, [
                                 createBaseVNode(
                                   "strong",
                                   null,
@@ -18998,8 +19008,8 @@ Component that was made reactive: `,
                                 "input",
                                 {
                                   type: "checkbox",
-                                  "onUpdate:modelValue": _cache[38] || (_cache[38] = ($event) => _ctx.settings.aiDebugLogging = $event),
-                                  onChange: _cache[39] || (_cache[39] = ($event) => _ctx.hud.settingsChanged())
+                                  "onUpdate:modelValue": _cache[39] || (_cache[39] = ($event) => _ctx.settings.aiDebugLogging = $event),
+                                  onChange: _cache[40] || (_cache[40] = ($event) => _ctx.hud.settingsChanged())
                                 },
                                 null,
                                 544
@@ -19007,7 +19017,7 @@ Component that was made reactive: `,
                               ), [
                                 [vModelCheckbox, _ctx.settings.aiDebugLogging]
                               ]),
-                              _cache[235] || (_cache[235] = createBaseVNode(
+                              _cache[236] || (_cache[236] = createBaseVNode(
                                 "span",
                                 { class: "taxi-settings__switch" },
                                 null,
@@ -19016,7 +19026,7 @@ Component that was made reactive: `,
                               ))
                             ])
                           ]),
-                          _ctx.settings.aiDriver.preset === "custom" ? (openBlock(), createElementBlock("div", _hoisted_140, [
+                          _ctx.settings.aiDriver.preset === "custom" ? (openBlock(), createElementBlock("div", _hoisted_141, [
                             createBaseVNode(
                               "p",
                               null,
@@ -19024,7 +19034,7 @@ Component that was made reactive: `,
                               1
                               /* TEXT */
                             ),
-                            createBaseVNode("div", _hoisted_141, [
+                            createBaseVNode("div", _hoisted_142, [
                               createBaseVNode(
                                 "strong",
                                 null,
@@ -19032,7 +19042,7 @@ Component that was made reactive: `,
                                 1
                                 /* TEXT */
                               ),
-                              _cache[236] || (_cache[236] = createBaseVNode(
+                              _cache[237] || (_cache[237] = createBaseVNode(
                                 "br",
                                 null,
                                 null,
@@ -19045,8 +19055,8 @@ Component that was made reactive: `,
                                 /* TEXT */
                               )
                             ]),
-                            createBaseVNode("div", _hoisted_142, [
-                              createBaseVNode("div", _hoisted_143, [
+                            createBaseVNode("div", _hoisted_143, [
+                              createBaseVNode("div", _hoisted_144, [
                                 createBaseVNode(
                                   "span",
                                   null,
@@ -19064,7 +19074,7 @@ Component that was made reactive: `,
                               ]),
                               createBaseVNode(
                                 "div",
-                                _hoisted_144,
+                                _hoisted_145,
                                 toDisplayString(_ctx.t("aiAggressionHelp")),
                                 1
                                 /* TEXT */
@@ -19077,8 +19087,8 @@ Component that was made reactive: `,
                                   min: "30",
                                   max: "100",
                                   step: "5",
-                                  "onUpdate:modelValue": _cache[40] || (_cache[40] = ($event) => _ctx.settings.aiDriver.aggressionPercent = $event),
-                                  onInput: _cache[41] || (_cache[41] = ($event) => _ctx.hud.settingsChanged())
+                                  "onUpdate:modelValue": _cache[41] || (_cache[41] = ($event) => _ctx.settings.aiDriver.aggressionPercent = $event),
+                                  onInput: _cache[42] || (_cache[42] = ($event) => _ctx.hud.settingsChanged())
                                 },
                                 null,
                                 544
@@ -19091,7 +19101,7 @@ Component that was made reactive: `,
                                   { number: true }
                                 ]
                               ]),
-                              createBaseVNode("div", _hoisted_145, [
+                              createBaseVNode("div", _hoisted_146, [
                                 createBaseVNode(
                                   "span",
                                   null,
@@ -19108,8 +19118,8 @@ Component that was made reactive: `,
                                 )
                               ])
                             ]),
-                            createBaseVNode("div", _hoisted_146, [
-                              createBaseVNode("div", _hoisted_147, [
+                            createBaseVNode("div", _hoisted_147, [
+                              createBaseVNode("div", _hoisted_148, [
                                 createBaseVNode(
                                   "span",
                                   null,
@@ -19127,7 +19137,7 @@ Component that was made reactive: `,
                               ]),
                               createBaseVNode(
                                 "div",
-                                _hoisted_148,
+                                _hoisted_149,
                                 toDisplayString(_ctx.t("aiFollowingGapHelp")),
                                 1
                                 /* TEXT */
@@ -19140,8 +19150,8 @@ Component that was made reactive: `,
                                   min: "1",
                                   max: "4",
                                   step: "0.1",
-                                  "onUpdate:modelValue": _cache[42] || (_cache[42] = ($event) => _ctx.settings.aiDriver.followingTimeGap = $event),
-                                  onInput: _cache[43] || (_cache[43] = ($event) => _ctx.hud.settingsChanged())
+                                  "onUpdate:modelValue": _cache[43] || (_cache[43] = ($event) => _ctx.settings.aiDriver.followingTimeGap = $event),
+                                  onInput: _cache[44] || (_cache[44] = ($event) => _ctx.hud.settingsChanged())
                                 },
                                 null,
                                 544
@@ -19155,8 +19165,8 @@ Component that was made reactive: `,
                                 ]
                               ])
                             ]),
-                            createBaseVNode("div", _hoisted_149, [
-                              createBaseVNode("div", _hoisted_150, [
+                            createBaseVNode("div", _hoisted_150, [
+                              createBaseVNode("div", _hoisted_151, [
                                 createBaseVNode(
                                   "span",
                                   null,
@@ -19174,7 +19184,7 @@ Component that was made reactive: `,
                               ]),
                               createBaseVNode(
                                 "div",
-                                _hoisted_151,
+                                _hoisted_152,
                                 toDisplayString(_ctx.t("aiMinimumGapHelp")),
                                 1
                                 /* TEXT */
@@ -19187,8 +19197,8 @@ Component that was made reactive: `,
                                   min: "2",
                                   max: "10",
                                   step: "0.5",
-                                  "onUpdate:modelValue": _cache[44] || (_cache[44] = ($event) => _ctx.settings.aiDriver.minimumFollowingDistance = $event),
-                                  onInput: _cache[45] || (_cache[45] = ($event) => _ctx.hud.settingsChanged())
+                                  "onUpdate:modelValue": _cache[45] || (_cache[45] = ($event) => _ctx.settings.aiDriver.minimumFollowingDistance = $event),
+                                  onInput: _cache[46] || (_cache[46] = ($event) => _ctx.hud.settingsChanged())
                                 },
                                 null,
                                 544
@@ -19202,8 +19212,8 @@ Component that was made reactive: `,
                                 ]
                               ])
                             ]),
-                            createBaseVNode("div", _hoisted_152, [
-                              createBaseVNode("div", _hoisted_153, [
+                            createBaseVNode("div", _hoisted_153, [
+                              createBaseVNode("div", _hoisted_154, [
                                 createBaseVNode(
                                   "span",
                                   null,
@@ -19221,7 +19231,7 @@ Component that was made reactive: `,
                               ]),
                               createBaseVNode(
                                 "div",
-                                _hoisted_154,
+                                _hoisted_155,
                                 toDisplayString(_ctx.t("aiBrakingHelp")),
                                 1
                                 /* TEXT */
@@ -19234,8 +19244,8 @@ Component that was made reactive: `,
                                   min: "2",
                                   max: "8",
                                   step: "0.5",
-                                  "onUpdate:modelValue": _cache[46] || (_cache[46] = ($event) => _ctx.settings.aiDriver.brakingDeceleration = $event),
-                                  onInput: _cache[47] || (_cache[47] = ($event) => _ctx.hud.settingsChanged())
+                                  "onUpdate:modelValue": _cache[47] || (_cache[47] = ($event) => _ctx.settings.aiDriver.brakingDeceleration = $event),
+                                  onInput: _cache[48] || (_cache[48] = ($event) => _ctx.hud.settingsChanged())
                                 },
                                 null,
                                 544
@@ -19249,8 +19259,8 @@ Component that was made reactive: `,
                                 ]
                               ])
                             ]),
-                            createBaseVNode("div", _hoisted_155, [
-                              createBaseVNode("div", _hoisted_156, [
+                            createBaseVNode("div", _hoisted_156, [
+                              createBaseVNode("div", _hoisted_157, [
                                 createBaseVNode(
                                   "span",
                                   null,
@@ -19268,7 +19278,7 @@ Component that was made reactive: `,
                               ]),
                               createBaseVNode(
                                 "div",
-                                _hoisted_157,
+                                _hoisted_158,
                                 toDisplayString(_ctx.t("aiTrafficWaitHelp")),
                                 1
                                 /* TEXT */
@@ -19281,8 +19291,8 @@ Component that was made reactive: `,
                                   min: "1",
                                   max: "10",
                                   step: "1",
-                                  "onUpdate:modelValue": _cache[48] || (_cache[48] = ($event) => _ctx.settings.aiDriver.trafficWaitSeconds = $event),
-                                  onInput: _cache[49] || (_cache[49] = ($event) => _ctx.hud.settingsChanged())
+                                  "onUpdate:modelValue": _cache[49] || (_cache[49] = ($event) => _ctx.settings.aiDriver.trafficWaitSeconds = $event),
+                                  onInput: _cache[50] || (_cache[50] = ($event) => _ctx.hud.settingsChanged())
                                 },
                                 null,
                                 544
@@ -19296,9 +19306,9 @@ Component that was made reactive: `,
                                 ]
                               ])
                             ]),
-                            createBaseVNode("div", _hoisted_158, [
-                              createBaseVNode("label", _hoisted_159, [
-                                createBaseVNode("span", _hoisted_160, [
+                            createBaseVNode("div", _hoisted_159, [
+                              createBaseVNode("label", _hoisted_160, [
+                                createBaseVNode("span", _hoisted_161, [
                                   createBaseVNode(
                                     "strong",
                                     null,
@@ -19318,8 +19328,8 @@ Component that was made reactive: `,
                                   "input",
                                   {
                                     type: "checkbox",
-                                    "onUpdate:modelValue": _cache[50] || (_cache[50] = ($event) => _ctx.settings.aiDriver.obeySpeedLimits = $event),
-                                    onChange: _cache[51] || (_cache[51] = ($event) => _ctx.hud.settingsChanged())
+                                    "onUpdate:modelValue": _cache[51] || (_cache[51] = ($event) => _ctx.settings.aiDriver.obeySpeedLimits = $event),
+                                    onChange: _cache[52] || (_cache[52] = ($event) => _ctx.hud.settingsChanged())
                                   },
                                   null,
                                   544
@@ -19327,7 +19337,7 @@ Component that was made reactive: `,
                                 ), [
                                   [vModelCheckbox, _ctx.settings.aiDriver.obeySpeedLimits]
                                 ]),
-                                _cache[237] || (_cache[237] = createBaseVNode(
+                                _cache[238] || (_cache[238] = createBaseVNode(
                                   "span",
                                   { class: "taxi-settings__switch" },
                                   null,
@@ -19335,8 +19345,8 @@ Component that was made reactive: `,
                                   /* CACHED */
                                 ))
                               ]),
-                              createBaseVNode("label", _hoisted_161, [
-                                createBaseVNode("span", _hoisted_162, [
+                              createBaseVNode("label", _hoisted_162, [
+                                createBaseVNode("span", _hoisted_163, [
                                   createBaseVNode(
                                     "strong",
                                     null,
@@ -19356,8 +19366,8 @@ Component that was made reactive: `,
                                   "input",
                                   {
                                     type: "checkbox",
-                                    "onUpdate:modelValue": _cache[52] || (_cache[52] = ($event) => _ctx.settings.aiDriver.laneDiscipline = $event),
-                                    onChange: _cache[53] || (_cache[53] = ($event) => _ctx.hud.settingsChanged())
+                                    "onUpdate:modelValue": _cache[53] || (_cache[53] = ($event) => _ctx.settings.aiDriver.laneDiscipline = $event),
+                                    onChange: _cache[54] || (_cache[54] = ($event) => _ctx.hud.settingsChanged())
                                   },
                                   null,
                                   544
@@ -19365,7 +19375,7 @@ Component that was made reactive: `,
                                 ), [
                                   [vModelCheckbox, _ctx.settings.aiDriver.laneDiscipline]
                                 ]),
-                                _cache[238] || (_cache[238] = createBaseVNode(
+                                _cache[239] || (_cache[239] = createBaseVNode(
                                   "span",
                                   { class: "taxi-settings__switch" },
                                   null,
@@ -19390,11 +19400,11 @@ Component that was made reactive: `,
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-settings__group-head taxi-disclosure",
-                        onClick: _cache[54] || (_cache[54] = ($event) => _ctx.hud.toggleSettingsSection("fleet")),
+                        onClick: _cache[55] || (_cache[55] = ($event) => _ctx.hud.toggleSettingsSection("fleet")),
                         "aria-expanded": _ctx.settingsSections.fleet,
                         "aria-controls": "taxi-settings-fleet"
                       }, [
-                        _cache[239] || (_cache[239] = createBaseVNode(
+                        _cache[240] || (_cache[240] = createBaseVNode(
                           "span",
                           { class: "taxi-settings__group-icon" },
                           "F",
@@ -19415,11 +19425,11 @@ Component that was made reactive: `,
                           1
                           /* TEXT */
                         )
-                      ], 8, _hoisted_163),
-                      _ctx.settingsSections.fleet ? (openBlock(), createElementBlock("div", _hoisted_164, [
-                        createBaseVNode("div", _hoisted_165, [
-                          createBaseVNode("label", _hoisted_166, [
-                            createBaseVNode("span", _hoisted_167, [
+                      ], 8, _hoisted_164),
+                      _ctx.settingsSections.fleet ? (openBlock(), createElementBlock("div", _hoisted_165, [
+                        createBaseVNode("div", _hoisted_166, [
+                          createBaseVNode("label", _hoisted_167, [
+                            createBaseVNode("span", _hoisted_168, [
                               createBaseVNode(
                                 "strong",
                                 null,
@@ -19439,8 +19449,8 @@ Component that was made reactive: `,
                               "input",
                               {
                                 type: "checkbox",
-                                "onUpdate:modelValue": _cache[55] || (_cache[55] = ($event) => _ctx.settings.fleet.enabled = $event),
-                                onChange: _cache[56] || (_cache[56] = ($event) => _ctx.hud.settingsChanged())
+                                "onUpdate:modelValue": _cache[56] || (_cache[56] = ($event) => _ctx.settings.fleet.enabled = $event),
+                                onChange: _cache[57] || (_cache[57] = ($event) => _ctx.hud.settingsChanged())
                               },
                               null,
                               544
@@ -19448,7 +19458,7 @@ Component that was made reactive: `,
                             ), [
                               [vModelCheckbox, _ctx.settings.fleet.enabled]
                             ]),
-                            _cache[240] || (_cache[240] = createBaseVNode(
+                            _cache[241] || (_cache[241] = createBaseVNode(
                               "span",
                               { class: "taxi-settings__switch" },
                               null,
@@ -19457,28 +19467,28 @@ Component that was made reactive: `,
                             ))
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_168, [
+                        createBaseVNode("div", _hoisted_169, [
                           createBaseVNode(
                             "div",
-                            _hoisted_169,
+                            _hoisted_170,
                             toDisplayString(_ctx.t("fleetAiPreset")),
                             1
                             /* TEXT */
                           ),
                           createBaseVNode(
                             "div",
-                            _hoisted_170,
+                            _hoisted_171,
                             toDisplayString(_ctx.t("fleetAiPresetHelp")),
                             1
                             /* TEXT */
                           ),
-                          createBaseVNode("div", _hoisted_171, [
+                          createBaseVNode("div", _hoisted_172, [
                             createBaseVNode(
                               "button",
                               {
                                 type: "button",
                                 class: normalizeClass({ "taxi-settings__segmented-active": _ctx.settings.fleet.aiPreset === "careful" }),
-                                onClick: _cache[57] || (_cache[57] = ($event) => {
+                                onClick: _cache[58] || (_cache[58] = ($event) => {
                                   _ctx.settings.fleet.aiPreset = "careful";
                                   _ctx.hud.settingsChanged();
                                 })
@@ -19492,7 +19502,7 @@ Component that was made reactive: `,
                               {
                                 type: "button",
                                 class: normalizeClass({ "taxi-settings__segmented-active": _ctx.settings.fleet.aiPreset === "standard" }),
-                                onClick: _cache[58] || (_cache[58] = ($event) => {
+                                onClick: _cache[59] || (_cache[59] = ($event) => {
                                   _ctx.settings.fleet.aiPreset = "standard";
                                   _ctx.hud.settingsChanged();
                                 })
@@ -19506,7 +19516,7 @@ Component that was made reactive: `,
                               {
                                 type: "button",
                                 class: normalizeClass({ "taxi-settings__segmented-active": _ctx.settings.fleet.aiPreset === "fast" }),
-                                onClick: _cache[59] || (_cache[59] = ($event) => {
+                                onClick: _cache[60] || (_cache[60] = ($event) => {
                                   _ctx.settings.fleet.aiPreset = "fast";
                                   _ctx.hud.settingsChanged();
                                 })
@@ -19517,8 +19527,8 @@ Component that was made reactive: `,
                             )
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_172, [
-                          createBaseVNode("div", _hoisted_173, [
+                        createBaseVNode("div", _hoisted_173, [
+                          createBaseVNode("div", _hoisted_174, [
                             createBaseVNode(
                               "span",
                               null,
@@ -19542,8 +19552,8 @@ Component that was made reactive: `,
                               min: "10",
                               max: "90",
                               step: "5",
-                              "onUpdate:modelValue": _cache[60] || (_cache[60] = ($event) => _ctx.settings.fleet.ownerSharePercent = $event),
-                              onInput: _cache[61] || (_cache[61] = ($event) => _ctx.hud.settingsChanged())
+                              "onUpdate:modelValue": _cache[61] || (_cache[61] = ($event) => _ctx.settings.fleet.ownerSharePercent = $event),
+                              onInput: _cache[62] || (_cache[62] = ($event) => _ctx.hud.settingsChanged())
                             },
                             null,
                             544
@@ -19557,8 +19567,8 @@ Component that was made reactive: `,
                             ]
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_174, [
-                          createBaseVNode("div", _hoisted_175, [
+                        createBaseVNode("div", _hoisted_175, [
+                          createBaseVNode("div", _hoisted_176, [
                             createBaseVNode(
                               "span",
                               null,
@@ -19582,8 +19592,8 @@ Component that was made reactive: `,
                               min: "0",
                               max: "1000",
                               step: "5",
-                              "onUpdate:modelValue": _cache[62] || (_cache[62] = ($event) => _ctx.settings.fleet.hiringFee = $event),
-                              onInput: _cache[63] || (_cache[63] = ($event) => _ctx.hud.settingsChanged())
+                              "onUpdate:modelValue": _cache[63] || (_cache[63] = ($event) => _ctx.settings.fleet.hiringFee = $event),
+                              onInput: _cache[64] || (_cache[64] = ($event) => _ctx.hud.settingsChanged())
                             },
                             null,
                             544
@@ -19597,8 +19607,8 @@ Component that was made reactive: `,
                             ]
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_176, [
-                          createBaseVNode("div", _hoisted_177, [
+                        createBaseVNode("div", _hoisted_177, [
+                          createBaseVNode("div", _hoisted_178, [
                             createBaseVNode(
                               "span",
                               null,
@@ -19622,8 +19632,8 @@ Component that was made reactive: `,
                               min: "0",
                               max: "250",
                               step: "1",
-                              "onUpdate:modelValue": _cache[64] || (_cache[64] = ($event) => _ctx.settings.fleet.wagePerTenMinutes = $event),
-                              onInput: _cache[65] || (_cache[65] = ($event) => _ctx.hud.settingsChanged())
+                              "onUpdate:modelValue": _cache[65] || (_cache[65] = ($event) => _ctx.settings.fleet.wagePerTenMinutes = $event),
+                              onInput: _cache[66] || (_cache[66] = ($event) => _ctx.hud.settingsChanged())
                             },
                             null,
                             544
@@ -19637,8 +19647,8 @@ Component that was made reactive: `,
                             ]
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_178, [
-                          createBaseVNode("div", _hoisted_179, [
+                        createBaseVNode("div", _hoisted_179, [
+                          createBaseVNode("div", _hoisted_180, [
                             createBaseVNode(
                               "span",
                               null,
@@ -19662,8 +19672,8 @@ Component that was made reactive: `,
                               min: "1",
                               max: "12",
                               step: "1",
-                              "onUpdate:modelValue": _cache[66] || (_cache[66] = ($event) => _ctx.settings.fleet.maxDrivers = $event),
-                              onInput: _cache[67] || (_cache[67] = ($event) => _ctx.hud.settingsChanged())
+                              "onUpdate:modelValue": _cache[67] || (_cache[67] = ($event) => _ctx.settings.fleet.maxDrivers = $event),
+                              onInput: _cache[68] || (_cache[68] = ($event) => _ctx.hud.settingsChanged())
                             },
                             null,
                             544
@@ -19677,8 +19687,8 @@ Component that was made reactive: `,
                             ]
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_180, [
-                          createBaseVNode("div", _hoisted_181, [
+                        createBaseVNode("div", _hoisted_181, [
+                          createBaseVNode("div", _hoisted_182, [
                             createBaseVNode(
                               "span",
                               null,
@@ -19702,8 +19712,8 @@ Component that was made reactive: `,
                               min: "50",
                               max: "1000",
                               step: "50",
-                              "onUpdate:modelValue": _cache[68] || (_cache[68] = ($event) => _ctx.settings.fleet.worldLabelDistance = $event),
-                              onInput: _cache[69] || (_cache[69] = ($event) => _ctx.hud.settingsChanged())
+                              "onUpdate:modelValue": _cache[69] || (_cache[69] = ($event) => _ctx.settings.fleet.worldLabelDistance = $event),
+                              onInput: _cache[70] || (_cache[70] = ($event) => _ctx.hud.settingsChanged())
                             },
                             null,
                             544
@@ -19717,9 +19727,9 @@ Component that was made reactive: `,
                             ]
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_182, [
-                          createBaseVNode("label", _hoisted_183, [
-                            createBaseVNode("span", _hoisted_184, [
+                        createBaseVNode("div", _hoisted_183, [
+                          createBaseVNode("label", _hoisted_184, [
+                            createBaseVNode("span", _hoisted_185, [
                               createBaseVNode(
                                 "strong",
                                 null,
@@ -19732,8 +19742,8 @@ Component that was made reactive: `,
                               "input",
                               {
                                 type: "checkbox",
-                                "onUpdate:modelValue": _cache[70] || (_cache[70] = ($event) => _ctx.settings.fleet.passengerJobs = $event),
-                                onChange: _cache[71] || (_cache[71] = ($event) => _ctx.hud.settingsChanged())
+                                "onUpdate:modelValue": _cache[71] || (_cache[71] = ($event) => _ctx.settings.fleet.passengerJobs = $event),
+                                onChange: _cache[72] || (_cache[72] = ($event) => _ctx.hud.settingsChanged())
                               },
                               null,
                               544
@@ -19741,7 +19751,7 @@ Component that was made reactive: `,
                             ), [
                               [vModelCheckbox, _ctx.settings.fleet.passengerJobs]
                             ]),
-                            _cache[241] || (_cache[241] = createBaseVNode(
+                            _cache[242] || (_cache[242] = createBaseVNode(
                               "span",
                               { class: "taxi-settings__switch" },
                               null,
@@ -19749,8 +19759,8 @@ Component that was made reactive: `,
                               /* CACHED */
                             ))
                           ]),
-                          createBaseVNode("label", _hoisted_185, [
-                            createBaseVNode("span", _hoisted_186, [
+                          createBaseVNode("label", _hoisted_186, [
+                            createBaseVNode("span", _hoisted_187, [
                               createBaseVNode(
                                 "strong",
                                 null,
@@ -19763,8 +19773,8 @@ Component that was made reactive: `,
                               "input",
                               {
                                 type: "checkbox",
-                                "onUpdate:modelValue": _cache[72] || (_cache[72] = ($event) => _ctx.settings.fleet.deliveryJobs = $event),
-                                onChange: _cache[73] || (_cache[73] = ($event) => _ctx.hud.settingsChanged())
+                                "onUpdate:modelValue": _cache[73] || (_cache[73] = ($event) => _ctx.settings.fleet.deliveryJobs = $event),
+                                onChange: _cache[74] || (_cache[74] = ($event) => _ctx.hud.settingsChanged())
                               },
                               null,
                               544
@@ -19772,7 +19782,7 @@ Component that was made reactive: `,
                             ), [
                               [vModelCheckbox, _ctx.settings.fleet.deliveryJobs]
                             ]),
-                            _cache[242] || (_cache[242] = createBaseVNode(
+                            _cache[243] || (_cache[243] = createBaseVNode(
                               "span",
                               { class: "taxi-settings__switch" },
                               null,
@@ -19795,11 +19805,11 @@ Component that was made reactive: `,
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-settings__group-head taxi-disclosure",
-                        onClick: _cache[74] || (_cache[74] = ($event) => _ctx.hud.toggleSettingsSection("navigation")),
+                        onClick: _cache[75] || (_cache[75] = ($event) => _ctx.hud.toggleSettingsSection("navigation")),
                         "aria-expanded": _ctx.settingsSections.navigation,
                         "aria-controls": "taxi-settings-navigation"
                       }, [
-                        _cache[243] || (_cache[243] = createBaseVNode(
+                        _cache[244] || (_cache[244] = createBaseVNode(
                           "span",
                           { class: "taxi-settings__group-icon" },
                           "\u2192",
@@ -19820,11 +19830,11 @@ Component that was made reactive: `,
                           1
                           /* TEXT */
                         )
-                      ], 8, _hoisted_187),
-                      _ctx.settingsSections.navigation ? (openBlock(), createElementBlock("div", _hoisted_188, [
-                        createBaseVNode("div", _hoisted_189, [
-                          createBaseVNode("label", _hoisted_190, [
-                            createBaseVNode("span", _hoisted_191, [
+                      ], 8, _hoisted_188),
+                      _ctx.settingsSections.navigation ? (openBlock(), createElementBlock("div", _hoisted_189, [
+                        createBaseVNode("div", _hoisted_190, [
+                          createBaseVNode("label", _hoisted_191, [
+                            createBaseVNode("span", _hoisted_192, [
                               createBaseVNode(
                                 "strong",
                                 null,
@@ -19844,8 +19854,8 @@ Component that was made reactive: `,
                               "input",
                               {
                                 type: "checkbox",
-                                "onUpdate:modelValue": _cache[75] || (_cache[75] = ($event) => _ctx.settings.showRouteGuidance = $event),
-                                onChange: _cache[76] || (_cache[76] = ($event) => _ctx.hud.settingsChanged())
+                                "onUpdate:modelValue": _cache[76] || (_cache[76] = ($event) => _ctx.settings.showRouteGuidance = $event),
+                                onChange: _cache[77] || (_cache[77] = ($event) => _ctx.hud.settingsChanged())
                               },
                               null,
                               544
@@ -19853,7 +19863,7 @@ Component that was made reactive: `,
                             ), [
                               [vModelCheckbox, _ctx.settings.showRouteGuidance]
                             ]),
-                            _cache[244] || (_cache[244] = createBaseVNode(
+                            _cache[245] || (_cache[245] = createBaseVNode(
                               "span",
                               { class: "taxi-settings__switch" },
                               null,
@@ -19862,8 +19872,8 @@ Component that was made reactive: `,
                             ))
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_192, [
-                          createBaseVNode("div", _hoisted_193, [
+                        createBaseVNode("div", _hoisted_193, [
+                          createBaseVNode("div", _hoisted_194, [
                             createBaseVNode(
                               "span",
                               null,
@@ -19881,7 +19891,7 @@ Component that was made reactive: `,
                           ]),
                           createBaseVNode(
                             "div",
-                            _hoisted_194,
+                            _hoisted_195,
                             toDisplayString(_ctx.t("dynamicZoomHelp")),
                             1
                             /* TEXT */
@@ -19894,8 +19904,8 @@ Component that was made reactive: `,
                               min: "0",
                               max: "200",
                               step: "10",
-                              "onUpdate:modelValue": _cache[77] || (_cache[77] = ($event) => _ctx.settings.dynamicZoomIntensity = $event),
-                              onInput: _cache[78] || (_cache[78] = ($event) => _ctx.hud.settingsChanged())
+                              "onUpdate:modelValue": _cache[78] || (_cache[78] = ($event) => _ctx.settings.dynamicZoomIntensity = $event),
+                              onInput: _cache[79] || (_cache[79] = ($event) => _ctx.hud.settingsChanged())
                             },
                             null,
                             544
@@ -19908,7 +19918,7 @@ Component that was made reactive: `,
                               { number: true }
                             ]
                           ]),
-                          createBaseVNode("div", _hoisted_195, [
+                          createBaseVNode("div", _hoisted_196, [
                             createBaseVNode(
                               "span",
                               null,
@@ -19925,8 +19935,8 @@ Component that was made reactive: `,
                             )
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_196, [
-                          createBaseVNode("div", _hoisted_197, [
+                        createBaseVNode("div", _hoisted_197, [
+                          createBaseVNode("div", _hoisted_198, [
                             createBaseVNode(
                               "span",
                               null,
@@ -19944,7 +19954,7 @@ Component that was made reactive: `,
                           ]),
                           createBaseVNode(
                             "div",
-                            _hoisted_198,
+                            _hoisted_199,
                             toDisplayString(_ctx.t("overspeedWarningHelp")),
                             1
                             /* TEXT */
@@ -19957,8 +19967,8 @@ Component that was made reactive: `,
                               min: "0",
                               max: "30",
                               step: "1",
-                              "onUpdate:modelValue": _cache[79] || (_cache[79] = ($event) => _ctx.settings.overspeedWarningKmh = $event),
-                              onInput: _cache[80] || (_cache[80] = ($event) => _ctx.hud.settingsChanged())
+                              "onUpdate:modelValue": _cache[80] || (_cache[80] = ($event) => _ctx.settings.overspeedWarningKmh = $event),
+                              onInput: _cache[81] || (_cache[81] = ($event) => _ctx.hud.settingsChanged())
                             },
                             null,
                             544
@@ -19986,11 +19996,11 @@ Component that was made reactive: `,
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-settings__group-head taxi-disclosure",
-                        onClick: _cache[81] || (_cache[81] = ($event) => _ctx.hud.toggleSettingsSection("audio")),
+                        onClick: _cache[82] || (_cache[82] = ($event) => _ctx.hud.toggleSettingsSection("audio")),
                         "aria-expanded": _ctx.settingsSections.audio,
                         "aria-controls": "taxi-settings-audio"
                       }, [
-                        _cache[245] || (_cache[245] = createBaseVNode(
+                        _cache[246] || (_cache[246] = createBaseVNode(
                           "span",
                           { class: "taxi-settings__group-icon" },
                           "\u266B",
@@ -20011,10 +20021,10 @@ Component that was made reactive: `,
                           1
                           /* TEXT */
                         )
-                      ], 8, _hoisted_199),
-                      _ctx.settingsSections.audio ? (openBlock(), createElementBlock("div", _hoisted_200, [
-                        createBaseVNode("div", _hoisted_201, [
-                          createBaseVNode("div", _hoisted_202, [
+                      ], 8, _hoisted_200),
+                      _ctx.settingsSections.audio ? (openBlock(), createElementBlock("div", _hoisted_201, [
+                        createBaseVNode("div", _hoisted_202, [
+                          createBaseVNode("div", _hoisted_203, [
                             createBaseVNode(
                               "span",
                               null,
@@ -20032,12 +20042,12 @@ Component that was made reactive: `,
                           ]),
                           createBaseVNode(
                             "div",
-                            _hoisted_203,
+                            _hoisted_204,
                             toDisplayString(_ctx.t("appVolumeHelp")),
                             1
                             /* TEXT */
                           ),
-                          createBaseVNode("div", _hoisted_204, [
+                          createBaseVNode("div", _hoisted_205, [
                             withDirectives(createBaseVNode(
                               "input",
                               {
@@ -20046,8 +20056,8 @@ Component that was made reactive: `,
                                 min: "0",
                                 max: "1",
                                 step: "0.05",
-                                "onUpdate:modelValue": _cache[82] || (_cache[82] = ($event) => _ctx.settings.appVolume = $event),
-                                onInput: _cache[83] || (_cache[83] = ($event) => _ctx.hud.previewAppVolume())
+                                "onUpdate:modelValue": _cache[83] || (_cache[83] = ($event) => _ctx.settings.appVolume = $event),
+                                onInput: _cache[84] || (_cache[84] = ($event) => _ctx.hud.previewAppVolume())
                               },
                               null,
                               544
@@ -20066,7 +20076,7 @@ Component that was made reactive: `,
                                 type: "button",
                                 class: "taxi-settings__volume-test",
                                 "data-taxi-no-click-sound": "true",
-                                onClick: _cache[84] || (_cache[84] = ($event) => _ctx.hud.testAppVolume())
+                                onClick: _cache[85] || (_cache[85] = ($event) => _ctx.hud.testAppVolume())
                               },
                               toDisplayString(_ctx.t("testSound")),
                               1
@@ -20074,22 +20084,22 @@ Component that was made reactive: `,
                             )
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_205, [
+                        createBaseVNode("div", _hoisted_206, [
                           createBaseVNode(
                             "div",
-                            _hoisted_206,
+                            _hoisted_207,
                             toDisplayString(_ctx.t("soundGroups")),
                             1
                             /* TEXT */
                           ),
                           createBaseVNode(
                             "div",
-                            _hoisted_207,
+                            _hoisted_208,
                             toDisplayString(_ctx.t("soundGroupsHelp")),
                             1
                             /* TEXT */
                           ),
-                          createBaseVNode("div", _hoisted_208, [
+                          createBaseVNode("div", _hoisted_209, [
                             (openBlock(true), createElementBlock(
                               Fragment,
                               null,
@@ -20098,7 +20108,7 @@ Component that was made reactive: `,
                                   class: "taxi-settings__switch-row taxi-settings__switch-row--compact",
                                   key: option.key
                                 }, [
-                                  createBaseVNode("span", _hoisted_209, [
+                                  createBaseVNode("span", _hoisted_210, [
                                     createBaseVNode(
                                       "strong",
                                       null,
@@ -20110,11 +20120,11 @@ Component that was made reactive: `,
                                   withDirectives(createBaseVNode("input", {
                                     type: "checkbox",
                                     "onUpdate:modelValue": ($event) => _ctx.settings.soundToggles[option.key] = $event,
-                                    onChange: _cache[85] || (_cache[85] = ($event) => _ctx.hud.settingsChanged())
-                                  }, null, 40, _hoisted_210), [
+                                    onChange: _cache[86] || (_cache[86] = ($event) => _ctx.hud.settingsChanged())
+                                  }, null, 40, _hoisted_211), [
                                     [vModelCheckbox, _ctx.settings.soundToggles[option.key]]
                                   ]),
-                                  _cache[246] || (_cache[246] = createBaseVNode(
+                                  _cache[247] || (_cache[247] = createBaseVNode(
                                     "span",
                                     { class: "taxi-settings__switch" },
                                     null,
@@ -20128,9 +20138,9 @@ Component that was made reactive: `,
                             ))
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_211, [
-                          createBaseVNode("label", _hoisted_212, [
-                            createBaseVNode("span", _hoisted_213, [
+                        createBaseVNode("div", _hoisted_212, [
+                          createBaseVNode("label", _hoisted_213, [
+                            createBaseVNode("span", _hoisted_214, [
                               createBaseVNode(
                                 "strong",
                                 null,
@@ -20150,8 +20160,8 @@ Component that was made reactive: `,
                               "input",
                               {
                                 type: "checkbox",
-                                "onUpdate:modelValue": _cache[86] || (_cache[86] = ($event) => _ctx.settings.silentMode = $event),
-                                onChange: _cache[87] || (_cache[87] = ($event) => _ctx.hud.settingsChanged())
+                                "onUpdate:modelValue": _cache[87] || (_cache[87] = ($event) => _ctx.settings.silentMode = $event),
+                                onChange: _cache[88] || (_cache[88] = ($event) => _ctx.hud.settingsChanged())
                               },
                               null,
                               544
@@ -20159,7 +20169,7 @@ Component that was made reactive: `,
                             ), [
                               [vModelCheckbox, _ctx.settings.silentMode]
                             ]),
-                            _cache[247] || (_cache[247] = createBaseVNode(
+                            _cache[248] || (_cache[248] = createBaseVNode(
                               "span",
                               { class: "taxi-settings__switch" },
                               null,
@@ -20182,11 +20192,11 @@ Component that was made reactive: `,
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-settings__group-head taxi-disclosure",
-                        onClick: _cache[88] || (_cache[88] = ($event) => _ctx.hud.toggleSettingsSection("connectivity")),
+                        onClick: _cache[89] || (_cache[89] = ($event) => _ctx.hud.toggleSettingsSection("connectivity")),
                         "aria-expanded": _ctx.settingsSections.connectivity,
                         "aria-controls": "taxi-settings-connectivity"
                       }, [
-                        _cache[248] || (_cache[248] = createBaseVNode(
+                        _cache[249] || (_cache[249] = createBaseVNode(
                           "span",
                           { class: "taxi-settings__group-icon" },
                           "\u{1F4F1}",
@@ -20207,11 +20217,11 @@ Component that was made reactive: `,
                           1
                           /* TEXT */
                         )
-                      ], 8, _hoisted_214),
-                      _ctx.settingsSections.connectivity ? (openBlock(), createElementBlock("div", _hoisted_215, [
-                        createBaseVNode("div", _hoisted_216, [
-                          createBaseVNode("label", _hoisted_217, [
-                            createBaseVNode("span", _hoisted_218, [
+                      ], 8, _hoisted_215),
+                      _ctx.settingsSections.connectivity ? (openBlock(), createElementBlock("div", _hoisted_216, [
+                        createBaseVNode("div", _hoisted_217, [
+                          createBaseVNode("label", _hoisted_218, [
+                            createBaseVNode("span", _hoisted_219, [
                               createBaseVNode(
                                 "strong",
                                 null,
@@ -20231,8 +20241,8 @@ Component that was made reactive: `,
                               "input",
                               {
                                 type: "checkbox",
-                                "onUpdate:modelValue": _cache[89] || (_cache[89] = ($event) => _ctx.settings.lanEnabled = $event),
-                                onChange: _cache[90] || (_cache[90] = ($event) => _ctx.hud.settingsChanged())
+                                "onUpdate:modelValue": _cache[90] || (_cache[90] = ($event) => _ctx.settings.lanEnabled = $event),
+                                onChange: _cache[91] || (_cache[91] = ($event) => _ctx.hud.settingsChanged())
                               },
                               null,
                               544
@@ -20240,7 +20250,7 @@ Component that was made reactive: `,
                             ), [
                               [vModelCheckbox, _ctx.settings.lanEnabled]
                             ]),
-                            _cache[249] || (_cache[249] = createBaseVNode(
+                            _cache[250] || (_cache[250] = createBaseVNode(
                               "span",
                               { class: "taxi-settings__switch" },
                               null,
@@ -20249,8 +20259,8 @@ Component that was made reactive: `,
                             ))
                           ])
                         ]),
-                        _ctx.settings.lanEnabled ? (openBlock(), createElementBlock("div", _hoisted_219, [
-                          createBaseVNode("div", _hoisted_220, [
+                        _ctx.settings.lanEnabled ? (openBlock(), createElementBlock("div", _hoisted_220, [
+                          createBaseVNode("div", _hoisted_221, [
                             createBaseVNode(
                               "span",
                               null,
@@ -20261,7 +20271,7 @@ Component that was made reactive: `,
                           ]),
                           createBaseVNode(
                             "div",
-                            _hoisted_221,
+                            _hoisted_222,
                             toDisplayString(_ctx.t("lanManualAddressHelp")),
                             1
                             /* TEXT */
@@ -20271,8 +20281,8 @@ Component that was made reactive: `,
                             {
                               class: "taxi-lan__url",
                               type: "text",
-                              "onUpdate:modelValue": _cache[91] || (_cache[91] = ($event) => _ctx.settings.lanManualAddress = $event),
-                              onInput: _cache[92] || (_cache[92] = ($event) => _ctx.hud.settingsChanged()),
+                              "onUpdate:modelValue": _cache[92] || (_cache[92] = ($event) => _ctx.settings.lanManualAddress = $event),
+                              onInput: _cache[93] || (_cache[93] = ($event) => _ctx.hud.settingsChanged()),
                               placeholder: "192.168.1.50"
                             },
                             null,
@@ -20282,9 +20292,9 @@ Component that was made reactive: `,
                             [vModelText, _ctx.settings.lanManualAddress]
                           ])
                         ])) : createCommentVNode("v-if", true),
-                        createBaseVNode("div", _hoisted_222, [
-                          createBaseVNode("label", _hoisted_223, [
-                            createBaseVNode("span", _hoisted_224, [
+                        createBaseVNode("div", _hoisted_223, [
+                          createBaseVNode("label", _hoisted_224, [
+                            createBaseVNode("span", _hoisted_225, [
                               createBaseVNode(
                                 "strong",
                                 null,
@@ -20304,8 +20314,8 @@ Component that was made reactive: `,
                               "input",
                               {
                                 type: "checkbox",
-                                "onUpdate:modelValue": _cache[93] || (_cache[93] = ($event) => _ctx.settings.externalMapEnabled = $event),
-                                onChange: _cache[94] || (_cache[94] = ($event) => _ctx.hud.settingsChanged())
+                                "onUpdate:modelValue": _cache[94] || (_cache[94] = ($event) => _ctx.settings.externalMapEnabled = $event),
+                                onChange: _cache[95] || (_cache[95] = ($event) => _ctx.hud.settingsChanged())
                               },
                               null,
                               544
@@ -20313,7 +20323,7 @@ Component that was made reactive: `,
                             ), [
                               [vModelCheckbox, _ctx.settings.externalMapEnabled]
                             ]),
-                            _cache[250] || (_cache[250] = createBaseVNode(
+                            _cache[251] || (_cache[251] = createBaseVNode(
                               "span",
                               { class: "taxi-settings__switch" },
                               null,
@@ -20327,7 +20337,7 @@ Component that was made reactive: `,
                               class: normalizeClass(["taxi-settings__switch-row taxi-settings__switch-row--subtle", { "taxi-settings__switch-row--disabled": !_ctx.settings.externalMapEnabled }])
                             },
                             [
-                              createBaseVNode("span", _hoisted_225, [
+                              createBaseVNode("span", _hoisted_226, [
                                 createBaseVNode(
                                   "strong",
                                   null,
@@ -20345,13 +20355,13 @@ Component that was made reactive: `,
                               ]),
                               withDirectives(createBaseVNode("input", {
                                 type: "checkbox",
-                                "onUpdate:modelValue": _cache[95] || (_cache[95] = ($event) => _ctx.settings.externalTerrainEnabled = $event),
+                                "onUpdate:modelValue": _cache[96] || (_cache[96] = ($event) => _ctx.settings.externalTerrainEnabled = $event),
                                 disabled: !_ctx.settings.externalMapEnabled,
-                                onChange: _cache[96] || (_cache[96] = ($event) => _ctx.hud.settingsChanged())
-                              }, null, 40, _hoisted_226), [
+                                onChange: _cache[97] || (_cache[97] = ($event) => _ctx.hud.settingsChanged())
+                              }, null, 40, _hoisted_227), [
                                 [vModelCheckbox, _ctx.settings.externalTerrainEnabled]
                               ]),
-                              _cache[251] || (_cache[251] = createBaseVNode(
+                              _cache[252] || (_cache[252] = createBaseVNode(
                                 "span",
                                 { class: "taxi-settings__switch" },
                                 null,
@@ -20362,7 +20372,7 @@ Component that was made reactive: `,
                             2
                             /* CLASS */
                           ),
-                          createBaseVNode("div", _hoisted_227, [
+                          createBaseVNode("div", _hoisted_228, [
                             createBaseVNode(
                               "span",
                               null,
@@ -20373,18 +20383,18 @@ Component that was made reactive: `,
                           ]),
                           createBaseVNode(
                             "div",
-                            _hoisted_228,
+                            _hoisted_229,
                             toDisplayString(_ctx.t("externalMapQualityHelp")),
                             1
                             /* TEXT */
                           ),
-                          createBaseVNode("div", _hoisted_229, [
+                          createBaseVNode("div", _hoisted_230, [
                             createBaseVNode(
                               "button",
                               {
                                 type: "button",
                                 class: normalizeClass({ "taxi-settings__segmented-active": _ctx.settings.externalMapQuality === "eco" }),
-                                onClick: _cache[97] || (_cache[97] = ($event) => _ctx.hud.selectExternalMapQuality("eco"))
+                                onClick: _cache[98] || (_cache[98] = ($event) => _ctx.hud.selectExternalMapQuality("eco"))
                               },
                               toDisplayString(_ctx.t("externalMapEco")),
                               3
@@ -20395,7 +20405,7 @@ Component that was made reactive: `,
                               {
                                 type: "button",
                                 class: normalizeClass({ "taxi-settings__segmented-active": _ctx.settings.externalMapQuality === "balanced" }),
-                                onClick: _cache[98] || (_cache[98] = ($event) => _ctx.hud.selectExternalMapQuality("balanced"))
+                                onClick: _cache[99] || (_cache[99] = ($event) => _ctx.hud.selectExternalMapQuality("balanced"))
                               },
                               toDisplayString(_ctx.t("externalMapBalanced")),
                               3
@@ -20406,7 +20416,7 @@ Component that was made reactive: `,
                               {
                                 type: "button",
                                 class: normalizeClass({ "taxi-settings__segmented-active": _ctx.settings.externalMapQuality === "smooth" }),
-                                onClick: _cache[99] || (_cache[99] = ($event) => _ctx.hud.selectExternalMapQuality("smooth"))
+                                onClick: _cache[100] || (_cache[100] = ($event) => _ctx.hud.selectExternalMapQuality("smooth"))
                               },
                               toDisplayString(_ctx.t("externalMapSmooth")),
                               3
@@ -20414,14 +20424,14 @@ Component that was made reactive: `,
                             )
                           ])
                         ]),
-                        _ctx.settings.lanEnabled ? (openBlock(), createElementBlock("div", _hoisted_230, [
+                        _ctx.settings.lanEnabled ? (openBlock(), createElementBlock("div", _hoisted_231, [
                           createBaseVNode(
                             "div",
                             {
                               class: normalizeClass(["taxi-lan__status", { "taxi-lan__status--connected": _ctx.state.lan.connected > 0, "taxi-lan__status--error": _ctx.state.lan.bridgeError }])
                             },
                             [
-                              _cache[252] || (_cache[252] = createBaseVNode(
+                              _cache[253] || (_cache[253] = createBaseVNode(
                                 "i",
                                 null,
                                 null,
@@ -20437,7 +20447,7 @@ Component that was made reactive: `,
                               ),
                               _ctx.state.lan.connected > 0 ? (openBlock(), createElementBlock(
                                 "span",
-                                _hoisted_231,
+                                _hoisted_232,
                                 toDisplayString(_ctx.state.lan.connected),
                                 1
                                 /* TEXT */
@@ -20446,8 +20456,8 @@ Component that was made reactive: `,
                             2
                             /* CLASS */
                           ),
-                          _ctx.state.lan.enabled && _ctx.state.lan.url ? (openBlock(), createElementBlock("div", _hoisted_232, [
-                            _cache[253] || (_cache[253] = createBaseVNode(
+                          _ctx.state.lan.enabled && _ctx.state.lan.url ? (openBlock(), createElementBlock("div", _hoisted_233, [
+                            _cache[254] || (_cache[254] = createBaseVNode(
                               "div",
                               { class: "taxi-lan__qr" },
                               [
@@ -20459,10 +20469,10 @@ Component that was made reactive: `,
                               -1
                               /* CACHED */
                             )),
-                            createBaseVNode("div", _hoisted_233, [
+                            createBaseVNode("div", _hoisted_234, [
                               createBaseVNode(
                                 "div",
-                                _hoisted_234,
+                                _hoisted_235,
                                 toDisplayString(_ctx.t("externalOpenHelp")),
                                 1
                                 /* TEXT */
@@ -20472,21 +20482,21 @@ Component that was made reactive: `,
                                 type: "text",
                                 readonly: "",
                                 value: _ctx.state.lan.url,
-                                onClick: _cache[100] || (_cache[100] = ($event) => $event.target.select()),
-                                onFocus: _cache[101] || (_cache[101] = ($event) => $event.target.select())
-                              }, null, 40, _hoisted_235)
+                                onClick: _cache[101] || (_cache[101] = ($event) => $event.target.select()),
+                                onFocus: _cache[102] || (_cache[102] = ($event) => $event.target.select())
+                              }, null, 40, _hoisted_236)
                             ])
                           ])) : createCommentVNode("v-if", true),
                           _ctx.state.lan.bridgeError ? (openBlock(), createElementBlock(
                             "div",
-                            _hoisted_236,
+                            _hoisted_237,
                             toDisplayString(_ctx.state.lan.bridgeError),
                             1
                             /* TEXT */
                           )) : createCommentVNode("v-if", true),
                           createBaseVNode(
                             "div",
-                            _hoisted_237,
+                            _hoisted_238,
                             toDisplayString(_ctx.t("externalSecurityHelp")),
                             1
                             /* TEXT */
@@ -20506,11 +20516,11 @@ Component that was made reactive: `,
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-settings__group-head taxi-disclosure",
-                        onClick: _cache[102] || (_cache[102] = ($event) => _ctx.hud.toggleSettingsSection("cheats")),
+                        onClick: _cache[103] || (_cache[103] = ($event) => _ctx.hud.toggleSettingsSection("cheats")),
                         "aria-expanded": _ctx.settingsSections.cheats,
                         "aria-controls": "taxi-settings-cheats"
                       }, [
-                        _cache[254] || (_cache[254] = createBaseVNode(
+                        _cache[255] || (_cache[255] = createBaseVNode(
                           "span",
                           { class: "taxi-settings__group-icon" },
                           "!",
@@ -20531,16 +20541,16 @@ Component that was made reactive: `,
                           1
                           /* TEXT */
                         )
-                      ], 8, _hoisted_238),
-                      _ctx.settingsSections.cheats ? (openBlock(), createElementBlock("div", _hoisted_239, [
+                      ], 8, _hoisted_239),
+                      _ctx.settingsSections.cheats ? (openBlock(), createElementBlock("div", _hoisted_240, [
                         createBaseVNode(
                           "p",
-                          _hoisted_240,
+                          _hoisted_241,
                           toDisplayString(_ctx.t("cheatZoneHelp")),
                           1
                           /* TEXT */
                         ),
-                        createBaseVNode("div", _hoisted_241, [
+                        createBaseVNode("div", _hoisted_242, [
                           createBaseVNode("span", null, [
                             createTextVNode(
                               toDisplayString(_ctx.t("cheatCurrentRating")) + " ",
@@ -20570,8 +20580,8 @@ Component that was made reactive: `,
                             )
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_242, [
-                          createBaseVNode("div", _hoisted_243, [
+                        createBaseVNode("div", _hoisted_243, [
+                          createBaseVNode("div", _hoisted_244, [
                             createBaseVNode(
                               "span",
                               null,
@@ -20587,7 +20597,7 @@ Component that was made reactive: `,
                               /* TEXT */
                             )
                           ]),
-                          createBaseVNode("div", _hoisted_244, [
+                          createBaseVNode("div", _hoisted_245, [
                             withDirectives(createBaseVNode(
                               "input",
                               {
@@ -20596,7 +20606,7 @@ Component that was made reactive: `,
                                 min: "0",
                                 max: "5",
                                 step: "0.01",
-                                "onUpdate:modelValue": _cache[103] || (_cache[103] = ($event) => _ctx.cheatRating = $event)
+                                "onUpdate:modelValue": _cache[104] || (_cache[104] = ($event) => _ctx.cheatRating = $event)
                               },
                               null,
                               512
@@ -20613,7 +20623,7 @@ Component that was made reactive: `,
                               "button",
                               {
                                 type: "button",
-                                onClick: _cache[104] || (_cache[104] = ($event) => _ctx.hud.cheatSetRating())
+                                onClick: _cache[105] || (_cache[105] = ($event) => _ctx.hud.cheatSetRating())
                               },
                               toDisplayString(_ctx.t("set")),
                               1
@@ -20621,8 +20631,8 @@ Component that was made reactive: `,
                             )
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_245, [
-                          createBaseVNode("div", _hoisted_246, [
+                        createBaseVNode("div", _hoisted_246, [
+                          createBaseVNode("div", _hoisted_247, [
                             createBaseVNode(
                               "span",
                               null,
@@ -20640,12 +20650,12 @@ Component that was made reactive: `,
                           ]),
                           createBaseVNode(
                             "div",
-                            _hoisted_247,
+                            _hoisted_248,
                             toDisplayString(_ctx.t("cheatSetEnergyHelp")),
                             1
                             /* TEXT */
                           ),
-                          createBaseVNode("div", _hoisted_248, [
+                          createBaseVNode("div", _hoisted_249, [
                             withDirectives(createBaseVNode(
                               "input",
                               {
@@ -20654,8 +20664,8 @@ Component that was made reactive: `,
                                 min: "0",
                                 max: "100",
                                 step: "1",
-                                "onUpdate:modelValue": _cache[105] || (_cache[105] = ($event) => _ctx.cheatEnergyPercent = $event),
-                                onInput: _cache[106] || (_cache[106] = ($event) => _ctx.hud.cheatEnergyChanged())
+                                "onUpdate:modelValue": _cache[106] || (_cache[106] = ($event) => _ctx.cheatEnergyPercent = $event),
+                                onInput: _cache[107] || (_cache[107] = ($event) => _ctx.hud.cheatEnergyChanged())
                               },
                               null,
                               544
@@ -20672,7 +20682,7 @@ Component that was made reactive: `,
                               "button",
                               {
                                 type: "button",
-                                onClick: _cache[107] || (_cache[107] = ($event) => _ctx.hud.cheatSetEnergyPercent($event))
+                                onClick: _cache[108] || (_cache[108] = ($event) => _ctx.hud.cheatSetEnergyPercent($event))
                               },
                               toDisplayString(_ctx.t("set")),
                               1
@@ -20680,9 +20690,9 @@ Component that was made reactive: `,
                             )
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_249, [
-                          createBaseVNode("label", _hoisted_250, [
-                            createBaseVNode("span", _hoisted_251, [
+                        createBaseVNode("div", _hoisted_250, [
+                          createBaseVNode("label", _hoisted_251, [
+                            createBaseVNode("span", _hoisted_252, [
                               createBaseVNode(
                                 "strong",
                                 null,
@@ -20702,8 +20712,8 @@ Component that was made reactive: `,
                               "input",
                               {
                                 type: "checkbox",
-                                "onUpdate:modelValue": _cache[108] || (_cache[108] = ($event) => _ctx.settings.godMode = $event),
-                                onChange: _cache[109] || (_cache[109] = ($event) => _ctx.hud.settingsChanged())
+                                "onUpdate:modelValue": _cache[109] || (_cache[109] = ($event) => _ctx.settings.godMode = $event),
+                                onChange: _cache[110] || (_cache[110] = ($event) => _ctx.hud.settingsChanged())
                               },
                               null,
                               544
@@ -20711,7 +20721,7 @@ Component that was made reactive: `,
                             ), [
                               [vModelCheckbox, _ctx.settings.godMode]
                             ]),
-                            _cache[255] || (_cache[255] = createBaseVNode(
+                            _cache[256] || (_cache[256] = createBaseVNode(
                               "span",
                               { class: "taxi-settings__switch" },
                               null,
@@ -20720,9 +20730,9 @@ Component that was made reactive: `,
                             ))
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_252, [
-                          createBaseVNode("label", _hoisted_253, [
-                            createBaseVNode("span", _hoisted_254, [
+                        createBaseVNode("div", _hoisted_253, [
+                          createBaseVNode("label", _hoisted_254, [
+                            createBaseVNode("span", _hoisted_255, [
                               createBaseVNode(
                                 "strong",
                                 null,
@@ -20742,8 +20752,8 @@ Component that was made reactive: `,
                               "input",
                               {
                                 type: "checkbox",
-                                "onUpdate:modelValue": _cache[110] || (_cache[110] = ($event) => _ctx.settings.debugLogging = $event),
-                                onChange: _cache[111] || (_cache[111] = ($event) => _ctx.hud.settingsChanged())
+                                "onUpdate:modelValue": _cache[111] || (_cache[111] = ($event) => _ctx.settings.debugLogging = $event),
+                                onChange: _cache[112] || (_cache[112] = ($event) => _ctx.hud.settingsChanged())
                               },
                               null,
                               544
@@ -20751,7 +20761,7 @@ Component that was made reactive: `,
                             ), [
                               [vModelCheckbox, _ctx.settings.debugLogging]
                             ]),
-                            _cache[256] || (_cache[256] = createBaseVNode(
+                            _cache[257] || (_cache[257] = createBaseVNode(
                               "span",
                               { class: "taxi-settings__switch" },
                               null,
@@ -20765,7 +20775,7 @@ Component that was made reactive: `,
                           {
                             type: "button",
                             class: "taxi-settings__cheat-action",
-                            onClick: _cache[112] || (_cache[112] = ($event) => _ctx.hud.cheatAddRandomReview())
+                            onClick: _cache[113] || (_cache[113] = ($event) => _ctx.hud.cheatAddRandomReview())
                           },
                           toDisplayString(_ctx.t("cheatRandomReview")),
                           1
@@ -20776,41 +20786,41 @@ Component that was made reactive: `,
                           {
                             type: "button",
                             class: "taxi-settings__cheat-action",
-                            onClick: _cache[113] || (_cache[113] = ($event) => _ctx.hud.cheatRepairVehicle())
+                            onClick: _cache[114] || (_cache[114] = ($event) => _ctx.hud.cheatRepairVehicle())
                           },
                           toDisplayString(_ctx.t("cheatRepairVehicle")),
                           1
                           /* TEXT */
                         ),
-                        createBaseVNode("div", _hoisted_255, [
+                        createBaseVNode("div", _hoisted_256, [
                           createBaseVNode(
                             "div",
-                            _hoisted_256,
+                            _hoisted_257,
                             toDisplayString(_ctx.t("cheatAddMoney")),
                             1
                             /* TEXT */
                           ),
-                          createBaseVNode("div", _hoisted_257, [
+                          createBaseVNode("div", _hoisted_258, [
                             createBaseVNode("button", {
                               type: "button",
-                              onClick: _cache[114] || (_cache[114] = ($event) => _ctx.hud.cheatAddMoney(1))
+                              onClick: _cache[115] || (_cache[115] = ($event) => _ctx.hud.cheatAddMoney(1))
                             }, "+$1"),
                             createBaseVNode("button", {
                               type: "button",
-                              onClick: _cache[115] || (_cache[115] = ($event) => _ctx.hud.cheatAddMoney(5))
+                              onClick: _cache[116] || (_cache[116] = ($event) => _ctx.hud.cheatAddMoney(5))
                             }, "+$5"),
                             createBaseVNode("button", {
                               type: "button",
-                              onClick: _cache[116] || (_cache[116] = ($event) => _ctx.hud.cheatAddMoney(10))
+                              onClick: _cache[117] || (_cache[117] = ($event) => _ctx.hud.cheatAddMoney(10))
                             }, "+$10"),
                             createBaseVNode("button", {
                               type: "button",
-                              onClick: _cache[117] || (_cache[117] = ($event) => _ctx.hud.cheatAddMoney(50))
+                              onClick: _cache[118] || (_cache[118] = ($event) => _ctx.hud.cheatAddMoney(50))
                             }, "+$50")
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_258, [
-                          createBaseVNode("div", _hoisted_259, [
+                        createBaseVNode("div", _hoisted_259, [
+                          createBaseVNode("div", _hoisted_260, [
                             createBaseVNode(
                               "span",
                               null,
@@ -20828,7 +20838,7 @@ Component that was made reactive: `,
                           ]),
                           createBaseVNode(
                             "div",
-                            _hoisted_260,
+                            _hoisted_261,
                             toDisplayString(_ctx.t("cheatEconomyMultiplierHelp")),
                             1
                             /* TEXT */
@@ -20841,8 +20851,8 @@ Component that was made reactive: `,
                               min: "0.25",
                               max: "5",
                               step: "0.05",
-                              "onUpdate:modelValue": _cache[118] || (_cache[118] = ($event) => _ctx.settings.economyMultiplier = $event),
-                              onInput: _cache[119] || (_cache[119] = ($event) => _ctx.hud.settingsChanged())
+                              "onUpdate:modelValue": _cache[119] || (_cache[119] = ($event) => _ctx.settings.economyMultiplier = $event),
+                              onInput: _cache[120] || (_cache[120] = ($event) => _ctx.hud.settingsChanged())
                             },
                             null,
                             544
@@ -20862,13 +20872,13 @@ Component that was made reactive: `,
                             key: 0,
                             type: "button",
                             class: "taxi-settings__reset",
-                            onClick: _cache[120] || (_cache[120] = ($event) => _ctx.hud.armCheatReset())
+                            onClick: _cache[121] || (_cache[121] = ($event) => _ctx.hud.armCheatReset())
                           },
                           toDisplayString(_ctx.t("cheatResetStats")),
                           1
                           /* TEXT */
                         )) : createCommentVNode("v-if", true),
-                        _ctx.cheatResetArmed ? (openBlock(), createElementBlock("div", _hoisted_261, [
+                        _ctx.cheatResetArmed ? (openBlock(), createElementBlock("div", _hoisted_262, [
                           createBaseVNode(
                             "strong",
                             null,
@@ -20881,7 +20891,7 @@ Component that was made reactive: `,
                               "button",
                               {
                                 type: "button",
-                                onClick: _cache[121] || (_cache[121] = ($event) => _ctx.hud.cancelCheatReset())
+                                onClick: _cache[122] || (_cache[122] = ($event) => _ctx.hud.cancelCheatReset())
                               },
                               toDisplayString(_ctx.t("cheatCancel")),
                               1
@@ -20891,7 +20901,7 @@ Component that was made reactive: `,
                               "button",
                               {
                                 type: "button",
-                                onClick: _cache[122] || (_cache[122] = ($event) => _ctx.hud.confirmCheatReset())
+                                onClick: _cache[123] || (_cache[123] = ($event) => _ctx.hud.confirmCheatReset())
                               },
                               toDisplayString(_ctx.t("cheatConfirmReset")),
                               1
@@ -20905,35 +20915,35 @@ Component that was made reactive: `,
                     /* CLASS */
                   )
                 ])) : createCommentVNode("v-if", true),
-                _ctx.profileOpen ? (openBlock(), createElementBlock("div", _hoisted_262, [
-                  createBaseVNode("div", _hoisted_263, [
+                _ctx.profileOpen ? (openBlock(), createElementBlock("div", _hoisted_263, [
+                  createBaseVNode("div", _hoisted_264, [
                     createBaseVNode(
                       "div",
-                      _hoisted_264,
+                      _hoisted_265,
                       toDisplayString(_ctx.profileDraft.avatar),
                       1
                       /* TEXT */
                     ),
-                    createBaseVNode("div", _hoisted_265, [
+                    createBaseVNode("div", _hoisted_266, [
                       createBaseVNode("span", {
                         title: (_ctx.profileProgress.completedRides || 0) + " " + _ctx.t("rides") + " \xB7 " + _ctx.formatMoneyFull(_ctx.profileProgress.balance)
-                      }, toDisplayString(_ctx.formatAggregateNumber(_ctx.profileProgress.completedRides)) + " " + toDisplayString(_ctx.t("rides")) + " \xB7 " + toDisplayString(_ctx.formatMoney(_ctx.profileProgress.balance)), 9, _hoisted_266)
+                      }, toDisplayString(_ctx.formatAggregateNumber(_ctx.profileProgress.completedRides)) + " " + toDisplayString(_ctx.t("rides")) + " \xB7 " + toDisplayString(_ctx.formatMoney(_ctx.profileProgress.balance)), 9, _hoisted_267)
                     ]),
                     createBaseVNode(
                       "div",
-                      _hoisted_267,
+                      _hoisted_268,
                       toDisplayString(_ctx.formatNumber(_ctx.profileProgress.rating, 2)) + " \u2605",
                       1
                       /* TEXT */
                     )
                   ]),
-                  createBaseVNode("div", _hoisted_268, [
+                  createBaseVNode("div", _hoisted_269, [
                     createBaseVNode(
                       "button",
                       {
                         type: "button",
                         class: normalizeClass(["taxi-profile__tab", { "taxi-profile__tab--active": _ctx.profileTab === "identity" }]),
-                        onClick: _cache[123] || (_cache[123] = ($event) => _ctx.hud.selectProfileTab("identity"))
+                        onClick: _cache[124] || (_cache[124] = ($event) => _ctx.hud.selectProfileTab("identity"))
                       },
                       toDisplayString(_ctx.t("tabIdentity")),
                       3
@@ -20944,7 +20954,7 @@ Component that was made reactive: `,
                       {
                         type: "button",
                         class: normalizeClass(["taxi-profile__tab", { "taxi-profile__tab--active": _ctx.profileTab === "reviews" }]),
-                        onClick: _cache[124] || (_cache[124] = ($event) => _ctx.hud.selectProfileTab("reviews"))
+                        onClick: _cache[125] || (_cache[125] = ($event) => _ctx.hud.selectProfileTab("reviews"))
                       },
                       toDisplayString(_ctx.t("tabReviews")),
                       3
@@ -20955,7 +20965,7 @@ Component that was made reactive: `,
                       {
                         type: "button",
                         class: normalizeClass(["taxi-profile__tab", { "taxi-profile__tab--active": _ctx.profileTab === "analytics" }]),
-                        onClick: _cache[125] || (_cache[125] = ($event) => _ctx.hud.selectProfileTab("analytics"))
+                        onClick: _cache[126] || (_cache[126] = ($event) => _ctx.hud.selectProfileTab("analytics"))
                       },
                       toDisplayString(_ctx.t("tabAnalytics")),
                       3
@@ -20966,7 +20976,7 @@ Component that was made reactive: `,
                       {
                         type: "button",
                         class: normalizeClass(["taxi-profile__tab", { "taxi-profile__tab--active": _ctx.profileTab === "vehicles" }]),
-                        onClick: _cache[126] || (_cache[126] = ($event) => _ctx.hud.selectProfileTab("vehicles"))
+                        onClick: _cache[127] || (_cache[127] = ($event) => _ctx.hud.selectProfileTab("vehicles"))
                       },
                       toDisplayString(_ctx.t("tabVehicles")),
                       3
@@ -20977,16 +20987,16 @@ Component that was made reactive: `,
                       {
                         type: "button",
                         class: normalizeClass(["taxi-profile__tab", { "taxi-profile__tab--active": _ctx.profileTab === "shifts" }]),
-                        onClick: _cache[127] || (_cache[127] = ($event) => _ctx.hud.selectProfileTab("shifts"))
+                        onClick: _cache[128] || (_cache[128] = ($event) => _ctx.hud.selectProfileTab("shifts"))
                       },
                       toDisplayString(_ctx.t("tabShifts")),
                       3
                       /* TEXT, CLASS */
                     )
                   ]),
-                  createBaseVNode("div", _hoisted_269, [
-                    _ctx.profileTab === "identity" ? (openBlock(), createElementBlock("div", _hoisted_270, [
-                      createBaseVNode("label", _hoisted_271, [
+                  createBaseVNode("div", _hoisted_270, [
+                    _ctx.profileTab === "identity" ? (openBlock(), createElementBlock("div", _hoisted_271, [
+                      createBaseVNode("label", _hoisted_272, [
                         createBaseVNode(
                           "span",
                           null,
@@ -21000,8 +21010,8 @@ Component that was made reactive: `,
                             class: "taxi-profile__input",
                             type: "text",
                             maxlength: "60",
-                            "onUpdate:modelValue": _cache[128] || (_cache[128] = ($event) => _ctx.profileDraft.fullName = $event),
-                            onInput: _cache[129] || (_cache[129] = ($event) => _ctx.profileSaved = false)
+                            "onUpdate:modelValue": _cache[129] || (_cache[129] = ($event) => _ctx.profileDraft.fullName = $event),
+                            onInput: _cache[130] || (_cache[130] = ($event) => _ctx.profileSaved = false)
                           },
                           null,
                           544
@@ -21010,7 +21020,7 @@ Component that was made reactive: `,
                           [vModelText, _ctx.profileDraft.fullName]
                         ])
                       ]),
-                      createBaseVNode("label", _hoisted_272, [
+                      createBaseVNode("label", _hoisted_273, [
                         createBaseVNode(
                           "span",
                           null,
@@ -21025,8 +21035,8 @@ Component that was made reactive: `,
                             type: "text",
                             maxlength: "10",
                             placeholder: "YYYY-MM-DD",
-                            "onUpdate:modelValue": _cache[130] || (_cache[130] = ($event) => _ctx.profileDraft.birthDate = $event),
-                            onInput: _cache[131] || (_cache[131] = ($event) => _ctx.profileSaved = false)
+                            "onUpdate:modelValue": _cache[131] || (_cache[131] = ($event) => _ctx.profileDraft.birthDate = $event),
+                            onInput: _cache[132] || (_cache[132] = ($event) => _ctx.profileSaved = false)
                           },
                           null,
                           544
@@ -21035,7 +21045,7 @@ Component that was made reactive: `,
                           [vModelText, _ctx.profileDraft.birthDate]
                         ])
                       ]),
-                      createBaseVNode("div", _hoisted_273, [
+                      createBaseVNode("div", _hoisted_274, [
                         createBaseVNode(
                           "span",
                           null,
@@ -21051,7 +21061,7 @@ Component that was made reactive: `,
                           /* TEXT */
                         )
                       ]),
-                      createBaseVNode("div", _hoisted_274, [
+                      createBaseVNode("div", _hoisted_275, [
                         createBaseVNode(
                           "span",
                           null,
@@ -21059,7 +21069,7 @@ Component that was made reactive: `,
                           1
                           /* TEXT */
                         ),
-                        createBaseVNode("div", _hoisted_275, [
+                        createBaseVNode("div", _hoisted_276, [
                           (openBlock(true), createElementBlock(
                             Fragment,
                             null,
@@ -21069,7 +21079,7 @@ Component that was made reactive: `,
                                 class: normalizeClass(["taxi-profile__avatar-option", { "taxi-profile__avatar-option--active": _ctx.profileDraft.avatar === avatar }]),
                                 key: index,
                                 onClick: ($event) => _ctx.hud.selectAvatar(avatar)
-                              }, toDisplayString(avatar), 11, _hoisted_276);
+                              }, toDisplayString(avatar), 11, _hoisted_277);
                             }),
                             128
                             /* KEYED_FRAGMENT */
@@ -21081,7 +21091,7 @@ Component that was made reactive: `,
                         {
                           type: "button",
                           class: "taxi-profile__save",
-                          onClick: _cache[132] || (_cache[132] = ($event) => _ctx.hud.saveProfile())
+                          onClick: _cache[133] || (_cache[133] = ($event) => _ctx.hud.saveProfile())
                         },
                         toDisplayString(_ctx.t("saveProfile")),
                         1
@@ -21089,29 +21099,29 @@ Component that was made reactive: `,
                       ),
                       _ctx.profileSaved ? (openBlock(), createElementBlock(
                         "div",
-                        _hoisted_277,
+                        _hoisted_278,
                         toDisplayString(_ctx.t("profileSaved")),
                         1
                         /* TEXT */
                       )) : createCommentVNode("v-if", true)
                     ])) : createCommentVNode("v-if", true),
-                    _ctx.profileTab === "reviews" ? (openBlock(), createElementBlock("div", _hoisted_278, [
+                    _ctx.profileTab === "reviews" ? (openBlock(), createElementBlock("div", _hoisted_279, [
                       !_ctx.profileReviews.length ? (openBlock(), createElementBlock(
                         "div",
-                        _hoisted_279,
+                        _hoisted_280,
                         toDisplayString(_ctx.t("noReviews")),
                         1
                         /* TEXT */
                       )) : createCommentVNode("v-if", true),
-                      createBaseVNode("div", _hoisted_280, [
-                        _cache[258] || (_cache[258] = createBaseVNode(
+                      createBaseVNode("div", _hoisted_281, [
+                        _cache[259] || (_cache[259] = createBaseVNode(
                           "div",
                           { class: "taxi-review__emoji" },
                           "\u{1F60A}",
                           -1
                           /* CACHED */
                         )),
-                        createBaseVNode("div", _hoisted_281, [
+                        createBaseVNode("div", _hoisted_282, [
                           createBaseVNode(
                             "strong",
                             null,
@@ -21119,7 +21129,7 @@ Component that was made reactive: `,
                             1
                             /* TEXT */
                           ),
-                          _cache[257] || (_cache[257] = createBaseVNode(
+                          _cache[258] || (_cache[258] = createBaseVNode(
                             "span",
                             null,
                             "Sep 30, 2026 \xB7 $99999.99",
@@ -21127,7 +21137,7 @@ Component that was made reactive: `,
                             /* CACHED */
                           ))
                         ]),
-                        createBaseVNode("div", _hoisted_282, [
+                        createBaseVNode("div", _hoisted_283, [
                           createBaseVNode(
                             "strong",
                             null,
@@ -21144,15 +21154,15 @@ Component that was made reactive: `,
                           )
                         ])
                       ]),
-                      createBaseVNode("div", _hoisted_283, [
-                        _cache[260] || (_cache[260] = createBaseVNode(
+                      createBaseVNode("div", _hoisted_284, [
+                        _cache[261] || (_cache[261] = createBaseVNode(
                           "div",
                           { class: "taxi-review__emoji" },
                           "\u{1F60A}",
                           -1
                           /* CACHED */
                         )),
-                        createBaseVNode("div", _hoisted_284, [
+                        createBaseVNode("div", _hoisted_285, [
                           createBaseVNode(
                             "strong",
                             null,
@@ -21160,7 +21170,7 @@ Component that was made reactive: `,
                             1
                             /* TEXT */
                           ),
-                          _cache[259] || (_cache[259] = createBaseVNode(
+                          _cache[260] || (_cache[260] = createBaseVNode(
                             "span",
                             null,
                             "Sep 30, 2026 \xB7 $99999.99",
@@ -21175,7 +21185,7 @@ Component that was made reactive: `,
                             /* TEXT */
                           )
                         ]),
-                        createBaseVNode("div", _hoisted_285, [
+                        createBaseVNode("div", _hoisted_286, [
                           createBaseVNode(
                             "strong",
                             null,
@@ -21212,12 +21222,12 @@ Component that was made reactive: `,
                               }, [
                                 createBaseVNode(
                                   "span",
-                                  _hoisted_287,
+                                  _hoisted_288,
                                   toDisplayString(review.emoji),
                                   1
                                   /* TEXT */
                                 ),
-                                createBaseVNode("span", _hoisted_288, [
+                                createBaseVNode("span", _hoisted_289, [
                                   createBaseVNode(
                                     "strong",
                                     null,
@@ -21234,13 +21244,13 @@ Component that was made reactive: `,
                                   ),
                                   review.usedAutopilot ? (openBlock(), createElementBlock(
                                     "b",
-                                    _hoisted_289,
+                                    _hoisted_290,
                                     "AI \xB7 " + toDisplayString(_ctx.t("aiAssisted")),
                                     1
                                     /* TEXT */
                                   )) : createCommentVNode("v-if", true)
                                 ]),
-                                createBaseVNode("span", _hoisted_290, [
+                                createBaseVNode("span", _hoisted_291, [
                                   createBaseVNode(
                                     "strong",
                                     {
@@ -21258,7 +21268,7 @@ Component that was made reactive: `,
                                     /* TEXT */
                                   )
                                 ]),
-                                _cache[261] || (_cache[261] = createBaseVNode(
+                                _cache[262] || (_cache[262] = createBaseVNode(
                                   "i",
                                   {
                                     class: "taxi-review__expand",
@@ -21268,13 +21278,13 @@ Component that was made reactive: `,
                                   -1
                                   /* CACHED */
                                 ))
-                              ], 8, _hoisted_286),
+                              ], 8, _hoisted_287),
                               _ctx.expandedReviewId === review.id ? (openBlock(), createElementBlock("div", {
                                 key: 0,
                                 class: "taxi-review-details",
                                 id: "taxi-review-details-" + review.id
                               }, [
-                                createBaseVNode("div", _hoisted_292, [
+                                createBaseVNode("div", _hoisted_293, [
                                   createBaseVNode("span", null, [
                                     createBaseVNode(
                                       "small",
@@ -21334,7 +21344,7 @@ Component that was made reactive: `,
                                   ),
                                   !review.penalties.length ? (openBlock(), createElementBlock(
                                     "p",
-                                    _hoisted_293,
+                                    _hoisted_294,
                                     toDisplayString(_ctx.t("tripHistoryNoPenalties")),
                                     1
                                     /* TEXT */
@@ -21357,7 +21367,7 @@ Component that was made reactive: `,
                                           ),
                                           penalty.detail ? (openBlock(), createElementBlock(
                                             "small",
-                                            _hoisted_294,
+                                            _hoisted_295,
                                             toDisplayString(penalty.detail),
                                             1
                                             /* TEXT */
@@ -21386,7 +21396,7 @@ Component that was made reactive: `,
                                   ),
                                   !review.randomEvents.length ? (openBlock(), createElementBlock(
                                     "p",
-                                    _hoisted_295,
+                                    _hoisted_296,
                                     toDisplayString(_ctx.t("tripHistoryNoRandomEvents")),
                                     1
                                     /* TEXT */
@@ -21417,7 +21427,7 @@ Component that was made reactive: `,
                                         ]),
                                         event.amount > 0 ? (openBlock(), createElementBlock(
                                           "b",
-                                          _hoisted_296,
+                                          _hoisted_297,
                                           toDisplayString(_ctx.formatMoney(event.amount)),
                                           1
                                           /* TEXT */
@@ -21428,7 +21438,7 @@ Component that was made reactive: `,
                                     /* KEYED_FRAGMENT */
                                   ))
                                 ])
-                              ], 8, _hoisted_291)) : createCommentVNode("v-if", true)
+                              ], 8, _hoisted_292)) : createCommentVNode("v-if", true)
                             ],
                             2
                             /* CLASS */
@@ -21437,14 +21447,14 @@ Component that was made reactive: `,
                         128
                         /* KEYED_FRAGMENT */
                       )),
-                      _ctx.profileReviews.length ? (openBlock(), createElementBlock("div", _hoisted_297, [
+                      _ctx.profileReviews.length ? (openBlock(), createElementBlock("div", _hoisted_298, [
                         createBaseVNode("button", {
                           type: "button",
                           class: "taxi-action taxi-action--secondary",
-                          onClick: _cache[133] || (_cache[133] = ($event) => _ctx.hud.previousReviewPage()),
+                          onClick: _cache[134] || (_cache[134] = ($event) => _ctx.hud.previousReviewPage()),
                           disabled: _ctx.reviewPage <= 1,
                           "aria-label": _ctx.t("reviewPage", { current: _ctx.reviewPage - 1, total: _ctx.getReviewPageCount() })
-                        }, "\u2039", 8, _hoisted_298),
+                        }, "\u2039", 8, _hoisted_299),
                         createBaseVNode(
                           "span",
                           null,
@@ -21455,15 +21465,15 @@ Component that was made reactive: `,
                         createBaseVNode("button", {
                           type: "button",
                           class: "taxi-action taxi-action--secondary",
-                          onClick: _cache[134] || (_cache[134] = ($event) => _ctx.hud.nextReviewPage()),
+                          onClick: _cache[135] || (_cache[135] = ($event) => _ctx.hud.nextReviewPage()),
                           disabled: _ctx.reviewPage >= _ctx.getReviewPageCount(),
                           "aria-label": _ctx.t("reviewPage", { current: _ctx.reviewPage + 1, total: _ctx.getReviewPageCount() })
-                        }, "\u203A", 8, _hoisted_299)
+                        }, "\u203A", 8, _hoisted_300)
                       ])) : createCommentVNode("v-if", true)
                     ])) : createCommentVNode("v-if", true),
-                    _ctx.profileTab === "analytics" ? (openBlock(), createElementBlock("div", _hoisted_300, [
-                      createBaseVNode("div", _hoisted_301, [
-                        createBaseVNode("div", _hoisted_302, [
+                    _ctx.profileTab === "analytics" ? (openBlock(), createElementBlock("div", _hoisted_301, [
+                      createBaseVNode("div", _hoisted_302, [
+                        createBaseVNode("div", _hoisted_303, [
                           createBaseVNode(
                             "strong",
                             null,
@@ -21479,8 +21489,8 @@ Component that was made reactive: `,
                             /* TEXT */
                           )
                         ]),
-                        (openBlock(), createElementBlock("svg", _hoisted_303, [
-                          _cache[262] || (_cache[262] = createBaseVNode(
+                        (openBlock(), createElementBlock("svg", _hoisted_304, [
+                          _cache[263] || (_cache[263] = createBaseVNode(
                             "line",
                             {
                               class: "taxi-chart__grid",
@@ -21493,7 +21503,7 @@ Component that was made reactive: `,
                             -1
                             /* CACHED */
                           )),
-                          _cache[263] || (_cache[263] = createBaseVNode(
+                          _cache[264] || (_cache[264] = createBaseVNode(
                             "line",
                             {
                               class: "taxi-chart__grid",
@@ -21506,7 +21516,7 @@ Component that was made reactive: `,
                             -1
                             /* CACHED */
                           )),
-                          _cache[264] || (_cache[264] = createBaseVNode(
+                          _cache[265] || (_cache[265] = createBaseVNode(
                             "line",
                             {
                               class: "taxi-chart__grid",
@@ -21522,18 +21532,18 @@ Component that was made reactive: `,
                           createBaseVNode("polyline", {
                             class: "taxi-chart__line",
                             points: _ctx.getChartPoints(_ctx.profileProgress.ratingHistory, "rating")
-                          }, null, 8, _hoisted_304)
+                          }, null, 8, _hoisted_305)
                         ])),
                         createBaseVNode(
                           "div",
-                          _hoisted_305,
+                          _hoisted_306,
                           toDisplayString(_ctx.t("historyHint")),
                           1
                           /* TEXT */
                         )
                       ]),
-                      createBaseVNode("div", _hoisted_306, [
-                        createBaseVNode("div", _hoisted_307, [
+                      createBaseVNode("div", _hoisted_307, [
+                        createBaseVNode("div", _hoisted_308, [
                           createBaseVNode(
                             "strong",
                             null,
@@ -21549,8 +21559,8 @@ Component that was made reactive: `,
                             /* TEXT */
                           )
                         ]),
-                        (openBlock(), createElementBlock("svg", _hoisted_308, [
-                          _cache[265] || (_cache[265] = createBaseVNode(
+                        (openBlock(), createElementBlock("svg", _hoisted_309, [
+                          _cache[266] || (_cache[266] = createBaseVNode(
                             "line",
                             {
                               class: "taxi-chart__grid",
@@ -21563,7 +21573,7 @@ Component that was made reactive: `,
                             -1
                             /* CACHED */
                           )),
-                          _cache[266] || (_cache[266] = createBaseVNode(
+                          _cache[267] || (_cache[267] = createBaseVNode(
                             "line",
                             {
                               class: "taxi-chart__grid",
@@ -21576,7 +21586,7 @@ Component that was made reactive: `,
                             -1
                             /* CACHED */
                           )),
-                          _cache[267] || (_cache[267] = createBaseVNode(
+                          _cache[268] || (_cache[268] = createBaseVNode(
                             "line",
                             {
                               class: "taxi-chart__grid",
@@ -21592,18 +21602,18 @@ Component that was made reactive: `,
                           createBaseVNode("polyline", {
                             class: "taxi-chart__line taxi-chart__line--balance",
                             points: _ctx.getChartPoints(_ctx.profileProgress.balanceHistory, "balance")
-                          }, null, 8, _hoisted_309)
+                          }, null, 8, _hoisted_310)
                         ])),
                         createBaseVNode(
                           "div",
-                          _hoisted_310,
+                          _hoisted_311,
                           toDisplayString(_ctx.t("historyHint")),
                           1
                           /* TEXT */
                         )
                       ]),
-                      createBaseVNode("div", _hoisted_311, [
-                        _cache[268] || (_cache[268] = createBaseVNode(
+                      createBaseVNode("div", _hoisted_312, [
+                        _cache[269] || (_cache[269] = createBaseVNode(
                           "span",
                           null,
                           "AI",
@@ -21628,18 +21638,18 @@ Component that was made reactive: `,
                         ]),
                         createBaseVNode("b", {
                           title: _ctx.profileProgress.aiRideCount || 0
-                        }, toDisplayString(_ctx.formatAggregateNumber(_ctx.profileProgress.aiRideCount)), 9, _hoisted_312)
+                        }, toDisplayString(_ctx.formatAggregateNumber(_ctx.profileProgress.aiRideCount)), 9, _hoisted_313)
                       ])
                     ])) : createCommentVNode("v-if", true),
-                    _ctx.profileTab === "vehicles" ? (openBlock(), createElementBlock("div", _hoisted_313, [
+                    _ctx.profileTab === "vehicles" ? (openBlock(), createElementBlock("div", _hoisted_314, [
                       !_ctx.profileVehicles.length ? (openBlock(), createElementBlock(
                         "div",
-                        _hoisted_314,
+                        _hoisted_315,
                         toDisplayString(_ctx.t("noVehicleHistory")),
                         1
                         /* TEXT */
                       )) : createCommentVNode("v-if", true),
-                      _ctx.profileVehicles.length ? (openBlock(), createElementBlock("div", _hoisted_315, [
+                      _ctx.profileVehicles.length ? (openBlock(), createElementBlock("div", _hoisted_316, [
                         createBaseVNode(
                           "span",
                           null,
@@ -21656,7 +21666,7 @@ Component that was made reactive: `,
                             createBaseVNode("button", {
                               type: "button",
                               class: "taxi-sort-menu__trigger",
-                              onClick: _cache[135] || (_cache[135] = ($event) => _ctx.hud.toggleVehicleSortMenu()),
+                              onClick: _cache[136] || (_cache[136] = ($event) => _ctx.hud.toggleVehicleSortMenu()),
                               "aria-haspopup": "listbox",
                               "aria-expanded": _ctx.vehicleSortMenuOpen
                             }, [
@@ -21667,15 +21677,15 @@ Component that was made reactive: `,
                                 1
                                 /* TEXT */
                               ),
-                              _cache[269] || (_cache[269] = createBaseVNode(
+                              _cache[270] || (_cache[270] = createBaseVNode(
                                 "i",
                                 null,
                                 "\u2304",
                                 -1
                                 /* CACHED */
                               ))
-                            ], 8, _hoisted_316),
-                            _ctx.vehicleSortMenuOpen ? (openBlock(), createElementBlock("div", _hoisted_317, [
+                            ], 8, _hoisted_317),
+                            _ctx.vehicleSortMenuOpen ? (openBlock(), createElementBlock("div", _hoisted_318, [
                               (openBlock(true), createElementBlock(
                                 Fragment,
                                 null,
@@ -21687,7 +21697,7 @@ Component that was made reactive: `,
                                     onClick: ($event) => _ctx.hud.selectVehicleSort(option.value),
                                     role: "option",
                                     "aria-selected": _ctx.vehicleSort === option.value
-                                  }, toDisplayString(_ctx.t(option.label)), 11, _hoisted_318);
+                                  }, toDisplayString(_ctx.t(option.label)), 11, _hoisted_319);
                                 }),
                                 128
                                 /* KEYED_FRAGMENT */
@@ -21706,8 +21716,8 @@ Component that was made reactive: `,
                             class: "taxi-vehicle-history",
                             key: vehicle.key
                           }, [
-                            createBaseVNode("div", _hoisted_319, [
-                              _cache[270] || (_cache[270] = createBaseVNode(
+                            createBaseVNode("div", _hoisted_320, [
+                              _cache[271] || (_cache[271] = createBaseVNode(
                                 "span",
                                 null,
                                 "\u{1F698}",
@@ -21718,10 +21728,10 @@ Component that was made reactive: `,
                                 key: 0,
                                 src: vehicle.preview,
                                 alt: vehicle.name,
-                                onError: _cache[136] || (_cache[136] = ($event) => $event.target.style.display = "none")
-                              }, null, 40, _hoisted_320)) : createCommentVNode("v-if", true)
+                                onError: _cache[137] || (_cache[137] = ($event) => $event.target.style.display = "none")
+                              }, null, 40, _hoisted_321)) : createCommentVNode("v-if", true)
                             ]),
-                            createBaseVNode("div", _hoisted_321, [
+                            createBaseVNode("div", _hoisted_322, [
                               createBaseVNode(
                                 "strong",
                                 null,
@@ -21737,7 +21747,7 @@ Component that was made reactive: `,
                                 /* TEXT */
                               )
                             ]),
-                            createBaseVNode("div", _hoisted_322, [
+                            createBaseVNode("div", _hoisted_323, [
                               createBaseVNode("span", null, [
                                 createTextVNode(
                                   toDisplayString(_ctx.t("vehicleTrips")),
@@ -21746,7 +21756,7 @@ Component that was made reactive: `,
                                 ),
                                 createBaseVNode("strong", {
                                   title: vehicle.completedRides || 0
-                                }, toDisplayString(_ctx.formatCount(vehicle.completedRides)), 9, _hoisted_323)
+                                }, toDisplayString(_ctx.formatCount(vehicle.completedRides)), 9, _hoisted_324)
                               ]),
                               createBaseVNode("span", null, [
                                 createTextVNode(
@@ -21756,7 +21766,7 @@ Component that was made reactive: `,
                                 ),
                                 createBaseVNode("strong", {
                                   title: vehicle.aiRides || 0
-                                }, toDisplayString(_ctx.formatCount(vehicle.aiRides)), 9, _hoisted_324)
+                                }, toDisplayString(_ctx.formatCount(vehicle.aiRides)), 9, _hoisted_325)
                               ]),
                               createBaseVNode("span", null, [
                                 createTextVNode(
@@ -21842,7 +21852,7 @@ Component that was made reactive: `,
                                   /* TEXT */
                                 )
                               ]),
-                              vehicle.fuelConsumed > 0 ? (openBlock(), createElementBlock("span", _hoisted_325, [
+                              vehicle.fuelConsumed > 0 ? (openBlock(), createElementBlock("span", _hoisted_326, [
                                 createTextVNode(
                                   toDisplayString(_ctx.t("fuelConsumed")),
                                   1
@@ -21877,10 +21887,10 @@ Component that was made reactive: `,
                         /* KEYED_FRAGMENT */
                       ))
                     ])) : createCommentVNode("v-if", true),
-                    _ctx.profileTab === "shifts" ? (openBlock(), createElementBlock("div", _hoisted_326, [
+                    _ctx.profileTab === "shifts" ? (openBlock(), createElementBlock("div", _hoisted_327, [
                       !_ctx.state.shiftHistory.items.length ? (openBlock(), createElementBlock(
                         "div",
-                        _hoisted_327,
+                        _hoisted_328,
                         toDisplayString(_ctx.t("noShiftHistory")),
                         1
                         /* TEXT */
@@ -21896,8 +21906,8 @@ Component that was made reactive: `,
                             onClick: ($event) => _ctx.hud.resumeShift(shift.id),
                             disabled: _ctx.state.active || _ctx.state.shiftHistory.restoring
                           }, [
-                            createBaseVNode("div", _hoisted_329, [
-                              _cache[271] || (_cache[271] = createBaseVNode(
+                            createBaseVNode("div", _hoisted_330, [
+                              _cache[272] || (_cache[272] = createBaseVNode(
                                 "span",
                                 null,
                                 "\u{1F697}",
@@ -21908,13 +21918,13 @@ Component that was made reactive: `,
                                 key: 0,
                                 src: shift.preview,
                                 alt: shift.vehicleName,
-                                onError: _cache[137] || (_cache[137] = ($event) => $event.target.style.display = "none")
-                              }, null, 40, _hoisted_330)) : createCommentVNode("v-if", true)
+                                onError: _cache[138] || (_cache[138] = ($event) => $event.target.style.display = "none")
+                              }, null, 40, _hoisted_331)) : createCommentVNode("v-if", true)
                             ]),
-                            createBaseVNode("div", _hoisted_331, [
+                            createBaseVNode("div", _hoisted_332, [
                               createBaseVNode("strong", {
                                 title: shift.vehicleName
-                              }, toDisplayString(shift.vehicleName), 9, _hoisted_332),
+                              }, toDisplayString(shift.vehicleName), 9, _hoisted_333),
                               createBaseVNode(
                                 "small",
                                 null,
@@ -21925,14 +21935,14 @@ Component that was made reactive: `,
                               createBaseVNode("div", null, [
                                 createBaseVNode("span", {
                                   title: shift.rides || 0
-                                }, toDisplayString(_ctx.formatCount(shift.rides)) + " " + toDisplayString(_ctx.t("rides")), 9, _hoisted_333),
+                                }, toDisplayString(_ctx.formatCount(shift.rides)) + " " + toDisplayString(_ctx.t("rides")), 9, _hoisted_334),
                                 shift.aiRides ? (openBlock(), createElementBlock("span", {
                                   key: 0,
                                   title: shift.aiRides
-                                }, "AI " + toDisplayString(_ctx.formatCount(shift.aiRides)), 9, _hoisted_334)) : createCommentVNode("v-if", true),
+                                }, "AI " + toDisplayString(_ctx.formatCount(shift.aiRides)), 9, _hoisted_335)) : createCommentVNode("v-if", true),
                                 createBaseVNode("span", {
                                   title: _ctx.formatMoneyFull(shift.netIncome)
-                                }, toDisplayString(_ctx.formatMoney(shift.netIncome)), 9, _hoisted_335),
+                                }, toDisplayString(_ctx.formatMoney(shift.netIncome)), 9, _hoisted_336),
                                 createBaseVNode(
                                   "span",
                                   null,
@@ -21942,9 +21952,9 @@ Component that was made reactive: `,
                                 )
                               ])
                             ]),
-                            _ctx.state.shiftHistory.restoringId !== shift.id ? (openBlock(), createElementBlock("i", _hoisted_336, "\u203A")) : createCommentVNode("v-if", true),
-                            _ctx.state.shiftHistory.restoringId === shift.id ? (openBlock(), createElementBlock("div", _hoisted_337, [
-                              _cache[272] || (_cache[272] = createBaseVNode(
+                            _ctx.state.shiftHistory.restoringId !== shift.id ? (openBlock(), createElementBlock("i", _hoisted_337, "\u203A")) : createCommentVNode("v-if", true),
+                            _ctx.state.shiftHistory.restoringId === shift.id ? (openBlock(), createElementBlock("div", _hoisted_338, [
+                              _cache[273] || (_cache[273] = createBaseVNode(
                                 "span",
                                 null,
                                 null,
@@ -21957,7 +21967,7 @@ Component that was made reactive: `,
                                 /* TEXT */
                               )
                             ])) : createCommentVNode("v-if", true)
-                          ], 8, _hoisted_328);
+                          ], 8, _hoisted_329);
                         }),
                         128
                         /* KEYED_FRAGMENT */
@@ -21968,7 +21978,7 @@ Component that was made reactive: `,
                           key: 1,
                           type: "button",
                           class: "taxi-shift-history__more",
-                          onClick: _cache[138] || (_cache[138] = ($event) => _ctx.hud.loadMoreShifts())
+                          onClick: _cache[139] || (_cache[139] = ($event) => _ctx.hud.loadMoreShifts())
                         },
                         toDisplayString(_ctx.t("showMoreShifts", { shown: _ctx.shiftHistoryVisibleCount, total: _ctx.state.shiftHistory.items.length })),
                         1
@@ -21977,29 +21987,29 @@ Component that was made reactive: `,
                     ])) : createCommentVNode("v-if", true)
                   ])
                 ])) : createCommentVNode("v-if", true),
-                _ctx.fleetOpen && !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen ? (openBlock(), createElementBlock("div", _hoisted_338, [
-                  createBaseVNode("div", _hoisted_339, [
-                    _cache[275] || (_cache[275] = createBaseVNode(
+                _ctx.fleetOpen && !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen ? (openBlock(), createElementBlock("div", _hoisted_339, [
+                  createBaseVNode("div", _hoisted_340, [
+                    _cache[276] || (_cache[276] = createBaseVNode(
                       "div",
                       { class: "taxi-minimap-surface" },
                       null,
                       -1
                       /* CACHED */
                     )),
-                    _ctx.externalPhoneMode ? (openBlock(), createElementBlock("canvas", _hoisted_340)) : createCommentVNode("v-if", true),
+                    _ctx.externalPhoneMode ? (openBlock(), createElementBlock("canvas", _hoisted_341)) : createCommentVNode("v-if", true),
                     createBaseVNode("div", {
                       class: normalizeClass(["taxi-map-interaction", { "taxi-map-interaction--panned": !_ctx.mapFollowing }]),
                       "aria-label": _ctx.t("mapDrag")
-                    }, null, 10, _hoisted_341),
-                    createBaseVNode("div", _hoisted_342, [
+                    }, null, 10, _hoisted_342),
+                    createBaseVNode("div", _hoisted_343, [
                       _ctx.settings.aiDriver.enabled && _ctx.state.active && (_ctx.state.phase === "toPickup" || _ctx.state.phase === "toStop" || _ctx.state.phase === "toDestination" || _ctx.state.phase === "toFuelStation") ? (openBlock(), createElementBlock("button", {
                         key: 0,
                         type: "button",
                         class: normalizeClass(["taxi-map__autopilot", { "taxi-map__autopilot--active": _ctx.state.autopilot.enabled, "taxi-map__autopilot--recovering": _ctx.state.autopilot.status === "recovering" }]),
-                        onClick: _cache[139] || (_cache[139] = ($event) => _ctx.hud.toggleAutopilot()),
+                        onClick: _cache[140] || (_cache[140] = ($event) => _ctx.hud.toggleAutopilot()),
                         disabled: !_ctx.state.autopilot.available
                       }, [
-                        _cache[273] || (_cache[273] = createBaseVNode(
+                        _cache[274] || (_cache[274] = createBaseVNode(
                           "strong",
                           null,
                           "AI",
@@ -22013,33 +22023,33 @@ Component that was made reactive: `,
                           1
                           /* TEXT */
                         )
-                      ], 10, _hoisted_343)) : createCommentVNode("v-if", true),
+                      ], 10, _hoisted_344)) : createCommentVNode("v-if", true),
                       createBaseVNode("div", {
                         class: "taxi-map-controls",
                         "aria-label": _ctx.t("mapControls")
                       }, [
                         createBaseVNode("button", {
                           type: "button",
-                          onClick: _cache[140] || (_cache[140] = ($event) => _ctx.hud.zoomMap(0.8)),
+                          onClick: _cache[141] || (_cache[141] = ($event) => _ctx.hud.zoomMap(0.8)),
                           title: _ctx.t("mapZoomIn"),
                           "aria-label": _ctx.t("mapZoomIn")
-                        }, "+", 8, _hoisted_345),
+                        }, "+", 8, _hoisted_346),
                         createBaseVNode("button", {
                           type: "button",
-                          onClick: _cache[141] || (_cache[141] = ($event) => _ctx.hud.zoomMap(1.25)),
+                          onClick: _cache[142] || (_cache[142] = ($event) => _ctx.hud.zoomMap(1.25)),
                           title: _ctx.t("mapZoomOut"),
                           "aria-label": _ctx.t("mapZoomOut")
-                        }, "\u2212", 8, _hoisted_346),
+                        }, "\u2212", 8, _hoisted_347),
                         createBaseVNode("button", {
                           type: "button",
-                          onClick: _cache[142] || (_cache[142] = ($event) => _ctx.hud.followMap()),
+                          onClick: _cache[143] || (_cache[143] = ($event) => _ctx.hud.followMap()),
                           class: normalizeClass({ "taxi-map-controls--following": _ctx.mapFollowing }),
                           title: _ctx.t("mapFollow"),
                           "aria-label": _ctx.t("mapFollow")
-                        }, "\u25CE", 10, _hoisted_347)
-                      ], 8, _hoisted_344)
+                        }, "\u25CE", 10, _hoisted_348)
+                      ], 8, _hoisted_345)
                     ]),
-                    _ctx.state.active && (_ctx.state.phase === "toPickup" || _ctx.state.phase === "toStop" || _ctx.state.phase === "toDestination" || _ctx.state.phase === "toFuelStation") ? (openBlock(), createElementBlock("div", _hoisted_348, [
+                    _ctx.state.active && (_ctx.state.phase === "toPickup" || _ctx.state.phase === "toStop" || _ctx.state.phase === "toDestination" || _ctx.state.phase === "toFuelStation") ? (openBlock(), createElementBlock("div", _hoisted_349, [
                       createBaseVNode(
                         "span",
                         null,
@@ -22072,8 +22082,8 @@ Component that was made reactive: `,
                       3
                       /* TEXT, CLASS */
                     )) : createCommentVNode("v-if", true),
-                    createBaseVNode("div", _hoisted_349, [
-                      _cache[274] || (_cache[274] = createBaseVNode(
+                    createBaseVNode("div", _hoisted_350, [
+                      _cache[275] || (_cache[275] = createBaseVNode(
                         "i",
                         null,
                         "F",
@@ -22096,14 +22106,14 @@ Component that was made reactive: `,
                       )
                     ])
                   ]),
-                  createBaseVNode("div", _hoisted_350, [
-                    createBaseVNode("div", _hoisted_351, [
+                  createBaseVNode("div", _hoisted_351, [
+                    createBaseVNode("div", _hoisted_352, [
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-action taxi-action--tertiary",
-                        onClick: _cache[143] || (_cache[143] = ($event) => _ctx.hud.toggleFleet()),
+                        onClick: _cache[144] || (_cache[144] = ($event) => _ctx.hud.toggleFleet()),
                         "aria-label": _ctx.t("back")
-                      }, "\u2039", 8, _hoisted_352),
+                      }, "\u2039", 8, _hoisted_353),
                       createBaseVNode("div", null, [
                         createBaseVNode(
                           "h2",
@@ -22122,10 +22132,10 @@ Component that was made reactive: `,
                       ]),
                       createBaseVNode("span", {
                         title: _ctx.state.fleet.activeDrivers + "/" + _ctx.state.fleet.maxDrivers
-                      }, toDisplayString(_ctx.state.fleet.activeDrivers) + "/" + toDisplayString(_ctx.state.fleet.maxDrivers), 9, _hoisted_353)
+                      }, toDisplayString(_ctx.state.fleet.activeDrivers) + "/" + toDisplayString(_ctx.state.fleet.maxDrivers), 9, _hoisted_354)
                     ]),
-                    createBaseVNode("div", _hoisted_354, [
-                      createBaseVNode("div", _hoisted_355, [
+                    createBaseVNode("div", _hoisted_355, [
+                      createBaseVNode("div", _hoisted_356, [
                         createBaseVNode("span", null, [
                           createBaseVNode(
                             "small",
@@ -22136,7 +22146,7 @@ Component that was made reactive: `,
                           ),
                           createBaseVNode("strong", {
                             title: _ctx.state.fleet.stats.rides || 0
-                          }, toDisplayString(_ctx.formatAggregateNumber(_ctx.state.fleet.stats.rides)), 9, _hoisted_356)
+                          }, toDisplayString(_ctx.formatAggregateNumber(_ctx.state.fleet.stats.rides)), 9, _hoisted_357)
                         ]),
                         createBaseVNode("span", null, [
                           createBaseVNode(
@@ -22173,7 +22183,7 @@ Component that was made reactive: `,
                           )
                         ])
                       ]),
-                      createBaseVNode("div", _hoisted_357, [
+                      createBaseVNode("div", _hoisted_358, [
                         createBaseVNode("span", null, [
                           createTextVNode(
                             toDisplayString(_ctx.t("fleetOwnerShare")) + " ",
@@ -22217,7 +22227,7 @@ Component that was made reactive: `,
                           )
                         ])
                       ]),
-                      _ctx.state.fleet.drivers.length ? (openBlock(), createElementBlock("section", _hoisted_358, [
+                      _ctx.state.fleet.drivers.length ? (openBlock(), createElementBlock("section", _hoisted_359, [
                         createBaseVNode(
                           "h3",
                           null,
@@ -22233,9 +22243,9 @@ Component that was made reactive: `,
                               class: "taxi-fleet__driver",
                               key: driver.id
                             }, [
-                              createBaseVNode("div", _hoisted_359, [
+                              createBaseVNode("div", _hoisted_360, [
                                 createBaseVNode("div", null, [
-                                  _cache[276] || (_cache[276] = createBaseVNode(
+                                  _cache[277] || (_cache[277] = createBaseVNode(
                                     "span",
                                     null,
                                     "\u{1F697}",
@@ -22246,12 +22256,12 @@ Component that was made reactive: `,
                                     key: 0,
                                     src: driver.preview,
                                     alt: driver.name
-                                  }, null, 8, _hoisted_360)) : createCommentVNode("v-if", true)
+                                  }, null, 8, _hoisted_361)) : createCommentVNode("v-if", true)
                                 ]),
                                 createBaseVNode("p", null, [
                                   createBaseVNode("strong", {
                                     title: driver.name
-                                  }, toDisplayString(driver.name), 9, _hoisted_361),
+                                  }, toDisplayString(driver.name), 9, _hoisted_362),
                                   createBaseVNode(
                                     "small",
                                     null,
@@ -22260,7 +22270,7 @@ Component that was made reactive: `,
                                     /* TEXT */
                                   )
                                 ]),
-                                _cache[277] || (_cache[277] = createBaseVNode(
+                                _cache[278] || (_cache[278] = createBaseVNode(
                                   "i",
                                   null,
                                   null,
@@ -22268,7 +22278,7 @@ Component that was made reactive: `,
                                   /* CACHED */
                                 ))
                               ]),
-                              createBaseVNode("div", _hoisted_362, [
+                              createBaseVNode("div", _hoisted_363, [
                                 createBaseVNode(
                                   "span",
                                   {
@@ -22279,29 +22289,29 @@ Component that was made reactive: `,
                                   /* STYLE */
                                 )
                               ]),
-                              createBaseVNode("div", _hoisted_363, [
+                              createBaseVNode("div", _hoisted_364, [
                                 createBaseVNode("span", {
                                   title: driver.stats.rides || 0
-                                }, toDisplayString(_ctx.formatCount(driver.stats.rides)) + " " + toDisplayString(_ctx.t("rides")), 9, _hoisted_364),
+                                }, toDisplayString(_ctx.formatCount(driver.stats.rides)) + " " + toDisplayString(_ctx.t("rides")), 9, _hoisted_365),
                                 createBaseVNode("span", {
                                   title: driver.remainingMeters + " m"
-                                }, toDisplayString(_ctx.formatDistance(driver.remainingMeters)), 9, _hoisted_365),
+                                }, toDisplayString(_ctx.formatDistance(driver.remainingMeters)), 9, _hoisted_366),
                                 createBaseVNode("span", {
                                   title: _ctx.formatMoneyFull(driver.stats.ownerRevenue)
-                                }, toDisplayString(_ctx.formatMoney(driver.stats.ownerRevenue)), 9, _hoisted_366)
+                                }, toDisplayString(_ctx.formatMoney(driver.stats.ownerRevenue)), 9, _hoisted_367)
                               ]),
                               createBaseVNode("button", {
                                 type: "button",
                                 class: "taxi-fleet__dismiss taxi-action taxi-action--danger-secondary",
                                 onClick: ($event) => _ctx.hud.fleetCommand("dismiss", { id: driver.id })
-                              }, toDisplayString(_ctx.t("fleetDismiss")), 9, _hoisted_367)
+                              }, toDisplayString(_ctx.t("fleetDismiss")), 9, _hoisted_368)
                             ]);
                           }),
                           128
                           /* KEYED_FRAGMENT */
                         ))
                       ])) : createCommentVNode("v-if", true),
-                      createBaseVNode("section", _hoisted_368, [
+                      createBaseVNode("section", _hoisted_369, [
                         createBaseVNode(
                           "h3",
                           null,
@@ -22311,14 +22321,14 @@ Component that was made reactive: `,
                         ),
                         createBaseVNode(
                           "p",
-                          _hoisted_369,
+                          _hoisted_370,
                           toDisplayString(_ctx.t("fleetSpawnHelp")),
                           1
                           /* TEXT */
                         ),
                         !_ctx.state.fleet.garage.length ? (openBlock(), createElementBlock(
                           "div",
-                          _hoisted_370,
+                          _hoisted_371,
                           toDisplayString(_ctx.t("fleetNoGarageCars")),
                           1
                           /* TEXT */
@@ -22335,7 +22345,7 @@ Component that was made reactive: `,
                               onClick: ($event) => _ctx.hud.fleetCommand("hireGarage", vehicle)
                             }, [
                               createBaseVNode("div", null, [
-                                _cache[278] || (_cache[278] = createBaseVNode(
+                                _cache[279] || (_cache[279] = createBaseVNode(
                                   "span",
                                   null,
                                   "\u{1F697}",
@@ -22346,15 +22356,15 @@ Component that was made reactive: `,
                                   key: 0,
                                   src: vehicle.preview,
                                   alt: vehicle.name
-                                }, null, 8, _hoisted_372)) : createCommentVNode("v-if", true)
+                                }, null, 8, _hoisted_373)) : createCommentVNode("v-if", true)
                               ]),
                               createBaseVNode("p", null, [
                                 createBaseVNode("strong", {
                                   title: vehicle.name
-                                }, toDisplayString(vehicle.name), 9, _hoisted_373),
+                                }, toDisplayString(vehicle.name), 9, _hoisted_374),
                                 createBaseVNode("small", {
                                   title: vehicle.completedRides || 0
-                                }, toDisplayString(_ctx.formatCount(vehicle.completedRides)) + " " + toDisplayString(_ctx.t("rides")), 9, _hoisted_374)
+                                }, toDisplayString(_ctx.formatCount(vehicle.completedRides)) + " " + toDisplayString(_ctx.t("rides")), 9, _hoisted_375)
                               ]),
                               createBaseVNode(
                                 "b",
@@ -22363,13 +22373,13 @@ Component that was made reactive: `,
                                 1
                                 /* TEXT */
                               )
-                            ], 8, _hoisted_371);
+                            ], 8, _hoisted_372);
                           }),
                           128
                           /* KEYED_FRAGMENT */
                         ))
                       ]),
-                      createBaseVNode("section", _hoisted_375, [
+                      createBaseVNode("section", _hoisted_376, [
                         createBaseVNode(
                           "h3",
                           null,
@@ -22379,14 +22389,14 @@ Component that was made reactive: `,
                         ),
                         createBaseVNode(
                           "p",
-                          _hoisted_376,
+                          _hoisted_377,
                           toDisplayString(_ctx.t("fleetRecruitHelp")),
                           1
                           /* TEXT */
                         ),
                         !_ctx.state.fleet.trafficCandidates.length ? (openBlock(), createElementBlock(
                           "div",
-                          _hoisted_377,
+                          _hoisted_378,
                           toDisplayString(_ctx.t("fleetNoTrafficCars")),
                           1
                           /* TEXT */
@@ -22402,7 +22412,7 @@ Component that was made reactive: `,
                               disabled: !_ctx.state.fleet.canAffordHire || _ctx.state.fleet.activeDrivers >= _ctx.state.fleet.maxDrivers || !_ctx.state.fleet.enabled,
                               onClick: ($event) => _ctx.hud.fleetCommand("hireTraffic", { vehicleId: vehicle.vehicleId })
                             }, [
-                              _cache[279] || (_cache[279] = createBaseVNode(
+                              _cache[280] || (_cache[280] = createBaseVNode(
                                 "div",
                                 null,
                                 [
@@ -22414,7 +22424,7 @@ Component that was made reactive: `,
                               createBaseVNode("p", null, [
                                 createBaseVNode("strong", {
                                   title: vehicle.name
-                                }, toDisplayString(vehicle.name), 9, _hoisted_379),
+                                }, toDisplayString(vehicle.name), 9, _hoisted_380),
                                 createBaseVNode(
                                   "small",
                                   null,
@@ -22430,7 +22440,7 @@ Component that was made reactive: `,
                                 1
                                 /* TEXT */
                               )
-                            ], 8, _hoisted_378);
+                            ], 8, _hoisted_379);
                           }),
                           128
                           /* KEYED_FRAGMENT */
@@ -22444,13 +22454,13 @@ Component that was made reactive: `,
                   class: "taxi-earth",
                   "aria-label": _ctx.t("earthTitle")
                 }, [
-                  createBaseVNode("header", _hoisted_381, [
+                  createBaseVNode("header", _hoisted_382, [
                     createBaseVNode("button", {
                       type: "button",
                       class: "taxi-action taxi-action--secondary",
-                      onClick: _cache[144] || (_cache[144] = ($event) => _ctx.hud.closeEarth()),
+                      onClick: _cache[145] || (_cache[145] = ($event) => _ctx.hud.closeEarth()),
                       "aria-label": _ctx.t("back")
-                    }, "\u2039", 8, _hoisted_382),
+                    }, "\u2039", 8, _hoisted_383),
                     createBaseVNode("div", null, [
                       createBaseVNode(
                         "h2",
@@ -22468,7 +22478,7 @@ Component that was made reactive: `,
                       )
                     ])
                   ]),
-                  createBaseVNode("div", _hoisted_383, [
+                  createBaseVNode("div", _hoisted_384, [
                     createBaseVNode("div", {
                       class: "taxi-earth__modes",
                       "aria-label": _ctx.t("earthOrigin")
@@ -22478,26 +22488,26 @@ Component that was made reactive: `,
                         class: "taxi-action taxi-action--secondary",
                         disabled: _ctx.earthStarting,
                         "aria-pressed": _ctx.earth.mode === "vehicle",
-                        onClick: _cache[145] || (_cache[145] = ($event) => _ctx.hud.setEarthMode("vehicle"))
-                      }, toDisplayString(_ctx.t("earthVehicleMode")), 9, _hoisted_385),
+                        onClick: _cache[146] || (_cache[146] = ($event) => _ctx.hud.setEarthMode("vehicle"))
+                      }, toDisplayString(_ctx.t("earthVehicleMode")), 9, _hoisted_386),
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-action taxi-action--secondary",
                         disabled: _ctx.earthStarting,
                         "aria-pressed": _ctx.earth.mode === "points",
-                        onClick: _cache[146] || (_cache[146] = ($event) => _ctx.hud.setEarthMode("points"))
-                      }, toDisplayString(_ctx.t("earthPointsMode")), 9, _hoisted_386)
-                    ], 8, _hoisted_384),
+                        onClick: _cache[147] || (_cache[147] = ($event) => _ctx.hud.setEarthMode("points"))
+                      }, toDisplayString(_ctx.t("earthPointsMode")), 9, _hoisted_387)
+                    ], 8, _hoisted_385),
                     _ctx.earth.status !== "ready" ? (openBlock(), createElementBlock(
                       "p",
-                      _hoisted_387,
+                      _hoisted_388,
                       toDisplayString(_ctx.t("earthStatus_" + _ctx.earth.status)),
                       1
                       /* TEXT */
                     )) : createCommentVNode("v-if", true),
                     _ctx.earth.mode === "vehicle" ? (openBlock(), createElementBlock(
                       "div",
-                      _hoisted_388,
+                      _hoisted_389,
                       toDisplayString(_ctx.t("earthVehicleOrigin")),
                       1
                       /* TEXT */
@@ -22510,20 +22520,20 @@ Component that was made reactive: `,
                           Fragment,
                           { key: field },
                           [
-                            field === "b" || _ctx.earth.mode === "points" ? (openBlock(), createElementBlock("section", _hoisted_389, [
-                              createBaseVNode("div", _hoisted_390, [
+                            field === "b" || _ctx.earth.mode === "points" ? (openBlock(), createElementBlock("section", _hoisted_390, [
+                              createBaseVNode("div", _hoisted_391, [
                                 createBaseVNode("label", {
                                   for: "taxi-earth-" + field
-                                }, toDisplayString(_ctx.t(field === "a" ? "earthPointA" : "earthPointB")), 9, _hoisted_391),
+                                }, toDisplayString(_ctx.t(field === "a" ? "earthPointA" : "earthPointB")), 9, _hoisted_392),
                                 field === "a" && _ctx.earth.a.selected ? (openBlock(), createElementBlock("button", {
                                   key: 0,
                                   type: "button",
                                   class: "taxi-earth__teleport taxi-action taxi-action--secondary",
                                   disabled: _ctx.earth.mode !== "points" || !_ctx.canNavigateEarth("a"),
-                                  onClick: _cache[147] || (_cache[147] = ($event) => _ctx.hud.teleportEarthA())
-                                }, toDisplayString(_ctx.t("earthTeleportA")), 9, _hoisted_392)) : createCommentVNode("v-if", true)
+                                  onClick: _cache[148] || (_cache[148] = ($event) => _ctx.hud.teleportEarthA())
+                                }, toDisplayString(_ctx.t("earthTeleportA")), 9, _hoisted_393)) : createCommentVNode("v-if", true)
                               ]),
-                              createBaseVNode("div", _hoisted_393, [
+                              createBaseVNode("div", _hoisted_394, [
                                 createBaseVNode("input", {
                                   type: "text",
                                   id: "taxi-earth-" + field,
@@ -22540,27 +22550,27 @@ Component that was made reactive: `,
                                   spellcheck: "false",
                                   onInput: ($event) => _ctx.hud.editEarth(field, $event.target.value),
                                   onKeydown: withModifiers(($event) => _ctx.hud.earthKeydown(field, $event), ["stop"]),
-                                  onKeyup: _cache[148] || (_cache[148] = withModifiers(() => {
+                                  onKeyup: _cache[149] || (_cache[149] = withModifiers(() => {
                                   }, ["stop"])),
                                   onFocus: ($event) => _ctx.earthExpanded[field] = true
-                                }, null, 40, _hoisted_394),
+                                }, null, 40, _hoisted_395),
                                 createBaseVNode("button", {
                                   type: "button",
                                   class: "taxi-action taxi-action--secondary",
                                   disabled: _ctx.earthStarting || !_ctx.earth[field].query.trim() || _ctx.earth[field].searching || _ctx.earth.status !== "ready",
                                   onClick: ($event) => _ctx.hud.searchEarth(field)
-                                }, toDisplayString(_ctx.t("earthSearch")), 9, _hoisted_395)
+                                }, toDisplayString(_ctx.t("earthSearch")), 9, _hoisted_396)
                               ]),
                               _ctx.earth[field].searching ? (openBlock(), createElementBlock(
                                 "p",
-                                _hoisted_396,
+                                _hoisted_397,
                                 toDisplayString(_ctx.t("earthSearching")),
                                 1
                                 /* TEXT */
                               )) : createCommentVNode("v-if", true),
                               _ctx.earth[field].error ? (openBlock(), createElementBlock(
                                 "p",
-                                _hoisted_397,
+                                _hoisted_398,
                                 toDisplayString(_ctx.earth[field].error),
                                 1
                                 /* TEXT */
@@ -22584,7 +22594,7 @@ Component that was made reactive: `,
                                       key: index,
                                       id: "taxi-earth-" + field + "-result-" + index,
                                       "aria-selected": _ctx.earthActive[field] === index,
-                                      onMousedown: _cache[149] || (_cache[149] = withModifiers(() => {
+                                      onMousedown: _cache[150] || (_cache[150] = withModifiers(() => {
                                       }, ["prevent"])),
                                       onClick: ($event) => _ctx.hud.selectEarth(field, index)
                                     }, [
@@ -22602,13 +22612,13 @@ Component that was made reactive: `,
                                         1
                                         /* TEXT */
                                       )
-                                    ], 40, _hoisted_399);
+                                    ], 40, _hoisted_400);
                                   }),
                                   128
                                   /* KEYED_FRAGMENT */
                                 ))
-                              ], 8, _hoisted_398)) : createCommentVNode("v-if", true),
-                              _ctx.earth[field].selected ? (openBlock(), createElementBlock("p", _hoisted_400, [
+                              ], 8, _hoisted_399)) : createCommentVNode("v-if", true),
+                              _ctx.earth[field].selected ? (openBlock(), createElementBlock("p", _hoisted_401, [
                                 createBaseVNode(
                                   "strong",
                                   null,
@@ -22637,15 +22647,15 @@ Component that was made reactive: `,
                       type: "button",
                       class: "taxi-earth__preview taxi-action taxi-action--secondary",
                       disabled: !_ctx.canPreviewEarth(),
-                      onClick: _cache[150] || (_cache[150] = ($event) => _ctx.hud.previewEarth())
-                    }, toDisplayString(_ctx.t("earthPreview")), 9, _hoisted_401),
+                      onClick: _cache[151] || (_cache[151] = ($event) => _ctx.hud.previewEarth())
+                    }, toDisplayString(_ctx.t("earthPreview")), 9, _hoisted_402),
                     createBaseVNode("button", {
                       type: "button",
                       class: "taxi-earth__random taxi-action taxi-action--secondary",
                       disabled: !_ctx.canRandomEarth(),
-                      onClick: _cache[151] || (_cache[151] = ($event) => _ctx.hud.randomEarth())
-                    }, toDisplayString(_ctx.t("earthRandomRoute")), 9, _hoisted_402),
-                    _ctx.earth.route.status === "pending" ? (openBlock(), createElementBlock("p", _hoisted_403, [
+                      onClick: _cache[152] || (_cache[152] = ($event) => _ctx.hud.randomEarth())
+                    }, toDisplayString(_ctx.t("earthRandomRoute")), 9, _hoisted_403),
+                    _ctx.earth.route.status === "pending" ? (openBlock(), createElementBlock("p", _hoisted_404, [
                       createTextVNode(
                         toDisplayString(_ctx.t("earthRouting")) + " ",
                         1
@@ -22653,13 +22663,13 @@ Component that was made reactive: `,
                       ),
                       _ctx.earth.randomAttempt > 0 ? (openBlock(), createElementBlock(
                         "span",
-                        _hoisted_404,
+                        _hoisted_405,
                         toDisplayString(_ctx.t("earthRandomAttempt", { attempt: _ctx.earth.randomAttempt })),
                         1
                         /* TEXT */
                       )) : createCommentVNode("v-if", true)
                     ])) : createCommentVNode("v-if", true),
-                    _ctx.earth.route.status === "ready" ? (openBlock(), createElementBlock("div", _hoisted_405, [
+                    _ctx.earth.route.status === "ready" ? (openBlock(), createElementBlock("div", _hoisted_406, [
                       createBaseVNode("div", null, [
                         createBaseVNode(
                           "span",
@@ -22693,14 +22703,14 @@ Component that was made reactive: `,
                         )
                       ])
                     ])) : createCommentVNode("v-if", true),
-                    createBaseVNode("label", _hoisted_406, [
+                    createBaseVNode("label", _hoisted_407, [
                       withDirectives(createBaseVNode("input", {
                         id: "taxi-earth-without-passenger",
                         type: "checkbox",
-                        "onUpdate:modelValue": _cache[152] || (_cache[152] = ($event) => _ctx.earth.withoutPassenger = $event),
+                        "onUpdate:modelValue": _cache[153] || (_cache[153] = ($event) => _ctx.earth.withoutPassenger = $event),
                         disabled: _ctx.earthStarting,
-                        onChange: _cache[153] || (_cache[153] = ($event) => _ctx.hud.setEarthWithoutPassenger())
-                      }, null, 40, _hoisted_407), [
+                        onChange: _cache[154] || (_cache[154] = ($event) => _ctx.hud.setEarthWithoutPassenger())
+                      }, null, 40, _hoisted_408), [
                         [vModelCheckbox, _ctx.earth.withoutPassenger]
                       ]),
                       createBaseVNode(
@@ -22715,82 +22725,82 @@ Component that was made reactive: `,
                       type: "button",
                       class: "taxi-earth__start taxi-earth-button taxi-action taxi-action--secondary",
                       disabled: !_ctx.canStartEarthTrip(),
-                      onClick: _cache[154] || (_cache[154] = ($event) => _ctx.hud.earthStartTrip())
-                    }, toDisplayString(_ctx.t(_ctx.earthStarting ? "earthStartingTrip" : "earthStartTrip")), 9, _hoisted_408),
+                      onClick: _cache[155] || (_cache[155] = ($event) => _ctx.hud.earthStartTrip())
+                    }, toDisplayString(_ctx.t(_ctx.earthStarting ? "earthStartingTrip" : "earthStartTrip")), 9, _hoisted_409),
                     _ctx.earth.route.error || _ctx.earth.error ? (openBlock(), createElementBlock(
                       "p",
-                      _hoisted_409,
+                      _hoisted_410,
                       toDisplayString(_ctx.earth.route.error || _ctx.earth.error),
                       1
                       /* TEXT */
                     )) : createCommentVNode("v-if", true),
-                    createBaseVNode("div", _hoisted_410, [
+                    createBaseVNode("div", _hoisted_411, [
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-action taxi-action--secondary",
                         disabled: !_ctx.canNavigateEarth("a"),
-                        onClick: _cache[155] || (_cache[155] = ($event) => _ctx.hud.navigateEarth("a"))
-                      }, toDisplayString(_ctx.t("earthNavigateA")), 9, _hoisted_411),
+                        onClick: _cache[156] || (_cache[156] = ($event) => _ctx.hud.navigateEarth("a"))
+                      }, toDisplayString(_ctx.t("earthNavigateA")), 9, _hoisted_412),
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-action taxi-action--secondary",
                         disabled: !_ctx.canNavigateEarth("b"),
-                        onClick: _cache[156] || (_cache[156] = ($event) => _ctx.hud.navigateEarth("b"))
-                      }, toDisplayString(_ctx.t("earthNavigateB")), 9, _hoisted_412)
+                        onClick: _cache[157] || (_cache[157] = ($event) => _ctx.hud.navigateEarth("b"))
+                      }, toDisplayString(_ctx.t("earthNavigateB")), 9, _hoisted_413)
                     ]),
                     createBaseVNode(
                       "p",
-                      _hoisted_413,
+                      _hoisted_414,
                       toDisplayString(_ctx.t("earthNavigationHelp")),
                       1
                       /* TEXT */
                     ),
                     _ctx.earth.gps ? (openBlock(), createElementBlock(
                       "p",
-                      _hoisted_414,
+                      _hoisted_415,
                       toDisplayString(_ctx.earth.gps.planning ? _ctx.t("earthRouting") : _ctx.formatDistance(_ctx.earth.gps.remaining) + " \xB7 " + _ctx.formatEta(_ctx.earth.gps.eta / 60)),
                       1
                       /* TEXT */
                     )) : createCommentVNode("v-if", true)
                   ])
-                ], 8, _hoisted_380)) : createCommentVNode("v-if", true),
-                _ctx.hasPersonalRoute() && !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen ? (openBlock(), createElementBlock("div", _hoisted_415, [
-                  createBaseVNode("div", _hoisted_416, [
-                    _cache[280] || (_cache[280] = createBaseVNode(
+                ], 8, _hoisted_381)) : createCommentVNode("v-if", true),
+                _ctx.hasPersonalRoute() && !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen ? (openBlock(), createElementBlock("div", _hoisted_416, [
+                  createBaseVNode("div", _hoisted_417, [
+                    _cache[281] || (_cache[281] = createBaseVNode(
                       "div",
                       { class: "taxi-minimap-surface" },
                       null,
                       -1
                       /* CACHED */
                     )),
-                    _ctx.externalPhoneMode ? (openBlock(), createElementBlock("canvas", _hoisted_417)) : createCommentVNode("v-if", true),
+                    _ctx.externalPhoneMode ? (openBlock(), createElementBlock("canvas", _hoisted_418)) : createCommentVNode("v-if", true),
                     createBaseVNode("div", {
                       class: normalizeClass(["taxi-map-interaction", { "taxi-map-interaction--panned": !_ctx.mapFollowing }]),
                       "aria-label": _ctx.t("mapDrag")
-                    }, null, 10, _hoisted_418),
-                    createBaseVNode("div", _hoisted_419, [
+                    }, null, 10, _hoisted_419),
+                    createBaseVNode("div", _hoisted_420, [
                       createBaseVNode("div", {
                         class: "taxi-map-controls",
                         "aria-label": _ctx.t("mapControls")
                       }, [
                         createBaseVNode("button", {
                           type: "button",
-                          onClick: _cache[157] || (_cache[157] = ($event) => _ctx.hud.zoomMap(0.8)),
+                          onClick: _cache[158] || (_cache[158] = ($event) => _ctx.hud.zoomMap(0.8)),
                           "aria-label": _ctx.t("mapZoomIn")
-                        }, "+", 8, _hoisted_421),
+                        }, "+", 8, _hoisted_422),
                         createBaseVNode("button", {
                           type: "button",
-                          onClick: _cache[158] || (_cache[158] = ($event) => _ctx.hud.zoomMap(1.25)),
+                          onClick: _cache[159] || (_cache[159] = ($event) => _ctx.hud.zoomMap(1.25)),
                           "aria-label": _ctx.t("mapZoomOut")
-                        }, "\u2212", 8, _hoisted_422),
+                        }, "\u2212", 8, _hoisted_423),
                         createBaseVNode("button", {
                           type: "button",
-                          onClick: _cache[159] || (_cache[159] = ($event) => _ctx.hud.followMap()),
+                          onClick: _cache[160] || (_cache[160] = ($event) => _ctx.hud.followMap()),
                           "aria-label": _ctx.t("mapFollow")
-                        }, "\u25CE", 8, _hoisted_423)
-                      ], 8, _hoisted_420)
+                        }, "\u25CE", 8, _hoisted_424)
+                      ], 8, _hoisted_421)
                     ]),
-                    createBaseVNode("div", _hoisted_424, [
+                    createBaseVNode("div", _hoisted_425, [
                       createBaseVNode(
                         "span",
                         null,
@@ -22814,7 +22824,7 @@ Component that was made reactive: `,
                       )
                     ])
                   ]),
-                  createBaseVNode("div", _hoisted_425, [
+                  createBaseVNode("div", _hoisted_426, [
                     createBaseVNode(
                       "span",
                       null,
@@ -22841,7 +22851,7 @@ Component that was made reactive: `,
                       {
                         type: "button",
                         class: "taxi-action taxi-action--secondary",
-                        onClick: _cache[160] || (_cache[160] = ($event) => _ctx.hud.openEarth())
+                        onClick: _cache[161] || (_cache[161] = ($event) => _ctx.hud.openEarth())
                       },
                       toDisplayString(_ctx.t("earthTitle")),
                       1
@@ -22852,7 +22862,7 @@ Component that was made reactive: `,
                       {
                         type: "button",
                         class: "taxi-action taxi-action--danger-secondary",
-                        onClick: _cache[161] || (_cache[161] = ($event) => _ctx.hud.stopEarthFreeRoute())
+                        onClick: _cache[162] || (_cache[162] = ($event) => _ctx.hud.stopEarthFreeRoute())
                       },
                       toDisplayString(_ctx.t("earthStopRoute")),
                       1
@@ -22867,19 +22877,19 @@ Component that was made reactive: `,
                     class: normalizeClass(["taxi-home", { "taxi-home--presets": !_ctx.shiftHistoryOpen }])
                   },
                   [
-                    _cache[292] || (_cache[292] = createBaseVNode(
+                    _cache[293] || (_cache[293] = createBaseVNode(
                       "div",
                       { class: "taxi-home__shade" },
                       null,
                       -1
                       /* CACHED */
                     )),
-                    !_ctx.shiftHistoryOpen ? (openBlock(), createElementBlock("div", _hoisted_426, [
+                    !_ctx.shiftHistoryOpen ? (openBlock(), createElementBlock("div", _hoisted_427, [
                       createBaseVNode("section", {
                         class: "taxi-home__presets",
                         "aria-label": _ctx.t("homeDifficultyTitle")
                       }, [
-                        createBaseVNode("div", _hoisted_428, [
+                        createBaseVNode("div", _hoisted_429, [
                           createBaseVNode(
                             "h3",
                             null,
@@ -22889,13 +22899,13 @@ Component that was made reactive: `,
                           ),
                           !_ctx.hasHomeDifficultyPreset() ? (openBlock(), createElementBlock(
                             "span",
-                            _hoisted_429,
+                            _hoisted_430,
                             toDisplayString(_ctx.t("difficulty_custom")),
                             1
                             /* TEXT */
                           )) : createCommentVNode("v-if", true)
                         ]),
-                        createBaseVNode("div", _hoisted_430, [
+                        createBaseVNode("div", _hoisted_431, [
                           (openBlock(true), createElementBlock(
                             Fragment,
                             null,
@@ -22921,15 +22931,15 @@ Component that was made reactive: `,
                                   1
                                   /* TEXT */
                                 ),
-                                _ctx.isHomeDifficultySelected(preset) ? (openBlock(), createElementBlock("i", _hoisted_432, "\u2713")) : createCommentVNode("v-if", true)
-                              ], 10, _hoisted_431);
+                                _ctx.isHomeDifficultySelected(preset) ? (openBlock(), createElementBlock("i", _hoisted_433, "\u2713")) : createCommentVNode("v-if", true)
+                              ], 10, _hoisted_432);
                             }),
                             128
                             /* KEYED_FRAGMENT */
                           ))
                         ])
-                      ], 8, _hoisted_427),
-                      _cache[289] || (_cache[289] = createBaseVNode(
+                      ], 8, _hoisted_428),
+                      _cache[290] || (_cache[290] = createBaseVNode(
                         "div",
                         { class: "taxi-home__pin" },
                         [
@@ -22956,12 +22966,12 @@ Component that was made reactive: `,
                         key: 0,
                         type: "button",
                         class: "taxi-home__vehicle",
-                        onClick: _cache[163] || (_cache[163] = ($event) => _ctx.hud.openVehicleSelector()),
+                        onClick: _cache[164] || (_cache[164] = ($event) => _ctx.hud.openVehicleSelector()),
                         title: _ctx.t("selectVehicle"),
                         "aria-label": _ctx.t("selectVehicle")
                       }, [
-                        createBaseVNode("div", _hoisted_434, [
-                          _cache[281] || (_cache[281] = createBaseVNode(
+                        createBaseVNode("div", _hoisted_435, [
+                          _cache[282] || (_cache[282] = createBaseVNode(
                             "span",
                             { class: "taxi-home__vehicle-fallback" },
                             "\u{1F697}",
@@ -22972,13 +22982,13 @@ Component that was made reactive: `,
                             key: 0,
                             src: _ctx.state.currentVehicle.preview,
                             alt: _ctx.state.currentVehicle.name,
-                            onError: _cache[162] || (_cache[162] = ($event) => $event.target.style.display = "none")
-                          }, null, 40, _hoisted_435)) : createCommentVNode("v-if", true)
+                            onError: _cache[163] || (_cache[163] = ($event) => $event.target.style.display = "none")
+                          }, null, 40, _hoisted_436)) : createCommentVNode("v-if", true)
                         ]),
-                        createBaseVNode("div", _hoisted_436, [
+                        createBaseVNode("div", _hoisted_437, [
                           createBaseVNode("strong", {
                             title: _ctx.state.currentVehicle.name
-                          }, toDisplayString(_ctx.state.currentVehicle.name), 9, _hoisted_437),
+                          }, toDisplayString(_ctx.state.currentVehicle.name), 9, _hoisted_438),
                           createBaseVNode(
                             "span",
                             null,
@@ -22988,19 +22998,19 @@ Component that was made reactive: `,
                           ),
                           _ctx.state.vehicleEnergy.available ? (openBlock(), createElementBlock(
                             "span",
-                            _hoisted_438,
+                            _hoisted_439,
                             toDisplayString(_ctx.formatDashboardEnergy()) + " \xB7 \u2248 " + toDisplayString(_ctx.formatEnergyRange(_ctx.state.vehicleEnergy.estimatedRangeKm)),
                             1
                             /* TEXT */
                           )) : createCommentVNode("v-if", true)
                         ])
-                      ], 8, _hoisted_433)) : createCommentVNode("v-if", true),
-                      createBaseVNode("div", _hoisted_439, [
+                      ], 8, _hoisted_434)) : createCommentVNode("v-if", true),
+                      createBaseVNode("div", _hoisted_440, [
                         createBaseVNode("label", {
                           class: normalizeClass(["taxi-home__realistic taxi-home__realistic--fuel", { "taxi-home__realistic--active": _ctx.settings.realisticMode }]),
                           title: _ctx.t("realisticMode")
                         }, [
-                          _cache[282] || (_cache[282] = createBaseVNode(
+                          _cache[283] || (_cache[283] = createBaseVNode(
                             "span",
                             { class: "taxi-home__realistic-icon" },
                             "\u26FD",
@@ -23016,25 +23026,25 @@ Component that was made reactive: `,
                           ),
                           withDirectives(createBaseVNode("input", {
                             type: "checkbox",
-                            "onUpdate:modelValue": _cache[164] || (_cache[164] = ($event) => _ctx.settings.realisticMode = $event),
-                            onChange: _cache[165] || (_cache[165] = ($event) => _ctx.hud.toggleRealisticMode()),
+                            "onUpdate:modelValue": _cache[165] || (_cache[165] = ($event) => _ctx.settings.realisticMode = $event),
+                            onChange: _cache[166] || (_cache[166] = ($event) => _ctx.hud.toggleRealisticMode()),
                             "aria-label": _ctx.t("realisticMode")
-                          }, null, 40, _hoisted_441), [
+                          }, null, 40, _hoisted_442), [
                             [vModelCheckbox, _ctx.settings.realisticMode]
                           ]),
-                          _cache[283] || (_cache[283] = createBaseVNode(
+                          _cache[284] || (_cache[284] = createBaseVNode(
                             "span",
                             { class: "taxi-home__realistic-switch" },
                             null,
                             -1
                             /* CACHED */
                           ))
-                        ], 10, _hoisted_440),
+                        ], 10, _hoisted_441),
                         createBaseVNode("label", {
                           class: normalizeClass(["taxi-home__realistic taxi-home__realistic--events", { "taxi-home__realistic--active": _ctx.settings.randomEventsEnabled }]),
                           title: _ctx.t("randomEvents")
                         }, [
-                          _cache[284] || (_cache[284] = createBaseVNode(
+                          _cache[285] || (_cache[285] = createBaseVNode(
                             "span",
                             { class: "taxi-home__realistic-icon" },
                             "\u26A1",
@@ -23050,22 +23060,22 @@ Component that was made reactive: `,
                           ),
                           withDirectives(createBaseVNode("input", {
                             type: "checkbox",
-                            "onUpdate:modelValue": _cache[166] || (_cache[166] = ($event) => _ctx.settings.randomEventsEnabled = $event),
-                            onChange: _cache[167] || (_cache[167] = ($event) => _ctx.hud.toggleRandomEvents()),
+                            "onUpdate:modelValue": _cache[167] || (_cache[167] = ($event) => _ctx.settings.randomEventsEnabled = $event),
+                            onChange: _cache[168] || (_cache[168] = ($event) => _ctx.hud.toggleRandomEvents()),
                             "aria-label": _ctx.t("randomEvents")
-                          }, null, 40, _hoisted_443), [
+                          }, null, 40, _hoisted_444), [
                             [vModelCheckbox, _ctx.settings.randomEventsEnabled]
                           ]),
-                          _cache[285] || (_cache[285] = createBaseVNode(
+                          _cache[286] || (_cache[286] = createBaseVNode(
                             "span",
                             { class: "taxi-home__realistic-switch" },
                             null,
                             -1
                             /* CACHED */
                           ))
-                        ], 10, _hoisted_442)
+                        ], 10, _hoisted_443)
                       ]),
-                      _ctx.state.shift.last.rides > 0 ? (openBlock(), createElementBlock("div", _hoisted_444, [
+                      _ctx.state.shift.last.rides > 0 ? (openBlock(), createElementBlock("div", _hoisted_445, [
                         createBaseVNode(
                           "strong",
                           null,
@@ -23081,7 +23091,7 @@ Component that was made reactive: `,
                           ),
                           createBaseVNode("b", {
                             title: _ctx.state.shift.last.rides
-                          }, toDisplayString(_ctx.formatCount(_ctx.state.shift.last.rides)), 9, _hoisted_445)
+                          }, toDisplayString(_ctx.formatCount(_ctx.state.shift.last.rides)), 9, _hoisted_446)
                         ]),
                         createBaseVNode("span", null, [
                           createTextVNode(
@@ -23091,7 +23101,7 @@ Component that was made reactive: `,
                           ),
                           createBaseVNode("b", {
                             title: _ctx.formatMoneyFull(_ctx.state.shift.last.netIncome)
-                          }, toDisplayString(_ctx.formatMoney(_ctx.state.shift.last.netIncome)), 9, _hoisted_446)
+                          }, toDisplayString(_ctx.formatMoney(_ctx.state.shift.last.netIncome)), 9, _hoisted_447)
                         ]),
                         createBaseVNode("span", null, [
                           createTextVNode(
@@ -23108,13 +23118,13 @@ Component that was made reactive: `,
                           )
                         ])
                       ])) : createCommentVNode("v-if", true),
-                      createBaseVNode("div", _hoisted_447, [
+                      createBaseVNode("div", _hoisted_448, [
                         createBaseVNode(
                           "button",
                           {
                             type: "button",
                             class: normalizeClass(["taxi-start taxi-action taxi-action--primary", { "taxi-start--intro": _ctx.newShiftSheenActive }]),
-                            onClick: _cache[168] || (_cache[168] = ($event) => _ctx.hud.startMode())
+                            onClick: _cache[169] || (_cache[169] = ($event) => _ctx.hud.startMode())
                           },
                           toDisplayString(_ctx.t("newShift")),
                           3
@@ -23126,7 +23136,7 @@ Component that was made reactive: `,
                             key: 0,
                             type: "button",
                             class: "taxi-earth-button taxi-action taxi-action--secondary",
-                            onClick: _cache[169] || (_cache[169] = ($event) => _ctx.hud.openEarth())
+                            onClick: _cache[170] || (_cache[170] = ($event) => _ctx.hud.openEarth())
                           },
                           toDisplayString(_ctx.t("earthTitle")),
                           1
@@ -23135,56 +23145,39 @@ Component that was made reactive: `,
                         createBaseVNode("button", {
                           type: "button",
                           class: "taxi-fleet-button taxi-action taxi-action--secondary",
-                          onClick: _cache[170] || (_cache[170] = ($event) => _ctx.hud.toggleFleet())
+                          onClick: _cache[171] || (_cache[171] = ($event) => _ctx.hud.toggleFleet())
                         }, [
                           createBaseVNode("span", {
                             class: "taxi-action-label",
                             title: _ctx.t("fleetTitle")
-                          }, toDisplayString(_ctx.t("fleetTitle")), 9, _hoisted_448),
+                          }, toDisplayString(_ctx.t("fleetTitle")), 9, _hoisted_449),
                           _ctx.state.fleet.activeDrivers ? (openBlock(), createElementBlock("span", {
                             key: 0,
                             class: "taxi-count-badge",
                             title: _ctx.state.fleet.activeDrivers
-                          }, toDisplayString(_ctx.formatCount(_ctx.state.fleet.activeDrivers)), 9, _hoisted_449)) : createCommentVNode("v-if", true)
+                          }, toDisplayString(_ctx.formatCount(_ctx.state.fleet.activeDrivers)), 9, _hoisted_450)) : createCommentVNode("v-if", true)
                         ]),
                         createBaseVNode("button", {
                           type: "button",
                           class: "taxi-shift-history-button taxi-action taxi-action--secondary",
-                          onClick: _cache[171] || (_cache[171] = ($event) => _ctx.hud.toggleShiftHistory()),
+                          onClick: _cache[172] || (_cache[172] = ($event) => _ctx.hud.toggleShiftHistory()),
                           disabled: !_ctx.state.shiftHistory.items.length || _ctx.state.shiftHistory.restoring
                         }, [
                           createBaseVNode("span", {
                             class: "taxi-action-label",
                             title: _ctx.t("previousShift")
-                          }, toDisplayString(_ctx.t("previousShift")), 9, _hoisted_451),
+                          }, toDisplayString(_ctx.t("previousShift")), 9, _hoisted_452),
                           _ctx.state.shiftHistory.items.length ? (openBlock(), createElementBlock("span", {
                             key: 0,
                             class: "taxi-count-badge",
                             title: _ctx.state.shiftHistory.items.length
-                          }, toDisplayString(_ctx.formatCount(_ctx.state.shiftHistory.items.length)), 9, _hoisted_452)) : createCommentVNode("v-if", true)
-                        ], 8, _hoisted_450)
+                          }, toDisplayString(_ctx.formatCount(_ctx.state.shiftHistory.items.length)), 9, _hoisted_453)) : createCommentVNode("v-if", true)
+                        ], 8, _hoisted_451)
                       ]),
-                      createBaseVNode("div", _hoisted_453, [
+                      createBaseVNode("div", _hoisted_454, [
                         createBaseVNode("span", null, [
                           createTextVNode(
                             toDisplayString(_ctx.t("balance")),
-                            1
-                            /* TEXT */
-                          ),
-                          _cache[286] || (_cache[286] = createBaseVNode(
-                            "br",
-                            null,
-                            null,
-                            -1
-                            /* CACHED */
-                          )),
-                          createBaseVNode("b", {
-                            title: _ctx.formatMoneyFull(_ctx.state.balance)
-                          }, toDisplayString(_ctx.formatMoney(_ctx.state.balance)), 9, _hoisted_454)
-                        ]),
-                        createBaseVNode("span", null, [
-                          createTextVNode(
-                            toDisplayString(_ctx.t("rides")),
                             1
                             /* TEXT */
                           ),
@@ -23196,8 +23189,25 @@ Component that was made reactive: `,
                             /* CACHED */
                           )),
                           createBaseVNode("b", {
+                            title: _ctx.formatMoneyFull(_ctx.state.balance)
+                          }, toDisplayString(_ctx.formatMoney(_ctx.state.balance)), 9, _hoisted_455)
+                        ]),
+                        createBaseVNode("span", null, [
+                          createTextVNode(
+                            toDisplayString(_ctx.t("rides")),
+                            1
+                            /* TEXT */
+                          ),
+                          _cache[288] || (_cache[288] = createBaseVNode(
+                            "br",
+                            null,
+                            null,
+                            -1
+                            /* CACHED */
+                          )),
+                          createBaseVNode("b", {
                             title: _ctx.state.completedRides
-                          }, toDisplayString(_ctx.formatCount(_ctx.state.completedRides)), 9, _hoisted_455)
+                          }, toDisplayString(_ctx.formatCount(_ctx.state.completedRides)), 9, _hoisted_456)
                         ]),
                         createBaseVNode("span", null, [
                           createTextVNode(
@@ -23205,7 +23215,7 @@ Component that was made reactive: `,
                             1
                             /* TEXT */
                           ),
-                          _cache[288] || (_cache[288] = createBaseVNode(
+                          _cache[289] || (_cache[289] = createBaseVNode(
                             "br",
                             null,
                             null,
@@ -23222,15 +23232,15 @@ Component that was made reactive: `,
                         ])
                       ])
                     ])) : createCommentVNode("v-if", true),
-                    _ctx.shiftHistoryOpen ? (openBlock(), createElementBlock("div", _hoisted_456, [
-                      createBaseVNode("div", _hoisted_457, [
+                    _ctx.shiftHistoryOpen ? (openBlock(), createElementBlock("div", _hoisted_457, [
+                      createBaseVNode("div", _hoisted_458, [
                         createBaseVNode("button", {
                           type: "button",
                           class: "taxi-action taxi-action--tertiary",
-                          onClick: _cache[172] || (_cache[172] = ($event) => _ctx.hud.toggleShiftHistory()),
+                          onClick: _cache[173] || (_cache[173] = ($event) => _ctx.hud.toggleShiftHistory()),
                           disabled: _ctx.state.shiftHistory.restoring,
                           "aria-label": _ctx.t("back")
-                        }, "\u2039", 8, _hoisted_458),
+                        }, "\u2039", 8, _hoisted_459),
                         createBaseVNode("div", null, [
                           createBaseVNode(
                             "h2",
@@ -23248,7 +23258,7 @@ Component that was made reactive: `,
                           )
                         ])
                       ]),
-                      createBaseVNode("div", _hoisted_459, [
+                      createBaseVNode("div", _hoisted_460, [
                         (openBlock(true), createElementBlock(
                           Fragment,
                           null,
@@ -23260,8 +23270,8 @@ Component that was made reactive: `,
                               onClick: ($event) => _ctx.hud.resumeShift(shift.id),
                               disabled: _ctx.state.shiftHistory.restoring
                             }, [
-                              createBaseVNode("div", _hoisted_461, [
-                                _cache[290] || (_cache[290] = createBaseVNode(
+                              createBaseVNode("div", _hoisted_462, [
+                                _cache[291] || (_cache[291] = createBaseVNode(
                                   "span",
                                   null,
                                   "\u{1F697}",
@@ -23272,13 +23282,13 @@ Component that was made reactive: `,
                                   key: 0,
                                   src: shift.preview,
                                   alt: shift.vehicleName,
-                                  onError: _cache[173] || (_cache[173] = ($event) => $event.target.style.display = "none")
-                                }, null, 40, _hoisted_462)) : createCommentVNode("v-if", true)
+                                  onError: _cache[174] || (_cache[174] = ($event) => $event.target.style.display = "none")
+                                }, null, 40, _hoisted_463)) : createCommentVNode("v-if", true)
                               ]),
-                              createBaseVNode("div", _hoisted_463, [
+                              createBaseVNode("div", _hoisted_464, [
                                 createBaseVNode("strong", {
                                   title: shift.vehicleName
-                                }, toDisplayString(shift.vehicleName), 9, _hoisted_464),
+                                }, toDisplayString(shift.vehicleName), 9, _hoisted_465),
                                 createBaseVNode(
                                   "small",
                                   null,
@@ -23296,15 +23306,15 @@ Component that was made reactive: `,
                                   ),
                                   createBaseVNode("span", {
                                     title: shift.rides || 0
-                                  }, toDisplayString(_ctx.t("rides")) + " " + toDisplayString(_ctx.formatCount(shift.rides)), 9, _hoisted_465),
+                                  }, toDisplayString(_ctx.t("rides")) + " " + toDisplayString(_ctx.formatCount(shift.rides)), 9, _hoisted_466),
                                   createBaseVNode("span", {
                                     title: _ctx.formatMoneyFull(shift.netIncome)
-                                  }, toDisplayString(_ctx.formatMoney(shift.netIncome)), 9, _hoisted_466)
+                                  }, toDisplayString(_ctx.formatMoney(shift.netIncome)), 9, _hoisted_467)
                                 ])
                               ]),
-                              _ctx.state.shiftHistory.restoringId !== shift.id ? (openBlock(), createElementBlock("i", _hoisted_467, "\u203A")) : createCommentVNode("v-if", true),
-                              _ctx.state.shiftHistory.restoringId === shift.id ? (openBlock(), createElementBlock("div", _hoisted_468, [
-                                _cache[291] || (_cache[291] = createBaseVNode(
+                              _ctx.state.shiftHistory.restoringId !== shift.id ? (openBlock(), createElementBlock("i", _hoisted_468, "\u203A")) : createCommentVNode("v-if", true),
+                              _ctx.state.shiftHistory.restoringId === shift.id ? (openBlock(), createElementBlock("div", _hoisted_469, [
+                                _cache[292] || (_cache[292] = createBaseVNode(
                                   "span",
                                   null,
                                   null,
@@ -23317,7 +23327,7 @@ Component that was made reactive: `,
                                   /* TEXT */
                                 )
                               ])) : createCommentVNode("v-if", true)
-                            ], 8, _hoisted_460);
+                            ], 8, _hoisted_461);
                           }),
                           128
                           /* KEYED_FRAGMENT */
@@ -23328,7 +23338,7 @@ Component that was made reactive: `,
                             key: 0,
                             type: "button",
                             class: "taxi-shift-history__more",
-                            onClick: _cache[174] || (_cache[174] = ($event) => _ctx.hud.loadMoreShifts())
+                            onClick: _cache[175] || (_cache[175] = ($event) => _ctx.hud.loadMoreShifts())
                           },
                           toDisplayString(_ctx.t("showMoreShifts", { shown: _ctx.shiftHistoryVisibleCount, total: _ctx.state.shiftHistory.items.length })),
                           1
@@ -23340,10 +23350,10 @@ Component that was made reactive: `,
                   2
                   /* CLASS */
                 )) : createCommentVNode("v-if", true),
-                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === "searching" ? (openBlock(), createElementBlock("div", _hoisted_469, [
-                  createBaseVNode("div", _hoisted_470, [
-                    createBaseVNode("div", _hoisted_471, [
-                      _ctx.state.offers.length < _ctx.state.offerTargetCount ? (openBlock(), createElementBlock("div", _hoisted_472)) : createCommentVNode("v-if", true),
+                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === "searching" ? (openBlock(), createElementBlock("div", _hoisted_470, [
+                  createBaseVNode("div", _hoisted_471, [
+                    createBaseVNode("div", _hoisted_472, [
+                      _ctx.state.offers.length < _ctx.state.offerTargetCount ? (openBlock(), createElementBlock("div", _hoisted_473)) : createCommentVNode("v-if", true),
                       createBaseVNode("div", null, [
                         createBaseVNode(
                           "strong",
@@ -23361,7 +23371,7 @@ Component that was made reactive: `,
                         )
                       ])
                     ]),
-                    createBaseVNode("div", _hoisted_473, [
+                    createBaseVNode("div", _hoisted_474, [
                       createBaseVNode(
                         "span",
                         null,
@@ -23378,7 +23388,7 @@ Component that was made reactive: `,
                           createBaseVNode("button", {
                             type: "button",
                             class: "taxi-sort-menu__trigger",
-                            onClick: _cache[175] || (_cache[175] = ($event) => _ctx.hud.toggleOfferSortMenu()),
+                            onClick: _cache[176] || (_cache[176] = ($event) => _ctx.hud.toggleOfferSortMenu()),
                             "aria-haspopup": "true",
                             "aria-expanded": _ctx.offerSortMenuOpen
                           }, [
@@ -23389,15 +23399,15 @@ Component that was made reactive: `,
                               1
                               /* TEXT */
                             ),
-                            _cache[293] || (_cache[293] = createBaseVNode(
+                            _cache[294] || (_cache[294] = createBaseVNode(
                               "i",
                               null,
                               "\u2304",
                               -1
                               /* CACHED */
                             ))
-                          ], 8, _hoisted_474),
-                          _ctx.offerSortMenuOpen ? (openBlock(), createElementBlock("div", _hoisted_475, [
+                          ], 8, _hoisted_475),
+                          _ctx.offerSortMenuOpen ? (openBlock(), createElementBlock("div", _hoisted_476, [
                             (openBlock(true), createElementBlock(
                               Fragment,
                               null,
@@ -23407,7 +23417,7 @@ Component that was made reactive: `,
                                   key: option.value,
                                   class: normalizeClass({ "taxi-sort-menu__option--active": _ctx.offerSort === option.value }),
                                   onClick: ($event) => _ctx.hud.selectOfferSort(option.value)
-                                }, toDisplayString(_ctx.t(option.label)), 11, _hoisted_476);
+                                }, toDisplayString(_ctx.t(option.label)), 11, _hoisted_477);
                               }),
                               128
                               /* KEYED_FRAGMENT */
@@ -23418,10 +23428,10 @@ Component that was made reactive: `,
                         /* CLASS */
                       )
                     ]),
-                    createBaseVNode("div", _hoisted_477, [
+                    createBaseVNode("div", _hoisted_478, [
                       !_ctx.state.offers.length ? (openBlock(), createElementBlock(
                         "div",
-                        _hoisted_478,
+                        _hoisted_479,
                         toDisplayString(_ctx.t("emptyOffers")),
                         1
                         /* TEXT */
@@ -23437,28 +23447,28 @@ Component that was made reactive: `,
                               key: offer.id
                             },
                             [
-                              createBaseVNode("div", _hoisted_479, [
+                              createBaseVNode("div", _hoisted_480, [
                                 createBaseVNode(
                                   "div",
-                                  _hoisted_480,
+                                  _hoisted_481,
                                   toDisplayString(offer.isDelivery ? "\u{1F4E6}" : _ctx.getInitials(offer.passengerName)),
                                   1
                                   /* TEXT */
                                 ),
-                                createBaseVNode("div", _hoisted_481, [
+                                createBaseVNode("div", _hoisted_482, [
                                   createBaseVNode("strong", {
                                     title: _ctx.getOfferName(offer)
-                                  }, toDisplayString(_ctx.getOfferName(offer)), 9, _hoisted_482),
+                                  }, toDisplayString(_ctx.getOfferName(offer)), 9, _hoisted_483),
                                   !offer.isDelivery ? (openBlock(), createElementBlock(
                                     "span",
-                                    _hoisted_483,
+                                    _hoisted_484,
                                     toDisplayString(_ctx.t("toPassenger")) + " " + toDisplayString(_ctx.formatEta(offer.pickupEtaMinutes)) + " \xB7 " + toDisplayString(_ctx.t("pickupWindow", { time: _ctx.formatCountdown(offer.pickupWaitSeconds) })),
                                     1
                                     /* TEXT */
                                   )) : createCommentVNode("v-if", true),
                                   offer.isDelivery ? (openBlock(), createElementBlock(
                                     "span",
-                                    _hoisted_484,
+                                    _hoisted_485,
                                     toDisplayString(_ctx.t("toCargo")) + " " + toDisplayString(_ctx.formatEta(offer.pickupEtaMinutes)) + " \xB7 " + toDisplayString(_ctx.t("longDistance")),
                                     1
                                     /* TEXT */
@@ -23478,14 +23488,14 @@ Component that was made reactive: `,
                                   ),
                                   createBaseVNode(
                                     "small",
-                                    _hoisted_486,
+                                    _hoisted_487,
                                     toDisplayString(_ctx.formatNumber(offer.passengerCalmness, 0)) + "%",
                                     1
                                     /* TEXT */
                                   )
-                                ], 8, _hoisted_485)) : createCommentVNode("v-if", true),
-                                offer.isDelivery ? (openBlock(), createElementBlock("div", _hoisted_487, [
-                                  _cache[294] || (_cache[294] = createBaseVNode(
+                                ], 8, _hoisted_486)) : createCommentVNode("v-if", true),
+                                offer.isDelivery ? (openBlock(), createElementBlock("div", _hoisted_488, [
+                                  _cache[295] || (_cache[295] = createBaseVNode(
                                     "span",
                                     null,
                                     "\u{1F4E6}",
@@ -23502,14 +23512,14 @@ Component that was made reactive: `,
                                 ])) : createCommentVNode("v-if", true),
                                 offer.isRush ? (openBlock(), createElementBlock(
                                   "div",
-                                  _hoisted_488,
+                                  _hoisted_489,
                                   "+" + toDisplayString(offer.bonusPercent) + "%",
                                   1
                                   /* TEXT */
                                 )) : createCommentVNode("v-if", true),
                                 offer.isMultiStop ? (openBlock(), createElementBlock(
                                   "div",
-                                  _hoisted_489,
+                                  _hoisted_490,
                                   toDisplayString(_ctx.t("multiStopBadge", { count: offer.stopCount })),
                                   1
                                   /* TEXT */
@@ -23519,8 +23529,8 @@ Component that was made reactive: `,
                                 key: 0,
                                 class: "taxi-order-card__earth-route",
                                 title: _ctx.earthOfferRoute(offer)
-                              }, toDisplayString(_ctx.earthOfferRoute(offer)), 9, _hoisted_490)) : createCommentVNode("v-if", true),
-                              createBaseVNode("div", _hoisted_491, [
+                              }, toDisplayString(_ctx.earthOfferRoute(offer)), 9, _hoisted_491)) : createCommentVNode("v-if", true),
+                              createBaseVNode("div", _hoisted_492, [
                                 createBaseVNode(
                                   "span",
                                   null,
@@ -23536,8 +23546,8 @@ Component that was made reactive: `,
                                   /* TEXT */
                                 )
                               ]),
-                              createBaseVNode("div", _hoisted_492, [
-                                createBaseVNode("div", _hoisted_493, [
+                              createBaseVNode("div", _hoisted_493, [
+                                createBaseVNode("div", _hoisted_494, [
                                   createBaseVNode(
                                     "span",
                                     null,
@@ -23553,7 +23563,7 @@ Component that was made reactive: `,
                                     /* TEXT */
                                   )
                                 ]),
-                                createBaseVNode("div", _hoisted_494, [
+                                createBaseVNode("div", _hoisted_495, [
                                   createBaseVNode(
                                     "span",
                                     null,
@@ -23569,7 +23579,7 @@ Component that was made reactive: `,
                                     /* TEXT */
                                   )
                                 ]),
-                                createBaseVNode("div", _hoisted_495, [
+                                createBaseVNode("div", _hoisted_496, [
                                   createBaseVNode(
                                     "span",
                                     null,
@@ -23579,24 +23589,24 @@ Component that was made reactive: `,
                                   ),
                                   createBaseVNode("b", {
                                     title: _ctx.formatMoneyFull(offer.estimatedFare)
-                                  }, toDisplayString(_ctx.formatMoneyFull(offer.estimatedFare)), 9, _hoisted_496)
+                                  }, toDisplayString(_ctx.formatMoneyFull(offer.estimatedFare)), 9, _hoisted_497)
                                 ])
                               ]),
                               offer.isRush ? (openBlock(), createElementBlock(
                                 "div",
-                                _hoisted_497,
+                                _hoisted_498,
                                 toDisplayString(_ctx.t("rushDeliver", { time: _ctx.formatCountdown(offer.timeLimitMinutes * 60) })) + " \xB7 " + toDisplayString(_ctx.t("bonus")) + " " + toDisplayString(_ctx.formatMoney(offer.bonusAmount)),
                                 1
                                 /* TEXT */
                               )) : createCommentVNode("v-if", true),
                               offer.isMultiStop ? (openBlock(), createElementBlock(
                                 "div",
-                                _hoisted_498,
+                                _hoisted_499,
                                 toDisplayString(_ctx.t("multiStopRide")) + " \xB7 " + toDisplayString(_ctx.t("multiStopSummary", { count: offer.stopCount, time: _ctx.formatCountdown(offer.stopWaitSeconds) })),
                                 1
                                 /* TEXT */
                               )) : createCommentVNode("v-if", true),
-                              offer.isDelivery ? (openBlock(), createElementBlock("div", _hoisted_499, [
+                              offer.isDelivery ? (openBlock(), createElementBlock("div", _hoisted_500, [
                                 createTextVNode(
                                   toDisplayString(_ctx.t("deliverySummary", { weight: _ctx.formatCargoWeight(offer.cargoWeightKg) })) + " ",
                                   1
@@ -23604,7 +23614,7 @@ Component that was made reactive: `,
                                 ),
                                 offer.cargoWeightBonusPercent > 0 ? (openBlock(), createElementBlock(
                                   "span",
-                                  _hoisted_500,
+                                  _hoisted_501,
                                   " \xB7 " + toDisplayString(_ctx.t("bonus")) + " +" + toDisplayString(_ctx.formatNumber(offer.cargoWeightBonusPercent, 0)) + "%",
                                   1
                                   /* TEXT */
@@ -23612,7 +23622,7 @@ Component that was made reactive: `,
                               ])) : createCommentVNode("v-if", true),
                               offer.ratingBonusPercent > 0 ? (openBlock(), createElementBlock(
                                 "div",
-                                _hoisted_501,
+                                _hoisted_502,
                                 toDisplayString(_ctx.t("ratingBonusLine", { percent: _ctx.formatBonusPercent(offer.ratingBonusPercent), amount: _ctx.formatMoney(offer.ratingBonusAmount) })),
                                 1
                                 /* TEXT */
@@ -23621,7 +23631,7 @@ Component that was made reactive: `,
                                 type: "button",
                                 class: "taxi-order-card__accept taxi-action taxi-action--primary",
                                 onClick: ($event) => _ctx.hud.acceptOrder(offer.id)
-                              }, toDisplayString(_ctx.t("accept")), 9, _hoisted_502)
+                              }, toDisplayString(_ctx.t("accept")), 9, _hoisted_503)
                             ],
                             2
                             /* CLASS */
@@ -23631,7 +23641,7 @@ Component that was made reactive: `,
                         /* KEYED_FRAGMENT */
                       ))
                     ]),
-                    createBaseVNode("div", _hoisted_503, [
+                    createBaseVNode("div", _hoisted_504, [
                       createBaseVNode(
                         "span",
                         null,
@@ -23644,19 +23654,19 @@ Component that was made reactive: `,
                         {
                           type: "button",
                           class: "taxi-offline-hold taxi-offline-hold--compact taxi-action taxi-action--danger-secondary",
-                          onMousedown: _cache[176] || (_cache[176] = ($event) => _ctx.hud.beginOfflineHold($event)),
-                          onMouseup: _cache[177] || (_cache[177] = ($event) => _ctx.hud.cancelOfflineHold()),
-                          onMouseleave: _cache[178] || (_cache[178] = ($event) => _ctx.hud.cancelOfflineHold())
+                          onMousedown: _cache[177] || (_cache[177] = ($event) => _ctx.hud.beginOfflineHold($event)),
+                          onMouseup: _cache[178] || (_cache[178] = ($event) => _ctx.hud.cancelOfflineHold()),
+                          onMouseleave: _cache[179] || (_cache[179] = ($event) => _ctx.hud.cancelOfflineHold())
                         },
                         [
-                          _cache[295] || (_cache[295] = createBaseVNode(
+                          _cache[296] || (_cache[296] = createBaseVNode(
                             "span",
                             { class: "taxi-offline-hold__fill" },
                             null,
                             -1
                             /* CACHED */
                           )),
-                          createBaseVNode("span", _hoisted_504, [
+                          createBaseVNode("span", _hoisted_505, [
                             createBaseVNode(
                               "span",
                               null,
@@ -23672,8 +23682,8 @@ Component that was made reactive: `,
                     ])
                   ])
                 ])) : createCommentVNode("v-if", true),
-                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && (_ctx.state.phase === "boarding" || _ctx.state.phase === "alighting") ? (openBlock(), createElementBlock("div", _hoisted_505, [
-                  createBaseVNode("div", _hoisted_506, [
+                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && (_ctx.state.phase === "boarding" || _ctx.state.phase === "alighting") ? (openBlock(), createElementBlock("div", _hoisted_506, [
+                  createBaseVNode("div", _hoisted_507, [
                     createBaseVNode(
                       "div",
                       {
@@ -23693,7 +23703,7 @@ Component that was made reactive: `,
                   ),
                   createBaseVNode(
                     "div",
-                    _hoisted_507,
+                    _hoisted_508,
                     toDisplayString(_ctx.state.isDelivery ? _ctx.formatCargoWeight(_ctx.state.cargoWeightKg) : _ctx.state.passengerName),
                     1
                     /* TEXT */
@@ -23712,12 +23722,12 @@ Component that was made reactive: `,
                     ),
                     createBaseVNode(
                       "small",
-                      _hoisted_509,
+                      _hoisted_510,
                       toDisplayString(_ctx.formatNumber(_ctx.state.passengerCalmness, 0)) + "%",
                       1
                       /* TEXT */
                     )
-                  ], 8, _hoisted_508)) : createCommentVNode("v-if", true),
+                  ], 8, _hoisted_509)) : createCommentVNode("v-if", true),
                   createBaseVNode(
                     "p",
                     null,
@@ -23725,7 +23735,7 @@ Component that was made reactive: `,
                     1
                     /* TEXT */
                   ),
-                  _cache[296] || (_cache[296] = createBaseVNode(
+                  _cache[297] || (_cache[297] = createBaseVNode(
                     "div",
                     { class: "taxi-transfer__progress" },
                     null,
@@ -23733,8 +23743,8 @@ Component that was made reactive: `,
                     /* CACHED */
                   ))
                 ])) : createCommentVNode("v-if", true),
-                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === "passengerStopDemand" ? (openBlock(), createElementBlock("div", _hoisted_510, [
-                  _cache[297] || (_cache[297] = createBaseVNode(
+                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === "passengerStopDemand" ? (openBlock(), createElementBlock("div", _hoisted_511, [
+                  _cache[298] || (_cache[298] = createBaseVNode(
                     "div",
                     { class: "taxi-transfer__alert" },
                     "!",
@@ -23750,7 +23760,7 @@ Component that was made reactive: `,
                   ),
                   createBaseVNode(
                     "div",
-                    _hoisted_511,
+                    _hoisted_512,
                     toDisplayString(_ctx.state.passengerName),
                     1
                     /* TEXT */
@@ -23762,7 +23772,7 @@ Component that was made reactive: `,
                     1
                     /* TEXT */
                   ),
-                  _cache[298] || (_cache[298] = createBaseVNode(
+                  _cache[299] || (_cache[299] = createBaseVNode(
                     "div",
                     { class: "taxi-transfer__progress" },
                     null,
@@ -23770,8 +23780,8 @@ Component that was made reactive: `,
                     /* CACHED */
                   ))
                 ])) : createCommentVNode("v-if", true),
-                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === "passengerForcedExit" ? (openBlock(), createElementBlock("div", _hoisted_512, [
-                  _cache[299] || (_cache[299] = createBaseVNode(
+                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === "passengerForcedExit" ? (openBlock(), createElementBlock("div", _hoisted_513, [
+                  _cache[300] || (_cache[300] = createBaseVNode(
                     "div",
                     { class: "taxi-transfer__loader" },
                     [
@@ -23789,7 +23799,7 @@ Component that was made reactive: `,
                   ),
                   createBaseVNode(
                     "div",
-                    _hoisted_513,
+                    _hoisted_514,
                     toDisplayString(_ctx.state.passengerName),
                     1
                     /* TEXT */
@@ -23803,12 +23813,12 @@ Component that was made reactive: `,
                   ),
                   createBaseVNode(
                     "div",
-                    _hoisted_514,
+                    _hoisted_515,
                     toDisplayString(_ctx.t("ratingLoss", { percent: _ctx.formatBonusPercent(_ctx.state.earlyExitRatingLossPercent) })),
                     1
                     /* TEXT */
                   ),
-                  createBaseVNode("div", _hoisted_515, [
+                  createBaseVNode("div", _hoisted_516, [
                     createBaseVNode(
                       "div",
                       {
@@ -23821,8 +23831,8 @@ Component that was made reactive: `,
                     )
                   ])
                 ])) : createCommentVNode("v-if", true),
-                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === "driverAbandoning" ? (openBlock(), createElementBlock("div", _hoisted_516, [
-                  _cache[300] || (_cache[300] = createBaseVNode(
+                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === "driverAbandoning" ? (openBlock(), createElementBlock("div", _hoisted_517, [
+                  _cache[301] || (_cache[301] = createBaseVNode(
                     "div",
                     { class: "taxi-transfer__loader" },
                     [
@@ -23840,7 +23850,7 @@ Component that was made reactive: `,
                   ),
                   createBaseVNode(
                     "div",
-                    _hoisted_517,
+                    _hoisted_518,
                     toDisplayString(_ctx.state.passengerName),
                     1
                     /* TEXT */
@@ -23854,12 +23864,12 @@ Component that was made reactive: `,
                   ),
                   createBaseVNode(
                     "div",
-                    _hoisted_518,
+                    _hoisted_519,
                     toDisplayString(_ctx.t("driverAbandoningPenalty", { loss: _ctx.formatBonusPercent(_ctx.state.driverAbandonmentRatingLoss), percent: _ctx.formatBonusPercent(_ctx.state.driverAbandonmentExtraPercent) })),
                     1
                     /* TEXT */
                   ),
-                  createBaseVNode("div", _hoisted_519, [
+                  createBaseVNode("div", _hoisted_520, [
                     createBaseVNode(
                       "div",
                       {
@@ -23872,10 +23882,10 @@ Component that was made reactive: `,
                     )
                   ])
                 ])) : createCommentVNode("v-if", true),
-                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === "stopWaiting" ? (openBlock(), createElementBlock("div", _hoisted_520, [
+                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === "stopWaiting" ? (openBlock(), createElementBlock("div", _hoisted_521, [
                   createBaseVNode(
                     "div",
-                    _hoisted_521,
+                    _hoisted_522,
                     toDisplayString(_ctx.state.currentStopIndex),
                     1
                     /* TEXT */
@@ -23889,7 +23899,7 @@ Component that was made reactive: `,
                   ),
                   createBaseVNode(
                     "div",
-                    _hoisted_522,
+                    _hoisted_523,
                     toDisplayString(_ctx.t("stopProgress", { current: _ctx.state.currentStopIndex, total: _ctx.state.stopCount })),
                     1
                     /* TEXT */
@@ -23903,12 +23913,12 @@ Component that was made reactive: `,
                   ),
                   createBaseVNode(
                     "div",
-                    _hoisted_523,
+                    _hoisted_524,
                     toDisplayString(_ctx.formatCountdown(_ctx.state.stopWaitRemaining)),
                     1
                     /* TEXT */
                   ),
-                  createBaseVNode("div", _hoisted_524, [
+                  createBaseVNode("div", _hoisted_525, [
                     createBaseVNode(
                       "div",
                       {
@@ -23921,8 +23931,8 @@ Component that was made reactive: `,
                     )
                   ])
                 ])) : createCommentVNode("v-if", true),
-                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === "complete" ? (openBlock(), createElementBlock("div", _hoisted_525, [
-                  _cache[301] || (_cache[301] = createBaseVNode(
+                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === "complete" ? (openBlock(), createElementBlock("div", _hoisted_526, [
+                  _cache[302] || (_cache[302] = createBaseVNode(
                     "div",
                     { class: "taxi-transfer__check" },
                     "\u2713",
@@ -23938,26 +23948,26 @@ Component that was made reactive: `,
                   ),
                   createBaseVNode(
                     "div",
-                    _hoisted_526,
+                    _hoisted_527,
                     toDisplayString(_ctx.t("payout")) + " " + toDisplayString(_ctx.formatMoney(_ctx.state.adjustedFare)),
                     1
                     /* TEXT */
                   ),
                   !_ctx.state.isDelivery ? (openBlock(), createElementBlock(
                     "p",
-                    _hoisted_527,
+                    _hoisted_528,
                     toDisplayString(_ctx.t("completeDesc", { rating: _ctx.formatRating(_ctx.state.rating) })),
                     1
                     /* TEXT */
                   )) : createCommentVNode("v-if", true),
                   _ctx.state.isDelivery ? (openBlock(), createElementBlock(
                     "p",
-                    _hoisted_528,
+                    _hoisted_529,
                     toDisplayString(_ctx.t("deliveryCompleteDesc", { rating: _ctx.formatRating(_ctx.state.rideRating), fare: _ctx.formatMoney(_ctx.state.finalFare) })),
                     1
                     /* TEXT */
                   )) : createCommentVNode("v-if", true),
-                  _cache[302] || (_cache[302] = createBaseVNode(
+                  _cache[303] || (_cache[303] = createBaseVNode(
                     "div",
                     { class: "taxi-transfer__progress" },
                     null,
@@ -23965,30 +23975,30 @@ Component that was made reactive: `,
                     /* CACHED */
                   ))
                 ])) : createCommentVNode("v-if", true),
-                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === "toFuelStation" ? (openBlock(), createElementBlock("div", _hoisted_529, [
-                  createBaseVNode("div", _hoisted_530, [
-                    _cache[305] || (_cache[305] = createBaseVNode(
+                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === "toFuelStation" ? (openBlock(), createElementBlock("div", _hoisted_530, [
+                  createBaseVNode("div", _hoisted_531, [
+                    _cache[306] || (_cache[306] = createBaseVNode(
                       "div",
                       { class: "taxi-minimap-surface" },
                       null,
                       -1
                       /* CACHED */
                     )),
-                    _ctx.externalPhoneMode ? (openBlock(), createElementBlock("canvas", _hoisted_531)) : createCommentVNode("v-if", true),
+                    _ctx.externalPhoneMode ? (openBlock(), createElementBlock("canvas", _hoisted_532)) : createCommentVNode("v-if", true),
                     createBaseVNode("div", {
                       class: normalizeClass(["taxi-map-interaction", { "taxi-map-interaction--panned": !_ctx.mapFollowing }]),
                       "aria-label": _ctx.t("mapDrag")
-                    }, null, 10, _hoisted_532),
-                    createBaseVNode("div", _hoisted_533, [
+                    }, null, 10, _hoisted_533),
+                    createBaseVNode("div", _hoisted_534, [
                       _ctx.settings.aiDriver.enabled ? (openBlock(), createElementBlock("button", {
                         key: 0,
                         type: "button",
                         class: normalizeClass(["taxi-map__autopilot", { "taxi-map__autopilot--active": _ctx.state.autopilot.enabled, "taxi-map__autopilot--recovering": _ctx.state.autopilot.status === "recovering" }]),
-                        onClick: _cache[179] || (_cache[179] = ($event) => _ctx.hud.toggleAutopilot()),
+                        onClick: _cache[180] || (_cache[180] = ($event) => _ctx.hud.toggleAutopilot()),
                         disabled: !_ctx.state.autopilot.available,
                         title: _ctx.t(_ctx.state.autopilot.available ? _ctx.state.autopilot.enabled ? "autopilotDisable" : "autopilotEnable" : "autopilotUnavailable")
                       }, [
-                        _cache[303] || (_cache[303] = createBaseVNode(
+                        _cache[304] || (_cache[304] = createBaseVNode(
                           "strong",
                           null,
                           "AI",
@@ -24002,33 +24012,33 @@ Component that was made reactive: `,
                           1
                           /* TEXT */
                         )
-                      ], 10, _hoisted_534)) : createCommentVNode("v-if", true),
+                      ], 10, _hoisted_535)) : createCommentVNode("v-if", true),
                       createBaseVNode("div", {
                         class: "taxi-map-controls",
                         "aria-label": _ctx.t("mapControls")
                       }, [
                         createBaseVNode("button", {
                           type: "button",
-                          onClick: _cache[180] || (_cache[180] = ($event) => _ctx.hud.zoomMap(0.8)),
+                          onClick: _cache[181] || (_cache[181] = ($event) => _ctx.hud.zoomMap(0.8)),
                           title: _ctx.t("mapZoomIn"),
                           "aria-label": _ctx.t("mapZoomIn")
-                        }, "+", 8, _hoisted_536),
+                        }, "+", 8, _hoisted_537),
                         createBaseVNode("button", {
                           type: "button",
-                          onClick: _cache[181] || (_cache[181] = ($event) => _ctx.hud.zoomMap(1.25)),
+                          onClick: _cache[182] || (_cache[182] = ($event) => _ctx.hud.zoomMap(1.25)),
                           title: _ctx.t("mapZoomOut"),
                           "aria-label": _ctx.t("mapZoomOut")
-                        }, "\u2212", 8, _hoisted_537),
+                        }, "\u2212", 8, _hoisted_538),
                         createBaseVNode("button", {
                           type: "button",
-                          onClick: _cache[182] || (_cache[182] = ($event) => _ctx.hud.followMap()),
+                          onClick: _cache[183] || (_cache[183] = ($event) => _ctx.hud.followMap()),
                           class: normalizeClass({ "taxi-map-controls--following": _ctx.mapFollowing }),
                           title: _ctx.t("mapFollow"),
                           "aria-label": _ctx.t("mapFollow")
-                        }, "\u25CE", 10, _hoisted_538)
-                      ], 8, _hoisted_535)
+                        }, "\u25CE", 10, _hoisted_539)
+                      ], 8, _hoisted_536)
                     ]),
-                    createBaseVNode("div", _hoisted_539, [
+                    createBaseVNode("div", _hoisted_540, [
                       createBaseVNode(
                         "span",
                         null,
@@ -24064,11 +24074,11 @@ Component that was made reactive: `,
                     createBaseVNode("button", {
                       type: "button",
                       class: "taxi-map__fleet",
-                      onClick: _cache[183] || (_cache[183] = ($event) => _ctx.hud.toggleFleet()),
+                      onClick: _cache[184] || (_cache[184] = ($event) => _ctx.hud.toggleFleet()),
                       title: _ctx.t("fleetTitle"),
                       "aria-label": _ctx.t("fleetTitle")
                     }, [
-                      _cache[304] || (_cache[304] = createBaseVNode(
+                      _cache[305] || (_cache[305] = createBaseVNode(
                         "strong",
                         null,
                         "F",
@@ -24082,18 +24092,18 @@ Component that was made reactive: `,
                         1
                         /* TEXT */
                       )
-                    ], 8, _hoisted_540)
+                    ], 8, _hoisted_541)
                   ]),
-                  createBaseVNode("div", _hoisted_541, [
-                    createBaseVNode("div", _hoisted_542, [
-                      _cache[306] || (_cache[306] = createBaseVNode(
+                  createBaseVNode("div", _hoisted_542, [
+                    createBaseVNode("div", _hoisted_543, [
+                      _cache[307] || (_cache[307] = createBaseVNode(
                         "div",
                         { class: "taxi-fuel-route__icon" },
                         "\u26FD",
                         -1
                         /* CACHED */
                       )),
-                      createBaseVNode("div", _hoisted_543, [
+                      createBaseVNode("div", _hoisted_544, [
                         createBaseVNode(
                           "strong",
                           null,
@@ -24111,7 +24121,7 @@ Component that was made reactive: `,
                       ]),
                       createBaseVNode(
                         "div",
-                        _hoisted_544,
+                        _hoisted_545,
                         toDisplayString(_ctx.formatDistance(_ctx.state.distanceToTarget)),
                         1
                         /* TEXT */
@@ -24123,7 +24133,7 @@ Component that was made reactive: `,
                       style: normalizeStyle({ "background": _ctx.getRouteFuelGaugeBackground() }),
                       title: _ctx.t("estimatedRange")
                     }, [
-                      createBaseVNode("div", _hoisted_546, [
+                      createBaseVNode("div", _hoisted_547, [
                         createBaseVNode(
                           "span",
                           null,
@@ -24146,15 +24156,15 @@ Component that was made reactive: `,
                           /* TEXT */
                         )
                       ])
-                    ], 12, _hoisted_545)) : createCommentVNode("v-if", true),
+                    ], 12, _hoisted_546)) : createCommentVNode("v-if", true),
                     !_ctx.state.fuelDetour.hadTrip ? (openBlock(), createElementBlock(
                       "div",
-                      _hoisted_547,
+                      _hoisted_548,
                       toDisplayString(_ctx.t("fuelRouteSearch")),
                       1
                       /* TEXT */
                     )) : createCommentVNode("v-if", true),
-                    _ctx.state.fuelDetour.hadTrip && !_ctx.state.fuelDetour.passengerOnboard ? (openBlock(), createElementBlock("div", _hoisted_548, [
+                    _ctx.state.fuelDetour.hadTrip && !_ctx.state.fuelDetour.passengerOnboard ? (openBlock(), createElementBlock("div", _hoisted_549, [
                       createBaseVNode(
                         "span",
                         null,
@@ -24170,7 +24180,7 @@ Component that was made reactive: `,
                         /* TEXT */
                       )
                     ])) : createCommentVNode("v-if", true),
-                    _ctx.state.fuelDetour.passengerOnboard ? (openBlock(), createElementBlock("div", _hoisted_549, [
+                    _ctx.state.fuelDetour.passengerOnboard ? (openBlock(), createElementBlock("div", _hoisted_550, [
                       createBaseVNode(
                         "span",
                         null,
@@ -24186,8 +24196,8 @@ Component that was made reactive: `,
                         /* TEXT */
                       )
                     ])) : createCommentVNode("v-if", true),
-                    createBaseVNode("div", _hoisted_550, [
-                      createBaseVNode("div", _hoisted_551, [
+                    createBaseVNode("div", _hoisted_551, [
+                      createBaseVNode("div", _hoisted_552, [
                         createBaseVNode(
                           "span",
                           null,
@@ -24203,7 +24213,7 @@ Component that was made reactive: `,
                           /* TEXT */
                         )
                       ]),
-                      createBaseVNode("div", _hoisted_552, [
+                      createBaseVNode("div", _hoisted_553, [
                         createBaseVNode(
                           "span",
                           {
@@ -24215,8 +24225,8 @@ Component that was made reactive: `,
                         )
                       ])
                     ]),
-                    createBaseVNode("div", _hoisted_553, [
-                      createBaseVNode("div", _hoisted_554, [
+                    createBaseVNode("div", _hoisted_554, [
+                      createBaseVNode("div", _hoisted_555, [
                         createBaseVNode(
                           "span",
                           null,
@@ -24232,7 +24242,7 @@ Component that was made reactive: `,
                           /* TEXT */
                         )
                       ]),
-                      createBaseVNode("div", _hoisted_555, [
+                      createBaseVNode("div", _hoisted_556, [
                         createBaseVNode(
                           "span",
                           null,
@@ -24254,7 +24264,7 @@ Component that was made reactive: `,
                       {
                         type: "button",
                         class: "taxi-fuel-route__cancel taxi-action taxi-action--secondary",
-                        onClick: _cache[184] || (_cache[184] = ($event) => _ctx.hud.cancelFuelRoute())
+                        onClick: _cache[185] || (_cache[185] = ($event) => _ctx.hud.cancelFuelRoute())
                       },
                       toDisplayString(_ctx.t("cancelFuelRoute")),
                       1
@@ -24262,30 +24272,30 @@ Component that was made reactive: `,
                     )
                   ])
                 ])) : createCommentVNode("v-if", true),
-                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && (_ctx.state.phase === "toPickup" || _ctx.state.phase === "toStop" || _ctx.state.phase === "toDestination") ? (openBlock(), createElementBlock("div", _hoisted_556, [
-                  createBaseVNode("div", _hoisted_557, [
-                    _cache[309] || (_cache[309] = createBaseVNode(
+                !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && (_ctx.state.phase === "toPickup" || _ctx.state.phase === "toStop" || _ctx.state.phase === "toDestination") ? (openBlock(), createElementBlock("div", _hoisted_557, [
+                  createBaseVNode("div", _hoisted_558, [
+                    _cache[310] || (_cache[310] = createBaseVNode(
                       "div",
                       { class: "taxi-minimap-surface" },
                       null,
                       -1
                       /* CACHED */
                     )),
-                    _ctx.externalPhoneMode ? (openBlock(), createElementBlock("canvas", _hoisted_558)) : createCommentVNode("v-if", true),
+                    _ctx.externalPhoneMode ? (openBlock(), createElementBlock("canvas", _hoisted_559)) : createCommentVNode("v-if", true),
                     createBaseVNode("div", {
                       class: normalizeClass(["taxi-map-interaction", { "taxi-map-interaction--panned": !_ctx.mapFollowing }]),
                       "aria-label": _ctx.t("mapDrag")
-                    }, null, 10, _hoisted_559),
-                    createBaseVNode("div", _hoisted_560, [
+                    }, null, 10, _hoisted_560),
+                    createBaseVNode("div", _hoisted_561, [
                       _ctx.settings.aiDriver.enabled ? (openBlock(), createElementBlock("button", {
                         key: 0,
                         type: "button",
                         class: normalizeClass(["taxi-map__autopilot", { "taxi-map__autopilot--active": _ctx.state.autopilot.enabled, "taxi-map__autopilot--recovering": _ctx.state.autopilot.status === "recovering" }]),
-                        onClick: _cache[185] || (_cache[185] = ($event) => _ctx.hud.toggleAutopilot()),
+                        onClick: _cache[186] || (_cache[186] = ($event) => _ctx.hud.toggleAutopilot()),
                         disabled: !_ctx.state.autopilot.available,
                         title: _ctx.t(_ctx.state.autopilot.available ? _ctx.state.autopilot.enabled ? "autopilotDisable" : "autopilotEnable" : "autopilotUnavailable")
                       }, [
-                        _cache[307] || (_cache[307] = createBaseVNode(
+                        _cache[308] || (_cache[308] = createBaseVNode(
                           "strong",
                           null,
                           "AI",
@@ -24299,33 +24309,33 @@ Component that was made reactive: `,
                           1
                           /* TEXT */
                         )
-                      ], 10, _hoisted_561)) : createCommentVNode("v-if", true),
+                      ], 10, _hoisted_562)) : createCommentVNode("v-if", true),
                       createBaseVNode("div", {
                         class: "taxi-map-controls",
                         "aria-label": _ctx.t("mapControls")
                       }, [
                         createBaseVNode("button", {
                           type: "button",
-                          onClick: _cache[186] || (_cache[186] = ($event) => _ctx.hud.zoomMap(0.8)),
+                          onClick: _cache[187] || (_cache[187] = ($event) => _ctx.hud.zoomMap(0.8)),
                           title: _ctx.t("mapZoomIn"),
                           "aria-label": _ctx.t("mapZoomIn")
-                        }, "+", 8, _hoisted_563),
+                        }, "+", 8, _hoisted_564),
                         createBaseVNode("button", {
                           type: "button",
-                          onClick: _cache[187] || (_cache[187] = ($event) => _ctx.hud.zoomMap(1.25)),
+                          onClick: _cache[188] || (_cache[188] = ($event) => _ctx.hud.zoomMap(1.25)),
                           title: _ctx.t("mapZoomOut"),
                           "aria-label": _ctx.t("mapZoomOut")
-                        }, "\u2212", 8, _hoisted_564),
+                        }, "\u2212", 8, _hoisted_565),
                         createBaseVNode("button", {
                           type: "button",
-                          onClick: _cache[188] || (_cache[188] = ($event) => _ctx.hud.followMap()),
+                          onClick: _cache[189] || (_cache[189] = ($event) => _ctx.hud.followMap()),
                           class: normalizeClass({ "taxi-map-controls--following": _ctx.mapFollowing }),
                           title: _ctx.t("mapFollow"),
                           "aria-label": _ctx.t("mapFollow")
-                        }, "\u25CE", 10, _hoisted_565)
-                      ], 8, _hoisted_562)
+                        }, "\u25CE", 10, _hoisted_566)
+                      ], 8, _hoisted_563)
                     ]),
-                    createBaseVNode("div", _hoisted_566, [
+                    createBaseVNode("div", _hoisted_567, [
                       createBaseVNode(
                         "span",
                         null,
@@ -24361,11 +24371,11 @@ Component that was made reactive: `,
                     createBaseVNode("button", {
                       type: "button",
                       class: "taxi-map__fleet",
-                      onClick: _cache[189] || (_cache[189] = ($event) => _ctx.hud.toggleFleet()),
+                      onClick: _cache[190] || (_cache[190] = ($event) => _ctx.hud.toggleFleet()),
                       title: _ctx.t("fleetTitle"),
                       "aria-label": _ctx.t("fleetTitle")
                     }, [
-                      _cache[308] || (_cache[308] = createBaseVNode(
+                      _cache[309] || (_cache[309] = createBaseVNode(
                         "strong",
                         null,
                         "F",
@@ -24379,21 +24389,21 @@ Component that was made reactive: `,
                         1
                         /* TEXT */
                       )
-                    ], 8, _hoisted_567)
+                    ], 8, _hoisted_568)
                   ]),
-                  createBaseVNode("div", _hoisted_568, [
-                    createBaseVNode("div", _hoisted_569, [
+                  createBaseVNode("div", _hoisted_569, [
+                    createBaseVNode("div", _hoisted_570, [
                       createBaseVNode(
                         "div",
-                        _hoisted_570,
+                        _hoisted_571,
                         toDisplayString(_ctx.state.isDelivery ? "\u{1F4E6}" : _ctx.getInitials(_ctx.state.passengerName)),
                         1
                         /* TEXT */
                       ),
-                      createBaseVNode("div", _hoisted_571, [
+                      createBaseVNode("div", _hoisted_572, [
                         createBaseVNode("strong", {
                           title: _ctx.state.isDelivery ? _ctx.t("deliveryOrder") : _ctx.state.passengerName || _ctx.getPhaseLabel()
-                        }, toDisplayString(_ctx.state.isDelivery ? _ctx.t("deliveryOrder") : _ctx.state.passengerName || _ctx.getPhaseLabel()), 9, _hoisted_572),
+                        }, toDisplayString(_ctx.state.isDelivery ? _ctx.t("deliveryOrder") : _ctx.state.passengerName || _ctx.getPhaseLabel()), 9, _hoisted_573),
                         createBaseVNode(
                           "span",
                           null,
@@ -24404,7 +24414,7 @@ Component that was made reactive: `,
                       ]),
                       createBaseVNode(
                         "div",
-                        _hoisted_573,
+                        _hoisted_574,
                         toDisplayString(_ctx.formatDistance(_ctx.state.distanceToTarget)),
                         1
                         /* TEXT */
@@ -24412,12 +24422,12 @@ Component that was made reactive: `,
                     ]),
                     _ctx.shouldShowQueuedOrder() ? (openBlock(), createElementBlock(
                       "div",
-                      _hoisted_574,
+                      _hoisted_575,
                       toDisplayString(_ctx.t("nextOfferAccepted")) + " \xB7 " + toDisplayString(_ctx.getOfferName(_ctx.state.nextOffer)),
                       1
                       /* TEXT */
                     )) : createCommentVNode("v-if", true),
-                    createBaseVNode("div", _hoisted_575, [
+                    createBaseVNode("div", _hoisted_576, [
                       !_ctx.state.isDelivery ? (openBlock(), createElementBlock("div", {
                         key: 0,
                         class: normalizeClass(["taxi-trip-dashboard__metric taxi-trip-dashboard__metric--calmness", _ctx.passengerMoodFlash ? "taxi-trip-dashboard__metric--mood-" + _ctx.passengerMoodFlash : ""]),
@@ -24427,15 +24437,15 @@ Component that was made reactive: `,
                           class: "taxi-calmness-emoji",
                           role: "img",
                           "aria-label": _ctx.t("passengerCalmness") + " \xB7 " + _ctx.formatNumber(_ctx.state.passengerCalmness, 0) + "%"
-                        }, toDisplayString(_ctx.getCalmnessEmoji(_ctx.state.passengerCalmness)), 9, _hoisted_577),
+                        }, toDisplayString(_ctx.getCalmnessEmoji(_ctx.state.passengerCalmness)), 9, _hoisted_578),
                         createBaseVNode(
                           "strong",
-                          _hoisted_578,
+                          _hoisted_579,
                           toDisplayString(_ctx.formatNumber(_ctx.state.passengerCalmness, 0)) + "%",
                           1
                           /* TEXT */
                         )
-                      ], 10, _hoisted_576)) : createCommentVNode("v-if", true),
+                      ], 10, _hoisted_577)) : createCommentVNode("v-if", true),
                       _ctx.state.isDelivery ? (openBlock(), createElementBlock("div", {
                         key: 1,
                         class: "taxi-trip-dashboard__metric taxi-trip-dashboard__metric--cargo",
@@ -24443,12 +24453,12 @@ Component that was made reactive: `,
                       }, [
                         createBaseVNode(
                           "span",
-                          _hoisted_580,
+                          _hoisted_581,
                           toDisplayString(_ctx.t("cargoWeight")),
                           1
                           /* TEXT */
                         ),
-                        createBaseVNode("div", _hoisted_581, [
+                        createBaseVNode("div", _hoisted_582, [
                           createBaseVNode(
                             "strong",
                             null,
@@ -24458,13 +24468,13 @@ Component that was made reactive: `,
                           ),
                           _ctx.state.cargoWeightBonusPercent > 0 ? (openBlock(), createElementBlock(
                             "small",
-                            _hoisted_582,
+                            _hoisted_583,
                             "+" + toDisplayString(_ctx.formatNumber(_ctx.state.cargoWeightBonusPercent, 0)) + "%",
                             1
                             /* TEXT */
                           )) : createCommentVNode("v-if", true)
                         ])
-                      ], 8, _hoisted_579)) : createCommentVNode("v-if", true),
+                      ], 8, _hoisted_580)) : createCommentVNode("v-if", true),
                       _ctx.state.isDelivery ? (openBlock(), createElementBlock("div", {
                         key: 2,
                         class: normalizeClass(["taxi-trip-dashboard__metric", { "taxi-trip-dashboard__metric--danger": _ctx.state.cargoDamagePercent > 0 }]),
@@ -24472,12 +24482,12 @@ Component that was made reactive: `,
                       }, [
                         createBaseVNode(
                           "span",
-                          _hoisted_584,
+                          _hoisted_585,
                           toDisplayString(_ctx.t("cargoDamage")),
                           1
                           /* TEXT */
                         ),
-                        createBaseVNode("div", _hoisted_585, [
+                        createBaseVNode("div", _hoisted_586, [
                           createBaseVNode(
                             "strong",
                             null,
@@ -24486,7 +24496,7 @@ Component that was made reactive: `,
                             /* TEXT */
                           )
                         ])
-                      ], 10, _hoisted_583)) : createCommentVNode("v-if", true),
+                      ], 10, _hoisted_584)) : createCommentVNode("v-if", true),
                       _ctx.state.phase === "toPickup" && !_ctx.state.isDelivery ? (openBlock(), createElementBlock("div", {
                         key: 3,
                         class: normalizeClass(["taxi-trip-dashboard__metric", { "taxi-trip-dashboard__metric--danger": _ctx.state.pickupLate }]),
@@ -24494,35 +24504,35 @@ Component that was made reactive: `,
                       }, [
                         createBaseVNode(
                           "span",
-                          _hoisted_587,
+                          _hoisted_588,
                           toDisplayString(_ctx.t("dashPickup")),
                           1
                           /* TEXT */
                         ),
-                        createBaseVNode("div", _hoisted_588, [
+                        createBaseVNode("div", _hoisted_589, [
                           !_ctx.state.pickupLate ? (openBlock(), createElementBlock(
                             "strong",
-                            _hoisted_589,
+                            _hoisted_590,
                             toDisplayString(_ctx.formatCountdown(_ctx.state.pickupTimeRemaining)),
                             1
                             /* TEXT */
                           )) : createCommentVNode("v-if", true),
                           _ctx.state.pickupLate ? (openBlock(), createElementBlock(
                             "strong",
-                            _hoisted_590,
+                            _hoisted_591,
                             "\u2212" + toDisplayString(_ctx.formatNumber(_ctx.state.penalties.pickupPercent, 1)) + "%",
                             1
                             /* TEXT */
                           )) : createCommentVNode("v-if", true),
                           _ctx.state.pickupLate ? (openBlock(), createElementBlock(
                             "small",
-                            _hoisted_591,
+                            _hoisted_592,
                             "+" + toDisplayString(_ctx.formatCountdown(_ctx.state.pickupLateSeconds)),
                             1
                             /* TEXT */
                           )) : createCommentVNode("v-if", true)
                         ])
-                      ], 10, _hoisted_586)) : createCommentVNode("v-if", true),
+                      ], 10, _hoisted_587)) : createCommentVNode("v-if", true),
                       _ctx.state.phase === "toStop" ? (openBlock(), createElementBlock("div", {
                         key: 4,
                         class: "taxi-trip-dashboard__metric",
@@ -24530,12 +24540,12 @@ Component that was made reactive: `,
                       }, [
                         createBaseVNode(
                           "span",
-                          _hoisted_593,
+                          _hoisted_594,
                           toDisplayString(_ctx.t("dashStop")),
                           1
                           /* TEXT */
                         ),
-                        createBaseVNode("div", _hoisted_594, [
+                        createBaseVNode("div", _hoisted_595, [
                           createBaseVNode(
                             "strong",
                             null,
@@ -24544,7 +24554,7 @@ Component that was made reactive: `,
                             /* TEXT */
                           )
                         ])
-                      ], 8, _hoisted_592)) : createCommentVNode("v-if", true),
+                      ], 8, _hoisted_593)) : createCommentVNode("v-if", true),
                       _ctx.state.rushOrder ? (openBlock(), createElementBlock("div", {
                         key: 5,
                         class: normalizeClass(["taxi-trip-dashboard__metric", { "taxi-trip-dashboard__metric--danger": _ctx.state.rushBonusLost }]),
@@ -24552,35 +24562,35 @@ Component that was made reactive: `,
                       }, [
                         createBaseVNode(
                           "span",
-                          _hoisted_596,
+                          _hoisted_597,
                           toDisplayString(_ctx.t("dashRush")),
                           1
                           /* TEXT */
                         ),
-                        createBaseVNode("div", _hoisted_597, [
+                        createBaseVNode("div", _hoisted_598, [
                           !_ctx.state.rushBonusLost ? (openBlock(), createElementBlock(
                             "strong",
-                            _hoisted_598,
+                            _hoisted_599,
                             toDisplayString(_ctx.formatCountdown(_ctx.state.rushTimeRemaining)),
                             1
                             /* TEXT */
                           )) : createCommentVNode("v-if", true),
                           _ctx.state.rushBonusLost ? (openBlock(), createElementBlock(
                             "strong",
-                            _hoisted_599,
+                            _hoisted_600,
                             toDisplayString(_ctx.t("dashLost")),
                             1
                             /* TEXT */
                           )) : createCommentVNode("v-if", true),
                           !_ctx.state.rushBonusLost ? (openBlock(), createElementBlock(
                             "small",
-                            _hoisted_600,
+                            _hoisted_601,
                             "+" + toDisplayString(_ctx.formatMoney(_ctx.state.rushBonusAmount)),
                             1
                             /* TEXT */
                           )) : createCommentVNode("v-if", true)
                         ])
-                      ], 10, _hoisted_595)) : createCommentVNode("v-if", true),
+                      ], 10, _hoisted_596)) : createCommentVNode("v-if", true),
                       _ctx.state.ratingBonusPercent > 0 ? (openBlock(), createElementBlock("div", {
                         key: 6,
                         class: "taxi-trip-dashboard__metric",
@@ -24588,12 +24598,12 @@ Component that was made reactive: `,
                       }, [
                         createBaseVNode(
                           "span",
-                          _hoisted_602,
+                          _hoisted_603,
                           toDisplayString(_ctx.t("dashRating")),
                           1
                           /* TEXT */
                         ),
-                        createBaseVNode("div", _hoisted_603, [
+                        createBaseVNode("div", _hoisted_604, [
                           createBaseVNode(
                             "strong",
                             null,
@@ -24609,10 +24619,10 @@ Component that was made reactive: `,
                             /* TEXT */
                           )
                         ])
-                      ], 8, _hoisted_601)) : createCommentVNode("v-if", true)
+                      ], 8, _hoisted_602)) : createCommentVNode("v-if", true)
                     ]),
-                    createBaseVNode("div", _hoisted_604, [
-                      createBaseVNode("div", _hoisted_605, [
+                    createBaseVNode("div", _hoisted_605, [
+                      createBaseVNode("div", _hoisted_606, [
                         createBaseVNode(
                           "span",
                           null,
@@ -24628,7 +24638,7 @@ Component that was made reactive: `,
                           /* TEXT */
                         )
                       ]),
-                      createBaseVNode("div", _hoisted_606, [
+                      createBaseVNode("div", _hoisted_607, [
                         createBaseVNode(
                           "div",
                           {
@@ -24639,7 +24649,7 @@ Component that was made reactive: `,
                           4
                           /* STYLE */
                         ),
-                        _ctx.state.isMultiStop && (_ctx.state.phase === "toStop" || _ctx.state.phase === "toDestination") ? (openBlock(), createElementBlock("div", _hoisted_607, [
+                        _ctx.state.isMultiStop && (_ctx.state.phase === "toStop" || _ctx.state.phase === "toDestination") ? (openBlock(), createElementBlock("div", _hoisted_608, [
                           (openBlock(true), createElementBlock(
                             Fragment,
                             null,
@@ -24649,7 +24659,7 @@ Component that was made reactive: `,
                                 key: marker.index,
                                 style: normalizeStyle({ "left": marker.progressPercent + "%" }),
                                 title: _ctx.t("stopProgress", { current: marker.index, total: _ctx.state.stopCount })
-                              }, null, 14, _hoisted_608);
+                              }, null, 14, _hoisted_609);
                             }),
                             128
                             /* KEYED_FRAGMENT */
@@ -24659,7 +24669,7 @@ Component that was made reactive: `,
                     ]),
                     _ctx.state.isMultiStop && _ctx.state.nextStopDistance > 0 ? (openBlock(), createElementBlock(
                       "div",
-                      _hoisted_609,
+                      _hoisted_610,
                       toDisplayString(_ctx.t("nextStop")) + " \xB7 " + toDisplayString(_ctx.formatDistance(_ctx.state.nextStopDistance)),
                       1
                       /* TEXT */
@@ -24676,7 +24686,7 @@ Component that was made reactive: `,
                     )) : createCommentVNode("v-if", true),
                     _ctx.state.tripEvent.kind === "fragileCargo" ? (openBlock(), createElementBlock(
                       "div",
-                      _hoisted_610,
+                      _hoisted_611,
                       toDisplayString(_ctx.t("fragileCargo")),
                       1
                       /* TEXT */
@@ -24686,19 +24696,19 @@ Component that was made reactive: `,
                       {
                         type: "button",
                         class: "taxi-trip-primary-action taxi-offline-hold taxi-action taxi-action--danger-secondary",
-                        onMousedown: _cache[190] || (_cache[190] = ($event) => _ctx.hud.beginOfflineHold($event)),
-                        onMouseup: _cache[191] || (_cache[191] = ($event) => _ctx.hud.cancelOfflineHold()),
-                        onMouseleave: _cache[192] || (_cache[192] = ($event) => _ctx.hud.cancelOfflineHold())
+                        onMousedown: _cache[191] || (_cache[191] = ($event) => _ctx.hud.beginOfflineHold($event)),
+                        onMouseup: _cache[192] || (_cache[192] = ($event) => _ctx.hud.cancelOfflineHold()),
+                        onMouseleave: _cache[193] || (_cache[193] = ($event) => _ctx.hud.cancelOfflineHold())
                       },
                       [
-                        _cache[310] || (_cache[310] = createBaseVNode(
+                        _cache[311] || (_cache[311] = createBaseVNode(
                           "span",
                           { class: "taxi-offline-hold__fill" },
                           null,
                           -1
                           /* CACHED */
                         )),
-                        createBaseVNode("span", _hoisted_611, [
+                        createBaseVNode("span", _hoisted_612, [
                           createBaseVNode(
                             "span",
                             null,
@@ -24711,8 +24721,8 @@ Component that was made reactive: `,
                       32
                       /* NEED_HYDRATION */
                     ),
-                    createBaseVNode("div", _hoisted_612, [
-                      createBaseVNode("div", _hoisted_613, [
+                    createBaseVNode("div", _hoisted_613, [
+                      createBaseVNode("div", _hoisted_614, [
                         createBaseVNode(
                           "span",
                           null,
@@ -24722,9 +24732,9 @@ Component that was made reactive: `,
                         ),
                         createBaseVNode("strong", {
                           title: _ctx.formatMoneyFull(_ctx.state.adjustedFare + _ctx.state.tipAmount)
-                        }, toDisplayString(_ctx.formatMoneyFull(_ctx.state.adjustedFare + _ctx.state.tipAmount)), 9, _hoisted_614)
+                        }, toDisplayString(_ctx.formatMoneyFull(_ctx.state.adjustedFare + _ctx.state.tipAmount)), 9, _hoisted_615)
                       ]),
-                      createBaseVNode("div", _hoisted_615, [
+                      createBaseVNode("div", _hoisted_616, [
                         createBaseVNode(
                           "span",
                           null,
@@ -24734,9 +24744,9 @@ Component that was made reactive: `,
                         ),
                         createBaseVNode("strong", {
                           title: _ctx.formatMoneyFull(_ctx.state.estimatedFare)
-                        }, toDisplayString(_ctx.formatMoneyFull(_ctx.state.estimatedFare)), 9, _hoisted_616)
+                        }, toDisplayString(_ctx.formatMoneyFull(_ctx.state.estimatedFare)), 9, _hoisted_617)
                       ]),
-                      createBaseVNode("div", _hoisted_617, [
+                      createBaseVNode("div", _hoisted_618, [
                         createBaseVNode(
                           "span",
                           null,
@@ -24753,11 +24763,11 @@ Component that was made reactive: `,
                         )
                       ])
                     ]),
-                    createBaseVNode("div", _hoisted_618, [
+                    createBaseVNode("div", _hoisted_619, [
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-penalty-log__header taxi-disclosure taxi-action taxi-action--tertiary",
-                        onClick: _cache[193] || (_cache[193] = ($event) => _ctx.penaltiesExpanded = !_ctx.penaltiesExpanded),
+                        onClick: _cache[194] || (_cache[194] = ($event) => _ctx.penaltiesExpanded = !_ctx.penaltiesExpanded),
                         "aria-expanded": _ctx.penaltiesExpanded,
                         "aria-controls": "taxi-penalty-events"
                       }, [
@@ -24775,15 +24785,15 @@ Component that was made reactive: `,
                           1
                           /* TEXT */
                         )
-                      ], 8, _hoisted_619),
+                      ], 8, _hoisted_620),
                       _ctx.penaltiesExpanded && !_ctx.state.penaltyEvents.length ? (openBlock(), createElementBlock(
                         "div",
-                        _hoisted_620,
+                        _hoisted_621,
                         toDisplayString(_ctx.state.isDelivery ? _ctx.t("noCargoDamage") : _ctx.t("noViolations")),
                         1
                         /* TEXT */
                       )) : createCommentVNode("v-if", true),
-                      _ctx.penaltiesExpanded && _ctx.state.penaltyEvents.length ? (openBlock(), createElementBlock("div", _hoisted_621, [
+                      _ctx.penaltiesExpanded && _ctx.state.penaltyEvents.length ? (openBlock(), createElementBlock("div", _hoisted_622, [
                         (openBlock(true), createElementBlock(
                           Fragment,
                           null,
@@ -24792,14 +24802,14 @@ Component that was made reactive: `,
                               class: "taxi-penalty-event",
                               key: event.id
                             }, [
-                              _cache[311] || (_cache[311] = createBaseVNode(
+                              _cache[312] || (_cache[312] = createBaseVNode(
                                 "div",
                                 { class: "taxi-penalty-event__icon" },
                                 "!",
                                 -1
                                 /* CACHED */
                               )),
-                              createBaseVNode("div", _hoisted_622, [
+                              createBaseVNode("div", _hoisted_623, [
                                 createBaseVNode(
                                   "strong",
                                   null,
@@ -24817,14 +24827,14 @@ Component that was made reactive: `,
                               ]),
                               event.fareAmount > 0 ? (openBlock(), createElementBlock(
                                 "div",
-                                _hoisted_623,
+                                _hoisted_624,
                                 "\u2212" + toDisplayString(_ctx.formatMoney(event.fareAmount)),
                                 1
                                 /* TEXT */
                               )) : createCommentVNode("v-if", true),
                               !event.fareAmount ? (openBlock(), createElementBlock(
                                 "div",
-                                _hoisted_624,
+                                _hoisted_625,
                                 "\u2212" + toDisplayString(_ctx.formatNumber(event.penaltyPercent, 2)) + "%",
                                 1
                                 /* TEXT */
@@ -24836,8 +24846,8 @@ Component that was made reactive: `,
                         ))
                       ])) : createCommentVNode("v-if", true)
                     ]),
-                    createBaseVNode("div", _hoisted_625, [
-                      createBaseVNode("div", _hoisted_626, [
+                    createBaseVNode("div", _hoisted_626, [
+                      createBaseVNode("div", _hoisted_627, [
                         createBaseVNode(
                           "strong",
                           null,
@@ -24853,8 +24863,8 @@ Component that was made reactive: `,
                           /* TEXT */
                         )
                       ]),
-                      createBaseVNode("div", _hoisted_627, [
-                        createBaseVNode("div", _hoisted_628, [
+                      createBaseVNode("div", _hoisted_628, [
+                        createBaseVNode("div", _hoisted_629, [
                           createBaseVNode(
                             "div",
                             {
@@ -24866,7 +24876,7 @@ Component that was made reactive: `,
                             /* STYLE */
                           )
                         ]),
-                        createBaseVNode("div", _hoisted_629, [
+                        createBaseVNode("div", _hoisted_630, [
                           (openBlock(true), createElementBlock(
                             Fragment,
                             null,
@@ -24875,7 +24885,7 @@ Component that was made reactive: `,
                                 class: "taxi-star",
                                 key: star
                               }, [
-                                _cache[312] || (_cache[312] = createTextVNode(
+                                _cache[313] || (_cache[313] = createTextVNode(
                                   "\u2605",
                                   -1
                                   /* CACHED */
@@ -24902,7 +24912,7 @@ Component that was made reactive: `,
                         class: "taxi-ride-footer__energy",
                         title: _ctx.t("estimatedRange")
                       }, [
-                        _cache[313] || (_cache[313] = createBaseVNode(
+                        _cache[314] || (_cache[314] = createBaseVNode(
                           "span",
                           { class: "taxi-ride-footer__energy-icon" },
                           "\u26FD",
@@ -24911,7 +24921,7 @@ Component that was made reactive: `,
                         )),
                         createBaseVNode(
                           "span",
-                          _hoisted_631,
+                          _hoisted_632,
                           toDisplayString(_ctx.t("fuel_" + _ctx.state.vehicleEnergy.energyType)),
                           1
                           /* TEXT */
@@ -24925,15 +24935,15 @@ Component that was made reactive: `,
                         ),
                         createBaseVNode(
                           "span",
-                          _hoisted_632,
+                          _hoisted_633,
                           "\u2248 " + toDisplayString(_ctx.formatEnergyRange(_ctx.state.vehicleEnergy.estimatedRangeKm)),
                           1
                           /* TEXT */
                         )
-                      ], 8, _hoisted_630)) : createCommentVNode("v-if", true),
-                      createBaseVNode("div", _hoisted_633, [
-                        createBaseVNode("div", _hoisted_634, [
-                          createBaseVNode("div", _hoisted_635, [
+                      ], 8, _hoisted_631)) : createCommentVNode("v-if", true),
+                      createBaseVNode("div", _hoisted_634, [
+                        createBaseVNode("div", _hoisted_635, [
+                          createBaseVNode("div", _hoisted_636, [
                             createBaseVNode(
                               "span",
                               null,
@@ -24949,7 +24959,7 @@ Component that was made reactive: `,
                               /* TEXT */
                             )
                           ]),
-                          createBaseVNode("div", _hoisted_636, [
+                          createBaseVNode("div", _hoisted_637, [
                             createBaseVNode(
                               "span",
                               null,
@@ -24959,7 +24969,7 @@ Component that was made reactive: `,
                             ),
                             createBaseVNode("strong", {
                               title: _ctx.state.completedRides
-                            }, toDisplayString(_ctx.formatCount(_ctx.state.completedRides)), 9, _hoisted_637)
+                            }, toDisplayString(_ctx.formatCount(_ctx.state.completedRides)), 9, _hoisted_638)
                           ])
                         ]),
                         createBaseVNode(
@@ -24967,19 +24977,19 @@ Component that was made reactive: `,
                           {
                             type: "button",
                             class: "taxi-offline-hold taxi-action taxi-action--danger-secondary",
-                            onMousedown: _cache[194] || (_cache[194] = ($event) => _ctx.hud.beginOfflineHold($event)),
-                            onMouseup: _cache[195] || (_cache[195] = ($event) => _ctx.hud.cancelOfflineHold()),
-                            onMouseleave: _cache[196] || (_cache[196] = ($event) => _ctx.hud.cancelOfflineHold())
+                            onMousedown: _cache[195] || (_cache[195] = ($event) => _ctx.hud.beginOfflineHold($event)),
+                            onMouseup: _cache[196] || (_cache[196] = ($event) => _ctx.hud.cancelOfflineHold()),
+                            onMouseleave: _cache[197] || (_cache[197] = ($event) => _ctx.hud.cancelOfflineHold())
                           },
                           [
-                            _cache[314] || (_cache[314] = createBaseVNode(
+                            _cache[315] || (_cache[315] = createBaseVNode(
                               "span",
                               { class: "taxi-offline-hold__fill" },
                               null,
                               -1
                               /* CACHED */
                             )),
-                            createBaseVNode("span", _hoisted_638, [
+                            createBaseVNode("span", _hoisted_639, [
                               createBaseVNode(
                                 "span",
                                 null,
@@ -25003,15 +25013,15 @@ Component that was made reactive: `,
                     class: normalizeClass(["taxi-fuel", { "taxi-fuel--magic": _ctx.state.fuelStation.magic }])
                   },
                   [
-                    createBaseVNode("div", _hoisted_639, [
-                      _cache[315] || (_cache[315] = createBaseVNode(
+                    createBaseVNode("div", _hoisted_640, [
+                      _cache[316] || (_cache[316] = createBaseVNode(
                         "div",
                         { class: "taxi-fuel__icon" },
                         "\u26FD",
                         -1
                         /* CACHED */
                       )),
-                      createBaseVNode("div", _hoisted_640, [
+                      createBaseVNode("div", _hoisted_641, [
                         createBaseVNode(
                           "strong",
                           null,
@@ -25023,12 +25033,12 @@ Component that was made reactive: `,
                       createBaseVNode("button", {
                         type: "button",
                         class: "taxi-fuel__close taxi-action taxi-action--tertiary",
-                        onClick: _cache[197] || (_cache[197] = ($event) => _ctx.hud.closeFuelStation()),
+                        onClick: _cache[198] || (_cache[198] = ($event) => _ctx.hud.closeFuelStation()),
                         disabled: _ctx.state.fuelStation.refueling.active || _ctx.state.repairStation.repairing.active,
                         "aria-label": _ctx.t("refuelClose")
-                      }, "\xD7", 8, _hoisted_641)
+                      }, "\xD7", 8, _hoisted_642)
                     ]),
-                    _ctx.state.fuelStation.magic ? (openBlock(), createElementBlock("div", _hoisted_642, [
+                    _ctx.state.fuelStation.magic ? (openBlock(), createElementBlock("div", _hoisted_643, [
                       createBaseVNode(
                         "strong",
                         null,
@@ -25044,8 +25054,8 @@ Component that was made reactive: `,
                         /* TEXT */
                       )
                     ])) : createCommentVNode("v-if", true),
-                    _ctx.getSelectedFuelOption() ? (openBlock(), createElementBlock("div", _hoisted_643, [
-                      createBaseVNode("div", _hoisted_644, [
+                    _ctx.getSelectedFuelOption() ? (openBlock(), createElementBlock("div", _hoisted_644, [
+                      createBaseVNode("div", _hoisted_645, [
                         createBaseVNode(
                           "span",
                           null,
@@ -25061,7 +25071,7 @@ Component that was made reactive: `,
                           /* TEXT */
                         )
                       ]),
-                      createBaseVNode("div", _hoisted_645, [
+                      createBaseVNode("div", _hoisted_646, [
                         createBaseVNode(
                           "span",
                           null,
@@ -25077,7 +25087,7 @@ Component that was made reactive: `,
                           /* TEXT */
                         )
                       ]),
-                      createBaseVNode("div", _hoisted_646, [
+                      createBaseVNode("div", _hoisted_647, [
                         createBaseVNode(
                           "span",
                           null,
@@ -25094,7 +25104,7 @@ Component that was made reactive: `,
                         )
                       ])
                     ])) : createCommentVNode("v-if", true),
-                    _ctx.state.fuelStation.options.length > 1 ? (openBlock(), createElementBlock("div", _hoisted_647, [
+                    _ctx.state.fuelStation.options.length > 1 ? (openBlock(), createElementBlock("div", _hoisted_648, [
                       (openBlock(true), createElementBlock(
                         Fragment,
                         null,
@@ -25105,14 +25115,14 @@ Component that was made reactive: `,
                             key: option.energyType,
                             onClick: ($event) => _ctx.hud.selectFuelType(option.energyType),
                             disabled: _ctx.state.fuelStation.refueling.active
-                          }, toDisplayString(_ctx.t("fuel_" + option.energyType)), 11, _hoisted_648);
+                          }, toDisplayString(_ctx.t("fuel_" + option.energyType)), 11, _hoisted_649);
                         }),
                         128
                         /* KEYED_FRAGMENT */
                       ))
                     ])) : createCommentVNode("v-if", true),
-                    _ctx.getSelectedFuelOption() ? (openBlock(), createElementBlock("div", _hoisted_649, [
-                      createBaseVNode("div", _hoisted_650, [
+                    _ctx.getSelectedFuelOption() ? (openBlock(), createElementBlock("div", _hoisted_650, [
+                      createBaseVNode("div", _hoisted_651, [
                         createBaseVNode(
                           "span",
                           null,
@@ -25141,12 +25151,12 @@ Component that was made reactive: `,
                         "div",
                         null,
                         [
-                          createBaseVNode("div", _hoisted_651, [
+                          createBaseVNode("div", _hoisted_652, [
                             createBaseVNode(
                               "button",
                               {
                                 type: "button",
-                                onClick: _cache[198] || (_cache[198] = ($event) => _ctx.hud.setRefuelPreset(5))
+                                onClick: _cache[199] || (_cache[199] = ($event) => _ctx.hud.setRefuelPreset(5))
                               },
                               "+5 " + toDisplayString(_ctx.getFuelDisplayUnit(_ctx.getSelectedFuelOption())),
                               1
@@ -25156,7 +25166,7 @@ Component that was made reactive: `,
                               "button",
                               {
                                 type: "button",
-                                onClick: _cache[199] || (_cache[199] = ($event) => _ctx.hud.setRefuelPreset(10))
+                                onClick: _cache[200] || (_cache[200] = ($event) => _ctx.hud.setRefuelPreset(10))
                               },
                               "+10 " + toDisplayString(_ctx.getFuelDisplayUnit(_ctx.getSelectedFuelOption())),
                               1
@@ -25164,21 +25174,21 @@ Component that was made reactive: `,
                             ),
                             createBaseVNode("button", {
                               type: "button",
-                              onClick: _cache[200] || (_cache[200] = ($event) => _ctx.hud.setRefuelPreset("half"))
+                              onClick: _cache[201] || (_cache[201] = ($event) => _ctx.hud.setRefuelPreset("half"))
                             }, "50%"),
                             createBaseVNode(
                               "button",
                               {
                                 type: "button",
-                                onClick: _cache[201] || (_cache[201] = ($event) => _ctx.hud.setRefuelPreset("full"))
+                                onClick: _cache[202] || (_cache[202] = ($event) => _ctx.hud.setRefuelPreset("full"))
                               },
                               toDisplayString(_ctx.t("refuelFullPreset")),
                               1
                               /* TEXT */
                             )
                           ]),
-                          createBaseVNode("div", _hoisted_652, [
-                            createBaseVNode("div", _hoisted_653, [
+                          createBaseVNode("div", _hoisted_653, [
+                            createBaseVNode("div", _hoisted_654, [
                               createBaseVNode(
                                 "span",
                                 {
@@ -25206,10 +25216,10 @@ Component that was made reactive: `,
                               min: "0",
                               max: _ctx.getRefuelMaximum(),
                               step: "0.1",
-                              "onUpdate:modelValue": _cache[202] || (_cache[202] = ($event) => _ctx.refuel.amount = $event),
-                              onInput: _cache[203] || (_cache[203] = ($event) => _ctx.hud.updateRefuelAmount()),
+                              "onUpdate:modelValue": _cache[203] || (_cache[203] = ($event) => _ctx.refuel.amount = $event),
+                              onInput: _cache[204] || (_cache[204] = ($event) => _ctx.hud.updateRefuelAmount()),
                               disabled: !_ctx.state.fuelStation.vehicleStopped
-                            }, null, 40, _hoisted_654), [
+                            }, null, 40, _hoisted_655), [
                               [
                                 vModelText,
                                 _ctx.refuel.amount,
@@ -25218,7 +25228,7 @@ Component that was made reactive: `,
                               ]
                             ])
                           ]),
-                          createBaseVNode("div", _hoisted_655, [
+                          createBaseVNode("div", _hoisted_656, [
                             createBaseVNode(
                               "span",
                               null,
@@ -25228,9 +25238,9 @@ Component that was made reactive: `,
                             ),
                             createBaseVNode("strong", {
                               title: _ctx.formatMoneyFull(_ctx.getRefuelCost())
-                            }, toDisplayString(_ctx.formatMoneyFull(_ctx.getRefuelCost())), 9, _hoisted_656)
+                            }, toDisplayString(_ctx.formatMoneyFull(_ctx.getRefuelCost())), 9, _hoisted_657)
                           ]),
-                          createBaseVNode("div", _hoisted_657, [
+                          createBaseVNode("div", _hoisted_658, [
                             createBaseVNode(
                               "span",
                               null,
@@ -25264,9 +25274,9 @@ Component that was made reactive: `,
                       ]),
                       withDirectives(createBaseVNode(
                         "div",
-                        _hoisted_658,
+                        _hoisted_659,
                         [
-                          createBaseVNode("div", _hoisted_659, [
+                          createBaseVNode("div", _hoisted_660, [
                             createBaseVNode(
                               "span",
                               {
@@ -25277,7 +25287,7 @@ Component that was made reactive: `,
                               /* STYLE */
                             )
                           ]),
-                          createBaseVNode("div", _hoisted_660, [
+                          createBaseVNode("div", _hoisted_661, [
                             createBaseVNode(
                               "span",
                               null,
@@ -25300,51 +25310,51 @@ Component that was made reactive: `,
                         [vShow, _ctx.state.fuelStation.refueling.active]
                       ])
                     ])) : createCommentVNode("v-if", true),
-                    !_ctx.state.fuelStation.options.length ? (openBlock(), createElementBlock("div", _hoisted_661, "\u2026")) : createCommentVNode("v-if", true),
+                    !_ctx.state.fuelStation.options.length ? (openBlock(), createElementBlock("div", _hoisted_662, "\u2026")) : createCommentVNode("v-if", true),
                     createBaseVNode("button", {
                       type: "button",
                       class: "taxi-fuel__buy taxi-action taxi-action--primary",
-                      onClick: _cache[204] || (_cache[204] = ($event) => _ctx.hud.purchaseFuel()),
+                      onClick: _cache[205] || (_cache[205] = ($event) => _ctx.hud.purchaseFuel()),
                       disabled: _ctx.state.fuelStation.refueling.active || _ctx.state.repairStation.repairing.active || !_ctx.state.fuelStation.vehicleStopped || !_ctx.getSelectedFuelOption() || _ctx.refuel.amount <= 0
                     }, [
                       _ctx.state.fuelStation.refueling.active ? (openBlock(), createElementBlock(
                         "span",
-                        _hoisted_663,
+                        _hoisted_664,
                         toDisplayString(_ctx.t("refuelProgress")) + " \xB7 " + toDisplayString(_ctx.formatNumber(_ctx.state.fuelStation.refueling.progress * 100, 0)) + "%",
                         1
                         /* TEXT */
                       )) : createCommentVNode("v-if", true),
                       !_ctx.state.fuelStation.refueling.active && !_ctx.state.fuelStation.vehicleStopped ? (openBlock(), createElementBlock(
                         "span",
-                        _hoisted_664,
+                        _hoisted_665,
                         toDisplayString(_ctx.t("refuelStayStopped")),
                         1
                         /* TEXT */
                       )) : createCommentVNode("v-if", true),
                       !_ctx.state.fuelStation.refueling.active && _ctx.state.fuelStation.vehicleStopped && _ctx.getSelectedFuelOption() && _ctx.getSelectedFuelOption().missingQuantity <= 0.01 ? (openBlock(), createElementBlock(
                         "span",
-                        _hoisted_665,
+                        _hoisted_666,
                         toDisplayString(_ctx.t("refuelFull")),
                         1
                         /* TEXT */
                       )) : createCommentVNode("v-if", true),
                       !_ctx.state.fuelStation.refueling.active && _ctx.state.fuelStation.vehicleStopped && _ctx.getSelectedFuelOption() && _ctx.getSelectedFuelOption().missingQuantity > 0.01 && _ctx.getRefuelMaximum() <= 0 ? (openBlock(), createElementBlock(
                         "span",
-                        _hoisted_666,
+                        _hoisted_667,
                         toDisplayString(_ctx.t("refuelNoMoney")),
                         1
                         /* TEXT */
                       )) : createCommentVNode("v-if", true),
                       !_ctx.state.fuelStation.refueling.active && _ctx.state.fuelStation.vehicleStopped && (!_ctx.getSelectedFuelOption() || _ctx.getSelectedFuelOption().missingQuantity > 0.01 && _ctx.getRefuelMaximum() > 0) ? (openBlock(), createElementBlock(
                         "span",
-                        _hoisted_667,
+                        _hoisted_668,
                         toDisplayString(_ctx.t("refuelBuy")),
                         1
                         /* TEXT */
                       )) : createCommentVNode("v-if", true)
-                    ], 8, _hoisted_662),
-                    _ctx.state.repairStation.available ? (openBlock(), createElementBlock("div", _hoisted_668, [
-                      createBaseVNode("div", _hoisted_669, [
+                    ], 8, _hoisted_663),
+                    _ctx.state.repairStation.available ? (openBlock(), createElementBlock("div", _hoisted_669, [
+                      createBaseVNode("div", _hoisted_670, [
                         createBaseVNode(
                           "span",
                           null,
@@ -25360,7 +25370,7 @@ Component that was made reactive: `,
                           /* TEXT */
                         )
                       ]),
-                      _ctx.state.repairStation.canRepair ? (openBlock(), createElementBlock("div", _hoisted_670, [
+                      _ctx.state.repairStation.canRepair ? (openBlock(), createElementBlock("div", _hoisted_671, [
                         createBaseVNode(
                           "span",
                           null,
@@ -25378,9 +25388,9 @@ Component that was made reactive: `,
                       ])) : createCommentVNode("v-if", true),
                       withDirectives(createBaseVNode(
                         "div",
-                        _hoisted_671,
+                        _hoisted_672,
                         [
-                          createBaseVNode("div", _hoisted_672, [
+                          createBaseVNode("div", _hoisted_673, [
                             createBaseVNode(
                               "span",
                               {
@@ -25391,7 +25401,7 @@ Component that was made reactive: `,
                               /* STYLE */
                             )
                           ]),
-                          createBaseVNode("div", _hoisted_673, [
+                          createBaseVNode("div", _hoisted_674, [
                             createBaseVNode(
                               "span",
                               null,
@@ -25417,46 +25427,46 @@ Component that was made reactive: `,
                         key: 1,
                         type: "button",
                         class: "taxi-fuel__buy",
-                        onClick: _cache[205] || (_cache[205] = ($event) => _ctx.hud.purchaseRepair()),
+                        onClick: _cache[206] || (_cache[206] = ($event) => _ctx.hud.purchaseRepair()),
                         disabled: _ctx.state.repairStation.repairing.active || _ctx.state.fuelStation.refueling.active || !_ctx.state.repairStation.vehicleStopped || _ctx.state.repairStation.balance < _ctx.state.repairStation.price
                       }, [
                         _ctx.state.repairStation.repairing.active ? (openBlock(), createElementBlock(
                           "span",
-                          _hoisted_675,
+                          _hoisted_676,
                           toDisplayString(_ctx.t("repairProgress")) + " \xB7 " + toDisplayString(_ctx.formatNumber(_ctx.state.repairStation.repairing.progress * 100, 0)) + "%",
                           1
                           /* TEXT */
                         )) : createCommentVNode("v-if", true),
                         !_ctx.state.repairStation.repairing.active && !_ctx.state.repairStation.vehicleStopped ? (openBlock(), createElementBlock(
                           "span",
-                          _hoisted_676,
+                          _hoisted_677,
                           toDisplayString(_ctx.t("refuelStayStopped")),
                           1
                           /* TEXT */
                         )) : createCommentVNode("v-if", true),
                         !_ctx.state.repairStation.repairing.active && _ctx.state.repairStation.vehicleStopped && _ctx.state.repairStation.balance < _ctx.state.repairStation.price ? (openBlock(), createElementBlock(
                           "span",
-                          _hoisted_677,
+                          _hoisted_678,
                           toDisplayString(_ctx.t("repairNoMoney")),
                           1
                           /* TEXT */
                         )) : createCommentVNode("v-if", true),
                         !_ctx.state.repairStation.repairing.active && _ctx.state.repairStation.vehicleStopped && _ctx.state.repairStation.balance >= _ctx.state.repairStation.price ? (openBlock(), createElementBlock(
                           "span",
-                          _hoisted_678,
+                          _hoisted_679,
                           toDisplayString(_ctx.t("repairBuy")),
                           1
                           /* TEXT */
                         )) : createCommentVNode("v-if", true)
-                      ], 8, _hoisted_674)) : createCommentVNode("v-if", true)
+                      ], 8, _hoisted_675)) : createCommentVNode("v-if", true)
                     ])) : createCommentVNode("v-if", true)
                   ],
                   2
                   /* CLASS */
                 )) : createCommentVNode("v-if", true),
-                _ctx.offlineConfirmOpen ? (openBlock(), createElementBlock("div", _hoisted_679, [
-                  createBaseVNode("div", _hoisted_680, [
-                    _cache[316] || (_cache[316] = createBaseVNode(
+                _ctx.offlineConfirmOpen ? (openBlock(), createElementBlock("div", _hoisted_680, [
+                  createBaseVNode("div", _hoisted_681, [
+                    _cache[317] || (_cache[317] = createBaseVNode(
                       "div",
                       { class: "taxi-offline-confirm__icon" },
                       "\u26A0\uFE0F",
@@ -25465,32 +25475,32 @@ Component that was made reactive: `,
                     )),
                     createBaseVNode(
                       "h2",
-                      _hoisted_681,
+                      _hoisted_682,
                       toDisplayString(_ctx.state.deliveryOnboard ? _ctx.t("offlineDeliveryTitle") : _ctx.t("offlineConfirmTitle")),
                       1
                       /* TEXT */
                     ),
                     createBaseVNode(
                       "p",
-                      _hoisted_682,
+                      _hoisted_683,
                       toDisplayString(_ctx.state.deliveryOnboard ? _ctx.t("offlineDeliveryDesc") : _ctx.t("offlineConfirmDesc")),
                       1
                       /* TEXT */
                     ),
                     createBaseVNode(
                       "div",
-                      _hoisted_683,
+                      _hoisted_684,
                       toDisplayString(_ctx.t("offlinePenaltyWarning", { percent: _ctx.formatBonusPercent(_ctx.state.offlinePenaltyExtraPercent), rating: _ctx.formatRating(_ctx.state.offlinePenaltyFinalRating) })),
                       1
                       /* TEXT */
                     ),
-                    createBaseVNode("div", _hoisted_684, [
+                    createBaseVNode("div", _hoisted_685, [
                       createBaseVNode(
                         "button",
                         {
                           type: "button",
                           class: "taxi-offline-confirm__cancel",
-                          onClick: _cache[206] || (_cache[206] = ($event) => _ctx.hud.cancelOfflineConfirmation())
+                          onClick: _cache[207] || (_cache[207] = ($event) => _ctx.hud.cancelOfflineConfirmation())
                         },
                         toDisplayString(_ctx.t("cancel")),
                         1
@@ -25501,7 +25511,7 @@ Component that was made reactive: `,
                         {
                           type: "button",
                           class: "taxi-offline-confirm__confirm",
-                          onClick: _cache[207] || (_cache[207] = ($event) => _ctx.hud.confirmOfflineWithPassenger())
+                          onClick: _cache[208] || (_cache[208] = ($event) => _ctx.hud.confirmOfflineWithPassenger())
                         },
                         toDisplayString(_ctx.t("confirmOffline")),
                         1
@@ -25510,9 +25520,9 @@ Component that was made reactive: `,
                     ])
                   ])
                 ])) : createCommentVNode("v-if", true),
-                _ctx.policeCheckConfirmOpen ? (openBlock(), createElementBlock("div", _hoisted_685, [
-                  createBaseVNode("div", _hoisted_686, [
-                    _cache[317] || (_cache[317] = createBaseVNode(
+                _ctx.policeCheckConfirmOpen ? (openBlock(), createElementBlock("div", _hoisted_686, [
+                  createBaseVNode("div", _hoisted_687, [
+                    _cache[318] || (_cache[318] = createBaseVNode(
                       "div",
                       { class: "taxi-offline-confirm__icon" },
                       "\u{1F693}",
@@ -25521,25 +25531,25 @@ Component that was made reactive: `,
                     )),
                     createBaseVNode(
                       "h2",
-                      _hoisted_687,
+                      _hoisted_688,
                       toDisplayString(_ctx.t("policeCheckEnableTitle")),
                       1
                       /* TEXT */
                     ),
                     createBaseVNode(
                       "p",
-                      _hoisted_688,
+                      _hoisted_689,
                       toDisplayString(_ctx.t("policeCheckEnableDesc")),
                       1
                       /* TEXT */
                     ),
-                    createBaseVNode("div", _hoisted_689, [
+                    createBaseVNode("div", _hoisted_690, [
                       createBaseVNode(
                         "button",
                         {
                           type: "button",
                           class: "taxi-offline-confirm__cancel",
-                          onClick: _cache[208] || (_cache[208] = ($event) => _ctx.hud.cancelPoliceCheckEnable())
+                          onClick: _cache[209] || (_cache[209] = ($event) => _ctx.hud.cancelPoliceCheckEnable())
                         },
                         toDisplayString(_ctx.t("cancel")),
                         1
@@ -25550,7 +25560,7 @@ Component that was made reactive: `,
                         {
                           type: "button",
                           class: "taxi-offline-confirm__confirm",
-                          onClick: _cache[209] || (_cache[209] = ($event) => _ctx.hud.confirmPoliceCheckEnable())
+                          onClick: _cache[210] || (_cache[210] = ($event) => _ctx.hud.confirmPoliceCheckEnable())
                         },
                         toDisplayString(_ctx.t("policeCheckEnableConfirm")),
                         1
@@ -25559,9 +25569,9 @@ Component that was made reactive: `,
                     ])
                   ])
                 ])) : createCommentVNode("v-if", true),
-                _ctx.aiDriverConfirmOpen ? (openBlock(), createElementBlock("div", _hoisted_690, [
-                  createBaseVNode("div", _hoisted_691, [
-                    _cache[318] || (_cache[318] = createBaseVNode(
+                _ctx.aiDriverConfirmOpen ? (openBlock(), createElementBlock("div", _hoisted_691, [
+                  createBaseVNode("div", _hoisted_692, [
+                    _cache[319] || (_cache[319] = createBaseVNode(
                       "div",
                       { class: "taxi-offline-confirm__icon" },
                       "AI",
@@ -25570,25 +25580,25 @@ Component that was made reactive: `,
                     )),
                     createBaseVNode(
                       "h2",
-                      _hoisted_692,
+                      _hoisted_693,
                       toDisplayString(_ctx.t("aiDriverConfirmTitle")),
                       1
                       /* TEXT */
                     ),
                     createBaseVNode(
                       "p",
-                      _hoisted_693,
+                      _hoisted_694,
                       toDisplayString(_ctx.t("aiDriverConfirmDesc")),
                       1
                       /* TEXT */
                     ),
-                    createBaseVNode("div", _hoisted_694, [
+                    createBaseVNode("div", _hoisted_695, [
                       createBaseVNode(
                         "button",
                         {
                           type: "button",
                           class: "taxi-offline-confirm__cancel",
-                          onClick: _cache[210] || (_cache[210] = ($event) => _ctx.hud.cancelAiDriverEnable())
+                          onClick: _cache[211] || (_cache[211] = ($event) => _ctx.hud.cancelAiDriverEnable())
                         },
                         toDisplayString(_ctx.t("cancel")),
                         1
@@ -25599,7 +25609,7 @@ Component that was made reactive: `,
                         {
                           type: "button",
                           class: "taxi-offline-confirm__confirm",
-                          onClick: _cache[211] || (_cache[211] = ($event) => _ctx.hud.confirmAiDriverEnable())
+                          onClick: _cache[212] || (_cache[212] = ($event) => _ctx.hud.confirmAiDriverEnable())
                         },
                         toDisplayString(_ctx.t("aiDriverConfirmEnable")),
                         1
@@ -25608,32 +25618,32 @@ Component that was made reactive: `,
                     ])
                   ])
                 ])) : createCommentVNode("v-if", true),
-                _ctx.shouldShowNextOffer() ? (openBlock(), createElementBlock("div", _hoisted_695, [
-                  createBaseVNode("div", _hoisted_696, [
+                _ctx.shouldShowNextOffer() ? (openBlock(), createElementBlock("div", _hoisted_696, [
+                  createBaseVNode("div", _hoisted_697, [
                     !_ctx.state.nextOffer.accepted ? (openBlock(), createElementBlock("button", {
                       key: 0,
                       type: "button",
                       class: "taxi-next-offer__close taxi-action taxi-action--tertiary",
-                      onClick: _cache[212] || (_cache[212] = ($event) => _ctx.hud.dismissNextOffer(_ctx.state.nextOffer.id)),
+                      onClick: _cache[213] || (_cache[213] = ($event) => _ctx.hud.dismissNextOffer(_ctx.state.nextOffer.id)),
                       title: _ctx.t("dismissNextOffer"),
                       "aria-label": _ctx.t("dismissNextOffer")
-                    }, "\xD7", 8, _hoisted_697)) : createCommentVNode("v-if", true),
+                    }, "\xD7", 8, _hoisted_698)) : createCommentVNode("v-if", true),
                     createBaseVNode(
                       "div",
-                      _hoisted_698,
+                      _hoisted_699,
                       toDisplayString(_ctx.t("nextOfferTitle")),
                       1
                       /* TEXT */
                     ),
-                    createBaseVNode("div", _hoisted_699, [
+                    createBaseVNode("div", _hoisted_700, [
                       createBaseVNode(
                         "div",
-                        _hoisted_700,
+                        _hoisted_701,
                         toDisplayString(_ctx.state.nextOffer.isDelivery ? "\u{1F4E6}" : _ctx.getInitials(_ctx.state.nextOffer.passengerName)),
                         1
                         /* TEXT */
                       ),
-                      createBaseVNode("div", _hoisted_701, [
+                      createBaseVNode("div", _hoisted_702, [
                         createBaseVNode(
                           "strong",
                           null,
@@ -25663,14 +25673,14 @@ Component that was made reactive: `,
                         ),
                         createBaseVNode(
                           "small",
-                          _hoisted_703,
+                          _hoisted_704,
                           toDisplayString(_ctx.formatNumber(_ctx.state.nextOffer.passengerCalmness, 0)) + "%",
                           1
                           /* TEXT */
                         )
-                      ], 8, _hoisted_702)) : createCommentVNode("v-if", true),
-                      _ctx.state.nextOffer.isDelivery ? (openBlock(), createElementBlock("div", _hoisted_704, [
-                        _cache[319] || (_cache[319] = createBaseVNode(
+                      ], 8, _hoisted_703)) : createCommentVNode("v-if", true),
+                      _ctx.state.nextOffer.isDelivery ? (openBlock(), createElementBlock("div", _hoisted_705, [
+                        _cache[320] || (_cache[320] = createBaseVNode(
                           "span",
                           null,
                           "\u{1F4E6}",
@@ -25687,14 +25697,14 @@ Component that was made reactive: `,
                       ])) : createCommentVNode("v-if", true),
                       !_ctx.state.nextOffer.accepted ? (openBlock(), createElementBlock(
                         "div",
-                        _hoisted_705,
+                        _hoisted_706,
                         toDisplayString(_ctx.formatNumber(_ctx.nextOfferUiRemaining, 1)),
                         1
                         /* TEXT */
                       )) : createCommentVNode("v-if", true)
                     ]),
-                    createBaseVNode("div", _hoisted_706, [
-                      createBaseVNode("div", _hoisted_707, [
+                    createBaseVNode("div", _hoisted_707, [
+                      createBaseVNode("div", _hoisted_708, [
                         createBaseVNode(
                           "span",
                           null,
@@ -25710,7 +25720,7 @@ Component that was made reactive: `,
                           /* TEXT */
                         )
                       ]),
-                      createBaseVNode("div", _hoisted_708, [
+                      createBaseVNode("div", _hoisted_709, [
                         createBaseVNode(
                           "span",
                           null,
@@ -25726,7 +25736,7 @@ Component that was made reactive: `,
                           /* TEXT */
                         )
                       ]),
-                      createBaseVNode("div", _hoisted_709, [
+                      createBaseVNode("div", _hoisted_710, [
                         createBaseVNode(
                           "span",
                           null,
@@ -25736,24 +25746,24 @@ Component that was made reactive: `,
                         ),
                         createBaseVNode("strong", {
                           title: _ctx.formatMoneyFull(_ctx.state.nextOffer.estimatedFare)
-                        }, toDisplayString(_ctx.formatMoneyFull(_ctx.state.nextOffer.estimatedFare)), 9, _hoisted_710)
+                        }, toDisplayString(_ctx.formatMoneyFull(_ctx.state.nextOffer.estimatedFare)), 9, _hoisted_711)
                       ])
                     ]),
                     _ctx.state.nextOffer.isMultiStop ? (openBlock(), createElementBlock(
                       "div",
-                      _hoisted_711,
+                      _hoisted_712,
                       toDisplayString(_ctx.t("multiStopSummary", { count: _ctx.state.nextOffer.stopCount, time: _ctx.formatCountdown(_ctx.state.nextOffer.stopWaitSeconds) })),
                       1
                       /* TEXT */
                     )) : createCommentVNode("v-if", true),
                     _ctx.state.nextOffer.ratingBonusPercent > 0 ? (openBlock(), createElementBlock(
                       "div",
-                      _hoisted_712,
+                      _hoisted_713,
                       toDisplayString(_ctx.t("ratingBonusLine", { percent: _ctx.formatBonusPercent(_ctx.state.nextOffer.ratingBonusPercent), amount: _ctx.formatMoney(_ctx.state.nextOffer.ratingBonusAmount) })),
                       1
                       /* TEXT */
                     )) : createCommentVNode("v-if", true),
-                    !_ctx.state.nextOffer.accepted ? (openBlock(), createElementBlock("div", _hoisted_713, [
+                    !_ctx.state.nextOffer.accepted ? (openBlock(), createElementBlock("div", _hoisted_714, [
                       createBaseVNode(
                         "span",
                         {
@@ -25770,7 +25780,7 @@ Component that was made reactive: `,
                         key: 4,
                         type: "button",
                         class: "taxi-next-offer__accept taxi-action taxi-action--primary",
-                        onClick: _cache[213] || (_cache[213] = ($event) => _ctx.hud.acceptNextOffer(_ctx.state.nextOffer.id))
+                        onClick: _cache[214] || (_cache[214] = ($event) => _ctx.hud.acceptNextOffer(_ctx.state.nextOffer.id))
                       },
                       toDisplayString(_ctx.t("accept")),
                       1
@@ -25778,7 +25788,7 @@ Component that was made reactive: `,
                     )) : createCommentVNode("v-if", true),
                     _ctx.state.nextOffer.accepted ? (openBlock(), createElementBlock(
                       "div",
-                      _hoisted_714,
+                      _hoisted_715,
                       toDisplayString(_ctx.t("nextOfferAccepted")),
                       1
                       /* TEXT */

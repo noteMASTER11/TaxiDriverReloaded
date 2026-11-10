@@ -647,12 +647,34 @@ local function buildStopProgressMarkers()
   return result
 end
 
+function realisticFuel.serviceVehicle()
+  if state.activeVehicleId then return getObjectByID(state.activeVehicleId) end
+  local session=realisticFuel.personalSession
+  local vehicle=session and getPlayerVehicle() or nil
+  return vehicle and tonumber(vehicle:getID())==tonumber(session.vehicleId) and vehicle or nil
+end
+
+function realisticFuel.serviceActive()
+  return state.active and state.realisticMode or
+    (not state.active and realisticFuel.personalSession~=nil and realisticFuel.serviceVehicle()~=nil)
+end
+
+function realisticFuel.servicePaid()
+  if not state.active and realisticFuel.personalSession then return realisticFuel.personalSession.paid end
+  return state.realisticMode==true
+end
+
+function realisticFuel.closePersonalService()
+  realisticFuel.personalSession=nil
+  realisticFuel.clearStation();realisticFuel.clearRepairStation()
+end
+
 function realisticFuel.buildHud()
-  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  local vehicle = realisticFuel.serviceVehicle()
   local refueling = realisticFuel.refueling
   local vehicleStopped = vehicle ~= nil and getVehicleSpeedKmh(vehicle) <= 2
   local magic = realisticFuel.station and realisticFuel.station.magic == true
-  local available = state.active and state.realisticMode and realisticFuel.station ~= nil and
+  local available = realisticFuel.serviceActive() and realisticFuel.station ~= nil and
     vehicle ~= nil and (magic or vehicleStopped or refueling.active)
   if available and realisticFuel.station.center then
     available = vehicle:getPosition():distance(realisticFuel.station.center) <=
@@ -705,7 +727,7 @@ function realisticFuel.buildRepairHud()
     damagePercent = realisticFuel.repairLastDamagePercent or 0
   end
   local price = repairing.active and repairing.cost or
-    (state.realisticMode and repairPricing.calculateRepairPrice(damagePercent, taxiConfig.repair) or 0)
+    (realisticFuel.servicePaid() and repairPricing.calculateRepairPrice(damagePercent, taxiConfig.repair) or 0)
   return {
     available = available == true,
     id = realisticFuel.repairStation and realisticFuel.repairStation.id or "",
@@ -1276,21 +1298,28 @@ function realisticFuel.setRepairStation(element)
 end
 
 function realisticFuel.refreshOptions()
-  if realisticFuel.dataPending or not state.active or not state.realisticMode or
+  if realisticFuel.dataPending or not realisticFuel.serviceActive() or
     not realisticFuel.station then return end
-  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  local vehicle = realisticFuel.serviceVehicle()
   if not vehicle then return end
 
   realisticFuel.dataPending = true
   local stationAtRequest = realisticFuel.station
   vehicleBridgeGuard.request(vehicle, "energyStorage", function(data)
     realisticFuel.dataPending = false
-    if not state.active or not state.realisticMode or
+    if not realisticFuel.serviceActive() or
       realisticFuel.station ~= stationAtRequest then return end
     local tanks = type(data) == "table" and data[1] or nil
     if type(tanks) ~= "table" then
       realisticFuel.options = {}
       return
+    end
+    if realisticFuel.personalSession then
+      local key=realisticFuel.persistence.vehicleKey(vehicle)
+      if key then
+        realisticFuel.initializedVehicles[vehicle:getID()]=key
+        realisticFuel.persistence.capture(key,tanks)
+      end
     end
 
     local aggregated = {}
@@ -1318,12 +1347,12 @@ function realisticFuel.refreshOptions()
     local order = {gasoline = 1, diesel = 2, kerosine = 3, electricEnergy = 4, n2o = 5}
     local options = {}
     for energyType, option in pairs(aggregated) do
-      option.pricePerUnit = realisticFuel.getPrice(stationAtRequest, energyType)
+      option.pricePerUnit = realisticFuel.servicePaid() and realisticFuel.getPrice(stationAtRequest, energyType) or 0
       option.consumptionPer100Km = realisticFuel.config.estimatedConsumptionPer100Km[energyType] or 0
       option.missingQuantity = math.max(0, option.maxQuantity - option.currentQuantity)
       option.affordableQuantity = math.min(
         option.missingQuantity,
-        option.pricePerUnit > 0 and math.max(0, state.balance) / option.pricePerUnit or 0
+        option.pricePerUnit > 0 and math.max(0, state.balance) / option.pricePerUnit or option.missingQuantity
       )
       option.currentPercent = option.maxQuantity > 0 and
         clampValue(option.currentQuantity / option.maxQuantity * 100, 0, 100) or 0
@@ -1341,9 +1370,9 @@ function realisticFuel.refreshOptions()
 end
 
 function realisticFuel.purchase(energyType, requestedQuantity)
-  if not state.active or not state.realisticMode or not realisticFuel.station or
+  if not realisticFuel.serviceActive() or not realisticFuel.station or
     realisticFuel.refueling.active or realisticFuel.repairing.active then return end
-  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  local vehicle = realisticFuel.serviceVehicle()
   if not vehicle or getVehicleSpeedKmh(vehicle) > 2 then return end
 
   energyType = tostring(energyType or "")
@@ -1354,17 +1383,17 @@ function realisticFuel.purchase(energyType, requestedQuantity)
   local stationAtRequest = realisticFuel.station
   local vehicleId = vehicle:getID()
   vehicleBridgeGuard.request(vehicle, "energyStorage", function(data, currentVehicle)
-    if not state.active or not state.realisticMode or realisticFuel.refueling.active or
+    if not realisticFuel.serviceActive() or realisticFuel.refueling.active or
       realisticFuel.repairing.active or realisticFuel.station ~= stationAtRequest or
-      tonumber(state.activeVehicleId) ~= tonumber(vehicleId) then return end
+      not currentVehicle or tonumber(currentVehicle:getID()) ~= tonumber(vehicleId) then return end
 
     local tanks = type(data) == "table" and data[1] or nil
     if type(tanks) ~= "table" then return end
-    local pricePerUnit = realisticFuel.getPrice(stationAtRequest, energyType)
+    local pricePerUnit = realisticFuel.servicePaid() and realisticFuel.getPrice(stationAtRequest, energyType) or 0
     local availableBalance = roundMoney(math.max(0, tonumber(state.balance) or 0))
     local remainingRequested = math.min(
       requestedQuantity,
-      pricePerUnit > 0 and availableBalance / pricePerUnit or 0
+      pricePerUnit > 0 and availableBalance / pricePerUnit or requestedQuantity
     )
     local purchasedQuantity = 0
     local maximumQuantity = 0
@@ -1401,7 +1430,7 @@ function realisticFuel.purchase(energyType, requestedQuantity)
       availableBalance,
       roundMoney(purchasedQuantity * pricePerUnit)
     )
-    if purchasedQuantity <= 0.0001 or chargedAmount <= 0 then
+    if purchasedQuantity <= 0.0001 or (chargedAmount <= 0 and realisticFuel.servicePaid()) then
       showPhoneNotification("notify_realisticNoMoney", {}, "warning")
       return
     end
@@ -1440,7 +1469,7 @@ end
 function realisticFuel.finishPurchase()
   local session = realisticFuel.refueling
   if not session.active or session.completing then return end
-  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  local vehicle = realisticFuel.serviceVehicle()
   if not vehicle or tonumber(vehicle:getID()) ~= tonumber(session.vehicleId) or
     not realisticFuel.station or realisticFuel.station.id ~= session.stationId then
     realisticFuel.resetRefueling()
@@ -1498,11 +1527,11 @@ end
 function realisticFuel.updateRefueling(dtSim)
   local session = realisticFuel.refueling
   if not session.active or session.completing then return end
-  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  local vehicle = realisticFuel.serviceVehicle()
   local withinStation = realisticFuel.station and
     (not realisticFuel.station.center or vehicle and
       vehicle:getPosition():distance(realisticFuel.station.center) <= realisticFuel.station.radius)
-  local valid = state.active and state.realisticMode and vehicle and realisticFuel.station and
+  local valid = realisticFuel.serviceActive() and vehicle and realisticFuel.station and
     withinStation and
     tonumber(vehicle:getID()) == tonumber(session.vehicleId) and
     realisticFuel.station.id == session.stationId and getVehicleSpeedKmh(vehicle) <= 2
@@ -1576,7 +1605,7 @@ function realisticFuel.purchaseRepair()
       return
     end
 
-    local price = state.realisticMode and
+    local price = realisticFuel.servicePaid() and
       repairPricing.calculateRepairPrice(damagePercent, taxiConfig.repair) or 0
     if price > 0 then
       local availableBalance = roundMoney(math.max(0, tonumber(state.balance) or 0))
@@ -1917,8 +1946,8 @@ function realisticFuel.initializeVehicle(vehicle)
 end
 
 function realisticFuel.updateStation(dtSim)
-  if not state.active or not state.realisticMode or not realisticFuel.station then return end
-  local vehicle = state.activeVehicleId and getObjectByID(state.activeVehicleId) or nil
+  if not realisticFuel.serviceActive() or not realisticFuel.station then return end
+  local vehicle = realisticFuel.serviceVehicle()
   if not vehicle then
     realisticFuel.clearStation()
     notifyHud()
@@ -3517,6 +3546,9 @@ function realisticFuel.openMagicStation(vehicle)
   realisticFuel.stationFuelTypes = {any = true}
   realisticFuel.options = {}
   realisticFuel.dataTimer = 0
+  if realisticFuel.personalSession then
+    realisticFuel.refreshOptions();notifyHud();return true
+  end
   local opened = realisticFuel.beginDetour(facility, vehicle:getPosition(), 0, true)
   if opened then realisticFuel.refreshOptions() end
   return opened
@@ -3739,6 +3771,7 @@ local function updateActiveMode(dtSim)
 end
 
 function M.startMode(restoredEnergy)
+  if realisticFuel.personalSession then realisticFuel.closePersonalService() end
   if M._earthFree then M._earthFree:stop() end
   if state.active then
     notifyHud()
@@ -3975,10 +4008,26 @@ function M.purchaseRepair()
 end
 
 function M.requestFuelStop()
+  if not state.active and M._earthFree and M._earthFree:snapshot().active then
+    if realisticFuel.personalSession and realisticFuel.serviceActive() then
+      realisticFuel.refreshOptions();notifyHud();return
+    end
+    local vehicle=getPlayerVehicle()
+    if not vehicle then return end
+    realisticFuel.personalSession={vehicleId=vehicle:getID(),paid=userSettings.realisticMode==true}
+    realisticFuel.openMagicStation(vehicle)
+    return
+  end
   realisticFuel.requestRoute()
 end
 
 function M.completeFuelStop()
+  if realisticFuel.personalSession then
+    if not realisticFuel.refueling.active and not realisticFuel.repairing.active then
+      realisticFuel.closePersonalService();notifyHud()
+    end
+    return
+  end
   if not realisticFuel.refueling.active and realisticFuel.detour.active and
     realisticFuel.detour.arrived then
     realisticFuel.resumeRoute()
@@ -3986,6 +4035,7 @@ function M.completeFuelStop()
 end
 
 function M.cancelFuelStop()
+  if realisticFuel.personalSession then M.completeFuelStop();return end
   if not realisticFuel.refueling.active then realisticFuel.resumeRoute() end
 end
 
@@ -4583,6 +4633,11 @@ function M.onUpdate(dtReal, dtSim)
   -- inside updateActiveMode, below the state.active return further down).
   runtimeBoundary:call(
     "realisticFuel.repairStation", realisticFuel.updateRepairStation, dtSim, dtReal)
+  if realisticFuel.personalSession then
+    if realisticFuel.serviceActive() then
+      runtimeBoundary:call('realisticFuel.personalStation',realisticFuel.updateStation,dtSim)
+    else realisticFuel.closePersonalService() end
+  end
   if realisticFuel.repairDamageProbe.pending then
     realisticFuel.repairDamageProbe.timeout =
       (realisticFuel.repairDamageProbe.timeout or 0) - dtReal
