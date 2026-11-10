@@ -310,6 +310,61 @@ Order discovery is processed incrementally across simulation updates. Complex ro
 
 Packaged builds are distributed through [GitHub Releases](https://github.com/noteMASTER11/TaxiDriverReloaded/releases) and are intentionally excluded from the source tree. See the repository [Changelog](CHANGELOG.md) for detailed release notes.
 
+## Third-party libraries and source review
+
+This section is included in the mod ZIP for BeamNG Repo reviewers. TaxiDriver's source is available at [noteMASTER11/TaxiDriverReloaded](https://github.com/noteMASTER11/TaxiDriverReloaded). The distributed JavaScript is formatted and unminified, with application function names and source-module labels retained.
+
+### Libraries included in the archive
+
+Connected Phone includes the following parts of **Vue 3.5.43**, maintained by Yuxi (Evan) You and Vue contributors, under the **MIT license**. They are combined with TaxiDriver's UI code in `ui/modules/apps/TaxiDriverHUD/external/hud.bundle.js`:
+
+| Package | Purpose | Upstream source |
+| --- | --- | --- |
+| `vue` | Public Vue application API and browser runtime entry point. | [Vue core](https://github.com/vuejs/core/tree/v3.5.43/packages/vue) |
+| `@vue/shared` | Common type checks, string helpers and runtime utilities. | [shared](https://github.com/vuejs/core/tree/v3.5.43/packages/shared) |
+| `@vue/reactivity` | Reactive objects, computed values and dependency tracking. | [reactivity](https://github.com/vuejs/core/tree/v3.5.43/packages/reactivity) |
+| `@vue/runtime-core` | Component lifecycle, rendering scheduler and virtual DOM. | [runtime-core](https://github.com/vuejs/core/tree/v3.5.43/packages/runtime-core) |
+| `@vue/runtime-dom` | Browser DOM rendering and event handling. | [runtime-dom](https://github.com/vuejs/core/tree/v3.5.43/packages/runtime-dom) |
+
+The full Vue MIT license is shipped as `ui/modules/apps/TaxiDriverHUD/external/THIRD-PARTY-NOTICES.txt`; per-module copyright and license notices are in `hud.bundle.js.LEGAL.txt` in the same directory. The upstream license is [Vue LICENSE](https://github.com/vuejs/core/blob/v3.5.43/LICENSE).
+
+The in-game HUD imports the **Vue runtime provided by BeamNG.drive** instead of loading the external-phone bundle. The external bundle includes its own pinned runtime because a phone browser does not have the game's module loader. No Vue compiler runs in the shipped HUD: `hud-template.html` is precompiled into readable `hud-render.js` at build time. The original `hud-model.js`, `hud-component.js`, `game-bridge.js`, `hud-template.html` and external `entry.js` are also included for review. Vue uses its production configuration; disabling minification does not enable development tools.
+
+### Components supplied by BeamNG.drive
+
+These files and APIs come from the user's game installation. TaxiDriver references them but does not redistribute their implementation or select their installed version:
+
+| Component | Purpose and game path | Source / ownership |
+| --- | --- | --- |
+| Native Vue and UI bridge | In-game component hosting, Lua commands, hooks and streams; `@/bridge` and `/ui/ui-vue/src/bridge/index.js`. | BeamNG.drive's supplied runtime and bridge. |
+| External UI transport | Connection from the phone browser to the running game; `/ui/entrypoints/main/comms.js`. | BeamNG.drive. |
+| TinyEmitter | Event subscriptions used by the game's external UI bridge; `/ui/lib/ext/tiny-emitter/tinyemitter.js`. | [scottcorgan/tiny-emitter](https://github.com/scottcorgan/tiny-emitter), MIT upstream. |
+| QRCode.js | QR-code support for the Connected Phone connection screen; `/ui/lib/ext/qrcode.min.js`. | [davidshimjs/qrcodejs](https://github.com/davidshimjs/qrcodejs), MIT upstream. The `.min.js` file belongs to the game and is not in this mod ZIP. |
+| Lua networking and WebSocket helpers | Local phone HTTP/WebSocket server; `socket.socket` and `utils/wsUtils`. Earth builds also use the game's nonblocking socket API. | BeamNG.drive's installed Lua networking modules; [LuaSocket upstream](https://github.com/lunarmodules/luasocket). No socket binaries are bundled. |
+| Maps, fonts, vehicle and AI APIs | Native minimap rendering, game fonts, telemetry and AI controls. | BeamNG.drive; referenced from the game installation. |
+
+Canvas, Web Audio, `XMLHttpRequest`, storage and timers are browser APIs, not additional bundled libraries. AngularJS, jQuery, external map-rendering libraries and a runtime template compiler are not dependencies of TaxiDriver's UI code. The game's own UI may independently load its own libraries.
+
+### Build and test dependencies
+
+These tools are used on the developer's machine and are **not included as runtime libraries in the mod ZIP**. Versions are pinned in `package.json` and `pnpm-lock.yaml` in the source repository.
+
+| Dependency | Version | Purpose | License / source |
+| --- | --- | --- | --- |
+| `@vue/compiler-dom`, `@vue/compiler-sfc` | 3.5.43 | Vue template compilation and component tooling; matching Vue's runtime version. | MIT; [Vue core](https://github.com/vuejs/core/tree/v3.5.43/packages) |
+| `esbuild` | 0.28.2 | Combines the external-phone modules and Vue runtime into one formatted JavaScript file. Minification is disabled. | MIT; [evanw/esbuild](https://github.com/evanw/esbuild) |
+| `happy-dom` | 21.0.4 | DOM environment for automated UI interaction tests. | MIT; [capricorn86/happy-dom](https://github.com/capricorn86/happy-dom) |
+| `playwright` | 1.61.1 | Browser-based visual and integration checks. | Apache-2.0; [microsoft/playwright](https://github.com/microsoft/playwright) |
+
+Transitive build/test dependencies are recorded in `pnpm-lock.yaml`; they are not copied into the ZIP. The Vue runtime packages listed above are the third-party JavaScript included in `hud.bundle.js`. Build instructions are in the source repository's [DEVELOPMENT.md](https://github.com/noteMASTER11/TaxiDriverReloaded/blob/main/DEVELOPMENT.md).
+
+### Generated assets and optional Earth integration
+
+- `hud-render.js` is generated Vue rendering code from the included HTML template. `external/hud.bundle.js` is the readable bundle, not encrypted or obfuscated source.
+- `external/sounds-data.js` contains **Base64-encoded MP3 audio data**, generated from the same `.mp3` files included under `sounds/`. These strings are media assets, not encoded executable code. The generator is `scripts/generate-external-sounds.mjs` in the source repository.
+- HUD scripts, translations and sound data are loaded from the mod/game installation, without a third-party JavaScript CDN.
+- Builds with Earth integration optionally communicate with a separately installed [BeamNG.Earth](https://github.com/tecnagamer/beamng.earth) through its Lua API and local companion server. Earth provides place/address lookup and world routing through its existing providers. TaxiDriver does not bundle Earth, an OSM database or an OSRM server. On ordinary levels its Earth controls are hidden and its world dispatcher does not run.
+
 ## Credits
 
 Special thanks to **Incognito**, creator of the original [TaxiDriver mod](https://www.beamng.com/resources/taxidriver.28763/).

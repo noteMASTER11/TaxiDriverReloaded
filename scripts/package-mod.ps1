@@ -23,7 +23,7 @@ $archive = [System.IO.Compression.ZipFile]::Open(
   [System.IO.Compression.ZipArchiveMode]::Create
 )
 try {
-  $files = @((Join-Path $root "CREDITS.txt"))
+  $files = @((Join-Path $root "CREDITS.txt"), (Join-Path $root "README.md"))
   foreach ($directoryName in @("lua", "mod_info", "settings", "ui")) {
     $directory = Join-Path $root $directoryName
     $files += [System.IO.Directory]::GetFiles(
@@ -47,6 +47,7 @@ finally {
 }
 
 $requiredEntries = @(
+  "README.md",
   "lua/ge/extensions/taxiDriver/taxiDriver.lua",
   "lua/ge/extensions/taxiDriver/autopilot.lua",
   "lua/ge/extensions/taxiDriver/aiDriverRoute.lua",
