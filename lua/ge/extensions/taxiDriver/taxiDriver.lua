@@ -3739,6 +3739,7 @@ local function updateActiveMode(dtSim)
 end
 
 function M.startMode(restoredEnergy)
+  if M._earthFree then M._earthFree:stop() end
   if state.active then
     notifyHud()
     return
@@ -3940,13 +3941,17 @@ function M.requestEarthState()
 end
 
 function M.earthCommand(action, args)
+  if action=='stopFreeRoute' then
+    if M._earthFree then M._earthFree:stop() end
+    M.requestEarthState();notifyHud();return true
+  end
   if action=="startTrip" then return M.startEarthTrip(args) end
   if M._earthRouting then return M._earthRouting:command(action, args) end
 end
 
 function M.getEarthDebugState()
   return M._earthRouting and {state=M._earthRouting:snapshot(),stats=M._earthRouting:stats(),
-    dispatcher=M._earthDispatcher and M._earthDispatcher:stats(),
+    dispatcher=M._earthDispatcher and M._earthDispatcher:stats(),minimap=navigationUi:getMinimapStats(),
     trip=trip and trip.earth and {id=trip.id,pickup=trip.pickup,destination=trip.destination}} or nil
 end
 
@@ -4508,6 +4513,7 @@ end
 function M.onUpdate(dtReal, dtSim)
   dtReal = math.max(0, dtReal or 0)
   dtSim = math.max(0, dtSim or 0)
+  if M._earthFree then runtimeBoundary:call('earth.freeRoute',M._earthFree.update,M._earthFree,dtReal) end
   if M._earthRouting then
     runtimeBoundary:call("earth.update", M._earthRouting.update, M._earthRouting, dtReal)
   end
@@ -4921,6 +4927,14 @@ function M.startEarthTrip(args)
   local route=snapshot.route
   local from,to=route.roadFrom or route.from,route.roadTo or route.to
   if not from or not to then return reject("Earth route endpoints are unavailable") end
+  if args.withoutPassenger==true then
+    if state.active then stopModeInternal(nil,false) end
+    if not M._earthFree or not M._earthFree:start(route,snapshot.mode) then return reject('Earth GPS route could not start') end
+    M._earthFreeId=(M._earthFreeId or 0)+1
+    M._earthRouting:command('started',{owner=args.owner,tripId=M._earthFreeId})
+    notifyHud();return true
+  end
+  if M._earthFree then M._earthFree:stop() end
   if not state.active then M.startMode() end
   if not state.active then return reject("The taxi shift could not start") end
   local vehicle=getPlayerVehicle()
@@ -4946,6 +4960,7 @@ function M.startEarthTrip(args)
 end
 
 function M.onExtensionLoaded()
+  M._earthFree=require('taxiDriver/earthFreeRoute').new()
   M._earthTrip=require("taxiDriver/earthTripSupport").new()
   if M._earthAddresses then M._earthAddresses:destroy() end
   M._earthAddresses=require("taxiDriver/earthAddresses").new({getEndpoint=M.earthEndpoint})
@@ -4954,6 +4969,7 @@ function M.onExtensionLoaded()
     getOrigin=function() return M._earthTrip:pose() end,getPickup=M.getEarthPickupStop})
   if M._earthRouting then M._earthRouting:destroy() end
   M._earthRouting = require("taxiDriver/earthRouting").new({
+    getFreeRoute=function()return M._earthFree:snapshot()end,
     isTripActive=function() return state.active end,
     emit=function(value) guihooks.trigger("TaxiDriverEarthState", value) end
   })
@@ -4973,6 +4989,7 @@ function M.onExtensionLoaded()
 end
 
 function M.onClientEndMission()
+  if M._earthFree then M._earthFree:stop() end
   if M._earthAddresses then M._earthAddresses:cancel() end
   if M._earthDispatcher then M._earthDispatcher:cancel() end
   if M._earthTrip then M._earthTrip:reset() end
@@ -5012,6 +5029,7 @@ end function M.onPreRender(dtReal, dtSim)
 end
 
 function M.onExtensionUnloaded()
+  if M._earthFree then M._earthFree:stop() end
   if M._earthAddresses then M._earthAddresses:destroy();M._earthAddresses=nil end
   if M._earthDispatcher then M._earthDispatcher:destroy();M._earthDispatcher=nil end
   if M._earthTrip then M._earthTrip:reset();M._earthTrip=nil end

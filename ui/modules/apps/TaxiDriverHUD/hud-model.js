@@ -1275,6 +1275,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
     const normalizeEarth = snapshot => ({
       available: false, status: 'absent', mode: 'vehicle', error: '', canNavigate: false, gps: null, owner: '',
       maxRandomKm: 50, randomAttempt: 0, startedTripId: 0,
+      withoutPassenger: false, location: '', freeRoute: {active: false},
       ...snapshot,
       a: normalizeEarthField(snapshot?.a), b: normalizeEarthField(snapshot?.b),
       route: { status: 'idle', distanceM: 0, durationS: 0, from: null, to: null, error: '', ...snapshot?.route },
@@ -1338,7 +1339,10 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
           earthDirty[field] = false;
         }
       }
+      const personalRouteChanged = Boolean(view.earth.freeRoute?.active) !== Boolean(incoming.freeRoute?.active);
+      const streetLayoutChanged = Boolean(view.earth.location) !== Boolean(incoming.location);
       view.earth = incoming;
+      if (personalRouteChanged || streetLayoutChanged) scheduleMinimapUpdate();
       if (view.earthStarting && (Number(incoming.startedTripId) > 0 || incoming.error || incoming.route.error)) {
         if (earthStartTimer !== null) clearTimeout(earthStartTimer);
         earthStartTimer = null;
@@ -1368,8 +1372,13 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
         view.earthStarting = false;
         view.earth.error = view.t('earthStartTimeout');
       }, 15000);
-      earthCommand('startTrip');
+      earthCommand('startTrip', {withoutPassenger: view.earth.withoutPassenger === true});
     };
+    hud.setEarthWithoutPassenger = () => earthCommand('setWithoutPassenger', {value: view.earth.withoutPassenger === true});
+    hud.stopEarthFreeRoute = () => earthCommand('stopFreeRoute');
+    view.hasPersonalRoute = () => view.earth.available && view.earth.freeRoute?.active === true;
+    view.getNavigationRemaining = () => view.hasPersonalRoute() ? view.earth.freeRoute.remainingM : view.state.distanceToTarget;
+    view.getNavigationEta = () => view.hasPersonalRoute() ? view.earth.freeRoute.etaS / 60 : view.state.etaMinutes;
     hud.setEarthRandomLimit = value => {
       const number = Number(value);
       const maxRandomKm = Math.max(1, Math.min(600, Math.round(Number.isFinite(number) ? number : 50)));
@@ -2073,7 +2082,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
     const canRenderMinimap = (hudState) => !externalPhoneMode && !view.phoneSuperMinimized && !view.earthOpen &&
       uiVisible && !view.vehicleConfigSuspended && hudState &&
       (!(hudState.lan && Number(hudState.lan.connected || 0) > 0) || view.localPhoneOpen) &&
-      (view.fleetOpen || (hudState.active === true && minimapPhases.has(hudState.phase))) &&
+      (view.phoneMinimized || view.hasPersonalRoute() || view.fleetOpen || (hudState.active === true && minimapPhases.has(hudState.phase))) &&
       (view.phoneMinimized || (
         !view.settingsOpen && !view.profileOpen && !view.offlineConfirmOpen &&
         !view.fuelStationOpen
@@ -2156,7 +2165,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
         .map((value) => value.toFixed(5))
         .join(",");
 
-      const allowFleetMap = view.fleetOpen ? "true" : "false";
+      const allowFleetMap = view.fleetOpen || view.phoneMinimized || view.hasPersonalRoute() ? "true" : "false";
       const forceFullTextureClear = view.phoneMinimized ? "false" : "true";
       bngApi.engineLua(
         `if taxiDriver_taxiDriver then taxiDriver_taxiDriver.setMinimapTransform(${rectKey}, ${allowFleetMap}, ${forceFullTextureClear}); taxiDriver_taxiDriver.setMinimapOcclusions(${occlusionKey}, ${allowFleetMap}, ${mapControlsValues.map(value => value.toFixed(5)).join(",")}) end`
@@ -3158,7 +3167,7 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
       return view.t("cargoWeightValue", { weight });
     };
     view.getProgressPercent = () =>
-      Math.max(0, Math.min(100, Number(view.state.routeProgress || 0) * 100));
+      Math.max(0, Math.min(100, Number(view.hasPersonalRoute() ? view.earth.freeRoute.progress : view.state.routeProgress || 0) * 100));
     view.getStarFill = (star) => {
       const rating = Number(view.state.rating || 0);
       return Math.max(0, Math.min(100, (rating - (star - 1)) * 100));
@@ -3335,14 +3344,16 @@ export function createHudModel({ host, bridge, vue, externalPhoneMode: externalM
       return !queuedTripIsCurrent || view.state.phase === "toPickup";
     };
     view.getPhaseLabel = () => {
+      if (view.hasPersonalRoute()) return view.t(view.earth.freeRoute.leg === 'a' ? 'earthNavigateA' : 'earthPersonalRoute');
       if (view.state.isDelivery && view.state.phase === "toPickup") return view.t("phase_deliveryPickup");
       if (view.state.isDelivery && view.state.phase === "toDestination") return view.t("phase_deliveryDestination");
       if (view.state.isDelivery && view.state.phase === "boarding") return view.t("loadingCargo");
       if (view.state.isDelivery && view.state.phase === "alighting") return view.t("unloadingCargo");
       return view.t(`phase_${view.state.phase || "inactive"}`);
     };
-    view.isNavigationPhase = () => minimapPhases.has(view.state.phase);
+    view.isNavigationPhase = () => view.hasPersonalRoute() || minimapPhases.has(view.state.phase);
     view.getCompactTitle = () => {
+      if (view.hasPersonalRoute()) return view.earth.freeRoute.name || view.t('earthPersonalRoute');
       if (!view.state.active) return "TaxiDriver";
       if (view.state.phase === "toFuelStation") {
         return view.state.fuelDetour.stationName || view.t("fuelRouteTitle");

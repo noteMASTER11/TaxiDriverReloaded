@@ -85,1042 +85,1062 @@ const _hoisted_37 = {
   key: 1,
   class: "taxi-compact__metric"
 }
-const _hoisted_38 = {
+const _hoisted_38 = ["title"]
+const _hoisted_39 = {
   key: 3,
   class: "taxi-phone"
 }
-const _hoisted_39 = { class: "taxi-phone__screen" }
-const _hoisted_40 = { class: "phone-status" }
-const _hoisted_41 = ["title"]
-const _hoisted_42 = { class: "phone-odometer__vehicle" }
-const _hoisted_43 = { class: "taxi-appbar" }
-const _hoisted_44 = { class: "taxi-appbar__title" }
-const _hoisted_45 = ["title"]
-const _hoisted_46 = {
+const _hoisted_40 = { class: "taxi-phone__screen" }
+const _hoisted_41 = { class: "phone-status" }
+const _hoisted_42 = ["title"]
+const _hoisted_43 = { class: "phone-odometer__vehicle" }
+const _hoisted_44 = { class: "taxi-appbar" }
+const _hoisted_45 = { class: "taxi-appbar__title" }
+const _hoisted_46 = ["title"]
+const _hoisted_47 = {
   key: 0,
   class: "taxi-appbar__live"
 }
-const _hoisted_47 = ["aria-label"]
 const _hoisted_48 = ["aria-label"]
-const _hoisted_49 = { key: 0 }
-const _hoisted_50 = { key: 1 }
-const _hoisted_51 = { class: "taxi-passenger-chat__avatar" }
-const _hoisted_52 = { class: "taxi-passenger-chat__body" }
-const _hoisted_53 = { class: "taxi-passenger-chat__header" }
-const _hoisted_54 = { class: "taxi-passenger-chat__message" }
-const _hoisted_55 = { class: "taxi-phone-toast__icon" }
-const _hoisted_56 = { class: "taxi-phone-toast__text" }
-const _hoisted_57 = {
+const _hoisted_49 = ["aria-label"]
+const _hoisted_50 = { key: 0 }
+const _hoisted_51 = { key: 1 }
+const _hoisted_52 = { class: "taxi-passenger-chat__avatar" }
+const _hoisted_53 = { class: "taxi-passenger-chat__body" }
+const _hoisted_54 = { class: "taxi-passenger-chat__header" }
+const _hoisted_55 = { class: "taxi-passenger-chat__message" }
+const _hoisted_56 = { class: "taxi-phone-toast__icon" }
+const _hoisted_57 = { class: "taxi-phone-toast__text" }
+const _hoisted_58 = {
   key: 3,
   class: "taxi-settings"
 }
-const _hoisted_58 = { class: "taxi-settings__intro" }
-const _hoisted_59 = ["aria-label"]
-const _hoisted_60 = ["aria-current", "onClick"]
-const _hoisted_61 = ["aria-expanded"]
-const _hoisted_62 = {
+const _hoisted_59 = { class: "taxi-settings__intro" }
+const _hoisted_60 = ["aria-label"]
+const _hoisted_61 = ["aria-current", "onClick"]
+const _hoisted_62 = ["aria-expanded"]
+const _hoisted_63 = {
   key: 0,
   id: "taxi-settings-general",
   class: "taxi-settings__group-body"
 }
-const _hoisted_63 = { class: "taxi-settings__section" }
-const _hoisted_64 = { class: "taxi-settings__label" }
-const _hoisted_65 = { class: "taxi-settings__help" }
-const _hoisted_66 = { class: "taxi-settings__languages" }
-const _hoisted_67 = ["onClick"]
-const _hoisted_68 = { key: 0 }
-const _hoisted_69 = { class: "taxi-settings__check" }
-const _hoisted_70 = { class: "taxi-settings__section" }
-const _hoisted_71 = { class: "taxi-settings__label" }
-const _hoisted_72 = { class: "taxi-settings__help" }
-const _hoisted_73 = { class: "taxi-settings__section" }
-const _hoisted_74 = { class: "taxi-settings__label" }
-const _hoisted_75 = { class: "taxi-settings__help" }
-const _hoisted_76 = { class: "taxi-settings__segmented" }
-const _hoisted_77 = { class: "taxi-settings__section" }
-const _hoisted_78 = { class: "taxi-settings__label" }
-const _hoisted_79 = { class: "taxi-settings__help" }
-const _hoisted_80 = { class: "taxi-settings__segmented" }
-const _hoisted_81 = ["aria-expanded"]
-const _hoisted_82 = {
+const _hoisted_64 = { class: "taxi-settings__section" }
+const _hoisted_65 = { class: "taxi-settings__label" }
+const _hoisted_66 = { class: "taxi-settings__help" }
+const _hoisted_67 = { class: "taxi-settings__languages" }
+const _hoisted_68 = ["onClick"]
+const _hoisted_69 = { key: 0 }
+const _hoisted_70 = { class: "taxi-settings__check" }
+const _hoisted_71 = { class: "taxi-settings__section" }
+const _hoisted_72 = { class: "taxi-settings__label" }
+const _hoisted_73 = { class: "taxi-settings__help" }
+const _hoisted_74 = { class: "taxi-settings__section" }
+const _hoisted_75 = { class: "taxi-settings__label" }
+const _hoisted_76 = { class: "taxi-settings__help" }
+const _hoisted_77 = { class: "taxi-settings__segmented" }
+const _hoisted_78 = { class: "taxi-settings__section" }
+const _hoisted_79 = { class: "taxi-settings__label" }
+const _hoisted_80 = { class: "taxi-settings__help" }
+const _hoisted_81 = { class: "taxi-settings__segmented" }
+const _hoisted_82 = ["aria-expanded"]
+const _hoisted_83 = {
   key: 0,
   id: "taxi-settings-gameplay",
   class: "taxi-settings__group-body"
 }
-const _hoisted_83 = {
+const _hoisted_84 = {
   key: 0,
   class: "taxi-settings__section"
 }
-const _hoisted_84 = {
+const _hoisted_85 = {
   class: "taxi-settings__label",
   for: "taxi-earth-random-limit"
 }
-const _hoisted_85 = { class: "taxi-settings__help" }
-const _hoisted_86 = { class: "taxi-earth-limit" }
-const _hoisted_87 = { class: "taxi-settings__section" }
-const _hoisted_88 = {
+const _hoisted_86 = { class: "taxi-settings__help" }
+const _hoisted_87 = { class: "taxi-earth-limit" }
+const _hoisted_88 = { class: "taxi-settings__section" }
+const _hoisted_89 = {
   class: "taxi-settings__label",
   for: "taxi-initial-fuel"
 }
-const _hoisted_89 = { class: "taxi-settings__help" }
-const _hoisted_90 = { class: "taxi-settings__section" }
-const _hoisted_91 = { class: "taxi-settings__label" }
-const _hoisted_92 = { class: "taxi-settings__help" }
-const _hoisted_93 = { class: "taxi-settings__difficulty" }
-const _hoisted_94 = ["onClick"]
-const _hoisted_95 = {
+const _hoisted_90 = { class: "taxi-settings__help" }
+const _hoisted_91 = { class: "taxi-settings__section" }
+const _hoisted_92 = { class: "taxi-settings__label" }
+const _hoisted_93 = { class: "taxi-settings__help" }
+const _hoisted_94 = { class: "taxi-settings__difficulty" }
+const _hoisted_95 = ["onClick"]
+const _hoisted_96 = {
   key: 1,
   class: "taxi-settings__custom"
 }
-const _hoisted_96 = ["min", "max", "step", "onUpdate:modelValue"]
-const _hoisted_97 = { class: "taxi-settings__section" }
-const _hoisted_98 = { class: "taxi-settings__label" }
-const _hoisted_99 = { class: "taxi-settings__help" }
-const _hoisted_100 = { class: "taxi-settings__mix-labels" }
-const _hoisted_101 = { class: "taxi-settings__section" }
-const _hoisted_102 = { class: "taxi-settings__switch-row" }
-const _hoisted_103 = { class: "taxi-settings__switch-copy" }
-const _hoisted_104 = { class: "taxi-settings__section" }
-const _hoisted_105 = { class: "taxi-settings__label" }
-const _hoisted_106 = { class: "taxi-settings__help" }
-const _hoisted_107 = { class: "taxi-settings__penalty-toggles" }
-const _hoisted_108 = { class: "taxi-settings__switch-copy" }
-const _hoisted_109 = ["onUpdate:modelValue"]
-const _hoisted_110 = { class: "taxi-settings__portable" }
-const _hoisted_111 = ["aria-expanded"]
-const _hoisted_112 = {
+const _hoisted_97 = ["min", "max", "step", "onUpdate:modelValue"]
+const _hoisted_98 = { class: "taxi-settings__section" }
+const _hoisted_99 = { class: "taxi-settings__label" }
+const _hoisted_100 = { class: "taxi-settings__help" }
+const _hoisted_101 = { class: "taxi-settings__mix-labels" }
+const _hoisted_102 = { class: "taxi-settings__section" }
+const _hoisted_103 = { class: "taxi-settings__switch-row" }
+const _hoisted_104 = { class: "taxi-settings__switch-copy" }
+const _hoisted_105 = { class: "taxi-settings__section" }
+const _hoisted_106 = { class: "taxi-settings__label" }
+const _hoisted_107 = { class: "taxi-settings__help" }
+const _hoisted_108 = { class: "taxi-settings__penalty-toggles" }
+const _hoisted_109 = { class: "taxi-settings__switch-copy" }
+const _hoisted_110 = ["onUpdate:modelValue"]
+const _hoisted_111 = { class: "taxi-settings__portable" }
+const _hoisted_112 = ["aria-expanded"]
+const _hoisted_113 = {
   key: 0,
   id: "taxi-settings-random-events",
   class: "taxi-settings__group-body"
 }
-const _hoisted_113 = { class: "taxi-settings__section" }
-const _hoisted_114 = { class: "taxi-settings__switch-row" }
-const _hoisted_115 = { class: "taxi-settings__switch-copy" }
-const _hoisted_116 = { class: "taxi-settings__switch-row taxi-settings__switch-row--compact" }
-const _hoisted_117 = { class: "taxi-settings__switch-copy" }
-const _hoisted_118 = ["onUpdate:modelValue", "onChange"]
-const _hoisted_119 = { class: "taxi-settings__label" }
-const _hoisted_120 = ["onUpdate:modelValue", "disabled"]
-const _hoisted_121 = { class: "taxi-settings__portable" }
-const _hoisted_122 = ["aria-expanded"]
-const _hoisted_123 = {
+const _hoisted_114 = { class: "taxi-settings__section" }
+const _hoisted_115 = { class: "taxi-settings__switch-row" }
+const _hoisted_116 = { class: "taxi-settings__switch-copy" }
+const _hoisted_117 = { class: "taxi-settings__switch-row taxi-settings__switch-row--compact" }
+const _hoisted_118 = { class: "taxi-settings__switch-copy" }
+const _hoisted_119 = ["onUpdate:modelValue", "onChange"]
+const _hoisted_120 = { class: "taxi-settings__label" }
+const _hoisted_121 = ["onUpdate:modelValue", "disabled"]
+const _hoisted_122 = { class: "taxi-settings__portable" }
+const _hoisted_123 = ["aria-expanded"]
+const _hoisted_124 = {
   key: 0,
   id: "taxi-settings-ai-driver",
   class: "taxi-settings__group-body"
 }
-const _hoisted_124 = { class: "taxi-settings__section taxi-settings__section--ai-master" }
-const _hoisted_125 = { class: "taxi-settings__switch-row taxi-settings__switch-row--warning" }
-const _hoisted_126 = { class: "taxi-settings__switch-copy" }
-const _hoisted_127 = {
+const _hoisted_125 = { class: "taxi-settings__section taxi-settings__section--ai-master" }
+const _hoisted_126 = { class: "taxi-settings__switch-row taxi-settings__switch-row--warning" }
+const _hoisted_127 = { class: "taxi-settings__switch-copy" }
+const _hoisted_128 = {
   key: 0,
   class: "taxi-settings__ai-disabled"
 }
-const _hoisted_128 = {
+const _hoisted_129 = {
   key: 1,
   class: "taxi-settings__ai-options"
 }
-const _hoisted_129 = { class: "taxi-settings__section" }
-const _hoisted_130 = { class: "taxi-settings__label" }
-const _hoisted_131 = { class: "taxi-settings__help" }
-const _hoisted_132 = { class: "taxi-settings__difficulty taxi-settings__difficulty--ai" }
-const _hoisted_133 = ["onClick"]
-const _hoisted_134 = { class: "taxi-settings__section taxi-settings__section--stacked-switches" }
-const _hoisted_135 = { class: "taxi-settings__switch-row" }
-const _hoisted_136 = { class: "taxi-settings__switch-copy" }
-const _hoisted_137 = { class: "taxi-settings__switch-row" }
-const _hoisted_138 = { class: "taxi-settings__switch-copy" }
-const _hoisted_139 = {
+const _hoisted_130 = { class: "taxi-settings__section" }
+const _hoisted_131 = { class: "taxi-settings__label" }
+const _hoisted_132 = { class: "taxi-settings__help" }
+const _hoisted_133 = { class: "taxi-settings__difficulty taxi-settings__difficulty--ai" }
+const _hoisted_134 = ["onClick"]
+const _hoisted_135 = { class: "taxi-settings__section taxi-settings__section--stacked-switches" }
+const _hoisted_136 = { class: "taxi-settings__switch-row" }
+const _hoisted_137 = { class: "taxi-settings__switch-copy" }
+const _hoisted_138 = { class: "taxi-settings__switch-row" }
+const _hoisted_139 = { class: "taxi-settings__switch-copy" }
+const _hoisted_140 = {
   key: 0,
   class: "taxi-settings__custom"
 }
-const _hoisted_140 = { class: "taxi-settings__portable" }
-const _hoisted_141 = { class: "taxi-settings__section" }
-const _hoisted_142 = { class: "taxi-settings__label" }
-const _hoisted_143 = { class: "taxi-settings__help" }
-const _hoisted_144 = { class: "taxi-settings__range-ends" }
-const _hoisted_145 = { class: "taxi-settings__section" }
-const _hoisted_146 = { class: "taxi-settings__label" }
-const _hoisted_147 = { class: "taxi-settings__help" }
-const _hoisted_148 = { class: "taxi-settings__section" }
-const _hoisted_149 = { class: "taxi-settings__label" }
-const _hoisted_150 = { class: "taxi-settings__help" }
-const _hoisted_151 = { class: "taxi-settings__section" }
-const _hoisted_152 = { class: "taxi-settings__label" }
-const _hoisted_153 = { class: "taxi-settings__help" }
-const _hoisted_154 = { class: "taxi-settings__section" }
-const _hoisted_155 = { class: "taxi-settings__label" }
-const _hoisted_156 = { class: "taxi-settings__help" }
-const _hoisted_157 = { class: "taxi-settings__section taxi-settings__section--stacked-switches" }
-const _hoisted_158 = { class: "taxi-settings__switch-row" }
-const _hoisted_159 = { class: "taxi-settings__switch-copy" }
-const _hoisted_160 = { class: "taxi-settings__switch-row" }
-const _hoisted_161 = { class: "taxi-settings__switch-copy" }
-const _hoisted_162 = ["aria-expanded"]
-const _hoisted_163 = {
+const _hoisted_141 = { class: "taxi-settings__portable" }
+const _hoisted_142 = { class: "taxi-settings__section" }
+const _hoisted_143 = { class: "taxi-settings__label" }
+const _hoisted_144 = { class: "taxi-settings__help" }
+const _hoisted_145 = { class: "taxi-settings__range-ends" }
+const _hoisted_146 = { class: "taxi-settings__section" }
+const _hoisted_147 = { class: "taxi-settings__label" }
+const _hoisted_148 = { class: "taxi-settings__help" }
+const _hoisted_149 = { class: "taxi-settings__section" }
+const _hoisted_150 = { class: "taxi-settings__label" }
+const _hoisted_151 = { class: "taxi-settings__help" }
+const _hoisted_152 = { class: "taxi-settings__section" }
+const _hoisted_153 = { class: "taxi-settings__label" }
+const _hoisted_154 = { class: "taxi-settings__help" }
+const _hoisted_155 = { class: "taxi-settings__section" }
+const _hoisted_156 = { class: "taxi-settings__label" }
+const _hoisted_157 = { class: "taxi-settings__help" }
+const _hoisted_158 = { class: "taxi-settings__section taxi-settings__section--stacked-switches" }
+const _hoisted_159 = { class: "taxi-settings__switch-row" }
+const _hoisted_160 = { class: "taxi-settings__switch-copy" }
+const _hoisted_161 = { class: "taxi-settings__switch-row" }
+const _hoisted_162 = { class: "taxi-settings__switch-copy" }
+const _hoisted_163 = ["aria-expanded"]
+const _hoisted_164 = {
   key: 0,
   id: "taxi-settings-fleet",
   class: "taxi-settings__group-body"
 }
-const _hoisted_164 = { class: "taxi-settings__section" }
-const _hoisted_165 = { class: "taxi-settings__switch-row" }
-const _hoisted_166 = { class: "taxi-settings__switch-copy" }
-const _hoisted_167 = { class: "taxi-settings__section" }
-const _hoisted_168 = { class: "taxi-settings__label" }
-const _hoisted_169 = { class: "taxi-settings__help" }
-const _hoisted_170 = { class: "taxi-settings__segmented taxi-settings__segmented--three" }
-const _hoisted_171 = { class: "taxi-settings__section" }
-const _hoisted_172 = { class: "taxi-settings__label" }
-const _hoisted_173 = { class: "taxi-settings__section" }
-const _hoisted_174 = { class: "taxi-settings__label" }
-const _hoisted_175 = { class: "taxi-settings__section" }
-const _hoisted_176 = { class: "taxi-settings__label" }
-const _hoisted_177 = { class: "taxi-settings__section" }
-const _hoisted_178 = { class: "taxi-settings__label" }
-const _hoisted_179 = { class: "taxi-settings__section" }
-const _hoisted_180 = { class: "taxi-settings__label" }
-const _hoisted_181 = { class: "taxi-settings__section taxi-settings__section--stacked-switches" }
-const _hoisted_182 = { class: "taxi-settings__switch-row" }
-const _hoisted_183 = { class: "taxi-settings__switch-copy" }
-const _hoisted_184 = { class: "taxi-settings__switch-row" }
-const _hoisted_185 = { class: "taxi-settings__switch-copy" }
-const _hoisted_186 = ["aria-expanded"]
-const _hoisted_187 = {
+const _hoisted_165 = { class: "taxi-settings__section" }
+const _hoisted_166 = { class: "taxi-settings__switch-row" }
+const _hoisted_167 = { class: "taxi-settings__switch-copy" }
+const _hoisted_168 = { class: "taxi-settings__section" }
+const _hoisted_169 = { class: "taxi-settings__label" }
+const _hoisted_170 = { class: "taxi-settings__help" }
+const _hoisted_171 = { class: "taxi-settings__segmented taxi-settings__segmented--three" }
+const _hoisted_172 = { class: "taxi-settings__section" }
+const _hoisted_173 = { class: "taxi-settings__label" }
+const _hoisted_174 = { class: "taxi-settings__section" }
+const _hoisted_175 = { class: "taxi-settings__label" }
+const _hoisted_176 = { class: "taxi-settings__section" }
+const _hoisted_177 = { class: "taxi-settings__label" }
+const _hoisted_178 = { class: "taxi-settings__section" }
+const _hoisted_179 = { class: "taxi-settings__label" }
+const _hoisted_180 = { class: "taxi-settings__section" }
+const _hoisted_181 = { class: "taxi-settings__label" }
+const _hoisted_182 = { class: "taxi-settings__section taxi-settings__section--stacked-switches" }
+const _hoisted_183 = { class: "taxi-settings__switch-row" }
+const _hoisted_184 = { class: "taxi-settings__switch-copy" }
+const _hoisted_185 = { class: "taxi-settings__switch-row" }
+const _hoisted_186 = { class: "taxi-settings__switch-copy" }
+const _hoisted_187 = ["aria-expanded"]
+const _hoisted_188 = {
   key: 0,
   id: "taxi-settings-navigation",
   class: "taxi-settings__group-body"
 }
-const _hoisted_188 = { class: "taxi-settings__section" }
-const _hoisted_189 = { class: "taxi-settings__switch-row" }
-const _hoisted_190 = { class: "taxi-settings__switch-copy" }
-const _hoisted_191 = { class: "taxi-settings__section" }
-const _hoisted_192 = { class: "taxi-settings__label" }
-const _hoisted_193 = { class: "taxi-settings__help" }
-const _hoisted_194 = { class: "taxi-settings__range-ends" }
-const _hoisted_195 = { class: "taxi-settings__section" }
-const _hoisted_196 = { class: "taxi-settings__label" }
-const _hoisted_197 = { class: "taxi-settings__help" }
-const _hoisted_198 = ["aria-expanded"]
-const _hoisted_199 = {
+const _hoisted_189 = { class: "taxi-settings__section" }
+const _hoisted_190 = { class: "taxi-settings__switch-row" }
+const _hoisted_191 = { class: "taxi-settings__switch-copy" }
+const _hoisted_192 = { class: "taxi-settings__section" }
+const _hoisted_193 = { class: "taxi-settings__label" }
+const _hoisted_194 = { class: "taxi-settings__help" }
+const _hoisted_195 = { class: "taxi-settings__range-ends" }
+const _hoisted_196 = { class: "taxi-settings__section" }
+const _hoisted_197 = { class: "taxi-settings__label" }
+const _hoisted_198 = { class: "taxi-settings__help" }
+const _hoisted_199 = ["aria-expanded"]
+const _hoisted_200 = {
   key: 0,
   id: "taxi-settings-audio",
   class: "taxi-settings__group-body"
 }
-const _hoisted_200 = { class: "taxi-settings__section" }
-const _hoisted_201 = { class: "taxi-settings__label" }
-const _hoisted_202 = { class: "taxi-settings__help" }
-const _hoisted_203 = { class: "taxi-settings__volume-control" }
-const _hoisted_204 = { class: "taxi-settings__section" }
-const _hoisted_205 = { class: "taxi-settings__label" }
-const _hoisted_206 = { class: "taxi-settings__help" }
-const _hoisted_207 = { class: "taxi-settings__penalty-toggles taxi-settings__sound-toggles" }
-const _hoisted_208 = { class: "taxi-settings__switch-copy" }
-const _hoisted_209 = ["onUpdate:modelValue"]
-const _hoisted_210 = { class: "taxi-settings__section" }
-const _hoisted_211 = { class: "taxi-settings__switch-row" }
-const _hoisted_212 = { class: "taxi-settings__switch-copy" }
-const _hoisted_213 = ["aria-expanded"]
-const _hoisted_214 = {
+const _hoisted_201 = { class: "taxi-settings__section" }
+const _hoisted_202 = { class: "taxi-settings__label" }
+const _hoisted_203 = { class: "taxi-settings__help" }
+const _hoisted_204 = { class: "taxi-settings__volume-control" }
+const _hoisted_205 = { class: "taxi-settings__section" }
+const _hoisted_206 = { class: "taxi-settings__label" }
+const _hoisted_207 = { class: "taxi-settings__help" }
+const _hoisted_208 = { class: "taxi-settings__penalty-toggles taxi-settings__sound-toggles" }
+const _hoisted_209 = { class: "taxi-settings__switch-copy" }
+const _hoisted_210 = ["onUpdate:modelValue"]
+const _hoisted_211 = { class: "taxi-settings__section" }
+const _hoisted_212 = { class: "taxi-settings__switch-row" }
+const _hoisted_213 = { class: "taxi-settings__switch-copy" }
+const _hoisted_214 = ["aria-expanded"]
+const _hoisted_215 = {
   key: 0,
   id: "taxi-settings-connectivity",
   class: "taxi-settings__group-body"
 }
-const _hoisted_215 = { class: "taxi-settings__section" }
-const _hoisted_216 = { class: "taxi-settings__switch-row" }
-const _hoisted_217 = { class: "taxi-settings__switch-copy" }
-const _hoisted_218 = {
+const _hoisted_216 = { class: "taxi-settings__section" }
+const _hoisted_217 = { class: "taxi-settings__switch-row" }
+const _hoisted_218 = { class: "taxi-settings__switch-copy" }
+const _hoisted_219 = {
   key: 0,
   class: "taxi-settings__section"
 }
-const _hoisted_219 = { class: "taxi-settings__label" }
-const _hoisted_220 = { class: "taxi-settings__help" }
-const _hoisted_221 = { class: "taxi-settings__section taxi-settings__section--remote-performance" }
-const _hoisted_222 = { class: "taxi-settings__switch-row" }
-const _hoisted_223 = { class: "taxi-settings__switch-copy" }
+const _hoisted_220 = { class: "taxi-settings__label" }
+const _hoisted_221 = { class: "taxi-settings__help" }
+const _hoisted_222 = { class: "taxi-settings__section taxi-settings__section--remote-performance" }
+const _hoisted_223 = { class: "taxi-settings__switch-row" }
 const _hoisted_224 = { class: "taxi-settings__switch-copy" }
-const _hoisted_225 = ["disabled"]
-const _hoisted_226 = { class: "taxi-settings__label" }
-const _hoisted_227 = { class: "taxi-settings__help" }
-const _hoisted_228 = { class: "taxi-settings__segmented taxi-settings__segmented--three" }
-const _hoisted_229 = {
+const _hoisted_225 = { class: "taxi-settings__switch-copy" }
+const _hoisted_226 = ["disabled"]
+const _hoisted_227 = { class: "taxi-settings__label" }
+const _hoisted_228 = { class: "taxi-settings__help" }
+const _hoisted_229 = { class: "taxi-settings__segmented taxi-settings__segmented--three" }
+const _hoisted_230 = {
   key: 1,
   class: "taxi-lan"
 }
-const _hoisted_230 = { key: 0 }
-const _hoisted_231 = {
+const _hoisted_231 = { key: 0 }
+const _hoisted_232 = {
   key: 0,
   class: "taxi-lan__connect"
 }
-const _hoisted_232 = { class: "taxi-lan__link" }
-const _hoisted_233 = { class: "taxi-settings__help" }
-const _hoisted_234 = ["value"]
-const _hoisted_235 = {
+const _hoisted_233 = { class: "taxi-lan__link" }
+const _hoisted_234 = { class: "taxi-settings__help" }
+const _hoisted_235 = ["value"]
+const _hoisted_236 = {
   key: 1,
   class: "taxi-lan__error"
 }
-const _hoisted_236 = { class: "taxi-settings__help taxi-lan__warning" }
-const _hoisted_237 = ["aria-expanded"]
-const _hoisted_238 = {
+const _hoisted_237 = { class: "taxi-settings__help taxi-lan__warning" }
+const _hoisted_238 = ["aria-expanded"]
+const _hoisted_239 = {
   key: 0,
   id: "taxi-settings-cheats",
   class: "taxi-settings__group-body"
 }
-const _hoisted_239 = { class: "taxi-settings__danger-help" }
-const _hoisted_240 = { class: "taxi-settings__cheat-stats" }
-const _hoisted_241 = { class: "taxi-settings__cheat-card" }
-const _hoisted_242 = { class: "taxi-settings__label" }
-const _hoisted_243 = { class: "taxi-settings__cheat-rating" }
-const _hoisted_244 = { class: "taxi-settings__cheat-card" }
-const _hoisted_245 = { class: "taxi-settings__label" }
-const _hoisted_246 = { class: "taxi-settings__help" }
-const _hoisted_247 = { class: "taxi-settings__cheat-rating" }
-const _hoisted_248 = { class: "taxi-settings__cheat-card" }
-const _hoisted_249 = { class: "taxi-settings__switch-row" }
-const _hoisted_250 = { class: "taxi-settings__switch-copy" }
-const _hoisted_251 = { class: "taxi-settings__cheat-card" }
-const _hoisted_252 = { class: "taxi-settings__switch-row" }
-const _hoisted_253 = { class: "taxi-settings__switch-copy" }
-const _hoisted_254 = { class: "taxi-settings__cheat-card" }
-const _hoisted_255 = { class: "taxi-settings__label" }
-const _hoisted_256 = { class: "taxi-settings__money-grid" }
-const _hoisted_257 = { class: "taxi-settings__cheat-card" }
-const _hoisted_258 = { class: "taxi-settings__label" }
-const _hoisted_259 = { class: "taxi-settings__help" }
-const _hoisted_260 = {
+const _hoisted_240 = { class: "taxi-settings__danger-help" }
+const _hoisted_241 = { class: "taxi-settings__cheat-stats" }
+const _hoisted_242 = { class: "taxi-settings__cheat-card" }
+const _hoisted_243 = { class: "taxi-settings__label" }
+const _hoisted_244 = { class: "taxi-settings__cheat-rating" }
+const _hoisted_245 = { class: "taxi-settings__cheat-card" }
+const _hoisted_246 = { class: "taxi-settings__label" }
+const _hoisted_247 = { class: "taxi-settings__help" }
+const _hoisted_248 = { class: "taxi-settings__cheat-rating" }
+const _hoisted_249 = { class: "taxi-settings__cheat-card" }
+const _hoisted_250 = { class: "taxi-settings__switch-row" }
+const _hoisted_251 = { class: "taxi-settings__switch-copy" }
+const _hoisted_252 = { class: "taxi-settings__cheat-card" }
+const _hoisted_253 = { class: "taxi-settings__switch-row" }
+const _hoisted_254 = { class: "taxi-settings__switch-copy" }
+const _hoisted_255 = { class: "taxi-settings__cheat-card" }
+const _hoisted_256 = { class: "taxi-settings__label" }
+const _hoisted_257 = { class: "taxi-settings__money-grid" }
+const _hoisted_258 = { class: "taxi-settings__cheat-card" }
+const _hoisted_259 = { class: "taxi-settings__label" }
+const _hoisted_260 = { class: "taxi-settings__help" }
+const _hoisted_261 = {
   key: 1,
   class: "taxi-settings__reset-confirm"
 }
-const _hoisted_261 = {
+const _hoisted_262 = {
   key: 4,
   class: "taxi-profile"
 }
-const _hoisted_262 = { class: "taxi-profile__hero" }
-const _hoisted_263 = { class: "taxi-profile__hero-avatar" }
-const _hoisted_264 = { class: "taxi-profile__hero-copy" }
-const _hoisted_265 = ["title"]
-const _hoisted_266 = { class: "taxi-profile__hero-rating" }
-const _hoisted_267 = { class: "taxi-profile__tabs" }
-const _hoisted_268 = { class: "taxi-profile__content" }
-const _hoisted_269 = {
+const _hoisted_263 = { class: "taxi-profile__hero" }
+const _hoisted_264 = { class: "taxi-profile__hero-avatar" }
+const _hoisted_265 = { class: "taxi-profile__hero-copy" }
+const _hoisted_266 = ["title"]
+const _hoisted_267 = { class: "taxi-profile__hero-rating" }
+const _hoisted_268 = { class: "taxi-profile__tabs" }
+const _hoisted_269 = { class: "taxi-profile__content" }
+const _hoisted_270 = {
   key: 0,
   class: "taxi-profile__panel"
 }
-const _hoisted_270 = { class: "taxi-profile__field" }
 const _hoisted_271 = { class: "taxi-profile__field" }
-const _hoisted_272 = { class: "taxi-profile__age" }
-const _hoisted_273 = { class: "taxi-profile__field" }
-const _hoisted_274 = { class: "taxi-profile__avatars" }
-const _hoisted_275 = ["onClick"]
-const _hoisted_276 = {
+const _hoisted_272 = { class: "taxi-profile__field" }
+const _hoisted_273 = { class: "taxi-profile__age" }
+const _hoisted_274 = { class: "taxi-profile__field" }
+const _hoisted_275 = { class: "taxi-profile__avatars" }
+const _hoisted_276 = ["onClick"]
+const _hoisted_277 = {
   key: 0,
   class: "taxi-profile__saved"
 }
-const _hoisted_277 = {
+const _hoisted_278 = {
   key: 1,
   class: "taxi-profile__panel taxi-profile__panel--reviews"
 }
-const _hoisted_278 = {
+const _hoisted_279 = {
   key: 0,
   class: "taxi-profile__empty"
 }
-const _hoisted_279 = {
+const _hoisted_280 = {
   class: "taxi-review taxi-review--measure",
   "data-review-measure": "regular",
   "aria-hidden": "true"
 }
-const _hoisted_280 = { class: "taxi-review__copy" }
-const _hoisted_281 = { class: "taxi-review__ratings" }
-const _hoisted_282 = {
+const _hoisted_281 = { class: "taxi-review__copy" }
+const _hoisted_282 = { class: "taxi-review__ratings" }
+const _hoisted_283 = {
   class: "taxi-review taxi-review--measure",
   "data-review-measure": "ai",
   "aria-hidden": "true"
 }
-const _hoisted_283 = { class: "taxi-review__copy" }
-const _hoisted_284 = { class: "taxi-review__ratings" }
-const _hoisted_285 = ["onClick", "aria-expanded", "aria-controls"]
-const _hoisted_286 = { class: "taxi-review__emoji" }
-const _hoisted_287 = { class: "taxi-review__copy" }
-const _hoisted_288 = { key: 0 }
-const _hoisted_289 = { class: "taxi-review__ratings" }
-const _hoisted_290 = ["id"]
-const _hoisted_291 = { class: "taxi-review-details__summary" }
-const _hoisted_292 = { key: 0 }
+const _hoisted_284 = { class: "taxi-review__copy" }
+const _hoisted_285 = { class: "taxi-review__ratings" }
+const _hoisted_286 = ["onClick", "aria-expanded", "aria-controls"]
+const _hoisted_287 = { class: "taxi-review__emoji" }
+const _hoisted_288 = { class: "taxi-review__copy" }
+const _hoisted_289 = { key: 0 }
+const _hoisted_290 = { class: "taxi-review__ratings" }
+const _hoisted_291 = ["id"]
+const _hoisted_292 = { class: "taxi-review-details__summary" }
 const _hoisted_293 = { key: 0 }
 const _hoisted_294 = { key: 0 }
 const _hoisted_295 = { key: 0 }
-const _hoisted_296 = {
+const _hoisted_296 = { key: 0 }
+const _hoisted_297 = {
   key: 1,
   class: "taxi-profile__pager"
 }
-const _hoisted_297 = ["disabled", "aria-label"]
 const _hoisted_298 = ["disabled", "aria-label"]
-const _hoisted_299 = { key: 2 }
-const _hoisted_300 = { class: "taxi-chart-card" }
-const _hoisted_301 = { class: "taxi-chart-card__head" }
-const _hoisted_302 = {
+const _hoisted_299 = ["disabled", "aria-label"]
+const _hoisted_300 = { key: 2 }
+const _hoisted_301 = { class: "taxi-chart-card" }
+const _hoisted_302 = { class: "taxi-chart-card__head" }
+const _hoisted_303 = {
   class: "taxi-chart",
   viewBox: "0 0 320 92",
   preserveAspectRatio: "none"
 }
-const _hoisted_303 = ["points"]
-const _hoisted_304 = { class: "taxi-chart-card__hint" }
-const _hoisted_305 = { class: "taxi-chart-card" }
-const _hoisted_306 = { class: "taxi-chart-card__head" }
-const _hoisted_307 = {
+const _hoisted_304 = ["points"]
+const _hoisted_305 = { class: "taxi-chart-card__hint" }
+const _hoisted_306 = { class: "taxi-chart-card" }
+const _hoisted_307 = { class: "taxi-chart-card__head" }
+const _hoisted_308 = {
   class: "taxi-chart",
   viewBox: "0 0 320 92",
   preserveAspectRatio: "none"
 }
-const _hoisted_308 = ["points"]
-const _hoisted_309 = { class: "taxi-chart-card__hint" }
-const _hoisted_310 = { class: "taxi-ai-ride-counter" }
-const _hoisted_311 = ["title"]
-const _hoisted_312 = {
+const _hoisted_309 = ["points"]
+const _hoisted_310 = { class: "taxi-chart-card__hint" }
+const _hoisted_311 = { class: "taxi-ai-ride-counter" }
+const _hoisted_312 = ["title"]
+const _hoisted_313 = {
   key: 3,
   class: "taxi-profile__panel taxi-profile__panel--vehicles"
 }
-const _hoisted_313 = {
+const _hoisted_314 = {
   key: 0,
   class: "taxi-profile__empty"
 }
-const _hoisted_314 = {
+const _hoisted_315 = {
   key: 1,
   class: "taxi-vehicle-history__sort"
 }
-const _hoisted_315 = ["aria-expanded"]
-const _hoisted_316 = {
+const _hoisted_316 = ["aria-expanded"]
+const _hoisted_317 = {
   key: 0,
   class: "taxi-sort-menu__options",
   role: "listbox"
 }
-const _hoisted_317 = ["onClick", "aria-selected"]
-const _hoisted_318 = { class: "taxi-vehicle-history__preview" }
-const _hoisted_319 = ["src", "alt"]
-const _hoisted_320 = { class: "taxi-vehicle-history__head" }
-const _hoisted_321 = { class: "taxi-vehicle-history__stats" }
-const _hoisted_322 = ["title"]
+const _hoisted_318 = ["onClick", "aria-selected"]
+const _hoisted_319 = { class: "taxi-vehicle-history__preview" }
+const _hoisted_320 = ["src", "alt"]
+const _hoisted_321 = { class: "taxi-vehicle-history__head" }
+const _hoisted_322 = { class: "taxi-vehicle-history__stats" }
 const _hoisted_323 = ["title"]
-const _hoisted_324 = { key: 0 }
-const _hoisted_325 = {
+const _hoisted_324 = ["title"]
+const _hoisted_325 = { key: 0 }
+const _hoisted_326 = {
   key: 4,
   class: "taxi-profile__panel taxi-profile__panel--shifts"
 }
-const _hoisted_326 = {
+const _hoisted_327 = {
   key: 0,
   class: "taxi-profile__empty"
 }
-const _hoisted_327 = ["onClick", "disabled"]
-const _hoisted_328 = { class: "taxi-shift-card__preview" }
-const _hoisted_329 = ["src", "alt"]
-const _hoisted_330 = { class: "taxi-shift-card__copy" }
-const _hoisted_331 = ["title"]
+const _hoisted_328 = ["onClick", "disabled"]
+const _hoisted_329 = { class: "taxi-shift-card__preview" }
+const _hoisted_330 = ["src", "alt"]
+const _hoisted_331 = { class: "taxi-shift-card__copy" }
 const _hoisted_332 = ["title"]
 const _hoisted_333 = ["title"]
 const _hoisted_334 = ["title"]
-const _hoisted_335 = { key: 0 }
-const _hoisted_336 = {
+const _hoisted_335 = ["title"]
+const _hoisted_336 = { key: 0 }
+const _hoisted_337 = {
   key: 1,
   class: "taxi-shift-card__loading"
 }
-const _hoisted_337 = {
+const _hoisted_338 = {
   key: 5,
   class: "taxi-fleet"
 }
-const _hoisted_338 = { class: "taxi-map taxi-fleet__map" }
-const _hoisted_339 = {
+const _hoisted_339 = { class: "taxi-map taxi-fleet__map" }
+const _hoisted_340 = {
   key: 0,
   class: "taxi-external-minimap"
 }
-const _hoisted_340 = ["aria-label"]
-const _hoisted_341 = { class: "taxi-map-toolbar" }
-const _hoisted_342 = ["disabled"]
-const _hoisted_343 = ["aria-label"]
-const _hoisted_344 = ["title", "aria-label"]
+const _hoisted_341 = ["aria-label"]
+const _hoisted_342 = { class: "taxi-map-toolbar" }
+const _hoisted_343 = ["disabled"]
+const _hoisted_344 = ["aria-label"]
 const _hoisted_345 = ["title", "aria-label"]
 const _hoisted_346 = ["title", "aria-label"]
-const _hoisted_347 = {
+const _hoisted_347 = ["title", "aria-label"]
+const _hoisted_348 = {
   key: 1,
   class: "taxi-map__route-info"
 }
-const _hoisted_348 = { class: "taxi-fleet__map-status" }
-const _hoisted_349 = { class: "taxi-fleet__panel" }
-const _hoisted_350 = { class: "taxi-fleet__head" }
-const _hoisted_351 = ["aria-label"]
-const _hoisted_352 = ["title"]
-const _hoisted_353 = { class: "taxi-fleet__scroll" }
-const _hoisted_354 = { class: "taxi-fleet__stats" }
-const _hoisted_355 = ["title"]
-const _hoisted_356 = { class: "taxi-fleet__economy" }
-const _hoisted_357 = {
+const _hoisted_349 = { class: "taxi-fleet__map-status" }
+const _hoisted_350 = { class: "taxi-fleet__panel" }
+const _hoisted_351 = { class: "taxi-fleet__head" }
+const _hoisted_352 = ["aria-label"]
+const _hoisted_353 = ["title"]
+const _hoisted_354 = { class: "taxi-fleet__scroll" }
+const _hoisted_355 = { class: "taxi-fleet__stats" }
+const _hoisted_356 = ["title"]
+const _hoisted_357 = { class: "taxi-fleet__economy" }
+const _hoisted_358 = {
   key: 0,
   class: "taxi-fleet__section"
 }
-const _hoisted_358 = { class: "taxi-fleet__vehicle" }
-const _hoisted_359 = ["src", "alt"]
-const _hoisted_360 = ["title"]
-const _hoisted_361 = { class: "taxi-fleet__progress" }
-const _hoisted_362 = { class: "taxi-fleet__driver-stats" }
-const _hoisted_363 = ["title"]
+const _hoisted_359 = { class: "taxi-fleet__vehicle" }
+const _hoisted_360 = ["src", "alt"]
+const _hoisted_361 = ["title"]
+const _hoisted_362 = { class: "taxi-fleet__progress" }
+const _hoisted_363 = { class: "taxi-fleet__driver-stats" }
 const _hoisted_364 = ["title"]
 const _hoisted_365 = ["title"]
-const _hoisted_366 = ["onClick"]
-const _hoisted_367 = { class: "taxi-fleet__section" }
-const _hoisted_368 = { class: "taxi-fleet__hint" }
-const _hoisted_369 = {
+const _hoisted_366 = ["title"]
+const _hoisted_367 = ["onClick"]
+const _hoisted_368 = { class: "taxi-fleet__section" }
+const _hoisted_369 = { class: "taxi-fleet__hint" }
+const _hoisted_370 = {
   key: 0,
   class: "taxi-fleet__empty"
 }
-const _hoisted_370 = ["disabled", "onClick"]
-const _hoisted_371 = ["src", "alt"]
-const _hoisted_372 = ["title"]
+const _hoisted_371 = ["disabled", "onClick"]
+const _hoisted_372 = ["src", "alt"]
 const _hoisted_373 = ["title"]
-const _hoisted_374 = { class: "taxi-fleet__section" }
-const _hoisted_375 = { class: "taxi-fleet__hint" }
-const _hoisted_376 = {
+const _hoisted_374 = ["title"]
+const _hoisted_375 = { class: "taxi-fleet__section" }
+const _hoisted_376 = { class: "taxi-fleet__hint" }
+const _hoisted_377 = {
   key: 0,
   class: "taxi-fleet__empty"
 }
-const _hoisted_377 = ["disabled", "onClick"]
-const _hoisted_378 = ["title"]
-const _hoisted_379 = ["aria-label"]
-const _hoisted_380 = { class: "taxi-earth__head" }
-const _hoisted_381 = ["aria-label"]
-const _hoisted_382 = { class: "taxi-earth__scroll" }
-const _hoisted_383 = ["aria-label"]
-const _hoisted_384 = ["disabled", "aria-pressed"]
+const _hoisted_378 = ["disabled", "onClick"]
+const _hoisted_379 = ["title"]
+const _hoisted_380 = ["aria-label"]
+const _hoisted_381 = { class: "taxi-earth__head" }
+const _hoisted_382 = ["aria-label"]
+const _hoisted_383 = { class: "taxi-earth__scroll" }
+const _hoisted_384 = ["aria-label"]
 const _hoisted_385 = ["disabled", "aria-pressed"]
-const _hoisted_386 = {
+const _hoisted_386 = ["disabled", "aria-pressed"]
+const _hoisted_387 = {
   key: 0,
   class: "taxi-earth__status",
   role: "status"
 }
-const _hoisted_387 = {
+const _hoisted_388 = {
   key: 1,
   class: "taxi-earth__vehicle"
 }
-const _hoisted_388 = {
+const _hoisted_389 = {
   key: 0,
   class: "taxi-earth__field"
 }
-const _hoisted_389 = { class: "taxi-earth__field-head" }
-const _hoisted_390 = ["for"]
-const _hoisted_391 = ["disabled"]
-const _hoisted_392 = { class: "taxi-earth__search" }
-const _hoisted_393 = ["id", "disabled", "aria-controls", "aria-expanded", "aria-activedescendant", "value", "placeholder", "onInput", "onKeydown", "onFocus"]
-const _hoisted_394 = ["disabled", "onClick"]
-const _hoisted_395 = {
+const _hoisted_390 = { class: "taxi-earth__field-head" }
+const _hoisted_391 = ["for"]
+const _hoisted_392 = ["disabled"]
+const _hoisted_393 = { class: "taxi-earth__search" }
+const _hoisted_394 = ["id", "disabled", "aria-controls", "aria-expanded", "aria-activedescendant", "value", "placeholder", "onInput", "onKeydown", "onFocus"]
+const _hoisted_395 = ["disabled", "onClick"]
+const _hoisted_396 = {
   key: 0,
   class: "taxi-earth__status",
   role: "status"
 }
-const _hoisted_396 = {
+const _hoisted_397 = {
   key: 1,
   class: "taxi-earth__error",
   role: "alert"
 }
-const _hoisted_397 = ["id", "aria-label"]
-const _hoisted_398 = ["disabled", "id", "aria-selected", "onClick"]
-const _hoisted_399 = {
+const _hoisted_398 = ["id", "aria-label"]
+const _hoisted_399 = ["disabled", "id", "aria-selected", "onClick"]
+const _hoisted_400 = {
   key: 3,
   class: "taxi-earth__selected"
 }
-const _hoisted_400 = ["disabled"]
 const _hoisted_401 = ["disabled"]
-const _hoisted_402 = {
+const _hoisted_402 = ["disabled"]
+const _hoisted_403 = {
   key: 2,
   class: "taxi-earth__status",
   role: "status"
 }
-const _hoisted_403 = { key: 0 }
-const _hoisted_404 = {
+const _hoisted_404 = { key: 0 }
+const _hoisted_405 = {
   key: 3,
   class: "taxi-earth__metrics"
 }
-const _hoisted_405 = ["disabled"]
-const _hoisted_406 = {
+const _hoisted_406 = { class: "taxi-earth__personal" }
+const _hoisted_407 = ["disabled"]
+const _hoisted_408 = ["disabled"]
+const _hoisted_409 = {
   key: 4,
   class: "taxi-earth__error",
   role: "alert"
 }
-const _hoisted_407 = { class: "taxi-earth__navigate" }
-const _hoisted_408 = ["disabled"]
-const _hoisted_409 = ["disabled"]
-const _hoisted_410 = { class: "taxi-earth__hint" }
-const _hoisted_411 = {
+const _hoisted_410 = { class: "taxi-earth__navigate" }
+const _hoisted_411 = ["disabled"]
+const _hoisted_412 = ["disabled"]
+const _hoisted_413 = { class: "taxi-earth__hint" }
+const _hoisted_414 = {
   key: 5,
   class: "taxi-earth__status",
   role: "status"
 }
-const _hoisted_412 = {
+const _hoisted_415 = {
+  key: 7,
+  class: "taxi-personal-route taxi-trip-layout"
+}
+const _hoisted_416 = { class: "taxi-map" }
+const _hoisted_417 = {
+  key: 0,
+  class: "taxi-external-minimap"
+}
+const _hoisted_418 = ["aria-label"]
+const _hoisted_419 = { class: "taxi-map-toolbar" }
+const _hoisted_420 = ["aria-label"]
+const _hoisted_421 = ["aria-label"]
+const _hoisted_422 = ["aria-label"]
+const _hoisted_423 = ["aria-label"]
+const _hoisted_424 = { class: "taxi-map__route-info" }
+const _hoisted_425 = { class: "taxi-personal-route__details" }
+const _hoisted_426 = {
   key: 0,
   class: "taxi-home__content"
 }
-const _hoisted_413 = ["aria-label"]
-const _hoisted_414 = { class: "taxi-home__presets-heading" }
-const _hoisted_415 = { key: 0 }
-const _hoisted_416 = { class: "taxi-home__presets-grid" }
-const _hoisted_417 = ["aria-pressed", "onClick"]
-const _hoisted_418 = {
+const _hoisted_427 = ["aria-label"]
+const _hoisted_428 = { class: "taxi-home__presets-heading" }
+const _hoisted_429 = { key: 0 }
+const _hoisted_430 = { class: "taxi-home__presets-grid" }
+const _hoisted_431 = ["aria-pressed", "onClick"]
+const _hoisted_432 = {
   key: 0,
   "aria-hidden": "true"
 }
-const _hoisted_419 = ["title", "aria-label"]
-const _hoisted_420 = { class: "taxi-home__vehicle-preview" }
-const _hoisted_421 = ["src", "alt"]
-const _hoisted_422 = { class: "taxi-home__vehicle-copy" }
-const _hoisted_423 = ["title"]
-const _hoisted_424 = { key: 0 }
-const _hoisted_425 = { class: "taxi-home__modes" }
-const _hoisted_426 = ["title"]
-const _hoisted_427 = ["aria-label"]
-const _hoisted_428 = ["title"]
-const _hoisted_429 = ["aria-label"]
-const _hoisted_430 = {
+const _hoisted_433 = ["title", "aria-label"]
+const _hoisted_434 = { class: "taxi-home__vehicle-preview" }
+const _hoisted_435 = ["src", "alt"]
+const _hoisted_436 = { class: "taxi-home__vehicle-copy" }
+const _hoisted_437 = ["title"]
+const _hoisted_438 = { key: 0 }
+const _hoisted_439 = { class: "taxi-home__modes" }
+const _hoisted_440 = ["title"]
+const _hoisted_441 = ["aria-label"]
+const _hoisted_442 = ["title"]
+const _hoisted_443 = ["aria-label"]
+const _hoisted_444 = {
   key: 1,
   class: "taxi-home__last-shift"
 }
-const _hoisted_431 = ["title"]
-const _hoisted_432 = ["title"]
-const _hoisted_433 = { class: "taxi-home__actions" }
-const _hoisted_434 = ["title"]
-const _hoisted_435 = ["title"]
-const _hoisted_436 = ["disabled"]
-const _hoisted_437 = ["title"]
-const _hoisted_438 = ["title"]
-const _hoisted_439 = { class: "taxi-home__stats" }
-const _hoisted_440 = ["title"]
-const _hoisted_441 = ["title"]
-const _hoisted_442 = {
+const _hoisted_445 = ["title"]
+const _hoisted_446 = ["title"]
+const _hoisted_447 = { class: "taxi-home__actions" }
+const _hoisted_448 = ["title"]
+const _hoisted_449 = ["title"]
+const _hoisted_450 = ["disabled"]
+const _hoisted_451 = ["title"]
+const _hoisted_452 = ["title"]
+const _hoisted_453 = { class: "taxi-home__stats" }
+const _hoisted_454 = ["title"]
+const _hoisted_455 = ["title"]
+const _hoisted_456 = {
   key: 1,
   class: "taxi-home__content taxi-shift-history"
 }
-const _hoisted_443 = { class: "taxi-shift-history__head" }
-const _hoisted_444 = ["disabled", "aria-label"]
-const _hoisted_445 = { class: "taxi-shift-history__list" }
-const _hoisted_446 = ["onClick", "disabled"]
-const _hoisted_447 = { class: "taxi-shift-card__preview" }
-const _hoisted_448 = ["src", "alt"]
-const _hoisted_449 = { class: "taxi-shift-card__copy" }
-const _hoisted_450 = ["title"]
-const _hoisted_451 = ["title"]
-const _hoisted_452 = ["title"]
-const _hoisted_453 = { key: 0 }
-const _hoisted_454 = {
+const _hoisted_457 = { class: "taxi-shift-history__head" }
+const _hoisted_458 = ["disabled", "aria-label"]
+const _hoisted_459 = { class: "taxi-shift-history__list" }
+const _hoisted_460 = ["onClick", "disabled"]
+const _hoisted_461 = { class: "taxi-shift-card__preview" }
+const _hoisted_462 = ["src", "alt"]
+const _hoisted_463 = { class: "taxi-shift-card__copy" }
+const _hoisted_464 = ["title"]
+const _hoisted_465 = ["title"]
+const _hoisted_466 = ["title"]
+const _hoisted_467 = { key: 0 }
+const _hoisted_468 = {
   key: 1,
   class: "taxi-shift-card__loading"
 }
-const _hoisted_455 = {
-  key: 8,
+const _hoisted_469 = {
+  key: 9,
   class: "taxi-orders"
 }
-const _hoisted_456 = { class: "taxi-orders__sheet" }
-const _hoisted_457 = { class: "taxi-orders__search" }
-const _hoisted_458 = {
+const _hoisted_470 = { class: "taxi-orders__sheet" }
+const _hoisted_471 = { class: "taxi-orders__search" }
+const _hoisted_472 = {
   key: 0,
   class: "taxi-orders__spinner"
 }
-const _hoisted_459 = { class: "taxi-orders__sort" }
-const _hoisted_460 = ["aria-expanded"]
-const _hoisted_461 = {
+const _hoisted_473 = { class: "taxi-orders__sort" }
+const _hoisted_474 = ["aria-expanded"]
+const _hoisted_475 = {
   key: 0,
   class: "taxi-sort-menu__options"
 }
-const _hoisted_462 = ["onClick"]
-const _hoisted_463 = { class: "taxi-orders__list" }
-const _hoisted_464 = {
+const _hoisted_476 = ["onClick"]
+const _hoisted_477 = { class: "taxi-orders__list" }
+const _hoisted_478 = {
   key: 0,
   class: "taxi-orders__empty"
 }
-const _hoisted_465 = { class: "taxi-order-card__top" }
-const _hoisted_466 = { class: "taxi-order-card__avatar" }
-const _hoisted_467 = { class: "taxi-order-card__name" }
-const _hoisted_468 = ["title"]
-const _hoisted_469 = { key: 0 }
-const _hoisted_470 = { key: 1 }
-const _hoisted_471 = ["title", "aria-label"]
-const _hoisted_472 = { class: "taxi-calmness-emoji__percent" }
-const _hoisted_473 = {
+const _hoisted_479 = { class: "taxi-order-card__top" }
+const _hoisted_480 = { class: "taxi-order-card__avatar" }
+const _hoisted_481 = { class: "taxi-order-card__name" }
+const _hoisted_482 = ["title"]
+const _hoisted_483 = { key: 0 }
+const _hoisted_484 = { key: 1 }
+const _hoisted_485 = ["title", "aria-label"]
+const _hoisted_486 = { class: "taxi-calmness-emoji__percent" }
+const _hoisted_487 = {
   key: 1,
   class: "taxi-delivery-weight"
 }
-const _hoisted_474 = {
+const _hoisted_488 = {
   key: 2,
   class: "taxi-order-card__badge"
 }
-const _hoisted_475 = {
+const _hoisted_489 = {
   key: 3,
   class: "taxi-order-card__badge taxi-order-card__badge--multi"
 }
-const _hoisted_476 = ["title"]
-const _hoisted_477 = { class: "taxi-order-card__efficiency" }
-const _hoisted_478 = { class: "taxi-order-card__metrics" }
-const _hoisted_479 = { class: "taxi-order-card__metric" }
-const _hoisted_480 = { class: "taxi-order-card__metric" }
-const _hoisted_481 = { class: "taxi-order-card__metric taxi-order-card__metric--fare" }
-const _hoisted_482 = ["title"]
-const _hoisted_483 = {
+const _hoisted_490 = ["title"]
+const _hoisted_491 = { class: "taxi-order-card__efficiency" }
+const _hoisted_492 = { class: "taxi-order-card__metrics" }
+const _hoisted_493 = { class: "taxi-order-card__metric" }
+const _hoisted_494 = { class: "taxi-order-card__metric" }
+const _hoisted_495 = { class: "taxi-order-card__metric taxi-order-card__metric--fare" }
+const _hoisted_496 = ["title"]
+const _hoisted_497 = {
   key: 1,
   class: "taxi-order-card__rush"
 }
-const _hoisted_484 = {
+const _hoisted_498 = {
   key: 2,
   class: "taxi-order-card__multi"
 }
-const _hoisted_485 = {
+const _hoisted_499 = {
   key: 3,
   class: "taxi-order-card__delivery"
 }
-const _hoisted_486 = { key: 0 }
-const _hoisted_487 = {
+const _hoisted_500 = { key: 0 }
+const _hoisted_501 = {
   key: 4,
   class: "taxi-order-card__rating-bonus"
 }
-const _hoisted_488 = ["onClick"]
-const _hoisted_489 = { class: "taxi-orders__footer" }
-const _hoisted_490 = { class: "taxi-offline-hold__copy" }
-const _hoisted_491 = {
-  key: 9,
+const _hoisted_502 = ["onClick"]
+const _hoisted_503 = { class: "taxi-orders__footer" }
+const _hoisted_504 = { class: "taxi-offline-hold__copy" }
+const _hoisted_505 = {
+  key: 10,
   class: "taxi-transfer"
 }
-const _hoisted_492 = { class: "taxi-transfer__loader" }
-const _hoisted_493 = { class: "taxi-transfer__passenger" }
-const _hoisted_494 = ["title", "aria-label"]
-const _hoisted_495 = { class: "taxi-calmness-emoji__percent" }
-const _hoisted_496 = {
-  key: 10,
-  class: "taxi-transfer taxi-transfer--critical"
-}
-const _hoisted_497 = { class: "taxi-transfer__passenger" }
-const _hoisted_498 = {
+const _hoisted_506 = { class: "taxi-transfer__loader" }
+const _hoisted_507 = { class: "taxi-transfer__passenger" }
+const _hoisted_508 = ["title", "aria-label"]
+const _hoisted_509 = { class: "taxi-calmness-emoji__percent" }
+const _hoisted_510 = {
   key: 11,
   class: "taxi-transfer taxi-transfer--critical"
 }
-const _hoisted_499 = { class: "taxi-transfer__passenger" }
-const _hoisted_500 = { class: "taxi-transfer__rating-loss" }
-const _hoisted_501 = { class: "taxi-transfer__progress taxi-transfer__progress--determinate" }
-const _hoisted_502 = {
+const _hoisted_511 = { class: "taxi-transfer__passenger" }
+const _hoisted_512 = {
   key: 12,
   class: "taxi-transfer taxi-transfer--critical"
 }
-const _hoisted_503 = { class: "taxi-transfer__passenger" }
-const _hoisted_504 = { class: "taxi-transfer__rating-loss" }
-const _hoisted_505 = { class: "taxi-transfer__progress taxi-transfer__progress--determinate" }
-const _hoisted_506 = {
+const _hoisted_513 = { class: "taxi-transfer__passenger" }
+const _hoisted_514 = { class: "taxi-transfer__rating-loss" }
+const _hoisted_515 = { class: "taxi-transfer__progress taxi-transfer__progress--determinate" }
+const _hoisted_516 = {
   key: 13,
-  class: "taxi-transfer"
+  class: "taxi-transfer taxi-transfer--critical"
 }
-const _hoisted_507 = { class: "taxi-transfer__stop" }
-const _hoisted_508 = { class: "taxi-transfer__passenger" }
-const _hoisted_509 = { class: "taxi-transfer__countdown" }
-const _hoisted_510 = { class: "taxi-transfer__progress taxi-transfer__progress--determinate" }
-const _hoisted_511 = {
+const _hoisted_517 = { class: "taxi-transfer__passenger" }
+const _hoisted_518 = { class: "taxi-transfer__rating-loss" }
+const _hoisted_519 = { class: "taxi-transfer__progress taxi-transfer__progress--determinate" }
+const _hoisted_520 = {
   key: 14,
   class: "taxi-transfer"
 }
-const _hoisted_512 = { class: "taxi-transfer__passenger" }
-const _hoisted_513 = { key: 0 }
-const _hoisted_514 = { key: 1 }
-const _hoisted_515 = {
+const _hoisted_521 = { class: "taxi-transfer__stop" }
+const _hoisted_522 = { class: "taxi-transfer__passenger" }
+const _hoisted_523 = { class: "taxi-transfer__countdown" }
+const _hoisted_524 = { class: "taxi-transfer__progress taxi-transfer__progress--determinate" }
+const _hoisted_525 = {
   key: 15,
+  class: "taxi-transfer"
+}
+const _hoisted_526 = { class: "taxi-transfer__passenger" }
+const _hoisted_527 = { key: 0 }
+const _hoisted_528 = { key: 1 }
+const _hoisted_529 = {
+  key: 16,
   class: "taxi-fuel-route"
 }
-const _hoisted_516 = { class: "taxi-map" }
-const _hoisted_517 = {
+const _hoisted_530 = { class: "taxi-map" }
+const _hoisted_531 = {
   key: 0,
   class: "taxi-external-minimap"
 }
-const _hoisted_518 = ["aria-label"]
-const _hoisted_519 = { class: "taxi-map-toolbar" }
-const _hoisted_520 = ["disabled", "title"]
-const _hoisted_521 = ["aria-label"]
-const _hoisted_522 = ["title", "aria-label"]
-const _hoisted_523 = ["title", "aria-label"]
-const _hoisted_524 = ["title", "aria-label"]
-const _hoisted_525 = { class: "taxi-map__route-info" }
-const _hoisted_526 = ["title", "aria-label"]
-const _hoisted_527 = { class: "taxi-fuel-route__sheet" }
-const _hoisted_528 = { class: "taxi-fuel-route__head" }
-const _hoisted_529 = { class: "taxi-fuel-route__copy" }
-const _hoisted_530 = { class: "taxi-fuel-route__distance" }
-const _hoisted_531 = ["title"]
-const _hoisted_532 = { class: "taxi-fuel-route__gauge-core" }
-const _hoisted_533 = {
+const _hoisted_532 = ["aria-label"]
+const _hoisted_533 = { class: "taxi-map-toolbar" }
+const _hoisted_534 = ["disabled", "title"]
+const _hoisted_535 = ["aria-label"]
+const _hoisted_536 = ["title", "aria-label"]
+const _hoisted_537 = ["title", "aria-label"]
+const _hoisted_538 = ["title", "aria-label"]
+const _hoisted_539 = { class: "taxi-map__route-info" }
+const _hoisted_540 = ["title", "aria-label"]
+const _hoisted_541 = { class: "taxi-fuel-route__sheet" }
+const _hoisted_542 = { class: "taxi-fuel-route__head" }
+const _hoisted_543 = { class: "taxi-fuel-route__copy" }
+const _hoisted_544 = { class: "taxi-fuel-route__distance" }
+const _hoisted_545 = ["title"]
+const _hoisted_546 = { class: "taxi-fuel-route__gauge-core" }
+const _hoisted_547 = {
   key: 1,
   class: "taxi-fuel-route__context"
 }
-const _hoisted_534 = {
+const _hoisted_548 = {
   key: 2,
   class: "taxi-fuel-route__context"
 }
-const _hoisted_535 = {
+const _hoisted_549 = {
   key: 3,
   class: "taxi-fuel-route__context taxi-fuel-route__context--penalty"
 }
-const _hoisted_536 = { class: "taxi-fuel-route__progress" }
-const _hoisted_537 = { class: "taxi-fuel-route__progress-head" }
-const _hoisted_538 = { class: "taxi-fuel-route__track" }
-const _hoisted_539 = { class: "taxi-fuel-route__stats" }
-const _hoisted_540 = { class: "taxi-fuel-route__stat" }
-const _hoisted_541 = { class: "taxi-fuel-route__stat" }
-const _hoisted_542 = {
-  key: 16,
+const _hoisted_550 = { class: "taxi-fuel-route__progress" }
+const _hoisted_551 = { class: "taxi-fuel-route__progress-head" }
+const _hoisted_552 = { class: "taxi-fuel-route__track" }
+const _hoisted_553 = { class: "taxi-fuel-route__stats" }
+const _hoisted_554 = { class: "taxi-fuel-route__stat" }
+const _hoisted_555 = { class: "taxi-fuel-route__stat" }
+const _hoisted_556 = {
+  key: 17,
   class: "taxi-trip-layout"
 }
-const _hoisted_543 = { class: "taxi-map" }
-const _hoisted_544 = {
+const _hoisted_557 = { class: "taxi-map" }
+const _hoisted_558 = {
   key: 0,
   class: "taxi-external-minimap"
 }
-const _hoisted_545 = ["aria-label"]
-const _hoisted_546 = { class: "taxi-map-toolbar" }
-const _hoisted_547 = ["disabled", "title"]
-const _hoisted_548 = ["aria-label"]
-const _hoisted_549 = ["title", "aria-label"]
-const _hoisted_550 = ["title", "aria-label"]
-const _hoisted_551 = ["title", "aria-label"]
-const _hoisted_552 = { class: "taxi-map__route-info" }
-const _hoisted_553 = ["title", "aria-label"]
-const _hoisted_554 = { class: "taxi-sheet" }
-const _hoisted_555 = { class: "taxi-sheet__heading" }
-const _hoisted_556 = { class: "taxi-sheet__avatar" }
-const _hoisted_557 = { class: "taxi-sheet__heading-text" }
-const _hoisted_558 = ["title"]
-const _hoisted_559 = { class: "taxi-sheet__distance" }
-const _hoisted_560 = {
+const _hoisted_559 = ["aria-label"]
+const _hoisted_560 = { class: "taxi-map-toolbar" }
+const _hoisted_561 = ["disabled", "title"]
+const _hoisted_562 = ["aria-label"]
+const _hoisted_563 = ["title", "aria-label"]
+const _hoisted_564 = ["title", "aria-label"]
+const _hoisted_565 = ["title", "aria-label"]
+const _hoisted_566 = { class: "taxi-map__route-info" }
+const _hoisted_567 = ["title", "aria-label"]
+const _hoisted_568 = { class: "taxi-sheet" }
+const _hoisted_569 = { class: "taxi-sheet__heading" }
+const _hoisted_570 = { class: "taxi-sheet__avatar" }
+const _hoisted_571 = { class: "taxi-sheet__heading-text" }
+const _hoisted_572 = ["title"]
+const _hoisted_573 = { class: "taxi-sheet__distance" }
+const _hoisted_574 = {
   key: 0,
   class: "taxi-queued-order"
 }
-const _hoisted_561 = { class: "taxi-trip-dashboard" }
-const _hoisted_562 = ["title"]
-const _hoisted_563 = ["aria-label"]
-const _hoisted_564 = { class: "taxi-trip-dashboard__calmness-value" }
-const _hoisted_565 = ["title"]
-const _hoisted_566 = { class: "taxi-trip-dashboard__label" }
-const _hoisted_567 = { class: "taxi-trip-dashboard__value" }
-const _hoisted_568 = { key: 0 }
-const _hoisted_569 = ["title"]
-const _hoisted_570 = { class: "taxi-trip-dashboard__label" }
-const _hoisted_571 = { class: "taxi-trip-dashboard__value" }
-const _hoisted_572 = ["title"]
-const _hoisted_573 = { class: "taxi-trip-dashboard__label" }
-const _hoisted_574 = { class: "taxi-trip-dashboard__value" }
-const _hoisted_575 = { key: 0 }
-const _hoisted_576 = { key: 1 }
-const _hoisted_577 = { key: 2 }
-const _hoisted_578 = ["title"]
-const _hoisted_579 = { class: "taxi-trip-dashboard__label" }
-const _hoisted_580 = { class: "taxi-trip-dashboard__value" }
-const _hoisted_581 = ["title"]
-const _hoisted_582 = { class: "taxi-trip-dashboard__label" }
-const _hoisted_583 = { class: "taxi-trip-dashboard__value" }
-const _hoisted_584 = { key: 0 }
-const _hoisted_585 = { key: 1 }
-const _hoisted_586 = { key: 2 }
-const _hoisted_587 = ["title"]
-const _hoisted_588 = { class: "taxi-trip-dashboard__label" }
-const _hoisted_589 = { class: "taxi-trip-dashboard__value" }
-const _hoisted_590 = { class: "taxi-progress" }
-const _hoisted_591 = { class: "taxi-progress__labels" }
-const _hoisted_592 = { class: "taxi-progress__track" }
-const _hoisted_593 = {
+const _hoisted_575 = { class: "taxi-trip-dashboard" }
+const _hoisted_576 = ["title"]
+const _hoisted_577 = ["aria-label"]
+const _hoisted_578 = { class: "taxi-trip-dashboard__calmness-value" }
+const _hoisted_579 = ["title"]
+const _hoisted_580 = { class: "taxi-trip-dashboard__label" }
+const _hoisted_581 = { class: "taxi-trip-dashboard__value" }
+const _hoisted_582 = { key: 0 }
+const _hoisted_583 = ["title"]
+const _hoisted_584 = { class: "taxi-trip-dashboard__label" }
+const _hoisted_585 = { class: "taxi-trip-dashboard__value" }
+const _hoisted_586 = ["title"]
+const _hoisted_587 = { class: "taxi-trip-dashboard__label" }
+const _hoisted_588 = { class: "taxi-trip-dashboard__value" }
+const _hoisted_589 = { key: 0 }
+const _hoisted_590 = { key: 1 }
+const _hoisted_591 = { key: 2 }
+const _hoisted_592 = ["title"]
+const _hoisted_593 = { class: "taxi-trip-dashboard__label" }
+const _hoisted_594 = { class: "taxi-trip-dashboard__value" }
+const _hoisted_595 = ["title"]
+const _hoisted_596 = { class: "taxi-trip-dashboard__label" }
+const _hoisted_597 = { class: "taxi-trip-dashboard__value" }
+const _hoisted_598 = { key: 0 }
+const _hoisted_599 = { key: 1 }
+const _hoisted_600 = { key: 2 }
+const _hoisted_601 = ["title"]
+const _hoisted_602 = { class: "taxi-trip-dashboard__label" }
+const _hoisted_603 = { class: "taxi-trip-dashboard__value" }
+const _hoisted_604 = { class: "taxi-progress" }
+const _hoisted_605 = { class: "taxi-progress__labels" }
+const _hoisted_606 = { class: "taxi-progress__track" }
+const _hoisted_607 = {
   key: 0,
   class: "taxi-progress__markers"
 }
-const _hoisted_594 = ["title"]
-const _hoisted_595 = {
+const _hoisted_608 = ["title"]
+const _hoisted_609 = {
   key: 1,
   class: "taxi-trip-notice"
 }
-const _hoisted_596 = {
+const _hoisted_610 = {
   key: 3,
   class: "taxi-trip-notice taxi-trip-notice--event"
 }
-const _hoisted_597 = { class: "taxi-offline-hold__copy" }
-const _hoisted_598 = { class: "taxi-metrics" }
-const _hoisted_599 = { class: "taxi-metric taxi-metric--fare" }
-const _hoisted_600 = ["title"]
-const _hoisted_601 = { class: "taxi-metric" }
-const _hoisted_602 = ["title"]
-const _hoisted_603 = { class: "taxi-metric taxi-metric--penalty" }
-const _hoisted_604 = { class: "taxi-penalty-log" }
-const _hoisted_605 = ["aria-expanded"]
-const _hoisted_606 = {
+const _hoisted_611 = { class: "taxi-offline-hold__copy" }
+const _hoisted_612 = { class: "taxi-metrics" }
+const _hoisted_613 = { class: "taxi-metric taxi-metric--fare" }
+const _hoisted_614 = ["title"]
+const _hoisted_615 = { class: "taxi-metric" }
+const _hoisted_616 = ["title"]
+const _hoisted_617 = { class: "taxi-metric taxi-metric--penalty" }
+const _hoisted_618 = { class: "taxi-penalty-log" }
+const _hoisted_619 = ["aria-expanded"]
+const _hoisted_620 = {
   key: 0,
   id: "taxi-penalty-events",
   class: "taxi-penalty-log__empty"
 }
-const _hoisted_607 = {
+const _hoisted_621 = {
   key: 1,
   id: "taxi-penalty-events",
   class: "taxi-penalty-log__events"
 }
-const _hoisted_608 = { class: "taxi-penalty-event__text" }
-const _hoisted_609 = {
+const _hoisted_622 = { class: "taxi-penalty-event__text" }
+const _hoisted_623 = {
   key: 0,
   class: "taxi-penalty-event__value"
 }
-const _hoisted_610 = {
+const _hoisted_624 = {
   key: 1,
   class: "taxi-penalty-event__value"
 }
-const _hoisted_611 = { class: "taxi-ride-footer" }
-const _hoisted_612 = { class: "taxi-ride-footer__rating-head" }
-const _hoisted_613 = { class: "taxi-ride-footer__rating-track" }
-const _hoisted_614 = { class: "taxi-ride-footer__rating-line" }
-const _hoisted_615 = { class: "taxi-ride-footer__stars" }
-const _hoisted_616 = ["title"]
-const _hoisted_617 = { class: "taxi-ride-footer__energy-type" }
-const _hoisted_618 = { class: "taxi-ride-footer__energy-range" }
-const _hoisted_619 = { class: "taxi-ride-footer__bottom" }
-const _hoisted_620 = { class: "taxi-ride-footer__stats" }
-const _hoisted_621 = { class: "taxi-ride-footer__stat" }
-const _hoisted_622 = { class: "taxi-ride-footer__stat" }
-const _hoisted_623 = ["title"]
-const _hoisted_624 = { class: "taxi-offline-hold__copy" }
-const _hoisted_625 = { class: "taxi-fuel__head" }
-const _hoisted_626 = { class: "taxi-fuel__title" }
-const _hoisted_627 = ["disabled", "aria-label"]
-const _hoisted_628 = {
+const _hoisted_625 = { class: "taxi-ride-footer" }
+const _hoisted_626 = { class: "taxi-ride-footer__rating-head" }
+const _hoisted_627 = { class: "taxi-ride-footer__rating-track" }
+const _hoisted_628 = { class: "taxi-ride-footer__rating-line" }
+const _hoisted_629 = { class: "taxi-ride-footer__stars" }
+const _hoisted_630 = ["title"]
+const _hoisted_631 = { class: "taxi-ride-footer__energy-type" }
+const _hoisted_632 = { class: "taxi-ride-footer__energy-range" }
+const _hoisted_633 = { class: "taxi-ride-footer__bottom" }
+const _hoisted_634 = { class: "taxi-ride-footer__stats" }
+const _hoisted_635 = { class: "taxi-ride-footer__stat" }
+const _hoisted_636 = { class: "taxi-ride-footer__stat" }
+const _hoisted_637 = ["title"]
+const _hoisted_638 = { class: "taxi-offline-hold__copy" }
+const _hoisted_639 = { class: "taxi-fuel__head" }
+const _hoisted_640 = { class: "taxi-fuel__title" }
+const _hoisted_641 = ["disabled", "aria-label"]
+const _hoisted_642 = {
   key: 0,
   class: "taxi-fuel__magic"
 }
-const _hoisted_629 = {
+const _hoisted_643 = {
   key: 1,
   class: "taxi-fuel__dashboard"
 }
-const _hoisted_630 = { class: "taxi-fuel__metric" }
-const _hoisted_631 = { class: "taxi-fuel__metric" }
-const _hoisted_632 = { class: "taxi-fuel__metric" }
-const _hoisted_633 = {
+const _hoisted_644 = { class: "taxi-fuel__metric" }
+const _hoisted_645 = { class: "taxi-fuel__metric" }
+const _hoisted_646 = { class: "taxi-fuel__metric" }
+const _hoisted_647 = {
   key: 2,
   class: "taxi-fuel__types"
 }
-const _hoisted_634 = ["onClick", "disabled"]
-const _hoisted_635 = {
+const _hoisted_648 = ["onClick", "disabled"]
+const _hoisted_649 = {
   key: 3,
   class: "taxi-fuel__card"
 }
-const _hoisted_636 = { class: "taxi-fuel__smart-head" }
-const _hoisted_637 = { class: "taxi-fuel__presets" }
-const _hoisted_638 = { class: "taxi-fuel__selector" }
-const _hoisted_639 = { class: "taxi-fuel__selector-track" }
-const _hoisted_640 = ["max", "disabled"]
-const _hoisted_641 = { class: "taxi-fuel__selection-meta" }
-const _hoisted_642 = ["title"]
-const _hoisted_643 = { class: "taxi-fuel__projection" }
-const _hoisted_644 = { class: "taxi-fuel__progress" }
-const _hoisted_645 = { class: "taxi-fuel__progress-track" }
-const _hoisted_646 = { class: "taxi-fuel__progress-meta" }
-const _hoisted_647 = {
+const _hoisted_650 = { class: "taxi-fuel__smart-head" }
+const _hoisted_651 = { class: "taxi-fuel__presets" }
+const _hoisted_652 = { class: "taxi-fuel__selector" }
+const _hoisted_653 = { class: "taxi-fuel__selector-track" }
+const _hoisted_654 = ["max", "disabled"]
+const _hoisted_655 = { class: "taxi-fuel__selection-meta" }
+const _hoisted_656 = ["title"]
+const _hoisted_657 = { class: "taxi-fuel__projection" }
+const _hoisted_658 = { class: "taxi-fuel__progress" }
+const _hoisted_659 = { class: "taxi-fuel__progress-track" }
+const _hoisted_660 = { class: "taxi-fuel__progress-meta" }
+const _hoisted_661 = {
   key: 4,
   class: "taxi-fuel__empty"
 }
-const _hoisted_648 = ["disabled"]
-const _hoisted_649 = { key: 0 }
-const _hoisted_650 = { key: 1 }
-const _hoisted_651 = { key: 2 }
-const _hoisted_652 = { key: 3 }
-const _hoisted_653 = { key: 4 }
-const _hoisted_654 = {
+const _hoisted_662 = ["disabled"]
+const _hoisted_663 = { key: 0 }
+const _hoisted_664 = { key: 1 }
+const _hoisted_665 = { key: 2 }
+const _hoisted_666 = { key: 3 }
+const _hoisted_667 = { key: 4 }
+const _hoisted_668 = {
   key: 5,
   class: "taxi-fuel__repair"
 }
-const _hoisted_655 = { class: "taxi-fuel__metric" }
-const _hoisted_656 = {
+const _hoisted_669 = { class: "taxi-fuel__metric" }
+const _hoisted_670 = {
   key: 0,
   class: "taxi-fuel__metric"
 }
-const _hoisted_657 = { class: "taxi-fuel__progress" }
-const _hoisted_658 = { class: "taxi-fuel__progress-track" }
-const _hoisted_659 = { class: "taxi-fuel__progress-meta" }
-const _hoisted_660 = ["disabled"]
-const _hoisted_661 = { key: 0 }
-const _hoisted_662 = { key: 1 }
-const _hoisted_663 = { key: 2 }
-const _hoisted_664 = { key: 3 }
-const _hoisted_665 = {
-  key: 18,
+const _hoisted_671 = { class: "taxi-fuel__progress" }
+const _hoisted_672 = { class: "taxi-fuel__progress-track" }
+const _hoisted_673 = { class: "taxi-fuel__progress-meta" }
+const _hoisted_674 = ["disabled"]
+const _hoisted_675 = { key: 0 }
+const _hoisted_676 = { key: 1 }
+const _hoisted_677 = { key: 2 }
+const _hoisted_678 = { key: 3 }
+const _hoisted_679 = {
+  key: 19,
   class: "taxi-offline-confirm",
   role: "dialog",
   "aria-modal": "true",
   "aria-labelledby": "taxi-offline-confirm-title",
   "aria-describedby": "taxi-offline-confirm-description"
 }
-const _hoisted_666 = {
+const _hoisted_680 = {
   class: "taxi-offline-confirm__card",
   tabindex: "-1"
 }
-const _hoisted_667 = { id: "taxi-offline-confirm-title" }
-const _hoisted_668 = { id: "taxi-offline-confirm-description" }
-const _hoisted_669 = { class: "taxi-offline-confirm__penalty" }
-const _hoisted_670 = { class: "taxi-offline-confirm__actions" }
-const _hoisted_671 = {
-  key: 19,
+const _hoisted_681 = { id: "taxi-offline-confirm-title" }
+const _hoisted_682 = { id: "taxi-offline-confirm-description" }
+const _hoisted_683 = { class: "taxi-offline-confirm__penalty" }
+const _hoisted_684 = { class: "taxi-offline-confirm__actions" }
+const _hoisted_685 = {
+  key: 20,
   class: "taxi-offline-confirm taxi-police-confirm",
   role: "dialog",
   "aria-modal": "true",
   "aria-labelledby": "taxi-police-confirm-title",
   "aria-describedby": "taxi-police-confirm-description"
 }
-const _hoisted_672 = {
+const _hoisted_686 = {
   class: "taxi-offline-confirm__card",
   tabindex: "-1"
 }
-const _hoisted_673 = { id: "taxi-police-confirm-title" }
-const _hoisted_674 = { id: "taxi-police-confirm-description" }
-const _hoisted_675 = { class: "taxi-offline-confirm__actions" }
-const _hoisted_676 = {
-  key: 20,
+const _hoisted_687 = { id: "taxi-police-confirm-title" }
+const _hoisted_688 = { id: "taxi-police-confirm-description" }
+const _hoisted_689 = { class: "taxi-offline-confirm__actions" }
+const _hoisted_690 = {
+  key: 21,
   class: "taxi-offline-confirm taxi-ai-confirm",
   role: "dialog",
   "aria-modal": "true",
   "aria-labelledby": "taxi-ai-confirm-title",
   "aria-describedby": "taxi-ai-confirm-description"
 }
-const _hoisted_677 = {
+const _hoisted_691 = {
   class: "taxi-offline-confirm__card",
   tabindex: "-1"
 }
-const _hoisted_678 = { id: "taxi-ai-confirm-title" }
-const _hoisted_679 = { id: "taxi-ai-confirm-description" }
-const _hoisted_680 = { class: "taxi-offline-confirm__actions" }
-const _hoisted_681 = {
-  key: 21,
+const _hoisted_692 = { id: "taxi-ai-confirm-title" }
+const _hoisted_693 = { id: "taxi-ai-confirm-description" }
+const _hoisted_694 = { class: "taxi-offline-confirm__actions" }
+const _hoisted_695 = {
+  key: 22,
   class: "taxi-next-offer"
 }
-const _hoisted_682 = { class: "taxi-next-offer__card" }
-const _hoisted_683 = ["title", "aria-label"]
-const _hoisted_684 = { class: "taxi-next-offer__eyebrow" }
-const _hoisted_685 = { class: "taxi-next-offer__head" }
-const _hoisted_686 = { class: "taxi-next-offer__avatar" }
-const _hoisted_687 = { class: "taxi-next-offer__passenger" }
-const _hoisted_688 = ["title", "aria-label"]
-const _hoisted_689 = { class: "taxi-calmness-emoji__percent" }
-const _hoisted_690 = {
+const _hoisted_696 = { class: "taxi-next-offer__card" }
+const _hoisted_697 = ["title", "aria-label"]
+const _hoisted_698 = { class: "taxi-next-offer__eyebrow" }
+const _hoisted_699 = { class: "taxi-next-offer__head" }
+const _hoisted_700 = { class: "taxi-next-offer__avatar" }
+const _hoisted_701 = { class: "taxi-next-offer__passenger" }
+const _hoisted_702 = ["title", "aria-label"]
+const _hoisted_703 = { class: "taxi-calmness-emoji__percent" }
+const _hoisted_704 = {
   key: 1,
   class: "taxi-delivery-weight"
 }
-const _hoisted_691 = {
+const _hoisted_705 = {
   key: 2,
   class: "taxi-next-offer__time"
 }
-const _hoisted_692 = { class: "taxi-next-offer__metrics" }
-const _hoisted_693 = { class: "taxi-next-offer__metric" }
-const _hoisted_694 = { class: "taxi-next-offer__metric" }
-const _hoisted_695 = { class: "taxi-next-offer__metric taxi-next-offer__metric--fare" }
-const _hoisted_696 = ["title"]
-const _hoisted_697 = {
+const _hoisted_706 = { class: "taxi-next-offer__metrics" }
+const _hoisted_707 = { class: "taxi-next-offer__metric" }
+const _hoisted_708 = { class: "taxi-next-offer__metric" }
+const _hoisted_709 = { class: "taxi-next-offer__metric taxi-next-offer__metric--fare" }
+const _hoisted_710 = ["title"]
+const _hoisted_711 = {
   key: 1,
   class: "taxi-next-offer__meta taxi-next-offer__meta--multi"
 }
-const _hoisted_698 = {
+const _hoisted_712 = {
   key: 2,
   class: "taxi-next-offer__meta taxi-next-offer__meta--rating"
 }
-const _hoisted_699 = {
+const _hoisted_713 = {
   key: 3,
   class: "taxi-next-offer__countdown"
 }
-const _hoisted_700 = {
+const _hoisted_714 = {
   key: 5,
   class: "taxi-next-offer__accepted"
 }
@@ -1142,7 +1162,7 @@ export function render(_ctx, _cache) {
                 onClick: _cache[0] || (_cache[0] = $event => (_ctx.hud.toggleLocalPhone())),
                 "aria-label": _ctx.localPhoneOpen ? _ctx.t('externalHideLocal') : _ctx.t('externalShowLocal')
               }, [
-                _cache[207] || (_cache[207] = _createElementVNode("span", null, "📱", -1 /* CACHED */)),
+                _cache[214] || (_cache[214] = _createElementVNode("span", null, "📱", -1 /* CACHED */)),
                 (_ctx.state.nextOffer)
                   ? (_openBlock(), _createElementBlock("i", _hoisted_2))
                   : _createCommentVNode("v-if", true)
@@ -1163,7 +1183,7 @@ export function render(_ctx, _cache) {
                       "aria-label": _ctx.phoneMinimized ? _ctx.t('expand') : _ctx.t('minimize')
                     }, [
                       (!_ctx.phoneMinimized)
-                        ? (_openBlock(), _createElementBlock("svg", _hoisted_4, [...(_cache[208] || (_cache[208] = [
+                        ? (_openBlock(), _createElementBlock("svg", _hoisted_4, [...(_cache[215] || (_cache[215] = [
                             _createElementVNode("rect", {
                               x: "4",
                               y: "4",
@@ -1175,7 +1195,7 @@ export function render(_ctx, _cache) {
                           ]))]))
                         : _createCommentVNode("v-if", true),
                       (_ctx.phoneMinimized)
-                        ? (_openBlock(), _createElementBlock("svg", _hoisted_5, [...(_cache[209] || (_cache[209] = [
+                        ? (_openBlock(), _createElementBlock("svg", _hoisted_5, [...(_cache[216] || (_cache[216] = [
                             _createElementVNode("rect", {
                               x: "4",
                               y: "4",
@@ -1200,13 +1220,13 @@ export function render(_ctx, _cache) {
                   "aria-label": _ctx.phoneSuperMinimized ? _ctx.t('superExpand') : _ctx.t('superMinimize')
                 }, [
                   (!_ctx.phoneSuperMinimized)
-                    ? (_openBlock(), _createElementBlock("svg", _hoisted_8, [...(_cache[210] || (_cache[210] = [
+                    ? (_openBlock(), _createElementBlock("svg", _hoisted_8, [...(_cache[217] || (_cache[217] = [
                         _createElementVNode("path", { d: "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" }, null, -1 /* CACHED */),
                         _createElementVNode("path", { d: "M8 8l3 3M16 8l-3 3M8 16l3-3M16 16l-3-3" }, null, -1 /* CACHED */)
                       ]))]))
                     : _createCommentVNode("v-if", true),
                   (_ctx.phoneSuperMinimized)
-                    ? (_openBlock(), _createElementBlock("svg", _hoisted_9, [...(_cache[211] || (_cache[211] = [
+                    ? (_openBlock(), _createElementBlock("svg", _hoisted_9, [...(_cache[218] || (_cache[218] = [
                         _createElementVNode("rect", {
                           x: "5",
                           y: "5",
@@ -1227,7 +1247,7 @@ export function render(_ctx, _cache) {
           (!_ctx.externalPhoneMode && _ctx.phoneMinimized && !_ctx.phoneSuperMinimized && (_ctx.state.lan.connected < 1 || _ctx.localPhoneOpen))
             ? (_openBlock(), _createElementBlock("div", _hoisted_12, [
                 _createElementVNode("div", _hoisted_13, [
-                  _cache[212] || (_cache[212] = _createElementVNode("div", { class: "taxi-minimap-surface" }, null, -1 /* CACHED */)),
+                  _cache[219] || (_cache[219] = _createElementVNode("div", { class: "taxi-minimap-surface" }, null, -1 /* CACHED */)),
                   (_ctx.externalPhoneMode)
                     ? (_openBlock(), _createElementBlock("canvas", _hoisted_14))
                     : _createCommentVNode("v-if", true),
@@ -1264,8 +1284,8 @@ export function render(_ctx, _cache) {
                   (_ctx.isNavigationPhase())
                     ? (_openBlock(), _createElementBlock("div", _hoisted_21, [
                         _createElementVNode("span", null, _toDisplayString(_ctx.t('arrival')), 1 /* TEXT */),
-                        _createElementVNode("strong", null, _toDisplayString(_ctx.getArrivalTime(_ctx.state.etaMinutes)), 1 /* TEXT */),
-                        _createElementVNode("small", null, _toDisplayString(_ctx.formatEta(_ctx.state.etaMinutes)) + " · " + _toDisplayString(_ctx.formatDistance(_ctx.state.distanceToTarget)), 1 /* TEXT */)
+                        _createElementVNode("strong", null, _toDisplayString(_ctx.getArrivalTime(_ctx.getNavigationEta())), 1 /* TEXT */),
+                        _createElementVNode("small", null, _toDisplayString(_ctx.formatEta(_ctx.getNavigationEta())) + " · " + _toDisplayString(_ctx.formatDistance(_ctx.getNavigationRemaining())), 1 /* TEXT */)
                       ]))
                     : _createCommentVNode("v-if", true),
                   (_ctx.isNavigationPhase() && _ctx.state.speedLimit > 0)
@@ -1289,7 +1309,7 @@ export function render(_ctx, _cache) {
                       _createElementVNode("span", null, _toDisplayString(_ctx.getPhaseLabel()), 1 /* TEXT */)
                     ]),
                     (_ctx.isNavigationPhase())
-                      ? (_openBlock(), _createElementBlock("strong", _hoisted_27, _toDisplayString(_ctx.formatDistance(_ctx.state.distanceToTarget)), 1 /* TEXT */))
+                      ? (_openBlock(), _createElementBlock("strong", _hoisted_27, _toDisplayString(_ctx.formatDistance(_ctx.getNavigationRemaining())), 1 /* TEXT */))
                       : _createCommentVNode("v-if", true)
                   ]),
                   _createElementVNode("div", _hoisted_28, [
@@ -1332,15 +1352,22 @@ export function render(_ctx, _cache) {
                         ]))
                       : _createCommentVNode("v-if", true)
                   ])
-                ])
+                ]),
+                (_ctx.earth.available && _ctx.earth.location)
+                  ? (_openBlock(), _createElementBlock("div", {
+                      key: 0,
+                      class: "taxi-compact__location",
+                      title: _ctx.earth.location
+                    }, _toDisplayString(_ctx.earth.location), 9 /* TEXT, PROPS */, _hoisted_38))
+                  : _createCommentVNode("v-if", true)
               ]))
             : _createCommentVNode("v-if", true),
           (_ctx.externalPhoneMode || (!_ctx.phoneMinimized && !_ctx.phoneSuperMinimized && (_ctx.state.lan.connected < 1 || _ctx.localPhoneOpen)))
-            ? (_openBlock(), _createElementBlock("div", _hoisted_38, [
-                _createElementVNode("div", _hoisted_39, [
-                  _createElementVNode("div", _hoisted_40, [
+            ? (_openBlock(), _createElementBlock("div", _hoisted_39, [
+                _createElementVNode("div", _hoisted_40, [
+                  _createElementVNode("div", _hoisted_41, [
                     _createElementVNode("span", null, _toDisplayString(_ctx.currentClock), 1 /* TEXT */),
-                    _cache[213] || (_cache[213] = _createElementVNode("span", { class: "phone-status__icons" }, [
+                    _cache[220] || (_cache[220] = _createElementVNode("span", { class: "phone-status__icons" }, [
                       _createElementVNode("span", null, "●●●"),
                       _createElementVNode("span", null, "⌁"),
                       _createElementVNode("i", { class: "phone-status__battery" })
@@ -1352,20 +1379,20 @@ export function render(_ctx, _cache) {
                         class: "phone-odometer",
                         title: _ctx.state.currentVehicle.name
                       }, [
-                        _createElementVNode("span", _hoisted_42, _toDisplayString(_ctx.state.currentVehicle.name), 1 /* TEXT */),
+                        _createElementVNode("span", _hoisted_43, _toDisplayString(_ctx.state.currentVehicle.name), 1 /* TEXT */),
                         _createElementVNode("strong", null, _toDisplayString(_ctx.formatOdometer(_ctx.state.currentVehicle.distanceMeters)), 1 /* TEXT */)
-                      ], 8 /* PROPS */, _hoisted_41))
+                      ], 8 /* PROPS */, _hoisted_42))
                     : _createCommentVNode("v-if", true),
-                  _createElementVNode("div", _hoisted_43, [
-                    _cache[214] || (_cache[214] = _createElementVNode("div", { class: "taxi-appbar__logo" }, "T", -1 /* CACHED */)),
-                    _createElementVNode("div", _hoisted_44, [
+                  _createElementVNode("div", _hoisted_44, [
+                    _cache[221] || (_cache[221] = _createElementVNode("div", { class: "taxi-appbar__logo" }, "T", -1 /* CACHED */)),
+                    _createElementVNode("div", _hoisted_45, [
                       _createElementVNode("strong", {
                         title: _ctx.profileOpen ? (_ctx.profileDraft.fullName || 'John Doe') : (_ctx.fleetOpen ? _ctx.t('fleetTitle') : 'TaxiDriver')
-                      }, _toDisplayString(_ctx.profileOpen ? (_ctx.profileDraft.fullName || 'John Doe') : (_ctx.fleetOpen ? _ctx.t('fleetTitle') : 'TaxiDriver')), 9 /* TEXT, PROPS */, _hoisted_45),
+                      }, _toDisplayString(_ctx.profileOpen ? (_ctx.profileDraft.fullName || 'John Doe') : (_ctx.fleetOpen ? _ctx.t('fleetTitle') : 'TaxiDriver')), 9 /* TEXT, PROPS */, _hoisted_46),
                       _createElementVNode("span", null, _toDisplayString(_ctx.fuelStationOpen ? (_ctx.state.fuelStation.magic ? _ctx.t('magicFuelTitle') : (_ctx.state.fuelStation.name || _ctx.t('refuelTitle'))) : (_ctx.settingsOpen ? _ctx.t('settingsTitle') : (_ctx.profileOpen ? _ctx.t('profileTitle') : (_ctx.fleetOpen ? (_ctx.state.fleet.activeDrivers + ' ' + _ctx.t('fleetActiveDrivers')) : (_ctx.state.active ? _ctx.getPhaseLabel() : _ctx.t('appSubtitle')))))), 1 /* TEXT */)
                     ]),
                     (_ctx.state.active && !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen)
-                      ? (_openBlock(), _createElementBlock("div", _hoisted_46, _toDisplayString(_ctx.t('online')), 1 /* TEXT */))
+                      ? (_openBlock(), _createElementBlock("div", _hoisted_47, _toDisplayString(_ctx.t('online')), 1 /* TEXT */))
                       : _createCommentVNode("v-if", true),
                     (_ctx.state.active && _ctx.state.realisticMode && !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen)
                       ? (_openBlock(), _createElementBlock("button", {
@@ -1376,14 +1403,14 @@ export function render(_ctx, _cache) {
                           "aria-label": _ctx.t('refuelAction')
                         }, [
                           _createElementVNode("span", null, _toDisplayString(_ctx.t('refuelAction')), 1 /* TEXT */)
-                        ], 10 /* CLASS, PROPS */, _hoisted_47))
+                        ], 10 /* CLASS, PROPS */, _hoisted_48))
                       : _createCommentVNode("v-if", true),
                     _createElementVNode("button", {
                       type: "button",
                       class: _normalizeClass(["taxi-appbar__profile taxi-action taxi-action--tertiary", {'taxi-appbar__profile--active': _ctx.profileOpen}]),
                       onClick: _cache[7] || (_cache[7] = $event => (_ctx.hud.toggleProfile())),
                       "aria-label": _ctx.t('profileTitle')
-                    }, _toDisplayString((_ctx.state.driverProfile && _ctx.state.driverProfile.avatar) || _ctx.driverProfile.avatar || '🙂'), 11 /* TEXT, CLASS, PROPS */, _hoisted_48),
+                    }, _toDisplayString((_ctx.state.driverProfile && _ctx.state.driverProfile.avatar) || _ctx.driverProfile.avatar || '🙂'), 11 /* TEXT, CLASS, PROPS */, _hoisted_49),
                     _createElementVNode("button", {
                       type: "button",
                       class: "taxi-appbar__settings taxi-action taxi-action--tertiary",
@@ -1391,10 +1418,10 @@ export function render(_ctx, _cache) {
                       "aria-label": "Settings"
                     }, [
                       (!_ctx.settingsOpen)
-                        ? (_openBlock(), _createElementBlock("span", _hoisted_49, "⚙"))
+                        ? (_openBlock(), _createElementBlock("span", _hoisted_50, "⚙"))
                         : _createCommentVNode("v-if", true),
                       (_ctx.settingsOpen)
-                        ? (_openBlock(), _createElementBlock("span", _hoisted_50, "×"))
+                        ? (_openBlock(), _createElementBlock("span", _hoisted_51, "×"))
                         : _createCommentVNode("v-if", true)
                     ])
                   ]),
@@ -1403,13 +1430,13 @@ export function render(_ctx, _cache) {
                         key: 1,
                         class: _normalizeClass(["taxi-passenger-chat", 'taxi-passenger-chat--' + _ctx.passengerChat.mood])
                       }, [
-                        _createElementVNode("div", _hoisted_51, _toDisplayString(_ctx.getInitials(_ctx.passengerChat.passengerName)), 1 /* TEXT */),
-                        _createElementVNode("div", _hoisted_52, [
-                          _createElementVNode("div", _hoisted_53, [
+                        _createElementVNode("div", _hoisted_52, _toDisplayString(_ctx.getInitials(_ctx.passengerChat.passengerName)), 1 /* TEXT */),
+                        _createElementVNode("div", _hoisted_53, [
+                          _createElementVNode("div", _hoisted_54, [
                             _createElementVNode("strong", null, _toDisplayString(_ctx.passengerChat.passengerName), 1 /* TEXT */),
                             _createElementVNode("time", null, _toDisplayString(_ctx.passengerChat.sentAt), 1 /* TEXT */)
                           ]),
-                          _createElementVNode("div", _hoisted_54, _toDisplayString(_ctx.passengerChat.content), 1 /* TEXT */)
+                          _createElementVNode("div", _hoisted_55, _toDisplayString(_ctx.passengerChat.content), 1 /* TEXT */)
                         ])
                       ], 2 /* CLASS */))
                     : _createCommentVNode("v-if", true),
@@ -1418,13 +1445,13 @@ export function render(_ctx, _cache) {
                         key: 2,
                         class: _normalizeClass(["taxi-phone-toast", 'taxi-phone-toast--' + _ctx.phoneToast.severity])
                       }, [
-                        _createElementVNode("span", _hoisted_55, _toDisplayString(_ctx.phoneToast.severity === 'success' ? '✓' : '!'), 1 /* TEXT */),
-                        _createElementVNode("span", _hoisted_56, _toDisplayString(_ctx.getPhoneNotificationText()), 1 /* TEXT */)
+                        _createElementVNode("span", _hoisted_56, _toDisplayString(_ctx.phoneToast.severity === 'success' ? '✓' : '!'), 1 /* TEXT */),
+                        _createElementVNode("span", _hoisted_57, _toDisplayString(_ctx.getPhoneNotificationText()), 1 /* TEXT */)
                       ], 2 /* CLASS */))
                     : _createCommentVNode("v-if", true),
                   (_ctx.settingsOpen)
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_57, [
-                        _createElementVNode("div", _hoisted_58, [
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_58, [
+                        _createElementVNode("div", _hoisted_59, [
                           _createElementVNode("div", null, [
                             _createElementVNode("h2", null, _toDisplayString(_ctx.t('settingsTitle')), 1 /* TEXT */),
                             _createElementVNode("span", null, _toDisplayString(_ctx.t('settingsAutoApply')), 1 /* TEXT */)
@@ -1447,10 +1474,10 @@ export function render(_ctx, _cache) {
                             }, [
                               _createElementVNode("span", null, _toDisplayString(item.icon), 1 /* TEXT */),
                               _createElementVNode("strong", null, _toDisplayString(_ctx.t(item.label)), 1 /* TEXT */),
-                              _cache[215] || (_cache[215] = _createElementVNode("i", { "aria-hidden": "true" }, "›", -1 /* CACHED */))
-                            ], 10 /* CLASS, PROPS */, _hoisted_60))
+                              _cache[222] || (_cache[222] = _createElementVNode("i", { "aria-hidden": "true" }, "›", -1 /* CACHED */))
+                            ], 10 /* CLASS, PROPS */, _hoisted_61))
                           }), 128 /* KEYED_FRAGMENT */))
-                        ], 8 /* PROPS */, _hoisted_59),
+                        ], 8 /* PROPS */, _hoisted_60),
                         _createElementVNode("section", {
                           class: _normalizeClass(["taxi-settings__group", {'taxi-settings__group--open': _ctx.settingsSections.general}])
                         }, [
@@ -1461,16 +1488,16 @@ export function render(_ctx, _cache) {
                             "aria-expanded": _ctx.settingsSections.general,
                             "aria-controls": "taxi-settings-general"
                           }, [
-                            _cache[216] || (_cache[216] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "Aa", -1 /* CACHED */)),
+                            _cache[223] || (_cache[223] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "Aa", -1 /* CACHED */)),
                             _createElementVNode("strong", null, _toDisplayString(_ctx.t('settingsGeneral')), 1 /* TEXT */),
                             _createElementVNode("i", null, _toDisplayString(_ctx.settingsSections.general ? '-' : '+'), 1 /* TEXT */)
-                          ], 8 /* PROPS */, _hoisted_61),
+                          ], 8 /* PROPS */, _hoisted_62),
                           (_ctx.settingsSections.general)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_62, [
-                                _createElementVNode("div", _hoisted_63, [
-                                  _createElementVNode("div", _hoisted_64, _toDisplayString(_ctx.t('language')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_65, _toDisplayString(_ctx.t('languageHelp')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_66, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_63, [
+                                _createElementVNode("div", _hoisted_64, [
+                                  _createElementVNode("div", _hoisted_65, _toDisplayString(_ctx.t('language')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_66, _toDisplayString(_ctx.t('languageHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_67, [
                                     (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.languages, (lang, index) => {
                                       return (_openBlock(), _createElementBlock("button", {
                                         type: "button",
@@ -1480,12 +1507,12 @@ export function render(_ctx, _cache) {
                                       }, [
                                         _createElementVNode("span", null, _toDisplayString(lang.label), 1 /* TEXT */),
                                         (_ctx.settings.language === lang.code)
-                                          ? (_openBlock(), _createElementBlock("i", _hoisted_68, "✓"))
+                                          ? (_openBlock(), _createElementBlock("i", _hoisted_69, "✓"))
                                           : _createCommentVNode("v-if", true)
-                                      ], 10 /* CLASS, PROPS */, _hoisted_67))
+                                      ], 10 /* CLASS, PROPS */, _hoisted_68))
                                     }), 128 /* KEYED_FRAGMENT */))
                                   ]),
-                                  _createElementVNode("label", _hoisted_69, [
+                                  _createElementVNode("label", _hoisted_70, [
                                     _withDirectives(_createElementVNode("input", {
                                       type: "checkbox",
                                       "onUpdate:modelValue": _cache[10] || (_cache[10] = $event => ((_ctx.settings.rememberLanguage) = $event)),
@@ -1496,12 +1523,12 @@ export function render(_ctx, _cache) {
                                     _createTextVNode(_toDisplayString(_ctx.t('rememberLanguage')), 1 /* TEXT */)
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_70, [
-                                  _createElementVNode("div", _hoisted_71, [
+                                _createElementVNode("div", _hoisted_71, [
+                                  _createElementVNode("div", _hoisted_72, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('fontSize')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.getUiScalePercent()) + "%", 1 /* TEXT */)
                                   ]),
-                                  _createElementVNode("div", _hoisted_72, _toDisplayString(_ctx.t('fontSizeHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_73, _toDisplayString(_ctx.t('fontSizeHelp')), 1 /* TEXT */),
                                   _withDirectives(_createElementVNode("input", {
                                     class: "taxi-settings__range",
                                     type: "range",
@@ -1519,10 +1546,10 @@ export function render(_ctx, _cache) {
                                     ]
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_73, [
-                                  _createElementVNode("div", _hoisted_74, _toDisplayString(_ctx.t('units')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_75, _toDisplayString(_ctx.t('unitsHelp')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_76, [
+                                _createElementVNode("div", _hoisted_74, [
+                                  _createElementVNode("div", _hoisted_75, _toDisplayString(_ctx.t('units')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_76, _toDisplayString(_ctx.t('unitsHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_77, [
                                     _createElementVNode("button", {
                                       type: "button",
                                       class: _normalizeClass({'taxi-settings__segmented-active': _ctx.settings.unitSystem === 'metric'}),
@@ -1535,10 +1562,10 @@ export function render(_ctx, _cache) {
                                     }, _toDisplayString(_ctx.t('unitsImperial')), 3 /* TEXT, CLASS */)
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_77, [
-                                  _createElementVNode("div", _hoisted_78, _toDisplayString(_ctx.t('timeFormat')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_79, _toDisplayString(_ctx.t('timeFormatHelp')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_80, [
+                                _createElementVNode("div", _hoisted_78, [
+                                  _createElementVNode("div", _hoisted_79, _toDisplayString(_ctx.t('timeFormat')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_80, _toDisplayString(_ctx.t('timeFormatHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_81, [
                                     _createElementVNode("button", {
                                       type: "button",
                                       class: _normalizeClass({'taxi-settings__segmented-active': _ctx.settings.timeFormat === '24h'}),
@@ -1564,17 +1591,17 @@ export function render(_ctx, _cache) {
                             "aria-expanded": _ctx.settingsSections.gameplay,
                             "aria-controls": "taxi-settings-gameplay"
                           }, [
-                            _cache[217] || (_cache[217] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "!", -1 /* CACHED */)),
+                            _cache[224] || (_cache[224] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "!", -1 /* CACHED */)),
                             _createElementVNode("strong", null, _toDisplayString(_ctx.t('settingsGameplay')), 1 /* TEXT */),
                             _createElementVNode("i", null, _toDisplayString(_ctx.settingsSections.gameplay ? '-' : '+'), 1 /* TEXT */)
-                          ], 8 /* PROPS */, _hoisted_81),
+                          ], 8 /* PROPS */, _hoisted_82),
                           (_ctx.settingsSections.gameplay)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_82, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_83, [
                                 (_ctx.earth.available)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_83, [
-                                      _createElementVNode("label", _hoisted_84, _toDisplayString(_ctx.t('earthRandomLimit')), 1 /* TEXT */),
-                                      _createElementVNode("p", _hoisted_85, _toDisplayString(_ctx.t('earthRandomLimitHelp')), 1 /* TEXT */),
-                                      _createElementVNode("div", _hoisted_86, [
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_84, [
+                                      _createElementVNode("label", _hoisted_85, _toDisplayString(_ctx.t('earthRandomLimit')), 1 /* TEXT */),
+                                      _createElementVNode("p", _hoisted_86, _toDisplayString(_ctx.t('earthRandomLimitHelp')), 1 /* TEXT */),
+                                      _createElementVNode("div", _hoisted_87, [
                                         _withDirectives(_createElementVNode("input", {
                                           id: "taxi-earth-random-limit",
                                           type: "number",
@@ -1595,12 +1622,12 @@ export function render(_ctx, _cache) {
                                       ])
                                     ]))
                                   : _createCommentVNode("v-if", true),
-                                _createElementVNode("div", _hoisted_87, [
-                                  _createElementVNode("label", _hoisted_88, [
+                                _createElementVNode("div", _hoisted_88, [
+                                  _createElementVNode("label", _hoisted_89, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('initialFuelPercent')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.settings.initialFuelPercent, 0)) + "%", 1 /* TEXT */)
                                   ]),
-                                  _createElementVNode("div", _hoisted_89, _toDisplayString(_ctx.t('initialFuelPercentHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_90, _toDisplayString(_ctx.t('initialFuelPercentHelp')), 1 /* TEXT */),
                                   _withDirectives(_createElementVNode("input", {
                                     id: "taxi-initial-fuel",
                                     class: "taxi-settings__range",
@@ -1618,15 +1645,15 @@ export function render(_ctx, _cache) {
                                       { number: true }
                                     ]
                                   ]),
-                                  _cache[218] || (_cache[218] = _createElementVNode("div", { class: "taxi-settings__range-ends" }, [
+                                  _cache[225] || (_cache[225] = _createElementVNode("div", { class: "taxi-settings__range-ends" }, [
                                     _createElementVNode("span", null, "5%"),
                                     _createElementVNode("span", null, "30%")
                                   ], -1 /* CACHED */))
                                 ]),
-                                _createElementVNode("div", _hoisted_90, [
-                                  _createElementVNode("div", _hoisted_91, _toDisplayString(_ctx.t('difficulty')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_92, _toDisplayString(_ctx.t('difficultyHelp')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_93, [
+                                _createElementVNode("div", _hoisted_91, [
+                                  _createElementVNode("div", _hoisted_92, _toDisplayString(_ctx.t('difficulty')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_93, _toDisplayString(_ctx.t('difficultyHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_94, [
                                     (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.difficulties, (preset, index) => {
                                       return (_openBlock(), _createElementBlock("button", {
                                         type: "button",
@@ -1636,12 +1663,12 @@ export function render(_ctx, _cache) {
                                       }, [
                                         _createElementVNode("strong", null, _toDisplayString(_ctx.t('difficulty_' + preset)), 1 /* TEXT */),
                                         _createElementVNode("span", null, _toDisplayString(_ctx.t('desc_' + preset)), 1 /* TEXT */)
-                                      ], 10 /* CLASS, PROPS */, _hoisted_94))
+                                      ], 10 /* CLASS, PROPS */, _hoisted_95))
                                     }), 128 /* KEYED_FRAGMENT */))
                                   ])
                                 ]),
                                 (_ctx.settings.difficulty === 'custom')
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_95, [
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_96, [
                                       _createElementVNode("p", null, _toDisplayString(_ctx.t('customDifficultyHelp')), 1 /* TEXT */),
                                       (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.customDifficultyGroups, (group, index) => {
                                         return (_openBlock(), _createElementBlock("div", {
@@ -1666,7 +1693,7 @@ export function render(_ctx, _cache) {
                                                 step: control.step,
                                                 "onUpdate:modelValue": $event => ((_ctx.settings.customDifficulty[control.key]) = $event),
                                                 onInput: _cache[23] || (_cache[23] = $event => (_ctx.hud.settingsChanged()))
-                                              }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_96), [
+                                              }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_97), [
                                                 [
                                                   _vModelText,
                                                   _ctx.settings.customDifficulty[control.key],
@@ -1680,12 +1707,12 @@ export function render(_ctx, _cache) {
                                       }), 128 /* KEYED_FRAGMENT */))
                                     ]))
                                   : _createCommentVNode("v-if", true),
-                                _createElementVNode("div", _hoisted_97, [
-                                  _createElementVNode("div", _hoisted_98, [
+                                _createElementVNode("div", _hoisted_98, [
+                                  _createElementVNode("div", _hoisted_99, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('orderMix')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.settings.deliveryOrderSharePercent, 0)) + "% " + _toDisplayString(_ctx.t('deliveriesShort')), 1 /* TEXT */)
                                   ]),
-                                  _createElementVNode("div", _hoisted_99, _toDisplayString(_ctx.t('orderMixHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_100, _toDisplayString(_ctx.t('orderMixHelp')), 1 /* TEXT */),
                                   _withDirectives(_createElementVNode("input", {
                                     class: "taxi-settings__range",
                                     type: "range",
@@ -1702,14 +1729,14 @@ export function render(_ctx, _cache) {
                                       { number: true }
                                     ]
                                   ]),
-                                  _createElementVNode("div", _hoisted_100, [
+                                  _createElementVNode("div", _hoisted_101, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('passengerOrders')) + " " + _toDisplayString(_ctx.formatNumber(_ctx.getPassengerOrderShare(), 0)) + "%", 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('deliveryOrders')) + " " + _toDisplayString(_ctx.formatNumber(_ctx.settings.deliveryOrderSharePercent, 0)) + "%", 1 /* TEXT */)
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_101, [
-                                  _createElementVNode("label", _hoisted_102, [
-                                    _createElementVNode("span", _hoisted_103, [
+                                _createElementVNode("div", _hoisted_102, [
+                                  _createElementVNode("label", _hoisted_103, [
+                                    _createElementVNode("span", _hoisted_104, [
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('unlimitedRouteDistance')), 1 /* TEXT */),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.t('unlimitedRouteDistanceHelp')), 1 /* TEXT */)
                                     ]),
@@ -1720,19 +1747,19 @@ export function render(_ctx, _cache) {
                                     }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                       [_vModelCheckbox, _ctx.settings.unlimitedRouteDistance]
                                     ]),
-                                    _cache[219] || (_cache[219] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                    _cache[226] || (_cache[226] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_104, [
-                                  _createElementVNode("div", _hoisted_105, _toDisplayString(_ctx.t('penaltyToggles')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_106, _toDisplayString(_ctx.t('penaltyTogglesHelp')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_107, [
+                                _createElementVNode("div", _hoisted_105, [
+                                  _createElementVNode("div", _hoisted_106, _toDisplayString(_ctx.t('penaltyToggles')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_107, _toDisplayString(_ctx.t('penaltyTogglesHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_108, [
                                     (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.penaltyToggleOptions, (option, index) => {
                                       return (_openBlock(), _createElementBlock("label", {
                                         class: "taxi-settings__switch-row taxi-settings__switch-row--compact",
                                         key: option.key
                                       }, [
-                                        _createElementVNode("span", _hoisted_108, [
+                                        _createElementVNode("span", _hoisted_109, [
                                           _createElementVNode("strong", null, _toDisplayString(_ctx.t(option.label)), 1 /* TEXT */),
                                           _createElementVNode("span", null, _toDisplayString(_ctx.t(option.help)), 1 /* TEXT */)
                                         ]),
@@ -1740,17 +1767,17 @@ export function render(_ctx, _cache) {
                                           type: "checkbox",
                                           "onUpdate:modelValue": $event => ((_ctx.settings.penaltyToggles[option.key]) = $event),
                                           onChange: _cache[28] || (_cache[28] = $event => (_ctx.hud.settingsChanged()))
-                                        }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_109), [
+                                        }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_110), [
                                           [_vModelCheckbox, _ctx.settings.penaltyToggles[option.key]]
                                         ]),
-                                        _cache[220] || (_cache[220] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                        _cache[227] || (_cache[227] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                       ]))
                                     }), 128 /* KEYED_FRAGMENT */))
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_110, [
+                                _createElementVNode("div", _hoisted_111, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('difficultyFileHelp')), 1 /* TEXT */),
-                                  _cache[221] || (_cache[221] = _createElementVNode("code", null, "settings/TaxiDriver/difficulty.json", -1 /* CACHED */))
+                                  _cache[228] || (_cache[228] = _createElementVNode("code", null, "settings/TaxiDriver/difficulty.json", -1 /* CACHED */))
                                 ])
                               ]))
                             : _createCommentVNode("v-if", true)
@@ -1765,15 +1792,15 @@ export function render(_ctx, _cache) {
                             "aria-expanded": _ctx.settingsSections.randomEvents,
                             "aria-controls": "taxi-settings-random-events"
                           }, [
-                            _cache[222] || (_cache[222] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "⚡", -1 /* CACHED */)),
+                            _cache[229] || (_cache[229] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "⚡", -1 /* CACHED */)),
                             _createElementVNode("strong", null, _toDisplayString(_ctx.t('randomEvents')), 1 /* TEXT */),
                             _createElementVNode("i", null, _toDisplayString(_ctx.settingsSections.randomEvents ? '-' : '+'), 1 /* TEXT */)
-                          ], 8 /* PROPS */, _hoisted_111),
+                          ], 8 /* PROPS */, _hoisted_112),
                           (_ctx.settingsSections.randomEvents)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_112, [
-                                _createElementVNode("div", _hoisted_113, [
-                                  _createElementVNode("label", _hoisted_114, [
-                                    _createElementVNode("span", _hoisted_115, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_113, [
+                                _createElementVNode("div", _hoisted_114, [
+                                  _createElementVNode("label", _hoisted_115, [
+                                    _createElementVNode("span", _hoisted_116, [
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('randomEventsEnabled')), 1 /* TEXT */),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.t('randomEventsSettingsHelp')), 1 /* TEXT */)
                                     ]),
@@ -1784,7 +1811,7 @@ export function render(_ctx, _cache) {
                                     }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                       [_vModelCheckbox, _ctx.settings.randomEventsEnabled]
                                     ]),
-                                    _cache[223] || (_cache[223] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                    _cache[230] || (_cache[230] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                   ])
                                 ]),
                                 (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.randomEventOptions, (option, index) => {
@@ -1792,8 +1819,8 @@ export function render(_ctx, _cache) {
                                     class: "taxi-settings__section",
                                     key: option.key
                                   }, [
-                                    _createElementVNode("label", _hoisted_116, [
-                                      _createElementVNode("span", _hoisted_117, [
+                                    _createElementVNode("label", _hoisted_117, [
+                                      _createElementVNode("span", _hoisted_118, [
                                         _createElementVNode("strong", null, _toDisplayString(_ctx.t(option.label)), 1 /* TEXT */),
                                         _createElementVNode("span", null, _toDisplayString(_ctx.t(option.help)), 1 /* TEXT */)
                                       ]),
@@ -1801,12 +1828,12 @@ export function render(_ctx, _cache) {
                                         type: "checkbox",
                                         "onUpdate:modelValue": $event => ((_ctx.settings.randomEvents[option.key].enabled) = $event),
                                         onChange: $event => (_ctx.hud.toggleRandomEvent(option))
-                                      }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_118), [
+                                      }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_119), [
                                         [_vModelCheckbox, _ctx.settings.randomEvents[option.key].enabled]
                                       ]),
-                                      _cache[224] || (_cache[224] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                      _cache[231] || (_cache[231] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                     ]),
-                                    _createElementVNode("div", _hoisted_119, [
+                                    _createElementVNode("div", _hoisted_120, [
                                       _createElementVNode("span", null, _toDisplayString(_ctx.t('randomEventProbability')), 1 /* TEXT */),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.settings.randomEvents[option.key].chancePercent, 0)) + "%", 1 /* TEXT */)
                                     ]),
@@ -1819,7 +1846,7 @@ export function render(_ctx, _cache) {
                                       "onUpdate:modelValue": $event => ((_ctx.settings.randomEvents[option.key].chancePercent) = $event),
                                       disabled: !_ctx.settings.randomEvents[option.key].enabled,
                                       onInput: _cache[32] || (_cache[32] = $event => (_ctx.hud.settingsChanged()))
-                                    }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_120), [
+                                    }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_121), [
                                       [
                                         _vModelText,
                                         _ctx.settings.randomEvents[option.key].chancePercent,
@@ -1829,7 +1856,7 @@ export function render(_ctx, _cache) {
                                     ])
                                   ]))
                                 }), 128 /* KEYED_FRAGMENT */)),
-                                _createElementVNode("div", _hoisted_121, _toDisplayString(_ctx.t('randomEventsExclusiveHelp')), 1 /* TEXT */)
+                                _createElementVNode("div", _hoisted_122, _toDisplayString(_ctx.t('randomEventsExclusiveHelp')), 1 /* TEXT */)
                               ]))
                             : _createCommentVNode("v-if", true)
                         ], 2 /* CLASS */),
@@ -1843,15 +1870,15 @@ export function render(_ctx, _cache) {
                             "aria-expanded": _ctx.settingsSections.aiDriver,
                             "aria-controls": "taxi-settings-ai-driver"
                           }, [
-                            _cache[225] || (_cache[225] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "AI", -1 /* CACHED */)),
+                            _cache[232] || (_cache[232] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "AI", -1 /* CACHED */)),
                             _createElementVNode("strong", null, _toDisplayString(_ctx.t('settingsAiDriver')), 1 /* TEXT */),
                             _createElementVNode("i", null, _toDisplayString(_ctx.settingsSections.aiDriver ? '-' : '+'), 1 /* TEXT */)
-                          ], 8 /* PROPS */, _hoisted_122),
+                          ], 8 /* PROPS */, _hoisted_123),
                           (_ctx.settingsSections.aiDriver)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_123, [
-                                _createElementVNode("div", _hoisted_124, [
-                                  _createElementVNode("label", _hoisted_125, [
-                                    _createElementVNode("span", _hoisted_126, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_124, [
+                                _createElementVNode("div", _hoisted_125, [
+                                  _createElementVNode("label", _hoisted_126, [
+                                    _createElementVNode("span", _hoisted_127, [
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('aiDriverEnabled')), 1 /* TEXT */),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.t('aiDriverEnabledHelp')), 1 /* TEXT */)
                                     ]),
@@ -1862,18 +1889,18 @@ export function render(_ctx, _cache) {
                                     }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                       [_vModelCheckbox, _ctx.settings.aiDriver.enabled]
                                     ]),
-                                    _cache[226] || (_cache[226] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                    _cache[233] || (_cache[233] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                   ])
                                 ]),
                                 (!_ctx.settings.aiDriver.enabled)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_127, _toDisplayString(_ctx.t('aiDriverDisabledHelp')), 1 /* TEXT */))
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_128, _toDisplayString(_ctx.t('aiDriverDisabledHelp')), 1 /* TEXT */))
                                   : _createCommentVNode("v-if", true),
                                 (_ctx.settings.aiDriver.enabled)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_128, [
-                                      _createElementVNode("div", _hoisted_129, [
-                                        _createElementVNode("div", _hoisted_130, _toDisplayString(_ctx.t('aiPreset')), 1 /* TEXT */),
-                                        _createElementVNode("div", _hoisted_131, _toDisplayString(_ctx.t('aiPresetHelp')), 1 /* TEXT */),
-                                        _createElementVNode("div", _hoisted_132, [
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_129, [
+                                      _createElementVNode("div", _hoisted_130, [
+                                        _createElementVNode("div", _hoisted_131, _toDisplayString(_ctx.t('aiPreset')), 1 /* TEXT */),
+                                        _createElementVNode("div", _hoisted_132, _toDisplayString(_ctx.t('aiPresetHelp')), 1 /* TEXT */),
+                                        _createElementVNode("div", _hoisted_133, [
                                           (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.aiDriverPresets, (preset, index) => {
                                             return (_openBlock(), _createElementBlock("button", {
                                               type: "button",
@@ -1883,13 +1910,13 @@ export function render(_ctx, _cache) {
                                             }, [
                                               _createElementVNode("strong", null, _toDisplayString(_ctx.t('aiPreset_' + preset)), 1 /* TEXT */),
                                               _createElementVNode("span", null, _toDisplayString(_ctx.t('aiPresetDesc_' + preset)), 1 /* TEXT */)
-                                            ], 10 /* CLASS, PROPS */, _hoisted_133))
+                                            ], 10 /* CLASS, PROPS */, _hoisted_134))
                                           }), 128 /* KEYED_FRAGMENT */))
                                         ])
                                       ]),
-                                      _createElementVNode("div", _hoisted_134, [
-                                        _createElementVNode("label", _hoisted_135, [
-                                          _createElementVNode("span", _hoisted_136, [
+                                      _createElementVNode("div", _hoisted_135, [
+                                        _createElementVNode("label", _hoisted_136, [
+                                          _createElementVNode("span", _hoisted_137, [
                                             _createElementVNode("strong", null, _toDisplayString(_ctx.t('aiStrictGpsRoute')), 1 /* TEXT */),
                                             _createElementVNode("span", null, _toDisplayString(_ctx.t('aiStrictGpsRouteHelp')), 1 /* TEXT */)
                                           ]),
@@ -1900,10 +1927,10 @@ export function render(_ctx, _cache) {
                                           }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                             [_vModelCheckbox, _ctx.settings.aiDriver.strictGpsRoute]
                                           ]),
-                                          _cache[227] || (_cache[227] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                          _cache[234] || (_cache[234] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                         ]),
-                                        _createElementVNode("label", _hoisted_137, [
-                                          _createElementVNode("span", _hoisted_138, [
+                                        _createElementVNode("label", _hoisted_138, [
+                                          _createElementVNode("span", _hoisted_139, [
                                             _createElementVNode("strong", null, _toDisplayString(_ctx.t('aiDebugLogger')), 1 /* TEXT */),
                                             _createElementVNode("span", null, _toDisplayString(_ctx.t('aiDebugLoggerHelp')), 1 /* TEXT */)
                                           ]),
@@ -1914,23 +1941,23 @@ export function render(_ctx, _cache) {
                                           }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                             [_vModelCheckbox, _ctx.settings.aiDebugLogging]
                                           ]),
-                                          _cache[228] || (_cache[228] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                          _cache[235] || (_cache[235] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                         ])
                                       ]),
                                       (_ctx.settings.aiDriver.preset === 'custom')
-                                        ? (_openBlock(), _createElementBlock("div", _hoisted_139, [
+                                        ? (_openBlock(), _createElementBlock("div", _hoisted_140, [
                                             _createElementVNode("p", null, _toDisplayString(_ctx.t('aiCustomHelp')), 1 /* TEXT */),
-                                            _createElementVNode("div", _hoisted_140, [
+                                            _createElementVNode("div", _hoisted_141, [
                                               _createElementVNode("strong", null, _toDisplayString(_ctx.t('aiTrafficAwareness')), 1 /* TEXT */),
-                                              _cache[229] || (_cache[229] = _createElementVNode("br", null, null, -1 /* CACHED */)),
+                                              _cache[236] || (_cache[236] = _createElementVNode("br", null, null, -1 /* CACHED */)),
                                               _createTextVNode(_toDisplayString(_ctx.t('aiTrafficAwarenessHelp')), 1 /* TEXT */)
                                             ]),
-                                            _createElementVNode("div", _hoisted_141, [
-                                              _createElementVNode("div", _hoisted_142, [
+                                            _createElementVNode("div", _hoisted_142, [
+                                              _createElementVNode("div", _hoisted_143, [
                                                 _createElementVNode("span", null, _toDisplayString(_ctx.t('aiAggression')), 1 /* TEXT */),
                                                 _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.settings.aiDriver.aggressionPercent, 0)) + "%", 1 /* TEXT */)
                                               ]),
-                                              _createElementVNode("div", _hoisted_143, _toDisplayString(_ctx.t('aiAggressionHelp')), 1 /* TEXT */),
+                                              _createElementVNode("div", _hoisted_144, _toDisplayString(_ctx.t('aiAggressionHelp')), 1 /* TEXT */),
                                               _withDirectives(_createElementVNode("input", {
                                                 class: "taxi-settings__range",
                                                 type: "range",
@@ -1947,17 +1974,17 @@ export function render(_ctx, _cache) {
                                                   { number: true }
                                                 ]
                                               ]),
-                                              _createElementVNode("div", _hoisted_144, [
+                                              _createElementVNode("div", _hoisted_145, [
                                                 _createElementVNode("span", null, _toDisplayString(_ctx.t('aiCalm')), 1 /* TEXT */),
                                                 _createElementVNode("span", null, _toDisplayString(_ctx.t('aiAssertive')), 1 /* TEXT */)
                                               ])
                                             ]),
-                                            _createElementVNode("div", _hoisted_145, [
-                                              _createElementVNode("div", _hoisted_146, [
+                                            _createElementVNode("div", _hoisted_146, [
+                                              _createElementVNode("div", _hoisted_147, [
                                                 _createElementVNode("span", null, _toDisplayString(_ctx.t('aiFollowingGap')), 1 /* TEXT */),
                                                 _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.settings.aiDriver.followingTimeGap, 1)) + " s", 1 /* TEXT */)
                                               ]),
-                                              _createElementVNode("div", _hoisted_147, _toDisplayString(_ctx.t('aiFollowingGapHelp')), 1 /* TEXT */),
+                                              _createElementVNode("div", _hoisted_148, _toDisplayString(_ctx.t('aiFollowingGapHelp')), 1 /* TEXT */),
                                               _withDirectives(_createElementVNode("input", {
                                                 class: "taxi-settings__range",
                                                 type: "range",
@@ -1975,12 +2002,12 @@ export function render(_ctx, _cache) {
                                                 ]
                                               ])
                                             ]),
-                                            _createElementVNode("div", _hoisted_148, [
-                                              _createElementVNode("div", _hoisted_149, [
+                                            _createElementVNode("div", _hoisted_149, [
+                                              _createElementVNode("div", _hoisted_150, [
                                                 _createElementVNode("span", null, _toDisplayString(_ctx.t('aiMinimumGap')), 1 /* TEXT */),
                                                 _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.settings.aiDriver.minimumFollowingDistance, 1)) + " m", 1 /* TEXT */)
                                               ]),
-                                              _createElementVNode("div", _hoisted_150, _toDisplayString(_ctx.t('aiMinimumGapHelp')), 1 /* TEXT */),
+                                              _createElementVNode("div", _hoisted_151, _toDisplayString(_ctx.t('aiMinimumGapHelp')), 1 /* TEXT */),
                                               _withDirectives(_createElementVNode("input", {
                                                 class: "taxi-settings__range",
                                                 type: "range",
@@ -1998,12 +2025,12 @@ export function render(_ctx, _cache) {
                                                 ]
                                               ])
                                             ]),
-                                            _createElementVNode("div", _hoisted_151, [
-                                              _createElementVNode("div", _hoisted_152, [
+                                            _createElementVNode("div", _hoisted_152, [
+                                              _createElementVNode("div", _hoisted_153, [
                                                 _createElementVNode("span", null, _toDisplayString(_ctx.t('aiBraking')), 1 /* TEXT */),
                                                 _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.settings.aiDriver.brakingDeceleration, 1)) + " m/s²", 1 /* TEXT */)
                                               ]),
-                                              _createElementVNode("div", _hoisted_153, _toDisplayString(_ctx.t('aiBrakingHelp')), 1 /* TEXT */),
+                                              _createElementVNode("div", _hoisted_154, _toDisplayString(_ctx.t('aiBrakingHelp')), 1 /* TEXT */),
                                               _withDirectives(_createElementVNode("input", {
                                                 class: "taxi-settings__range",
                                                 type: "range",
@@ -2021,12 +2048,12 @@ export function render(_ctx, _cache) {
                                                 ]
                                               ])
                                             ]),
-                                            _createElementVNode("div", _hoisted_154, [
-                                              _createElementVNode("div", _hoisted_155, [
+                                            _createElementVNode("div", _hoisted_155, [
+                                              _createElementVNode("div", _hoisted_156, [
                                                 _createElementVNode("span", null, _toDisplayString(_ctx.t('aiTrafficWait')), 1 /* TEXT */),
                                                 _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.settings.aiDriver.trafficWaitSeconds, 0)) + " s", 1 /* TEXT */)
                                               ]),
-                                              _createElementVNode("div", _hoisted_156, _toDisplayString(_ctx.t('aiTrafficWaitHelp')), 1 /* TEXT */),
+                                              _createElementVNode("div", _hoisted_157, _toDisplayString(_ctx.t('aiTrafficWaitHelp')), 1 /* TEXT */),
                                               _withDirectives(_createElementVNode("input", {
                                                 class: "taxi-settings__range",
                                                 type: "range",
@@ -2044,9 +2071,9 @@ export function render(_ctx, _cache) {
                                                 ]
                                               ])
                                             ]),
-                                            _createElementVNode("div", _hoisted_157, [
-                                              _createElementVNode("label", _hoisted_158, [
-                                                _createElementVNode("span", _hoisted_159, [
+                                            _createElementVNode("div", _hoisted_158, [
+                                              _createElementVNode("label", _hoisted_159, [
+                                                _createElementVNode("span", _hoisted_160, [
                                                   _createElementVNode("strong", null, _toDisplayString(_ctx.t('aiObeySpeedLimits')), 1 /* TEXT */),
                                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('aiObeySpeedLimitsHelp')), 1 /* TEXT */)
                                                 ]),
@@ -2057,10 +2084,10 @@ export function render(_ctx, _cache) {
                                                 }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                                   [_vModelCheckbox, _ctx.settings.aiDriver.obeySpeedLimits]
                                                 ]),
-                                                _cache[230] || (_cache[230] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                                _cache[237] || (_cache[237] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                               ]),
-                                              _createElementVNode("label", _hoisted_160, [
-                                                _createElementVNode("span", _hoisted_161, [
+                                              _createElementVNode("label", _hoisted_161, [
+                                                _createElementVNode("span", _hoisted_162, [
                                                   _createElementVNode("strong", null, _toDisplayString(_ctx.t('aiLaneDiscipline')), 1 /* TEXT */),
                                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('aiLaneDisciplineHelp')), 1 /* TEXT */)
                                                 ]),
@@ -2071,7 +2098,7 @@ export function render(_ctx, _cache) {
                                                 }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                                   [_vModelCheckbox, _ctx.settings.aiDriver.laneDiscipline]
                                                 ]),
-                                                _cache[231] || (_cache[231] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                                _cache[238] || (_cache[238] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                               ])
                                             ])
                                           ]))
@@ -2091,15 +2118,15 @@ export function render(_ctx, _cache) {
                             "aria-expanded": _ctx.settingsSections.fleet,
                             "aria-controls": "taxi-settings-fleet"
                           }, [
-                            _cache[232] || (_cache[232] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "F", -1 /* CACHED */)),
+                            _cache[239] || (_cache[239] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "F", -1 /* CACHED */)),
                             _createElementVNode("strong", null, _toDisplayString(_ctx.t('settingsFleet')), 1 /* TEXT */),
                             _createElementVNode("i", null, _toDisplayString(_ctx.settingsSections.fleet ? '-' : '+'), 1 /* TEXT */)
-                          ], 8 /* PROPS */, _hoisted_162),
+                          ], 8 /* PROPS */, _hoisted_163),
                           (_ctx.settingsSections.fleet)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_163, [
-                                _createElementVNode("div", _hoisted_164, [
-                                  _createElementVNode("label", _hoisted_165, [
-                                    _createElementVNode("span", _hoisted_166, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_164, [
+                                _createElementVNode("div", _hoisted_165, [
+                                  _createElementVNode("label", _hoisted_166, [
+                                    _createElementVNode("span", _hoisted_167, [
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('fleetEnabled')), 1 /* TEXT */),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.t('fleetEnabledHelp')), 1 /* TEXT */)
                                     ]),
@@ -2110,13 +2137,13 @@ export function render(_ctx, _cache) {
                                     }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                       [_vModelCheckbox, _ctx.settings.fleet.enabled]
                                     ]),
-                                    _cache[233] || (_cache[233] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                    _cache[240] || (_cache[240] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_167, [
-                                  _createElementVNode("div", _hoisted_168, _toDisplayString(_ctx.t('fleetAiPreset')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_169, _toDisplayString(_ctx.t('fleetAiPresetHelp')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_170, [
+                                _createElementVNode("div", _hoisted_168, [
+                                  _createElementVNode("div", _hoisted_169, _toDisplayString(_ctx.t('fleetAiPreset')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_170, _toDisplayString(_ctx.t('fleetAiPresetHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_171, [
                                     _createElementVNode("button", {
                                       type: "button",
                                       class: _normalizeClass({'taxi-settings__segmented-active': _ctx.settings.fleet.aiPreset === 'careful'}),
@@ -2134,8 +2161,8 @@ export function render(_ctx, _cache) {
                                     }, _toDisplayString(_ctx.t('fleetAiFast')), 3 /* TEXT, CLASS */)
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_171, [
-                                  _createElementVNode("div", _hoisted_172, [
+                                _createElementVNode("div", _hoisted_172, [
+                                  _createElementVNode("div", _hoisted_173, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('fleetOwnerShare')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.settings.fleet.ownerSharePercent, 0)) + "%", 1 /* TEXT */)
                                   ]),
@@ -2156,8 +2183,8 @@ export function render(_ctx, _cache) {
                                     ]
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_173, [
-                                  _createElementVNode("div", _hoisted_174, [
+                                _createElementVNode("div", _hoisted_174, [
+                                  _createElementVNode("div", _hoisted_175, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('fleetHiringFee')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.formatMoney(_ctx.settings.fleet.hiringFee)), 1 /* TEXT */)
                                   ]),
@@ -2178,8 +2205,8 @@ export function render(_ctx, _cache) {
                                     ]
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_175, [
-                                  _createElementVNode("div", _hoisted_176, [
+                                _createElementVNode("div", _hoisted_176, [
+                                  _createElementVNode("div", _hoisted_177, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('fleetWage')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.formatMoney(_ctx.settings.fleet.wagePerTenMinutes)), 1 /* TEXT */)
                                   ]),
@@ -2200,8 +2227,8 @@ export function render(_ctx, _cache) {
                                     ]
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_177, [
-                                  _createElementVNode("div", _hoisted_178, [
+                                _createElementVNode("div", _hoisted_178, [
+                                  _createElementVNode("div", _hoisted_179, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('fleetMaxDrivers')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.settings.fleet.maxDrivers, 0)), 1 /* TEXT */)
                                   ]),
@@ -2222,8 +2249,8 @@ export function render(_ctx, _cache) {
                                     ]
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_179, [
-                                  _createElementVNode("div", _hoisted_180, [
+                                _createElementVNode("div", _hoisted_180, [
+                                  _createElementVNode("div", _hoisted_181, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('fleetWorldLabelDistance')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.settings.fleet.worldLabelDistance, 0)) + " m", 1 /* TEXT */)
                                   ]),
@@ -2244,9 +2271,9 @@ export function render(_ctx, _cache) {
                                     ]
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_181, [
-                                  _createElementVNode("label", _hoisted_182, [
-                                    _createElementVNode("span", _hoisted_183, [
+                                _createElementVNode("div", _hoisted_182, [
+                                  _createElementVNode("label", _hoisted_183, [
+                                    _createElementVNode("span", _hoisted_184, [
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('fleetPassengerJobs')), 1 /* TEXT */)
                                     ]),
                                     _withDirectives(_createElementVNode("input", {
@@ -2256,10 +2283,10 @@ export function render(_ctx, _cache) {
                                     }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                       [_vModelCheckbox, _ctx.settings.fleet.passengerJobs]
                                     ]),
-                                    _cache[234] || (_cache[234] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                    _cache[241] || (_cache[241] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                   ]),
-                                  _createElementVNode("label", _hoisted_184, [
-                                    _createElementVNode("span", _hoisted_185, [
+                                  _createElementVNode("label", _hoisted_185, [
+                                    _createElementVNode("span", _hoisted_186, [
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('fleetDeliveryJobs')), 1 /* TEXT */)
                                     ]),
                                     _withDirectives(_createElementVNode("input", {
@@ -2269,7 +2296,7 @@ export function render(_ctx, _cache) {
                                     }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                       [_vModelCheckbox, _ctx.settings.fleet.deliveryJobs]
                                     ]),
-                                    _cache[235] || (_cache[235] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                    _cache[242] || (_cache[242] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                   ])
                                 ])
                               ]))
@@ -2285,15 +2312,15 @@ export function render(_ctx, _cache) {
                             "aria-expanded": _ctx.settingsSections.navigation,
                             "aria-controls": "taxi-settings-navigation"
                           }, [
-                            _cache[236] || (_cache[236] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "→", -1 /* CACHED */)),
+                            _cache[243] || (_cache[243] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "→", -1 /* CACHED */)),
                             _createElementVNode("strong", null, _toDisplayString(_ctx.t('settingsNavigation')), 1 /* TEXT */),
                             _createElementVNode("i", null, _toDisplayString(_ctx.settingsSections.navigation ? '-' : '+'), 1 /* TEXT */)
-                          ], 8 /* PROPS */, _hoisted_186),
+                          ], 8 /* PROPS */, _hoisted_187),
                           (_ctx.settingsSections.navigation)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_187, [
-                                _createElementVNode("div", _hoisted_188, [
-                                  _createElementVNode("label", _hoisted_189, [
-                                    _createElementVNode("span", _hoisted_190, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_188, [
+                                _createElementVNode("div", _hoisted_189, [
+                                  _createElementVNode("label", _hoisted_190, [
+                                    _createElementVNode("span", _hoisted_191, [
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('routeGuidance')), 1 /* TEXT */),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.t('routeGuidanceHelp')), 1 /* TEXT */)
                                     ]),
@@ -2304,15 +2331,15 @@ export function render(_ctx, _cache) {
                                     }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                       [_vModelCheckbox, _ctx.settings.showRouteGuidance]
                                     ]),
-                                    _cache[237] || (_cache[237] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                    _cache[244] || (_cache[244] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_191, [
-                                  _createElementVNode("div", _hoisted_192, [
+                                _createElementVNode("div", _hoisted_192, [
+                                  _createElementVNode("div", _hoisted_193, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('dynamicZoom')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.settings.dynamicZoomIntensity, 0)) + "%", 1 /* TEXT */)
                                   ]),
-                                  _createElementVNode("div", _hoisted_193, _toDisplayString(_ctx.t('dynamicZoomHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_194, _toDisplayString(_ctx.t('dynamicZoomHelp')), 1 /* TEXT */),
                                   _withDirectives(_createElementVNode("input", {
                                     class: "taxi-settings__range",
                                     type: "range",
@@ -2329,17 +2356,17 @@ export function render(_ctx, _cache) {
                                       { number: true }
                                     ]
                                   ]),
-                                  _createElementVNode("div", _hoisted_194, [
+                                  _createElementVNode("div", _hoisted_195, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('zoomFixed')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('zoomAggressive')), 1 /* TEXT */)
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_195, [
-                                  _createElementVNode("div", _hoisted_196, [
+                                _createElementVNode("div", _hoisted_196, [
+                                  _createElementVNode("div", _hoisted_197, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('overspeedWarning')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.formatSpeedValue(_ctx.settings.overspeedWarningKmh)) + " " + _toDisplayString(_ctx.getSpeedUnit()), 1 /* TEXT */)
                                   ]),
-                                  _createElementVNode("div", _hoisted_197, _toDisplayString(_ctx.t('overspeedWarningHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_198, _toDisplayString(_ctx.t('overspeedWarningHelp')), 1 /* TEXT */),
                                   _withDirectives(_createElementVNode("input", {
                                     class: "taxi-settings__range",
                                     type: "range",
@@ -2370,19 +2397,19 @@ export function render(_ctx, _cache) {
                             "aria-expanded": _ctx.settingsSections.audio,
                             "aria-controls": "taxi-settings-audio"
                           }, [
-                            _cache[238] || (_cache[238] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "♫", -1 /* CACHED */)),
+                            _cache[245] || (_cache[245] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "♫", -1 /* CACHED */)),
                             _createElementVNode("strong", null, _toDisplayString(_ctx.t('settingsAudio')), 1 /* TEXT */),
                             _createElementVNode("i", null, _toDisplayString(_ctx.settingsSections.audio ? '-' : '+'), 1 /* TEXT */)
-                          ], 8 /* PROPS */, _hoisted_198),
+                          ], 8 /* PROPS */, _hoisted_199),
                           (_ctx.settingsSections.audio)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_199, [
-                                _createElementVNode("div", _hoisted_200, [
-                                  _createElementVNode("div", _hoisted_201, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_200, [
+                                _createElementVNode("div", _hoisted_201, [
+                                  _createElementVNode("div", _hoisted_202, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('appVolume')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.getAppVolumePercent()) + "%", 1 /* TEXT */)
                                   ]),
-                                  _createElementVNode("div", _hoisted_202, _toDisplayString(_ctx.t('appVolumeHelp')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_203, [
+                                  _createElementVNode("div", _hoisted_203, _toDisplayString(_ctx.t('appVolumeHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_204, [
                                     _withDirectives(_createElementVNode("input", {
                                       class: "taxi-settings__range",
                                       type: "range",
@@ -2407,33 +2434,33 @@ export function render(_ctx, _cache) {
                                     }, _toDisplayString(_ctx.t('testSound')), 1 /* TEXT */)
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_204, [
-                                  _createElementVNode("div", _hoisted_205, _toDisplayString(_ctx.t('soundGroups')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_206, _toDisplayString(_ctx.t('soundGroupsHelp')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_207, [
+                                _createElementVNode("div", _hoisted_205, [
+                                  _createElementVNode("div", _hoisted_206, _toDisplayString(_ctx.t('soundGroups')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_207, _toDisplayString(_ctx.t('soundGroupsHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_208, [
                                     (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.soundToggleOptions, (option, index) => {
                                       return (_openBlock(), _createElementBlock("label", {
                                         class: "taxi-settings__switch-row taxi-settings__switch-row--compact",
                                         key: option.key
                                       }, [
-                                        _createElementVNode("span", _hoisted_208, [
+                                        _createElementVNode("span", _hoisted_209, [
                                           _createElementVNode("strong", null, _toDisplayString(_ctx.t(option.label)), 1 /* TEXT */)
                                         ]),
                                         _withDirectives(_createElementVNode("input", {
                                           type: "checkbox",
                                           "onUpdate:modelValue": $event => ((_ctx.settings.soundToggles[option.key]) = $event),
                                           onChange: _cache[85] || (_cache[85] = $event => (_ctx.hud.settingsChanged()))
-                                        }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_209), [
+                                        }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_210), [
                                           [_vModelCheckbox, _ctx.settings.soundToggles[option.key]]
                                         ]),
-                                        _cache[239] || (_cache[239] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                        _cache[246] || (_cache[246] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                       ]))
                                     }), 128 /* KEYED_FRAGMENT */))
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_210, [
-                                  _createElementVNode("label", _hoisted_211, [
-                                    _createElementVNode("span", _hoisted_212, [
+                                _createElementVNode("div", _hoisted_211, [
+                                  _createElementVNode("label", _hoisted_212, [
+                                    _createElementVNode("span", _hoisted_213, [
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('silentMode')), 1 /* TEXT */),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.t('silentModeHelp')), 1 /* TEXT */)
                                     ]),
@@ -2444,7 +2471,7 @@ export function render(_ctx, _cache) {
                                     }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                       [_vModelCheckbox, _ctx.settings.silentMode]
                                     ]),
-                                    _cache[240] || (_cache[240] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                    _cache[247] || (_cache[247] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                   ])
                                 ])
                               ]))
@@ -2460,15 +2487,15 @@ export function render(_ctx, _cache) {
                             "aria-expanded": _ctx.settingsSections.connectivity,
                             "aria-controls": "taxi-settings-connectivity"
                           }, [
-                            _cache[241] || (_cache[241] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "📱", -1 /* CACHED */)),
+                            _cache[248] || (_cache[248] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "📱", -1 /* CACHED */)),
                             _createElementVNode("strong", null, _toDisplayString(_ctx.t('settingsConnectivity')), 1 /* TEXT */),
                             _createElementVNode("i", null, _toDisplayString(_ctx.settingsSections.connectivity ? '-' : '+'), 1 /* TEXT */)
-                          ], 8 /* PROPS */, _hoisted_213),
+                          ], 8 /* PROPS */, _hoisted_214),
                           (_ctx.settingsSections.connectivity)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_214, [
-                                _createElementVNode("div", _hoisted_215, [
-                                  _createElementVNode("label", _hoisted_216, [
-                                    _createElementVNode("span", _hoisted_217, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_215, [
+                                _createElementVNode("div", _hoisted_216, [
+                                  _createElementVNode("label", _hoisted_217, [
+                                    _createElementVNode("span", _hoisted_218, [
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('externalPhone')), 1 /* TEXT */),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.t('externalPhoneHelp')), 1 /* TEXT */)
                                     ]),
@@ -2479,15 +2506,15 @@ export function render(_ctx, _cache) {
                                     }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                       [_vModelCheckbox, _ctx.settings.lanEnabled]
                                     ]),
-                                    _cache[242] || (_cache[242] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                    _cache[249] || (_cache[249] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                   ])
                                 ]),
                                 (_ctx.settings.lanEnabled)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_218, [
-                                      _createElementVNode("div", _hoisted_219, [
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_219, [
+                                      _createElementVNode("div", _hoisted_220, [
                                         _createElementVNode("span", null, _toDisplayString(_ctx.t('lanManualAddress')), 1 /* TEXT */)
                                       ]),
-                                      _createElementVNode("div", _hoisted_220, _toDisplayString(_ctx.t('lanManualAddressHelp')), 1 /* TEXT */),
+                                      _createElementVNode("div", _hoisted_221, _toDisplayString(_ctx.t('lanManualAddressHelp')), 1 /* TEXT */),
                                       _withDirectives(_createElementVNode("input", {
                                         class: "taxi-lan__url",
                                         type: "text",
@@ -2499,9 +2526,9 @@ export function render(_ctx, _cache) {
                                       ])
                                     ]))
                                   : _createCommentVNode("v-if", true),
-                                _createElementVNode("div", _hoisted_221, [
-                                  _createElementVNode("label", _hoisted_222, [
-                                    _createElementVNode("span", _hoisted_223, [
+                                _createElementVNode("div", _hoisted_222, [
+                                  _createElementVNode("label", _hoisted_223, [
+                                    _createElementVNode("span", _hoisted_224, [
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('externalMapEnabled')), 1 /* TEXT */),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.t('externalMapEnabledHelp')), 1 /* TEXT */)
                                     ]),
@@ -2512,12 +2539,12 @@ export function render(_ctx, _cache) {
                                     }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                       [_vModelCheckbox, _ctx.settings.externalMapEnabled]
                                     ]),
-                                    _cache[243] || (_cache[243] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                    _cache[250] || (_cache[250] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                   ]),
                                   _createElementVNode("label", {
                                     class: _normalizeClass(["taxi-settings__switch-row taxi-settings__switch-row--subtle", {'taxi-settings__switch-row--disabled': !_ctx.settings.externalMapEnabled}])
                                   }, [
-                                    _createElementVNode("span", _hoisted_224, [
+                                    _createElementVNode("span", _hoisted_225, [
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('externalTerrainEnabled')), 1 /* TEXT */),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.t('externalTerrainEnabledHelp')), 1 /* TEXT */)
                                     ]),
@@ -2526,16 +2553,16 @@ export function render(_ctx, _cache) {
                                       "onUpdate:modelValue": _cache[95] || (_cache[95] = $event => ((_ctx.settings.externalTerrainEnabled) = $event)),
                                       disabled: !_ctx.settings.externalMapEnabled,
                                       onChange: _cache[96] || (_cache[96] = $event => (_ctx.hud.settingsChanged()))
-                                    }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_225), [
+                                    }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_226), [
                                       [_vModelCheckbox, _ctx.settings.externalTerrainEnabled]
                                     ]),
-                                    _cache[244] || (_cache[244] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                    _cache[251] || (_cache[251] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                   ], 2 /* CLASS */),
-                                  _createElementVNode("div", _hoisted_226, [
+                                  _createElementVNode("div", _hoisted_227, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('externalMapQuality')), 1 /* TEXT */)
                                   ]),
-                                  _createElementVNode("div", _hoisted_227, _toDisplayString(_ctx.t('externalMapQualityHelp')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_228, [
+                                  _createElementVNode("div", _hoisted_228, _toDisplayString(_ctx.t('externalMapQualityHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_229, [
                                     _createElementVNode("button", {
                                       type: "button",
                                       class: _normalizeClass({'taxi-settings__segmented-active': _ctx.settings.externalMapQuality === 'eco'}),
@@ -2554,26 +2581,26 @@ export function render(_ctx, _cache) {
                                   ])
                                 ]),
                                 (_ctx.settings.lanEnabled)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_229, [
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_230, [
                                       _createElementVNode("div", {
                                         class: _normalizeClass(["taxi-lan__status", {'taxi-lan__status--connected': _ctx.state.lan.connected > 0, 'taxi-lan__status--error': _ctx.state.lan.bridgeError}])
                                       }, [
-                                        _cache[245] || (_cache[245] = _createElementVNode("i", null, null, -1 /* CACHED */)),
+                                        _cache[252] || (_cache[252] = _createElementVNode("i", null, null, -1 /* CACHED */)),
                                         _createElementVNode("strong", null, _toDisplayString(_ctx.state.lan.bridgeError ? _ctx.t('externalUnavailable') : (_ctx.state.lan.connected > 0 ? _ctx.t('externalConnected') : (_ctx.state.lan.enabled ? _ctx.t('externalWaiting') : _ctx.t('externalStarting')))), 1 /* TEXT */),
                                         (_ctx.state.lan.connected > 0)
-                                          ? (_openBlock(), _createElementBlock("span", _hoisted_230, _toDisplayString(_ctx.state.lan.connected), 1 /* TEXT */))
+                                          ? (_openBlock(), _createElementBlock("span", _hoisted_231, _toDisplayString(_ctx.state.lan.connected), 1 /* TEXT */))
                                           : _createCommentVNode("v-if", true)
                                       ], 2 /* CLASS */),
                                       (_ctx.state.lan.enabled && _ctx.state.lan.url)
-                                        ? (_openBlock(), _createElementBlock("div", _hoisted_231, [
-                                            _cache[246] || (_cache[246] = _createElementVNode("div", { class: "taxi-lan__qr" }, [
+                                        ? (_openBlock(), _createElementBlock("div", _hoisted_232, [
+                                            _cache[253] || (_cache[253] = _createElementVNode("div", { class: "taxi-lan__qr" }, [
                                               _createElementVNode("div", {
                                                 class: "taxi-lan__qr-code",
                                                 "aria-label": "QR code"
                                               })
                                             ], -1 /* CACHED */)),
-                                            _createElementVNode("div", _hoisted_232, [
-                                              _createElementVNode("div", _hoisted_233, _toDisplayString(_ctx.t('externalOpenHelp')), 1 /* TEXT */),
+                                            _createElementVNode("div", _hoisted_233, [
+                                              _createElementVNode("div", _hoisted_234, _toDisplayString(_ctx.t('externalOpenHelp')), 1 /* TEXT */),
                                               _createElementVNode("input", {
                                                 class: "taxi-lan__url",
                                                 type: "text",
@@ -2581,14 +2608,14 @@ export function render(_ctx, _cache) {
                                                 value: _ctx.state.lan.url,
                                                 onClick: _cache[100] || (_cache[100] = $event => ($event.target.select())),
                                                 onFocus: _cache[101] || (_cache[101] = $event => ($event.target.select()))
-                                              }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_234)
+                                              }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_235)
                                             ])
                                           ]))
                                         : _createCommentVNode("v-if", true),
                                       (_ctx.state.lan.bridgeError)
-                                        ? (_openBlock(), _createElementBlock("div", _hoisted_235, _toDisplayString(_ctx.state.lan.bridgeError), 1 /* TEXT */))
+                                        ? (_openBlock(), _createElementBlock("div", _hoisted_236, _toDisplayString(_ctx.state.lan.bridgeError), 1 /* TEXT */))
                                         : _createCommentVNode("v-if", true),
-                                      _createElementVNode("div", _hoisted_236, _toDisplayString(_ctx.t('externalSecurityHelp')), 1 /* TEXT */)
+                                      _createElementVNode("div", _hoisted_237, _toDisplayString(_ctx.t('externalSecurityHelp')), 1 /* TEXT */)
                                     ]))
                                   : _createCommentVNode("v-if", true)
                               ]))
@@ -2604,14 +2631,14 @@ export function render(_ctx, _cache) {
                             "aria-expanded": _ctx.settingsSections.cheats,
                             "aria-controls": "taxi-settings-cheats"
                           }, [
-                            _cache[247] || (_cache[247] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "!", -1 /* CACHED */)),
+                            _cache[254] || (_cache[254] = _createElementVNode("span", { class: "taxi-settings__group-icon" }, "!", -1 /* CACHED */)),
                             _createElementVNode("strong", null, _toDisplayString(_ctx.t('settingsCheats')), 1 /* TEXT */),
                             _createElementVNode("i", null, _toDisplayString(_ctx.settingsSections.cheats ? '-' : '+'), 1 /* TEXT */)
-                          ], 8 /* PROPS */, _hoisted_237),
+                          ], 8 /* PROPS */, _hoisted_238),
                           (_ctx.settingsSections.cheats)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_238, [
-                                _createElementVNode("p", _hoisted_239, _toDisplayString(_ctx.t('cheatZoneHelp')), 1 /* TEXT */),
-                                _createElementVNode("div", _hoisted_240, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_239, [
+                                _createElementVNode("p", _hoisted_240, _toDisplayString(_ctx.t('cheatZoneHelp')), 1 /* TEXT */),
+                                _createElementVNode("div", _hoisted_241, [
                                   _createElementVNode("span", null, [
                                     _createTextVNode(_toDisplayString(_ctx.t('cheatCurrentRating')) + " ", 1 /* TEXT */),
                                     _createElementVNode("strong", null, _toDisplayString(_ctx.formatNumber(_ctx.state.rating, 2)), 1 /* TEXT */)
@@ -2621,12 +2648,12 @@ export function render(_ctx, _cache) {
                                     _createElementVNode("strong", null, _toDisplayString(_ctx.formatMoney(_ctx.state.balance)), 1 /* TEXT */)
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_241, [
-                                  _createElementVNode("div", _hoisted_242, [
+                                _createElementVNode("div", _hoisted_242, [
+                                  _createElementVNode("div", _hoisted_243, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('cheatSetRating')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.cheatRating, 2)), 1 /* TEXT */)
                                   ]),
-                                  _createElementVNode("div", _hoisted_243, [
+                                  _createElementVNode("div", _hoisted_244, [
                                     _withDirectives(_createElementVNode("input", {
                                       class: "taxi-settings__range",
                                       type: "range",
@@ -2648,13 +2675,13 @@ export function render(_ctx, _cache) {
                                     }, _toDisplayString(_ctx.t('set')), 1 /* TEXT */)
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_244, [
-                                  _createElementVNode("div", _hoisted_245, [
+                                _createElementVNode("div", _hoisted_245, [
+                                  _createElementVNode("div", _hoisted_246, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('cheatSetEnergy')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.cheatEnergyPercent, 0)) + "%", 1 /* TEXT */)
                                   ]),
-                                  _createElementVNode("div", _hoisted_246, _toDisplayString(_ctx.t('cheatSetEnergyHelp')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_247, [
+                                  _createElementVNode("div", _hoisted_247, _toDisplayString(_ctx.t('cheatSetEnergyHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_248, [
                                     _withDirectives(_createElementVNode("input", {
                                       class: "taxi-settings__range",
                                       type: "range",
@@ -2677,9 +2704,9 @@ export function render(_ctx, _cache) {
                                     }, _toDisplayString(_ctx.t('set')), 1 /* TEXT */)
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_248, [
-                                  _createElementVNode("label", _hoisted_249, [
-                                    _createElementVNode("span", _hoisted_250, [
+                                _createElementVNode("div", _hoisted_249, [
+                                  _createElementVNode("label", _hoisted_250, [
+                                    _createElementVNode("span", _hoisted_251, [
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('cheatGodMode')), 1 /* TEXT */),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.t('cheatGodModeHelp')), 1 /* TEXT */)
                                     ]),
@@ -2690,12 +2717,12 @@ export function render(_ctx, _cache) {
                                     }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                       [_vModelCheckbox, _ctx.settings.godMode]
                                     ]),
-                                    _cache[248] || (_cache[248] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                    _cache[255] || (_cache[255] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_251, [
-                                  _createElementVNode("label", _hoisted_252, [
-                                    _createElementVNode("span", _hoisted_253, [
+                                _createElementVNode("div", _hoisted_252, [
+                                  _createElementVNode("label", _hoisted_253, [
+                                    _createElementVNode("span", _hoisted_254, [
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('cheatDebugLogging')), 1 /* TEXT */),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.t('cheatDebugLoggingHelp')), 1 /* TEXT */)
                                     ]),
@@ -2706,7 +2733,7 @@ export function render(_ctx, _cache) {
                                     }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
                                       [_vModelCheckbox, _ctx.settings.debugLogging]
                                     ]),
-                                    _cache[249] || (_cache[249] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
+                                    _cache[256] || (_cache[256] = _createElementVNode("span", { class: "taxi-settings__switch" }, null, -1 /* CACHED */))
                                   ])
                                 ]),
                                 _createElementVNode("button", {
@@ -2719,9 +2746,9 @@ export function render(_ctx, _cache) {
                                   class: "taxi-settings__cheat-action",
                                   onClick: _cache[113] || (_cache[113] = $event => (_ctx.hud.cheatRepairVehicle()))
                                 }, _toDisplayString(_ctx.t('cheatRepairVehicle')), 1 /* TEXT */),
-                                _createElementVNode("div", _hoisted_254, [
-                                  _createElementVNode("div", _hoisted_255, _toDisplayString(_ctx.t('cheatAddMoney')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_256, [
+                                _createElementVNode("div", _hoisted_255, [
+                                  _createElementVNode("div", _hoisted_256, _toDisplayString(_ctx.t('cheatAddMoney')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_257, [
                                     _createElementVNode("button", {
                                       type: "button",
                                       onClick: _cache[114] || (_cache[114] = $event => (_ctx.hud.cheatAddMoney(1)))
@@ -2740,12 +2767,12 @@ export function render(_ctx, _cache) {
                                     }, "+$50")
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_257, [
-                                  _createElementVNode("div", _hoisted_258, [
+                                _createElementVNode("div", _hoisted_258, [
+                                  _createElementVNode("div", _hoisted_259, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('cheatEconomyMultiplier')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.formatEconomyMultiplier()), 1 /* TEXT */)
                                   ]),
-                                  _createElementVNode("div", _hoisted_259, _toDisplayString(_ctx.t('cheatEconomyMultiplierHelp')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_260, _toDisplayString(_ctx.t('cheatEconomyMultiplierHelp')), 1 /* TEXT */),
                                   _withDirectives(_createElementVNode("input", {
                                     class: "taxi-settings__range",
                                     type: "range",
@@ -2772,7 +2799,7 @@ export function render(_ctx, _cache) {
                                     }, _toDisplayString(_ctx.t('cheatResetStats')), 1 /* TEXT */))
                                   : _createCommentVNode("v-if", true),
                                 (_ctx.cheatResetArmed)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_260, [
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_261, [
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('cheatResetWarning')), 1 /* TEXT */),
                                       _createElementVNode("div", null, [
                                         _createElementVNode("button", {
@@ -2792,17 +2819,17 @@ export function render(_ctx, _cache) {
                       ]))
                     : _createCommentVNode("v-if", true),
                   (_ctx.profileOpen)
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_261, [
-                        _createElementVNode("div", _hoisted_262, [
-                          _createElementVNode("div", _hoisted_263, _toDisplayString(_ctx.profileDraft.avatar), 1 /* TEXT */),
-                          _createElementVNode("div", _hoisted_264, [
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_262, [
+                        _createElementVNode("div", _hoisted_263, [
+                          _createElementVNode("div", _hoisted_264, _toDisplayString(_ctx.profileDraft.avatar), 1 /* TEXT */),
+                          _createElementVNode("div", _hoisted_265, [
                             _createElementVNode("span", {
                               title: (_ctx.profileProgress.completedRides || 0) + " " + (_ctx.t('rides')) + " · " + (_ctx.formatMoneyFull(_ctx.profileProgress.balance))
-                            }, _toDisplayString(_ctx.formatAggregateNumber(_ctx.profileProgress.completedRides)) + " " + _toDisplayString(_ctx.t('rides')) + " · " + _toDisplayString(_ctx.formatMoney(_ctx.profileProgress.balance)), 9 /* TEXT, PROPS */, _hoisted_265)
+                            }, _toDisplayString(_ctx.formatAggregateNumber(_ctx.profileProgress.completedRides)) + " " + _toDisplayString(_ctx.t('rides')) + " · " + _toDisplayString(_ctx.formatMoney(_ctx.profileProgress.balance)), 9 /* TEXT, PROPS */, _hoisted_266)
                           ]),
-                          _createElementVNode("div", _hoisted_266, _toDisplayString(_ctx.formatNumber(_ctx.profileProgress.rating, 2)) + " ★", 1 /* TEXT */)
+                          _createElementVNode("div", _hoisted_267, _toDisplayString(_ctx.formatNumber(_ctx.profileProgress.rating, 2)) + " ★", 1 /* TEXT */)
                         ]),
-                        _createElementVNode("div", _hoisted_267, [
+                        _createElementVNode("div", _hoisted_268, [
                           _createElementVNode("button", {
                             type: "button",
                             class: _normalizeClass(["taxi-profile__tab", {'taxi-profile__tab--active': _ctx.profileTab === 'identity'}]),
@@ -2829,10 +2856,10 @@ export function render(_ctx, _cache) {
                             onClick: _cache[127] || (_cache[127] = $event => (_ctx.hud.selectProfileTab('shifts')))
                           }, _toDisplayString(_ctx.t('tabShifts')), 3 /* TEXT, CLASS */)
                         ]),
-                        _createElementVNode("div", _hoisted_268, [
+                        _createElementVNode("div", _hoisted_269, [
                           (_ctx.profileTab === 'identity')
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_269, [
-                                _createElementVNode("label", _hoisted_270, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_270, [
+                                _createElementVNode("label", _hoisted_271, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('fullName')), 1 /* TEXT */),
                                   _withDirectives(_createElementVNode("input", {
                                     class: "taxi-profile__input",
@@ -2844,7 +2871,7 @@ export function render(_ctx, _cache) {
                                     [_vModelText, _ctx.profileDraft.fullName]
                                   ])
                                 ]),
-                                _createElementVNode("label", _hoisted_271, [
+                                _createElementVNode("label", _hoisted_272, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('birthDate')), 1 /* TEXT */),
                                   _withDirectives(_createElementVNode("input", {
                                     class: "taxi-profile__input",
@@ -2857,20 +2884,20 @@ export function render(_ctx, _cache) {
                                     [_vModelText, _ctx.profileDraft.birthDate]
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_272, [
+                                _createElementVNode("div", _hoisted_273, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('age')), 1 /* TEXT */),
                                   _createElementVNode("strong", null, _toDisplayString(_ctx.getAge(_ctx.profileDraft.birthDate)) + " " + _toDisplayString(_ctx.getAge(_ctx.profileDraft.birthDate) === '—' ? '' : _ctx.t('years')), 1 /* TEXT */)
                                 ]),
-                                _createElementVNode("div", _hoisted_273, [
+                                _createElementVNode("div", _hoisted_274, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('avatar')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_274, [
+                                  _createElementVNode("div", _hoisted_275, [
                                     (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.avatarOptions, (avatar, index) => {
                                       return (_openBlock(), _createElementBlock("button", {
                                         type: "button",
                                         class: _normalizeClass(["taxi-profile__avatar-option", {'taxi-profile__avatar-option--active': _ctx.profileDraft.avatar === avatar}]),
                                         key: index,
                                         onClick: $event => (_ctx.hud.selectAvatar(avatar))
-                                      }, _toDisplayString(avatar), 11 /* TEXT, CLASS, PROPS */, _hoisted_275))
+                                      }, _toDisplayString(avatar), 11 /* TEXT, CLASS, PROPS */, _hoisted_276))
                                     }), 128 /* KEYED_FRAGMENT */))
                                   ])
                                 ]),
@@ -2880,34 +2907,34 @@ export function render(_ctx, _cache) {
                                   onClick: _cache[132] || (_cache[132] = $event => (_ctx.hud.saveProfile()))
                                 }, _toDisplayString(_ctx.t('saveProfile')), 1 /* TEXT */),
                                 (_ctx.profileSaved)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_276, _toDisplayString(_ctx.t('profileSaved')), 1 /* TEXT */))
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_277, _toDisplayString(_ctx.t('profileSaved')), 1 /* TEXT */))
                                   : _createCommentVNode("v-if", true)
                               ]))
                             : _createCommentVNode("v-if", true),
                           (_ctx.profileTab === 'reviews')
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_277, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_278, [
                                 (!_ctx.profileReviews.length)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_278, _toDisplayString(_ctx.t('noReviews')), 1 /* TEXT */))
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_279, _toDisplayString(_ctx.t('noReviews')), 1 /* TEXT */))
                                   : _createCommentVNode("v-if", true),
-                                _createElementVNode("div", _hoisted_279, [
-                                  _cache[251] || (_cache[251] = _createElementVNode("div", { class: "taxi-review__emoji" }, "😊", -1 /* CACHED */)),
-                                  _createElementVNode("div", _hoisted_280, [
-                                    _createElementVNode("strong", null, _toDisplayString(_ctx.t('deliveryOrder')), 1 /* TEXT */),
-                                    _cache[250] || (_cache[250] = _createElementVNode("span", null, "Sep 30, 2026 · $99999.99", -1 /* CACHED */))
-                                  ]),
+                                _createElementVNode("div", _hoisted_280, [
+                                  _cache[258] || (_cache[258] = _createElementVNode("div", { class: "taxi-review__emoji" }, "😊", -1 /* CACHED */)),
                                   _createElementVNode("div", _hoisted_281, [
+                                    _createElementVNode("strong", null, _toDisplayString(_ctx.t('deliveryOrder')), 1 /* TEXT */),
+                                    _cache[257] || (_cache[257] = _createElementVNode("span", null, "Sep 30, 2026 · $99999.99", -1 /* CACHED */))
+                                  ]),
+                                  _createElementVNode("div", _hoisted_282, [
                                     _createElementVNode("strong", null, _toDisplayString(_ctx.t('orderRating')) + " 5.00 ★", 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('profileRating')) + " 5.00 ★", 1 /* TEXT */)
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_282, [
-                                  _cache[253] || (_cache[253] = _createElementVNode("div", { class: "taxi-review__emoji" }, "😊", -1 /* CACHED */)),
-                                  _createElementVNode("div", _hoisted_283, [
+                                _createElementVNode("div", _hoisted_283, [
+                                  _cache[260] || (_cache[260] = _createElementVNode("div", { class: "taxi-review__emoji" }, "😊", -1 /* CACHED */)),
+                                  _createElementVNode("div", _hoisted_284, [
                                     _createElementVNode("strong", null, _toDisplayString(_ctx.t('deliveryOrder')), 1 /* TEXT */),
-                                    _cache[252] || (_cache[252] = _createElementVNode("span", null, "Sep 30, 2026 · $99999.99", -1 /* CACHED */)),
+                                    _cache[259] || (_cache[259] = _createElementVNode("span", null, "Sep 30, 2026 · $99999.99", -1 /* CACHED */)),
                                     _createElementVNode("b", null, "AI · " + _toDisplayString(_ctx.t('aiAssisted')), 1 /* TEXT */)
                                   ]),
-                                  _createElementVNode("div", _hoisted_284, [
+                                  _createElementVNode("div", _hoisted_285, [
                                     _createElementVNode("strong", null, _toDisplayString(_ctx.t('orderRating')) + " 5.00 ★", 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('profileRating')) + " 5.00 ★", 1 /* TEXT */)
                                   ])
@@ -2924,32 +2951,32 @@ export function render(_ctx, _cache) {
                                       "aria-expanded": _ctx.expandedReviewId === review.id,
                                       "aria-controls": "taxi-review-details-" + (review.id)
                                     }, [
-                                      _createElementVNode("span", _hoisted_286, _toDisplayString(review.emoji), 1 /* TEXT */),
-                                      _createElementVNode("span", _hoisted_287, [
+                                      _createElementVNode("span", _hoisted_287, _toDisplayString(review.emoji), 1 /* TEXT */),
+                                      _createElementVNode("span", _hoisted_288, [
                                         _createElementVNode("strong", null, _toDisplayString((review.outcome === 'delivery' || review.outcome === 'deliveryAbandonment') ? _ctx.t('deliveryOrder') : review.passengerName), 1 /* TEXT */),
                                         _createElementVNode("span", null, _toDisplayString(_ctx.formatReviewDate(review.timestamp)) + " · " + _toDisplayString(_ctx.formatMoney(review.fare)), 1 /* TEXT */),
                                         (review.usedAutopilot)
-                                          ? (_openBlock(), _createElementBlock("b", _hoisted_288, "AI · " + _toDisplayString(_ctx.t('aiAssisted')), 1 /* TEXT */))
+                                          ? (_openBlock(), _createElementBlock("b", _hoisted_289, "AI · " + _toDisplayString(_ctx.t('aiAssisted')), 1 /* TEXT */))
                                           : _createCommentVNode("v-if", true)
                                       ]),
-                                      _createElementVNode("span", _hoisted_289, [
+                                      _createElementVNode("span", _hoisted_290, [
                                         _createElementVNode("strong", {
                                           class: _normalizeClass('taxi-review__order-rating--' + _ctx.getReviewRatingClass(review))
                                         }, _toDisplayString(_ctx.t('orderRating')) + " " + _toDisplayString(_ctx.formatNumber(review.orderRating, 2)) + " ★", 3 /* TEXT, CLASS */),
                                         _createElementVNode("span", null, _toDisplayString(_ctx.t('profileRating')) + " " + _toDisplayString(_ctx.formatNumber(review.rating, 2)) + " ★", 1 /* TEXT */)
                                       ]),
-                                      _cache[254] || (_cache[254] = _createElementVNode("i", {
+                                      _cache[261] || (_cache[261] = _createElementVNode("i", {
                                         class: "taxi-review__expand",
                                         "aria-hidden": "true"
                                       }, null, -1 /* CACHED */))
-                                    ], 8 /* PROPS */, _hoisted_285),
+                                    ], 8 /* PROPS */, _hoisted_286),
                                     (_ctx.expandedReviewId === review.id)
                                       ? (_openBlock(), _createElementBlock("div", {
                                           key: 0,
                                           class: "taxi-review-details",
                                           id: "taxi-review-details-" + (review.id)
                                         }, [
-                                          _createElementVNode("div", _hoisted_291, [
+                                          _createElementVNode("div", _hoisted_292, [
                                             _createElementVNode("span", null, [
                                               _createElementVNode("small", null, _toDisplayString(_ctx.t('tripHistoryOutcome')), 1 /* TEXT */),
                                               _createElementVNode("strong", null, _toDisplayString(_ctx.t('tripOutcome_' + review.outcome)), 1 /* TEXT */)
@@ -2966,7 +2993,7 @@ export function render(_ctx, _cache) {
                                           _createElementVNode("section", null, [
                                             _createElementVNode("h4", null, _toDisplayString(_ctx.t('tripHistoryPenalties')), 1 /* TEXT */),
                                             (!review.penalties.length)
-                                              ? (_openBlock(), _createElementBlock("p", _hoisted_292, _toDisplayString(_ctx.t('tripHistoryNoPenalties')), 1 /* TEXT */))
+                                              ? (_openBlock(), _createElementBlock("p", _hoisted_293, _toDisplayString(_ctx.t('tripHistoryNoPenalties')), 1 /* TEXT */))
                                               : _createCommentVNode("v-if", true),
                                             (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(review.penalties, (penalty, index) => {
                                               return (_openBlock(), _createElementBlock("div", {
@@ -2976,7 +3003,7 @@ export function render(_ctx, _cache) {
                                                 _createElementVNode("span", null, [
                                                   _createElementVNode("strong", null, _toDisplayString(_ctx.getPenaltyHistoryLabel(penalty)), 1 /* TEXT */),
                                                   (penalty.detail)
-                                                    ? (_openBlock(), _createElementBlock("small", _hoisted_293, _toDisplayString(penalty.detail), 1 /* TEXT */))
+                                                    ? (_openBlock(), _createElementBlock("small", _hoisted_294, _toDisplayString(penalty.detail), 1 /* TEXT */))
                                                     : _createCommentVNode("v-if", true)
                                                 ]),
                                                 _createElementVNode("b", null, _toDisplayString(_ctx.formatPenaltyHistory(penalty)), 1 /* TEXT */)
@@ -2986,7 +3013,7 @@ export function render(_ctx, _cache) {
                                           _createElementVNode("section", null, [
                                             _createElementVNode("h4", null, _toDisplayString(_ctx.t('tripHistoryRandomEvents')), 1 /* TEXT */),
                                             (!review.randomEvents.length)
-                                              ? (_openBlock(), _createElementBlock("p", _hoisted_294, _toDisplayString(_ctx.t('tripHistoryNoRandomEvents')), 1 /* TEXT */))
+                                              ? (_openBlock(), _createElementBlock("p", _hoisted_295, _toDisplayString(_ctx.t('tripHistoryNoRandomEvents')), 1 /* TEXT */))
                                               : _createCommentVNode("v-if", true),
                                             (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(review.randomEvents, (event, index) => {
                                               return (_openBlock(), _createElementBlock("div", {
@@ -2998,24 +3025,24 @@ export function render(_ctx, _cache) {
                                                   _createElementVNode("small", null, _toDisplayString(_ctx.getRandomEventStatus(event)), 1 /* TEXT */)
                                                 ]),
                                                 (event.amount > 0)
-                                                  ? (_openBlock(), _createElementBlock("b", _hoisted_295, _toDisplayString(_ctx.formatMoney(event.amount)), 1 /* TEXT */))
+                                                  ? (_openBlock(), _createElementBlock("b", _hoisted_296, _toDisplayString(_ctx.formatMoney(event.amount)), 1 /* TEXT */))
                                                   : _createCommentVNode("v-if", true)
                                               ]))
                                             }), 128 /* KEYED_FRAGMENT */))
                                           ])
-                                        ], 8 /* PROPS */, _hoisted_290))
+                                        ], 8 /* PROPS */, _hoisted_291))
                                       : _createCommentVNode("v-if", true)
                                   ], 2 /* CLASS */))
                                 }), 128 /* KEYED_FRAGMENT */)),
                                 (_ctx.profileReviews.length)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_296, [
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_297, [
                                       _createElementVNode("button", {
                                         type: "button",
                                         class: "taxi-action taxi-action--secondary",
                                         onClick: _cache[133] || (_cache[133] = $event => (_ctx.hud.previousReviewPage())),
                                         disabled: _ctx.reviewPage <= 1,
                                         "aria-label": _ctx.t('reviewPage', {current: _ctx.reviewPage - 1, total: _ctx.getReviewPageCount()})
-                                      }, "‹", 8 /* PROPS */, _hoisted_297),
+                                      }, "‹", 8 /* PROPS */, _hoisted_298),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.t('reviewPage', {current: _ctx.reviewPage, total: _ctx.getReviewPageCount()})), 1 /* TEXT */),
                                       _createElementVNode("button", {
                                         type: "button",
@@ -3023,34 +3050,34 @@ export function render(_ctx, _cache) {
                                         onClick: _cache[134] || (_cache[134] = $event => (_ctx.hud.nextReviewPage())),
                                         disabled: _ctx.reviewPage >= _ctx.getReviewPageCount(),
                                         "aria-label": _ctx.t('reviewPage', {current: _ctx.reviewPage + 1, total: _ctx.getReviewPageCount()})
-                                      }, "›", 8 /* PROPS */, _hoisted_298)
+                                      }, "›", 8 /* PROPS */, _hoisted_299)
                                     ]))
                                   : _createCommentVNode("v-if", true)
                               ]))
                             : _createCommentVNode("v-if", true),
                           (_ctx.profileTab === 'analytics')
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_299, [
-                                _createElementVNode("div", _hoisted_300, [
-                                  _createElementVNode("div", _hoisted_301, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_300, [
+                                _createElementVNode("div", _hoisted_301, [
+                                  _createElementVNode("div", _hoisted_302, [
                                     _createElementVNode("strong", null, _toDisplayString(_ctx.t('ratingTrend')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.profileProgress.rating, 2)) + " ★", 1 /* TEXT */)
                                   ]),
-                                  (_openBlock(), _createElementBlock("svg", _hoisted_302, [
-                                    _cache[255] || (_cache[255] = _createElementVNode("line", {
+                                  (_openBlock(), _createElementBlock("svg", _hoisted_303, [
+                                    _cache[262] || (_cache[262] = _createElementVNode("line", {
                                       class: "taxi-chart__grid",
                                       x1: "8",
                                       y1: "8",
                                       x2: "312",
                                       y2: "8"
                                     }, null, -1 /* CACHED */)),
-                                    _cache[256] || (_cache[256] = _createElementVNode("line", {
+                                    _cache[263] || (_cache[263] = _createElementVNode("line", {
                                       class: "taxi-chart__grid",
                                       x1: "8",
                                       y1: "46",
                                       x2: "312",
                                       y2: "46"
                                     }, null, -1 /* CACHED */)),
-                                    _cache[257] || (_cache[257] = _createElementVNode("line", {
+                                    _cache[264] || (_cache[264] = _createElementVNode("line", {
                                       class: "taxi-chart__grid",
                                       x1: "8",
                                       y1: "84",
@@ -3060,31 +3087,31 @@ export function render(_ctx, _cache) {
                                     _createElementVNode("polyline", {
                                       class: "taxi-chart__line",
                                       points: _ctx.getChartPoints(_ctx.profileProgress.ratingHistory, 'rating')
-                                    }, null, 8 /* PROPS */, _hoisted_303)
+                                    }, null, 8 /* PROPS */, _hoisted_304)
                                   ])),
-                                  _createElementVNode("div", _hoisted_304, _toDisplayString(_ctx.t('historyHint')), 1 /* TEXT */)
+                                  _createElementVNode("div", _hoisted_305, _toDisplayString(_ctx.t('historyHint')), 1 /* TEXT */)
                                 ]),
-                                _createElementVNode("div", _hoisted_305, [
-                                  _createElementVNode("div", _hoisted_306, [
+                                _createElementVNode("div", _hoisted_306, [
+                                  _createElementVNode("div", _hoisted_307, [
                                     _createElementVNode("strong", null, _toDisplayString(_ctx.t('balanceTrend')), 1 /* TEXT */),
                                     _createElementVNode("span", null, _toDisplayString(_ctx.formatMoney(_ctx.profileProgress.balance)), 1 /* TEXT */)
                                   ]),
-                                  (_openBlock(), _createElementBlock("svg", _hoisted_307, [
-                                    _cache[258] || (_cache[258] = _createElementVNode("line", {
+                                  (_openBlock(), _createElementBlock("svg", _hoisted_308, [
+                                    _cache[265] || (_cache[265] = _createElementVNode("line", {
                                       class: "taxi-chart__grid",
                                       x1: "8",
                                       y1: "8",
                                       x2: "312",
                                       y2: "8"
                                     }, null, -1 /* CACHED */)),
-                                    _cache[259] || (_cache[259] = _createElementVNode("line", {
+                                    _cache[266] || (_cache[266] = _createElementVNode("line", {
                                       class: "taxi-chart__grid",
                                       x1: "8",
                                       y1: "46",
                                       x2: "312",
                                       y2: "46"
                                     }, null, -1 /* CACHED */)),
-                                    _cache[260] || (_cache[260] = _createElementVNode("line", {
+                                    _cache[267] || (_cache[267] = _createElementVNode("line", {
                                       class: "taxi-chart__grid",
                                       x1: "8",
                                       y1: "84",
@@ -3094,29 +3121,29 @@ export function render(_ctx, _cache) {
                                     _createElementVNode("polyline", {
                                       class: "taxi-chart__line taxi-chart__line--balance",
                                       points: _ctx.getChartPoints(_ctx.profileProgress.balanceHistory, 'balance')
-                                    }, null, 8 /* PROPS */, _hoisted_308)
+                                    }, null, 8 /* PROPS */, _hoisted_309)
                                   ])),
-                                  _createElementVNode("div", _hoisted_309, _toDisplayString(_ctx.t('historyHint')), 1 /* TEXT */)
+                                  _createElementVNode("div", _hoisted_310, _toDisplayString(_ctx.t('historyHint')), 1 /* TEXT */)
                                 ]),
-                                _createElementVNode("div", _hoisted_310, [
-                                  _cache[261] || (_cache[261] = _createElementVNode("span", null, "AI", -1 /* CACHED */)),
+                                _createElementVNode("div", _hoisted_311, [
+                                  _cache[268] || (_cache[268] = _createElementVNode("span", null, "AI", -1 /* CACHED */)),
                                   _createElementVNode("div", null, [
                                     _createElementVNode("strong", null, _toDisplayString(_ctx.t('aiRideTrend')), 1 /* TEXT */),
                                     _createElementVNode("small", null, _toDisplayString(_ctx.t('aiRideCount')), 1 /* TEXT */)
                                   ]),
                                   _createElementVNode("b", {
                                     title: _ctx.profileProgress.aiRideCount || 0
-                                  }, _toDisplayString(_ctx.formatAggregateNumber(_ctx.profileProgress.aiRideCount)), 9 /* TEXT, PROPS */, _hoisted_311)
+                                  }, _toDisplayString(_ctx.formatAggregateNumber(_ctx.profileProgress.aiRideCount)), 9 /* TEXT, PROPS */, _hoisted_312)
                                 ])
                               ]))
                             : _createCommentVNode("v-if", true),
                           (_ctx.profileTab === 'vehicles')
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_312, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_313, [
                                 (!_ctx.profileVehicles.length)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_313, _toDisplayString(_ctx.t('noVehicleHistory')), 1 /* TEXT */))
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_314, _toDisplayString(_ctx.t('noVehicleHistory')), 1 /* TEXT */))
                                   : _createCommentVNode("v-if", true),
                                 (_ctx.profileVehicles.length)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_314, [
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_315, [
                                       _createElementVNode("span", null, _toDisplayString(_ctx.t('sortBy')), 1 /* TEXT */),
                                       _createElementVNode("div", {
                                         class: _normalizeClass(["taxi-sort-menu", {'taxi-sort-menu--open': _ctx.vehicleSortMenuOpen}])
@@ -3129,10 +3156,10 @@ export function render(_ctx, _cache) {
                                           "aria-expanded": _ctx.vehicleSortMenuOpen
                                         }, [
                                           _createElementVNode("span", null, _toDisplayString(_ctx.getVehicleSortLabel()), 1 /* TEXT */),
-                                          _cache[262] || (_cache[262] = _createElementVNode("i", null, "⌄", -1 /* CACHED */))
-                                        ], 8 /* PROPS */, _hoisted_315),
+                                          _cache[269] || (_cache[269] = _createElementVNode("i", null, "⌄", -1 /* CACHED */))
+                                        ], 8 /* PROPS */, _hoisted_316),
                                         (_ctx.vehicleSortMenuOpen)
-                                          ? (_openBlock(), _createElementBlock("div", _hoisted_316, [
+                                          ? (_openBlock(), _createElementBlock("div", _hoisted_317, [
                                               (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.vehicleSortOptions, (option, index) => {
                                                 return (_openBlock(), _createElementBlock("button", {
                                                   type: "button",
@@ -3141,7 +3168,7 @@ export function render(_ctx, _cache) {
                                                   onClick: $event => (_ctx.hud.selectVehicleSort(option.value)),
                                                   role: "option",
                                                   "aria-selected": _ctx.vehicleSort === option.value
-                                                }, _toDisplayString(_ctx.t(option.label)), 11 /* TEXT, CLASS, PROPS */, _hoisted_317))
+                                                }, _toDisplayString(_ctx.t(option.label)), 11 /* TEXT, CLASS, PROPS */, _hoisted_318))
                                               }), 128 /* KEYED_FRAGMENT */))
                                             ]))
                                           : _createCommentVNode("v-if", true)
@@ -3153,33 +3180,33 @@ export function render(_ctx, _cache) {
                                     class: "taxi-vehicle-history",
                                     key: vehicle.key
                                   }, [
-                                    _createElementVNode("div", _hoisted_318, [
-                                      _cache[263] || (_cache[263] = _createElementVNode("span", null, "🚘", -1 /* CACHED */)),
+                                    _createElementVNode("div", _hoisted_319, [
+                                      _cache[270] || (_cache[270] = _createElementVNode("span", null, "🚘", -1 /* CACHED */)),
                                       (vehicle.preview)
                                         ? (_openBlock(), _createElementBlock("img", {
                                             key: 0,
                                             src: vehicle.preview,
                                             alt: vehicle.name,
                                             onError: _cache[136] || (_cache[136] = $event => ($event.target.style.display = 'none'))
-                                          }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_319))
+                                          }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_320))
                                         : _createCommentVNode("v-if", true)
                                     ]),
-                                    _createElementVNode("div", _hoisted_320, [
+                                    _createElementVNode("div", _hoisted_321, [
                                       _createElementVNode("strong", null, _toDisplayString(vehicle.name), 1 /* TEXT */),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.formatOdometer(vehicle.distanceMeters)), 1 /* TEXT */)
                                     ]),
-                                    _createElementVNode("div", _hoisted_321, [
+                                    _createElementVNode("div", _hoisted_322, [
                                       _createElementVNode("span", null, [
                                         _createTextVNode(_toDisplayString(_ctx.t('vehicleTrips')), 1 /* TEXT */),
                                         _createElementVNode("strong", {
                                           title: vehicle.completedRides || 0
-                                        }, _toDisplayString(_ctx.formatCount(vehicle.completedRides)), 9 /* TEXT, PROPS */, _hoisted_322)
+                                        }, _toDisplayString(_ctx.formatCount(vehicle.completedRides)), 9 /* TEXT, PROPS */, _hoisted_323)
                                       ]),
                                       _createElementVNode("span", null, [
                                         _createTextVNode(_toDisplayString(_ctx.t('vehicleAiTrips')), 1 /* TEXT */),
                                         _createElementVNode("strong", {
                                           title: vehicle.aiRides || 0
-                                        }, _toDisplayString(_ctx.formatCount(vehicle.aiRides)), 9 /* TEXT, PROPS */, _hoisted_323)
+                                        }, _toDisplayString(_ctx.formatCount(vehicle.aiRides)), 9 /* TEXT, PROPS */, _hoisted_324)
                                       ]),
                                       _createElementVNode("span", null, [
                                         _createTextVNode(_toDisplayString(_ctx.t('vehicleIncome')), 1 /* TEXT */),
@@ -3206,7 +3233,7 @@ export function render(_ctx, _cache) {
                                         _createElementVNode("strong", null, "−" + _toDisplayString(_ctx.formatMoney(vehicle.cargoDamageLoss)), 1 /* TEXT */)
                                       ]),
                                       (vehicle.fuelConsumed > 0)
-                                        ? (_openBlock(), _createElementBlock("span", _hoisted_324, [
+                                        ? (_openBlock(), _createElementBlock("span", _hoisted_325, [
                                             _createTextVNode(_toDisplayString(_ctx.t('fuelConsumed')), 1 /* TEXT */),
                                             _createElementVNode("strong", null, _toDisplayString(_ctx.formatNumber(vehicle.fuelConsumed, 1)) + " · " + _toDisplayString(_ctx.formatMoney(vehicle.fuelCost)), 1 /* TEXT */)
                                           ]))
@@ -3221,9 +3248,9 @@ export function render(_ctx, _cache) {
                               ]))
                             : _createCommentVNode("v-if", true),
                           (_ctx.profileTab === 'shifts')
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_325, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_326, [
                                 (!_ctx.state.shiftHistory.items.length)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_326, _toDisplayString(_ctx.t('noShiftHistory')), 1 /* TEXT */))
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_327, _toDisplayString(_ctx.t('noShiftHistory')), 1 /* TEXT */))
                                   : _createCommentVNode("v-if", true),
                                 (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.state.shiftHistory.items.slice(0, _ctx.shiftHistoryVisibleCount), (shift, index) => {
                                   return (_openBlock(), _createElementBlock("button", {
@@ -3233,48 +3260,48 @@ export function render(_ctx, _cache) {
                                     onClick: $event => (_ctx.hud.resumeShift(shift.id)),
                                     disabled: _ctx.state.active || _ctx.state.shiftHistory.restoring
                                   }, [
-                                    _createElementVNode("div", _hoisted_328, [
-                                      _cache[264] || (_cache[264] = _createElementVNode("span", null, "🚗", -1 /* CACHED */)),
+                                    _createElementVNode("div", _hoisted_329, [
+                                      _cache[271] || (_cache[271] = _createElementVNode("span", null, "🚗", -1 /* CACHED */)),
                                       (shift.preview)
                                         ? (_openBlock(), _createElementBlock("img", {
                                             key: 0,
                                             src: shift.preview,
                                             alt: shift.vehicleName,
                                             onError: _cache[137] || (_cache[137] = $event => ($event.target.style.display = 'none'))
-                                          }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_329))
+                                          }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_330))
                                         : _createCommentVNode("v-if", true)
                                     ]),
-                                    _createElementVNode("div", _hoisted_330, [
+                                    _createElementVNode("div", _hoisted_331, [
                                       _createElementVNode("strong", {
                                         title: shift.vehicleName
-                                      }, _toDisplayString(shift.vehicleName), 9 /* TEXT, PROPS */, _hoisted_331),
+                                      }, _toDisplayString(shift.vehicleName), 9 /* TEXT, PROPS */, _hoisted_332),
                                       _createElementVNode("small", null, _toDisplayString(_ctx.formatShiftDate(shift.lastSavedAt || shift.startedAt)), 1 /* TEXT */),
                                       _createElementVNode("div", null, [
                                         _createElementVNode("span", {
                                           title: shift.rides || 0
-                                        }, _toDisplayString(_ctx.formatCount(shift.rides)) + " " + _toDisplayString(_ctx.t('rides')), 9 /* TEXT, PROPS */, _hoisted_332),
+                                        }, _toDisplayString(_ctx.formatCount(shift.rides)) + " " + _toDisplayString(_ctx.t('rides')), 9 /* TEXT, PROPS */, _hoisted_333),
                                         (shift.aiRides)
                                           ? (_openBlock(), _createElementBlock("span", {
                                               key: 0,
                                               title: shift.aiRides
-                                            }, "AI " + _toDisplayString(_ctx.formatCount(shift.aiRides)), 9 /* TEXT, PROPS */, _hoisted_333))
+                                            }, "AI " + _toDisplayString(_ctx.formatCount(shift.aiRides)), 9 /* TEXT, PROPS */, _hoisted_334))
                                           : _createCommentVNode("v-if", true),
                                         _createElementVNode("span", {
                                           title: _ctx.formatMoneyFull(shift.netIncome)
-                                        }, _toDisplayString(_ctx.formatMoney(shift.netIncome)), 9 /* TEXT, PROPS */, _hoisted_334),
+                                        }, _toDisplayString(_ctx.formatMoney(shift.netIncome)), 9 /* TEXT, PROPS */, _hoisted_335),
                                         _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(shift.energyPercent, 0)) + "%", 1 /* TEXT */)
                                       ])
                                     ]),
                                     (_ctx.state.shiftHistory.restoringId !== shift.id)
-                                      ? (_openBlock(), _createElementBlock("i", _hoisted_335, "›"))
+                                      ? (_openBlock(), _createElementBlock("i", _hoisted_336, "›"))
                                       : _createCommentVNode("v-if", true),
                                     (_ctx.state.shiftHistory.restoringId === shift.id)
-                                      ? (_openBlock(), _createElementBlock("div", _hoisted_336, [
-                                          _cache[265] || (_cache[265] = _createElementVNode("span", null, null, -1 /* CACHED */)),
+                                      ? (_openBlock(), _createElementBlock("div", _hoisted_337, [
+                                          _cache[272] || (_cache[272] = _createElementVNode("span", null, null, -1 /* CACHED */)),
                                           _createTextVNode(_toDisplayString(_ctx.t('restoringShift')), 1 /* TEXT */)
                                         ]))
                                       : _createCommentVNode("v-if", true)
-                                  ], 8 /* PROPS */, _hoisted_327))
+                                  ], 8 /* PROPS */, _hoisted_328))
                                 }), 128 /* KEYED_FRAGMENT */)),
                                 (_ctx.shiftHistoryVisibleCount < _ctx.state.shiftHistory.items.length)
                                   ? (_openBlock(), _createElementBlock("button", {
@@ -3290,17 +3317,17 @@ export function render(_ctx, _cache) {
                       ]))
                     : _createCommentVNode("v-if", true),
                   (_ctx.fleetOpen && !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen)
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_337, [
-                        _createElementVNode("div", _hoisted_338, [
-                          _cache[268] || (_cache[268] = _createElementVNode("div", { class: "taxi-minimap-surface" }, null, -1 /* CACHED */)),
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_338, [
+                        _createElementVNode("div", _hoisted_339, [
+                          _cache[275] || (_cache[275] = _createElementVNode("div", { class: "taxi-minimap-surface" }, null, -1 /* CACHED */)),
                           (_ctx.externalPhoneMode)
-                            ? (_openBlock(), _createElementBlock("canvas", _hoisted_339))
+                            ? (_openBlock(), _createElementBlock("canvas", _hoisted_340))
                             : _createCommentVNode("v-if", true),
                           _createElementVNode("div", {
                             class: _normalizeClass(["taxi-map-interaction", {'taxi-map-interaction--panned': !_ctx.mapFollowing}]),
                             "aria-label": _ctx.t('mapDrag')
-                          }, null, 10 /* CLASS, PROPS */, _hoisted_340),
-                          _createElementVNode("div", _hoisted_341, [
+                          }, null, 10 /* CLASS, PROPS */, _hoisted_341),
+                          _createElementVNode("div", _hoisted_342, [
                             (_ctx.settings.aiDriver.enabled && _ctx.state.active && (_ctx.state.phase === 'toPickup' || _ctx.state.phase === 'toStop' || _ctx.state.phase === 'toDestination' || _ctx.state.phase === 'toFuelStation'))
                               ? (_openBlock(), _createElementBlock("button", {
                                   key: 0,
@@ -3309,9 +3336,9 @@ export function render(_ctx, _cache) {
                                   onClick: _cache[139] || (_cache[139] = $event => (_ctx.hud.toggleAutopilot())),
                                   disabled: !_ctx.state.autopilot.available
                                 }, [
-                                  _cache[266] || (_cache[266] = _createElementVNode("strong", null, "AI", -1 /* CACHED */)),
+                                  _cache[273] || (_cache[273] = _createElementVNode("strong", null, "AI", -1 /* CACHED */)),
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t(_ctx.state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable')), 1 /* TEXT */)
-                                ], 10 /* CLASS, PROPS */, _hoisted_342))
+                                ], 10 /* CLASS, PROPS */, _hoisted_343))
                               : _createCommentVNode("v-if", true),
                             _createElementVNode("div", {
                               class: "taxi-map-controls",
@@ -3322,24 +3349,24 @@ export function render(_ctx, _cache) {
                                 onClick: _cache[140] || (_cache[140] = $event => (_ctx.hud.zoomMap(0.8))),
                                 title: _ctx.t('mapZoomIn'),
                                 "aria-label": _ctx.t('mapZoomIn')
-                              }, "+", 8 /* PROPS */, _hoisted_344),
+                              }, "+", 8 /* PROPS */, _hoisted_345),
                               _createElementVNode("button", {
                                 type: "button",
                                 onClick: _cache[141] || (_cache[141] = $event => (_ctx.hud.zoomMap(1.25))),
                                 title: _ctx.t('mapZoomOut'),
                                 "aria-label": _ctx.t('mapZoomOut')
-                              }, "−", 8 /* PROPS */, _hoisted_345),
+                              }, "−", 8 /* PROPS */, _hoisted_346),
                               _createElementVNode("button", {
                                 type: "button",
                                 onClick: _cache[142] || (_cache[142] = $event => (_ctx.hud.followMap())),
                                 class: _normalizeClass({'taxi-map-controls--following': _ctx.mapFollowing}),
                                 title: _ctx.t('mapFollow'),
                                 "aria-label": _ctx.t('mapFollow')
-                              }, "◎", 10 /* CLASS, PROPS */, _hoisted_346)
-                            ], 8 /* PROPS */, _hoisted_343)
+                              }, "◎", 10 /* CLASS, PROPS */, _hoisted_347)
+                            ], 8 /* PROPS */, _hoisted_344)
                           ]),
                           (_ctx.state.active && (_ctx.state.phase === 'toPickup' || _ctx.state.phase === 'toStop' || _ctx.state.phase === 'toDestination' || _ctx.state.phase === 'toFuelStation'))
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_347, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_348, [
                                 _createElementVNode("span", null, _toDisplayString(_ctx.t('arrival')), 1 /* TEXT */),
                                 _createElementVNode("strong", null, _toDisplayString(_ctx.getArrivalTime(_ctx.state.etaMinutes)), 1 /* TEXT */),
                                 _createElementVNode("small", null, _toDisplayString(_ctx.formatEta(_ctx.state.etaMinutes)) + " · " + _toDisplayString(_ctx.formatDistance(_ctx.state.distanceToTarget)), 1 /* TEXT */)
@@ -3351,35 +3378,35 @@ export function render(_ctx, _cache) {
                                 class: _normalizeClass(["taxi-map__speed", {'taxi-map__speed--warning': _ctx.overspeedWarningActive}])
                               }, _toDisplayString(_ctx.formatSpeedValue(_ctx.state.speedLimit)), 3 /* TEXT, CLASS */))
                             : _createCommentVNode("v-if", true),
-                          _createElementVNode("div", _hoisted_348, [
-                            _cache[267] || (_cache[267] = _createElementVNode("i", null, "F", -1 /* CACHED */)),
+                          _createElementVNode("div", _hoisted_349, [
+                            _cache[274] || (_cache[274] = _createElementVNode("i", null, "F", -1 /* CACHED */)),
                             _createElementVNode("strong", null, _toDisplayString(_ctx.state.fleet.activeDrivers), 1 /* TEXT */),
                             _createElementVNode("span", null, _toDisplayString(_ctx.t('fleetActiveDrivers')), 1 /* TEXT */)
                           ])
                         ]),
-                        _createElementVNode("div", _hoisted_349, [
-                          _createElementVNode("div", _hoisted_350, [
+                        _createElementVNode("div", _hoisted_350, [
+                          _createElementVNode("div", _hoisted_351, [
                             _createElementVNode("button", {
                               type: "button",
                               class: "taxi-action taxi-action--tertiary",
                               onClick: _cache[143] || (_cache[143] = $event => (_ctx.hud.toggleFleet())),
                               "aria-label": _ctx.t('back')
-                            }, "‹", 8 /* PROPS */, _hoisted_351),
+                            }, "‹", 8 /* PROPS */, _hoisted_352),
                             _createElementVNode("div", null, [
                               _createElementVNode("h2", null, _toDisplayString(_ctx.t('fleetTitle')), 1 /* TEXT */),
                               _createElementVNode("p", null, _toDisplayString(_ctx.t('fleetSubtitle')), 1 /* TEXT */)
                             ]),
                             _createElementVNode("span", {
                               title: (_ctx.state.fleet.activeDrivers) + "/" + (_ctx.state.fleet.maxDrivers)
-                            }, _toDisplayString(_ctx.state.fleet.activeDrivers) + "/" + _toDisplayString(_ctx.state.fleet.maxDrivers), 9 /* TEXT, PROPS */, _hoisted_352)
+                            }, _toDisplayString(_ctx.state.fleet.activeDrivers) + "/" + _toDisplayString(_ctx.state.fleet.maxDrivers), 9 /* TEXT, PROPS */, _hoisted_353)
                           ]),
-                          _createElementVNode("div", _hoisted_353, [
-                            _createElementVNode("div", _hoisted_354, [
+                          _createElementVNode("div", _hoisted_354, [
+                            _createElementVNode("div", _hoisted_355, [
                               _createElementVNode("span", null, [
                                 _createElementVNode("small", null, _toDisplayString(_ctx.t('fleetTrips')), 1 /* TEXT */),
                                 _createElementVNode("strong", {
                                   title: _ctx.state.fleet.stats.rides || 0
-                                }, _toDisplayString(_ctx.formatAggregateNumber(_ctx.state.fleet.stats.rides)), 9 /* TEXT, PROPS */, _hoisted_355)
+                                }, _toDisplayString(_ctx.formatAggregateNumber(_ctx.state.fleet.stats.rides)), 9 /* TEXT, PROPS */, _hoisted_356)
                               ]),
                               _createElementVNode("span", null, [
                                 _createElementVNode("small", null, _toDisplayString(_ctx.t('fleetGross')), 1 /* TEXT */),
@@ -3392,7 +3419,7 @@ export function render(_ctx, _cache) {
                                 }, _toDisplayString(_ctx.formatMoney(_ctx.state.fleet.stats.netProfit)), 3 /* TEXT, CLASS */)
                               ])
                             ]),
-                            _createElementVNode("div", _hoisted_356, [
+                            _createElementVNode("div", _hoisted_357, [
                               _createElementVNode("span", null, [
                                 _createTextVNode(_toDisplayString(_ctx.t('fleetOwnerShare')) + " ", 1 /* TEXT */),
                                 _createElementVNode("b", null, _toDisplayString(_ctx.state.fleet.ownerSharePercent) + "%", 1 /* TEXT */)
@@ -3407,62 +3434,62 @@ export function render(_ctx, _cache) {
                               ])
                             ]),
                             (_ctx.state.fleet.drivers.length)
-                              ? (_openBlock(), _createElementBlock("section", _hoisted_357, [
+                              ? (_openBlock(), _createElementBlock("section", _hoisted_358, [
                                   _createElementVNode("h3", null, _toDisplayString(_ctx.t('fleetActiveDrivers')), 1 /* TEXT */),
                                   (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.state.fleet.drivers, (driver, index) => {
                                     return (_openBlock(), _createElementBlock("article", {
                                       class: "taxi-fleet__driver",
                                       key: driver.id
                                     }, [
-                                      _createElementVNode("div", _hoisted_358, [
+                                      _createElementVNode("div", _hoisted_359, [
                                         _createElementVNode("div", null, [
-                                          _cache[269] || (_cache[269] = _createElementVNode("span", null, "🚗", -1 /* CACHED */)),
+                                          _cache[276] || (_cache[276] = _createElementVNode("span", null, "🚗", -1 /* CACHED */)),
                                           (driver.preview)
                                             ? (_openBlock(), _createElementBlock("img", {
                                                 key: 0,
                                                 src: driver.preview,
                                                 alt: driver.name
-                                              }, null, 8 /* PROPS */, _hoisted_359))
+                                              }, null, 8 /* PROPS */, _hoisted_360))
                                             : _createCommentVNode("v-if", true)
                                         ]),
                                         _createElementVNode("p", null, [
                                           _createElementVNode("strong", {
                                             title: driver.name
-                                          }, _toDisplayString(driver.name), 9 /* TEXT, PROPS */, _hoisted_360),
+                                          }, _toDisplayString(driver.name), 9 /* TEXT, PROPS */, _hoisted_361),
                                           _createElementVNode("small", null, _toDisplayString(driver.status === 'unpaid' ? _ctx.t('fleetUnpaid') : (driver.jobType === 'delivery' ? _ctx.t('fleetDelivery') : _ctx.t('fleetPassenger'))), 1 /* TEXT */)
                                         ]),
-                                        _cache[270] || (_cache[270] = _createElementVNode("i", null, null, -1 /* CACHED */))
+                                        _cache[277] || (_cache[277] = _createElementVNode("i", null, null, -1 /* CACHED */))
                                       ]),
-                                      _createElementVNode("div", _hoisted_361, [
+                                      _createElementVNode("div", _hoisted_362, [
                                         _createElementVNode("span", {
                                           style: _normalizeStyle({'width': (driver.progress * 100) + '%'})
                                         }, null, 4 /* STYLE */)
                                       ]),
-                                      _createElementVNode("div", _hoisted_362, [
+                                      _createElementVNode("div", _hoisted_363, [
                                         _createElementVNode("span", {
                                           title: driver.stats.rides || 0
-                                        }, _toDisplayString(_ctx.formatCount(driver.stats.rides)) + " " + _toDisplayString(_ctx.t('rides')), 9 /* TEXT, PROPS */, _hoisted_363),
+                                        }, _toDisplayString(_ctx.formatCount(driver.stats.rides)) + " " + _toDisplayString(_ctx.t('rides')), 9 /* TEXT, PROPS */, _hoisted_364),
                                         _createElementVNode("span", {
                                           title: (driver.remainingMeters) + " m"
-                                        }, _toDisplayString(_ctx.formatDistance(driver.remainingMeters)), 9 /* TEXT, PROPS */, _hoisted_364),
+                                        }, _toDisplayString(_ctx.formatDistance(driver.remainingMeters)), 9 /* TEXT, PROPS */, _hoisted_365),
                                         _createElementVNode("span", {
                                           title: _ctx.formatMoneyFull(driver.stats.ownerRevenue)
-                                        }, _toDisplayString(_ctx.formatMoney(driver.stats.ownerRevenue)), 9 /* TEXT, PROPS */, _hoisted_365)
+                                        }, _toDisplayString(_ctx.formatMoney(driver.stats.ownerRevenue)), 9 /* TEXT, PROPS */, _hoisted_366)
                                       ]),
                                       _createElementVNode("button", {
                                         type: "button",
                                         class: "taxi-fleet__dismiss taxi-action taxi-action--danger-secondary",
                                         onClick: $event => (_ctx.hud.fleetCommand('dismiss', {id: driver.id}))
-                                      }, _toDisplayString(_ctx.t('fleetDismiss')), 9 /* TEXT, PROPS */, _hoisted_366)
+                                      }, _toDisplayString(_ctx.t('fleetDismiss')), 9 /* TEXT, PROPS */, _hoisted_367)
                                     ]))
                                   }), 128 /* KEYED_FRAGMENT */))
                                 ]))
                               : _createCommentVNode("v-if", true),
-                            _createElementVNode("section", _hoisted_367, [
+                            _createElementVNode("section", _hoisted_368, [
                               _createElementVNode("h3", null, _toDisplayString(_ctx.t('fleetSpawnVehicle')), 1 /* TEXT */),
-                              _createElementVNode("p", _hoisted_368, _toDisplayString(_ctx.t('fleetSpawnHelp')), 1 /* TEXT */),
+                              _createElementVNode("p", _hoisted_369, _toDisplayString(_ctx.t('fleetSpawnHelp')), 1 /* TEXT */),
                               (!_ctx.state.fleet.garage.length)
-                                ? (_openBlock(), _createElementBlock("div", _hoisted_369, _toDisplayString(_ctx.t('fleetNoGarageCars')), 1 /* TEXT */))
+                                ? (_openBlock(), _createElementBlock("div", _hoisted_370, _toDisplayString(_ctx.t('fleetNoGarageCars')), 1 /* TEXT */))
                                 : _createCommentVNode("v-if", true),
                               (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.state.fleet.garage, (vehicle, index) => {
                                 return (_openBlock(), _createElementBlock("button", {
@@ -3473,32 +3500,32 @@ export function render(_ctx, _cache) {
                                   onClick: $event => (_ctx.hud.fleetCommand('hireGarage', vehicle))
                                 }, [
                                   _createElementVNode("div", null, [
-                                    _cache[271] || (_cache[271] = _createElementVNode("span", null, "🚗", -1 /* CACHED */)),
+                                    _cache[278] || (_cache[278] = _createElementVNode("span", null, "🚗", -1 /* CACHED */)),
                                     (vehicle.preview)
                                       ? (_openBlock(), _createElementBlock("img", {
                                           key: 0,
                                           src: vehicle.preview,
                                           alt: vehicle.name
-                                        }, null, 8 /* PROPS */, _hoisted_371))
+                                        }, null, 8 /* PROPS */, _hoisted_372))
                                       : _createCommentVNode("v-if", true)
                                   ]),
                                   _createElementVNode("p", null, [
                                     _createElementVNode("strong", {
                                       title: vehicle.name
-                                    }, _toDisplayString(vehicle.name), 9 /* TEXT, PROPS */, _hoisted_372),
+                                    }, _toDisplayString(vehicle.name), 9 /* TEXT, PROPS */, _hoisted_373),
                                     _createElementVNode("small", {
                                       title: vehicle.completedRides || 0
-                                    }, _toDisplayString(_ctx.formatCount(vehicle.completedRides)) + " " + _toDisplayString(_ctx.t('rides')), 9 /* TEXT, PROPS */, _hoisted_373)
+                                    }, _toDisplayString(_ctx.formatCount(vehicle.completedRides)) + " " + _toDisplayString(_ctx.t('rides')), 9 /* TEXT, PROPS */, _hoisted_374)
                                   ]),
                                   _createElementVNode("b", null, _toDisplayString(_ctx.t('fleetHire')) + " · " + _toDisplayString(_ctx.formatMoney(_ctx.state.fleet.hiringFee)), 1 /* TEXT */)
-                                ], 8 /* PROPS */, _hoisted_370))
+                                ], 8 /* PROPS */, _hoisted_371))
                               }), 128 /* KEYED_FRAGMENT */))
                             ]),
-                            _createElementVNode("section", _hoisted_374, [
+                            _createElementVNode("section", _hoisted_375, [
                               _createElementVNode("h3", null, _toDisplayString(_ctx.t('fleetRecruitTraffic')), 1 /* TEXT */),
-                              _createElementVNode("p", _hoisted_375, _toDisplayString(_ctx.t('fleetRecruitHelp')), 1 /* TEXT */),
+                              _createElementVNode("p", _hoisted_376, _toDisplayString(_ctx.t('fleetRecruitHelp')), 1 /* TEXT */),
                               (!_ctx.state.fleet.trafficCandidates.length)
-                                ? (_openBlock(), _createElementBlock("div", _hoisted_376, _toDisplayString(_ctx.t('fleetNoTrafficCars')), 1 /* TEXT */))
+                                ? (_openBlock(), _createElementBlock("div", _hoisted_377, _toDisplayString(_ctx.t('fleetNoTrafficCars')), 1 /* TEXT */))
                                 : _createCommentVNode("v-if", true),
                               (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.state.fleet.trafficCandidates, (vehicle, index) => {
                                 return (_openBlock(), _createElementBlock("button", {
@@ -3508,17 +3535,17 @@ export function render(_ctx, _cache) {
                                   disabled: !_ctx.state.fleet.canAffordHire || _ctx.state.fleet.activeDrivers >= _ctx.state.fleet.maxDrivers || !_ctx.state.fleet.enabled,
                                   onClick: $event => (_ctx.hud.fleetCommand('hireTraffic', {vehicleId: vehicle.vehicleId}))
                                 }, [
-                                  _cache[272] || (_cache[272] = _createElementVNode("div", null, [
+                                  _cache[279] || (_cache[279] = _createElementVNode("div", null, [
                                     _createElementVNode("span", null, "●")
                                   ], -1 /* CACHED */)),
                                   _createElementVNode("p", null, [
                                     _createElementVNode("strong", {
                                       title: vehicle.name
-                                    }, _toDisplayString(vehicle.name), 9 /* TEXT, PROPS */, _hoisted_378),
+                                    }, _toDisplayString(vehicle.name), 9 /* TEXT, PROPS */, _hoisted_379),
                                     _createElementVNode("small", null, _toDisplayString(_ctx.formatDistance(vehicle.distance)), 1 /* TEXT */)
                                   ]),
                                   _createElementVNode("b", null, _toDisplayString(_ctx.t('fleetHire')), 1 /* TEXT */)
-                                ], 8 /* PROPS */, _hoisted_377))
+                                ], 8 /* PROPS */, _hoisted_378))
                               }), 128 /* KEYED_FRAGMENT */))
                             ])
                           ])
@@ -3531,19 +3558,19 @@ export function render(_ctx, _cache) {
                         class: "taxi-earth",
                         "aria-label": _ctx.t('earthTitle')
                       }, [
-                        _createElementVNode("header", _hoisted_380, [
+                        _createElementVNode("header", _hoisted_381, [
                           _createElementVNode("button", {
                             type: "button",
                             class: "taxi-action taxi-action--secondary",
                             onClick: _cache[144] || (_cache[144] = $event => (_ctx.hud.closeEarth())),
                             "aria-label": _ctx.t('back')
-                          }, "‹", 8 /* PROPS */, _hoisted_381),
+                          }, "‹", 8 /* PROPS */, _hoisted_382),
                           _createElementVNode("div", null, [
                             _createElementVNode("h2", null, _toDisplayString(_ctx.t('earthTitle')), 1 /* TEXT */),
                             _createElementVNode("p", null, _toDisplayString(_ctx.t('earthHelp')), 1 /* TEXT */)
                           ])
                         ]),
-                        _createElementVNode("div", _hoisted_382, [
+                        _createElementVNode("div", _hoisted_383, [
                           _createElementVNode("div", {
                             class: "taxi-earth__modes",
                             "aria-label": _ctx.t('earthOrigin')
@@ -3554,29 +3581,29 @@ export function render(_ctx, _cache) {
                               disabled: _ctx.earthStarting,
                               "aria-pressed": _ctx.earth.mode === 'vehicle',
                               onClick: _cache[145] || (_cache[145] = $event => (_ctx.hud.setEarthMode('vehicle')))
-                            }, _toDisplayString(_ctx.t('earthVehicleMode')), 9 /* TEXT, PROPS */, _hoisted_384),
+                            }, _toDisplayString(_ctx.t('earthVehicleMode')), 9 /* TEXT, PROPS */, _hoisted_385),
                             _createElementVNode("button", {
                               type: "button",
                               class: "taxi-action taxi-action--secondary",
                               disabled: _ctx.earthStarting,
                               "aria-pressed": _ctx.earth.mode === 'points',
                               onClick: _cache[146] || (_cache[146] = $event => (_ctx.hud.setEarthMode('points')))
-                            }, _toDisplayString(_ctx.t('earthPointsMode')), 9 /* TEXT, PROPS */, _hoisted_385)
-                          ], 8 /* PROPS */, _hoisted_383),
+                            }, _toDisplayString(_ctx.t('earthPointsMode')), 9 /* TEXT, PROPS */, _hoisted_386)
+                          ], 8 /* PROPS */, _hoisted_384),
                           (_ctx.earth.status !== 'ready')
-                            ? (_openBlock(), _createElementBlock("p", _hoisted_386, _toDisplayString(_ctx.t('earthStatus_' + _ctx.earth.status)), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("p", _hoisted_387, _toDisplayString(_ctx.t('earthStatus_' + _ctx.earth.status)), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true),
                           (_ctx.earth.mode === 'vehicle')
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_387, _toDisplayString(_ctx.t('earthVehicleOrigin')), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_388, _toDisplayString(_ctx.t('earthVehicleOrigin')), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true),
                           (_openBlock(), _createElementBlock(_Fragment, null, _renderList(['a', 'b'], (field) => {
                             return (_openBlock(), _createElementBlock(_Fragment, { key: field }, [
                               (field === 'b' || _ctx.earth.mode === 'points')
-                                ? (_openBlock(), _createElementBlock("section", _hoisted_388, [
-                                    _createElementVNode("div", _hoisted_389, [
+                                ? (_openBlock(), _createElementBlock("section", _hoisted_389, [
+                                    _createElementVNode("div", _hoisted_390, [
                                       _createElementVNode("label", {
                                         for: 'taxi-earth-' + field
-                                      }, _toDisplayString(_ctx.t(field === 'a' ? 'earthPointA' : 'earthPointB')), 9 /* TEXT, PROPS */, _hoisted_390),
+                                      }, _toDisplayString(_ctx.t(field === 'a' ? 'earthPointA' : 'earthPointB')), 9 /* TEXT, PROPS */, _hoisted_391),
                                       (field === 'a' && _ctx.earth.a.selected)
                                         ? (_openBlock(), _createElementBlock("button", {
                                             key: 0,
@@ -3584,10 +3611,10 @@ export function render(_ctx, _cache) {
                                             class: "taxi-earth__teleport taxi-action taxi-action--secondary",
                                             disabled: _ctx.earth.mode !== 'points' || !_ctx.canNavigateEarth('a'),
                                             onClick: _cache[147] || (_cache[147] = $event => (_ctx.hud.teleportEarthA()))
-                                          }, _toDisplayString(_ctx.t('earthTeleportA')), 9 /* TEXT, PROPS */, _hoisted_391))
+                                          }, _toDisplayString(_ctx.t('earthTeleportA')), 9 /* TEXT, PROPS */, _hoisted_392))
                                         : _createCommentVNode("v-if", true)
                                     ]),
-                                    _createElementVNode("div", _hoisted_392, [
+                                    _createElementVNode("div", _hoisted_393, [
                                       _createElementVNode("input", {
                                         type: "text",
                                         id: 'taxi-earth-' + field,
@@ -3606,19 +3633,19 @@ export function render(_ctx, _cache) {
                                         onKeydown: _withModifiers($event => (_ctx.hud.earthKeydown(field, $event)), ["stop"]),
                                         onKeyup: _cache[148] || (_cache[148] = _withModifiers(() => {}, ["stop"])),
                                         onFocus: $event => (_ctx.earthExpanded[field] = true)
-                                      }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_393),
+                                      }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_394),
                                       _createElementVNode("button", {
                                         type: "button",
                                         class: "taxi-action taxi-action--secondary",
                                         disabled: _ctx.earthStarting || !_ctx.earth[field].query.trim() || _ctx.earth[field].searching || _ctx.earth.status !== 'ready',
                                         onClick: $event => (_ctx.hud.searchEarth(field))
-                                      }, _toDisplayString(_ctx.t('earthSearch')), 9 /* TEXT, PROPS */, _hoisted_394)
+                                      }, _toDisplayString(_ctx.t('earthSearch')), 9 /* TEXT, PROPS */, _hoisted_395)
                                     ]),
                                     (_ctx.earth[field].searching)
-                                      ? (_openBlock(), _createElementBlock("p", _hoisted_395, _toDisplayString(_ctx.t('earthSearching')), 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("p", _hoisted_396, _toDisplayString(_ctx.t('earthSearching')), 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true),
                                     (_ctx.earth[field].error)
-                                      ? (_openBlock(), _createElementBlock("p", _hoisted_396, _toDisplayString(_ctx.earth[field].error), 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("p", _hoisted_397, _toDisplayString(_ctx.earth[field].error), 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true),
                                     (_ctx.earthExpanded[field] && _ctx.earthResults(field).length)
                                       ? (_openBlock(), _createElementBlock("div", {
@@ -3642,12 +3669,12 @@ export function render(_ctx, _cache) {
                                             }, [
                                               _createElementVNode("strong", null, _toDisplayString(point.name), 1 /* TEXT */),
                                               _createElementVNode("small", null, _toDisplayString(point.detail), 1 /* TEXT */)
-                                            ], 40 /* PROPS, NEED_HYDRATION */, _hoisted_398))
+                                            ], 40 /* PROPS, NEED_HYDRATION */, _hoisted_399))
                                           }), 128 /* KEYED_FRAGMENT */))
-                                        ], 8 /* PROPS */, _hoisted_397))
+                                        ], 8 /* PROPS */, _hoisted_398))
                                       : _createCommentVNode("v-if", true),
                                     (_ctx.earth[field].selected)
-                                      ? (_openBlock(), _createElementBlock("p", _hoisted_399, [
+                                      ? (_openBlock(), _createElementBlock("p", _hoisted_400, [
                                           _createElementVNode("strong", null, "✓ " + _toDisplayString(_ctx.earth[field].selected.name), 1 /* TEXT */),
                                           _createElementVNode("span", null, _toDisplayString(_ctx.earth[field].selected.detail), 1 /* TEXT */)
                                         ]))
@@ -3661,23 +3688,23 @@ export function render(_ctx, _cache) {
                             class: "taxi-earth__preview taxi-action taxi-action--secondary",
                             disabled: !_ctx.canPreviewEarth(),
                             onClick: _cache[150] || (_cache[150] = $event => (_ctx.hud.previewEarth()))
-                          }, _toDisplayString(_ctx.t('earthPreview')), 9 /* TEXT, PROPS */, _hoisted_400),
+                          }, _toDisplayString(_ctx.t('earthPreview')), 9 /* TEXT, PROPS */, _hoisted_401),
                           _createElementVNode("button", {
                             type: "button",
                             class: "taxi-earth__random taxi-action taxi-action--secondary",
                             disabled: !_ctx.canRandomEarth(),
                             onClick: _cache[151] || (_cache[151] = $event => (_ctx.hud.randomEarth()))
-                          }, _toDisplayString(_ctx.t('earthRandomRoute')), 9 /* TEXT, PROPS */, _hoisted_401),
+                          }, _toDisplayString(_ctx.t('earthRandomRoute')), 9 /* TEXT, PROPS */, _hoisted_402),
                           (_ctx.earth.route.status === 'pending')
-                            ? (_openBlock(), _createElementBlock("p", _hoisted_402, [
+                            ? (_openBlock(), _createElementBlock("p", _hoisted_403, [
                                 _createTextVNode(_toDisplayString(_ctx.t('earthRouting')) + " ", 1 /* TEXT */),
                                 (_ctx.earth.randomAttempt > 0)
-                                  ? (_openBlock(), _createElementBlock("span", _hoisted_403, _toDisplayString(_ctx.t('earthRandomAttempt', {attempt: _ctx.earth.randomAttempt})), 1 /* TEXT */))
+                                  ? (_openBlock(), _createElementBlock("span", _hoisted_404, _toDisplayString(_ctx.t('earthRandomAttempt', {attempt: _ctx.earth.randomAttempt})), 1 /* TEXT */))
                                   : _createCommentVNode("v-if", true)
                               ]))
                             : _createCommentVNode("v-if", true),
                           (_ctx.earth.route.status === 'ready')
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_404, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_405, [
                                 _createElementVNode("div", null, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('earthDistance')), 1 /* TEXT */),
                                   _createElementVNode("strong", null, _toDisplayString(_ctx.formatDistance(_ctx.earth.route.distanceM)), 1 /* TEXT */)
@@ -3688,55 +3715,123 @@ export function render(_ctx, _cache) {
                                 ])
                               ]))
                             : _createCommentVNode("v-if", true),
+                          _createElementVNode("label", _hoisted_406, [
+                            _withDirectives(_createElementVNode("input", {
+                              id: "taxi-earth-without-passenger",
+                              type: "checkbox",
+                              "onUpdate:modelValue": _cache[152] || (_cache[152] = $event => ((_ctx.earth.withoutPassenger) = $event)),
+                              disabled: _ctx.earthStarting,
+                              onChange: _cache[153] || (_cache[153] = $event => (_ctx.hud.setEarthWithoutPassenger()))
+                            }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_407), [
+                              [_vModelCheckbox, _ctx.earth.withoutPassenger]
+                            ]),
+                            _createElementVNode("span", null, _toDisplayString(_ctx.t('earthWithoutPassenger')), 1 /* TEXT */)
+                          ]),
                           _createElementVNode("button", {
                             type: "button",
                             class: "taxi-earth__start taxi-earth-button taxi-action taxi-action--secondary",
                             disabled: !_ctx.canStartEarthTrip(),
-                            onClick: _cache[152] || (_cache[152] = $event => (_ctx.hud.earthStartTrip()))
-                          }, _toDisplayString(_ctx.t(_ctx.earthStarting ? 'earthStartingTrip' : 'earthStartTrip')), 9 /* TEXT, PROPS */, _hoisted_405),
+                            onClick: _cache[154] || (_cache[154] = $event => (_ctx.hud.earthStartTrip()))
+                          }, _toDisplayString(_ctx.t(_ctx.earthStarting ? 'earthStartingTrip' : 'earthStartTrip')), 9 /* TEXT, PROPS */, _hoisted_408),
                           (_ctx.earth.route.error || _ctx.earth.error)
-                            ? (_openBlock(), _createElementBlock("p", _hoisted_406, _toDisplayString(_ctx.earth.route.error || _ctx.earth.error), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("p", _hoisted_409, _toDisplayString(_ctx.earth.route.error || _ctx.earth.error), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true),
-                          _createElementVNode("div", _hoisted_407, [
+                          _createElementVNode("div", _hoisted_410, [
                             _createElementVNode("button", {
                               type: "button",
                               class: "taxi-action taxi-action--secondary",
                               disabled: !_ctx.canNavigateEarth('a'),
-                              onClick: _cache[153] || (_cache[153] = $event => (_ctx.hud.navigateEarth('a')))
-                            }, _toDisplayString(_ctx.t('earthNavigateA')), 9 /* TEXT, PROPS */, _hoisted_408),
+                              onClick: _cache[155] || (_cache[155] = $event => (_ctx.hud.navigateEarth('a')))
+                            }, _toDisplayString(_ctx.t('earthNavigateA')), 9 /* TEXT, PROPS */, _hoisted_411),
                             _createElementVNode("button", {
                               type: "button",
                               class: "taxi-action taxi-action--secondary",
                               disabled: !_ctx.canNavigateEarth('b'),
-                              onClick: _cache[154] || (_cache[154] = $event => (_ctx.hud.navigateEarth('b')))
-                            }, _toDisplayString(_ctx.t('earthNavigateB')), 9 /* TEXT, PROPS */, _hoisted_409)
+                              onClick: _cache[156] || (_cache[156] = $event => (_ctx.hud.navigateEarth('b')))
+                            }, _toDisplayString(_ctx.t('earthNavigateB')), 9 /* TEXT, PROPS */, _hoisted_412)
                           ]),
-                          _createElementVNode("p", _hoisted_410, _toDisplayString(_ctx.t('earthNavigationHelp')), 1 /* TEXT */),
+                          _createElementVNode("p", _hoisted_413, _toDisplayString(_ctx.t('earthNavigationHelp')), 1 /* TEXT */),
                           (_ctx.earth.gps)
-                            ? (_openBlock(), _createElementBlock("p", _hoisted_411, _toDisplayString(_ctx.earth.gps.planning ? _ctx.t('earthRouting') : _ctx.formatDistance(_ctx.earth.gps.remaining) + ' · ' + _ctx.formatEta(_ctx.earth.gps.eta / 60)), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("p", _hoisted_414, _toDisplayString(_ctx.earth.gps.planning ? _ctx.t('earthRouting') : _ctx.formatDistance(_ctx.earth.gps.remaining) + ' · ' + _ctx.formatEta(_ctx.earth.gps.eta / 60)), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true)
                         ])
-                      ], 8 /* PROPS */, _hoisted_379))
+                      ], 8 /* PROPS */, _hoisted_380))
                     : _createCommentVNode("v-if", true),
-                  (!_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && !_ctx.state.active)
+                  (_ctx.hasPersonalRoute() && !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen)
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_415, [
+                        _createElementVNode("div", _hoisted_416, [
+                          _cache[280] || (_cache[280] = _createElementVNode("div", { class: "taxi-minimap-surface" }, null, -1 /* CACHED */)),
+                          (_ctx.externalPhoneMode)
+                            ? (_openBlock(), _createElementBlock("canvas", _hoisted_417))
+                            : _createCommentVNode("v-if", true),
+                          _createElementVNode("div", {
+                            class: _normalizeClass(["taxi-map-interaction", {'taxi-map-interaction--panned': !_ctx.mapFollowing}]),
+                            "aria-label": _ctx.t('mapDrag')
+                          }, null, 10 /* CLASS, PROPS */, _hoisted_418),
+                          _createElementVNode("div", _hoisted_419, [
+                            _createElementVNode("div", {
+                              class: "taxi-map-controls",
+                              "aria-label": _ctx.t('mapControls')
+                            }, [
+                              _createElementVNode("button", {
+                                type: "button",
+                                onClick: _cache[157] || (_cache[157] = $event => (_ctx.hud.zoomMap(0.8))),
+                                "aria-label": _ctx.t('mapZoomIn')
+                              }, "+", 8 /* PROPS */, _hoisted_421),
+                              _createElementVNode("button", {
+                                type: "button",
+                                onClick: _cache[158] || (_cache[158] = $event => (_ctx.hud.zoomMap(1.25))),
+                                "aria-label": _ctx.t('mapZoomOut')
+                              }, "−", 8 /* PROPS */, _hoisted_422),
+                              _createElementVNode("button", {
+                                type: "button",
+                                onClick: _cache[159] || (_cache[159] = $event => (_ctx.hud.followMap())),
+                                "aria-label": _ctx.t('mapFollow')
+                              }, "◎", 8 /* PROPS */, _hoisted_423)
+                            ], 8 /* PROPS */, _hoisted_420)
+                          ]),
+                          _createElementVNode("div", _hoisted_424, [
+                            _createElementVNode("span", null, _toDisplayString(_ctx.t('arrival')), 1 /* TEXT */),
+                            _createElementVNode("strong", null, _toDisplayString(_ctx.getArrivalTime(_ctx.getNavigationEta())), 1 /* TEXT */),
+                            _createElementVNode("small", null, _toDisplayString(_ctx.formatEta(_ctx.getNavigationEta())) + " · " + _toDisplayString(_ctx.formatDistance(_ctx.getNavigationRemaining())), 1 /* TEXT */)
+                          ])
+                        ]),
+                        _createElementVNode("div", _hoisted_425, [
+                          _createElementVNode("span", null, _toDisplayString(_ctx.getPhaseLabel()), 1 /* TEXT */),
+                          _createElementVNode("h2", null, _toDisplayString(_ctx.getCompactTitle()), 1 /* TEXT */),
+                          _createElementVNode("p", null, _toDisplayString(_ctx.t('earthWithoutPassenger')), 1 /* TEXT */),
+                          _createElementVNode("button", {
+                            type: "button",
+                            class: "taxi-action taxi-action--secondary",
+                            onClick: _cache[160] || (_cache[160] = $event => (_ctx.hud.openEarth()))
+                          }, _toDisplayString(_ctx.t('earthTitle')), 1 /* TEXT */),
+                          _createElementVNode("button", {
+                            type: "button",
+                            class: "taxi-action taxi-action--danger-secondary",
+                            onClick: _cache[161] || (_cache[161] = $event => (_ctx.hud.stopEarthFreeRoute()))
+                          }, _toDisplayString(_ctx.t('earthStopRoute')), 1 /* TEXT */)
+                        ])
+                      ]))
+                    : _createCommentVNode("v-if", true),
+                  (!_ctx.hasPersonalRoute() && !_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && !_ctx.state.active)
                     ? (_openBlock(), _createElementBlock("div", {
-                        key: 7,
+                        key: 8,
                         class: _normalizeClass(["taxi-home", {'taxi-home--presets': !_ctx.shiftHistoryOpen}])
                       }, [
-                        _cache[284] || (_cache[284] = _createElementVNode("div", { class: "taxi-home__shade" }, null, -1 /* CACHED */)),
+                        _cache[292] || (_cache[292] = _createElementVNode("div", { class: "taxi-home__shade" }, null, -1 /* CACHED */)),
                         (!_ctx.shiftHistoryOpen)
-                          ? (_openBlock(), _createElementBlock("div", _hoisted_412, [
+                          ? (_openBlock(), _createElementBlock("div", _hoisted_426, [
                               _createElementVNode("section", {
                                 class: "taxi-home__presets",
                                 "aria-label": _ctx.t('homeDifficultyTitle')
                               }, [
-                                _createElementVNode("div", _hoisted_414, [
+                                _createElementVNode("div", _hoisted_428, [
                                   _createElementVNode("h3", null, _toDisplayString(_ctx.t('homeDifficultyTitle')), 1 /* TEXT */),
                                   (!_ctx.hasHomeDifficultyPreset())
-                                    ? (_openBlock(), _createElementBlock("span", _hoisted_415, _toDisplayString(_ctx.t('difficulty_custom')), 1 /* TEXT */))
+                                    ? (_openBlock(), _createElementBlock("span", _hoisted_429, _toDisplayString(_ctx.t('difficulty_custom')), 1 /* TEXT */))
                                     : _createCommentVNode("v-if", true)
                                 ]),
-                                _createElementVNode("div", _hoisted_416, [
+                                _createElementVNode("div", _hoisted_430, [
                                   (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.homeDifficultyPresets, (preset) => {
                                     return (_openBlock(), _createElementBlock("button", {
                                       type: "button",
@@ -3748,13 +3843,13 @@ export function render(_ctx, _cache) {
                                       _createElementVNode("strong", null, _toDisplayString(_ctx.t('difficulty_' + preset)), 1 /* TEXT */),
                                       _createElementVNode("small", null, _toDisplayString(_ctx.t('homeDifficulty_' + preset)), 1 /* TEXT */),
                                       (_ctx.isHomeDifficultySelected(preset))
-                                        ? (_openBlock(), _createElementBlock("i", _hoisted_418, "✓"))
+                                        ? (_openBlock(), _createElementBlock("i", _hoisted_432, "✓"))
                                         : _createCommentVNode("v-if", true)
-                                    ], 10 /* CLASS, PROPS */, _hoisted_417))
+                                    ], 10 /* CLASS, PROPS */, _hoisted_431))
                                   }), 128 /* KEYED_FRAGMENT */))
                                 ])
-                              ], 8 /* PROPS */, _hoisted_413),
-                              _cache[281] || (_cache[281] = _createElementVNode("div", { class: "taxi-home__pin" }, [
+                              ], 8 /* PROPS */, _hoisted_427),
+                              _cache[289] || (_cache[289] = _createElementVNode("div", { class: "taxi-home__pin" }, [
                                 _createElementVNode("span", null, "T")
                               ], -1 /* CACHED */)),
                               _createElementVNode("h2", null, _toDisplayString(_ctx.t('homeTitle')), 1 /* TEXT */),
@@ -3764,80 +3859,80 @@ export function render(_ctx, _cache) {
                                     key: 0,
                                     type: "button",
                                     class: "taxi-home__vehicle",
-                                    onClick: _cache[156] || (_cache[156] = $event => (_ctx.hud.openVehicleSelector())),
+                                    onClick: _cache[163] || (_cache[163] = $event => (_ctx.hud.openVehicleSelector())),
                                     title: _ctx.t('selectVehicle'),
                                     "aria-label": _ctx.t('selectVehicle')
                                   }, [
-                                    _createElementVNode("div", _hoisted_420, [
-                                      _cache[273] || (_cache[273] = _createElementVNode("span", { class: "taxi-home__vehicle-fallback" }, "🚗", -1 /* CACHED */)),
+                                    _createElementVNode("div", _hoisted_434, [
+                                      _cache[281] || (_cache[281] = _createElementVNode("span", { class: "taxi-home__vehicle-fallback" }, "🚗", -1 /* CACHED */)),
                                       (_ctx.state.currentVehicle.preview)
                                         ? (_openBlock(), _createElementBlock("img", {
                                             key: 0,
                                             src: _ctx.state.currentVehicle.preview,
                                             alt: _ctx.state.currentVehicle.name,
-                                            onError: _cache[155] || (_cache[155] = $event => ($event.target.style.display = 'none'))
-                                          }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_421))
+                                            onError: _cache[162] || (_cache[162] = $event => ($event.target.style.display = 'none'))
+                                          }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_435))
                                         : _createCommentVNode("v-if", true)
                                     ]),
-                                    _createElementVNode("div", _hoisted_422, [
+                                    _createElementVNode("div", _hoisted_436, [
                                       _createElementVNode("strong", {
                                         title: _ctx.state.currentVehicle.name
-                                      }, _toDisplayString(_ctx.state.currentVehicle.name), 9 /* TEXT, PROPS */, _hoisted_423),
+                                      }, _toDisplayString(_ctx.state.currentVehicle.name), 9 /* TEXT, PROPS */, _hoisted_437),
                                       _createElementVNode("span", null, _toDisplayString(_ctx.formatOdometer(_ctx.state.currentVehicle.distanceMeters)), 1 /* TEXT */),
                                       (_ctx.state.vehicleEnergy.available)
-                                        ? (_openBlock(), _createElementBlock("span", _hoisted_424, _toDisplayString(_ctx.formatDashboardEnergy()) + " · ≈ " + _toDisplayString(_ctx.formatEnergyRange(_ctx.state.vehicleEnergy.estimatedRangeKm)), 1 /* TEXT */))
+                                        ? (_openBlock(), _createElementBlock("span", _hoisted_438, _toDisplayString(_ctx.formatDashboardEnergy()) + " · ≈ " + _toDisplayString(_ctx.formatEnergyRange(_ctx.state.vehicleEnergy.estimatedRangeKm)), 1 /* TEXT */))
                                         : _createCommentVNode("v-if", true)
                                     ])
-                                  ], 8 /* PROPS */, _hoisted_419))
+                                  ], 8 /* PROPS */, _hoisted_433))
                                 : _createCommentVNode("v-if", true),
-                              _createElementVNode("div", _hoisted_425, [
+                              _createElementVNode("div", _hoisted_439, [
                                 _createElementVNode("label", {
                                   class: _normalizeClass(["taxi-home__realistic taxi-home__realistic--fuel", {'taxi-home__realistic--active': _ctx.settings.realisticMode}]),
                                   title: _ctx.t('realisticMode')
                                 }, [
-                                  _cache[274] || (_cache[274] = _createElementVNode("span", { class: "taxi-home__realistic-icon" }, "⛽", -1 /* CACHED */)),
+                                  _cache[282] || (_cache[282] = _createElementVNode("span", { class: "taxi-home__realistic-icon" }, "⛽", -1 /* CACHED */)),
                                   _createElementVNode("strong", null, _toDisplayString(_ctx.t('realisticMode')), 1 /* TEXT */),
                                   _withDirectives(_createElementVNode("input", {
                                     type: "checkbox",
-                                    "onUpdate:modelValue": _cache[157] || (_cache[157] = $event => ((_ctx.settings.realisticMode) = $event)),
-                                    onChange: _cache[158] || (_cache[158] = $event => (_ctx.hud.toggleRealisticMode())),
+                                    "onUpdate:modelValue": _cache[164] || (_cache[164] = $event => ((_ctx.settings.realisticMode) = $event)),
+                                    onChange: _cache[165] || (_cache[165] = $event => (_ctx.hud.toggleRealisticMode())),
                                     "aria-label": _ctx.t('realisticMode')
-                                  }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_427), [
+                                  }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_441), [
                                     [_vModelCheckbox, _ctx.settings.realisticMode]
                                   ]),
-                                  _cache[275] || (_cache[275] = _createElementVNode("span", { class: "taxi-home__realistic-switch" }, null, -1 /* CACHED */))
-                                ], 10 /* CLASS, PROPS */, _hoisted_426),
+                                  _cache[283] || (_cache[283] = _createElementVNode("span", { class: "taxi-home__realistic-switch" }, null, -1 /* CACHED */))
+                                ], 10 /* CLASS, PROPS */, _hoisted_440),
                                 _createElementVNode("label", {
                                   class: _normalizeClass(["taxi-home__realistic taxi-home__realistic--events", {'taxi-home__realistic--active': _ctx.settings.randomEventsEnabled}]),
                                   title: _ctx.t('randomEvents')
                                 }, [
-                                  _cache[276] || (_cache[276] = _createElementVNode("span", { class: "taxi-home__realistic-icon" }, "⚡", -1 /* CACHED */)),
+                                  _cache[284] || (_cache[284] = _createElementVNode("span", { class: "taxi-home__realistic-icon" }, "⚡", -1 /* CACHED */)),
                                   _createElementVNode("strong", null, _toDisplayString(_ctx.t('randomEvents')), 1 /* TEXT */),
                                   _withDirectives(_createElementVNode("input", {
                                     type: "checkbox",
-                                    "onUpdate:modelValue": _cache[159] || (_cache[159] = $event => ((_ctx.settings.randomEventsEnabled) = $event)),
-                                    onChange: _cache[160] || (_cache[160] = $event => (_ctx.hud.toggleRandomEvents())),
+                                    "onUpdate:modelValue": _cache[166] || (_cache[166] = $event => ((_ctx.settings.randomEventsEnabled) = $event)),
+                                    onChange: _cache[167] || (_cache[167] = $event => (_ctx.hud.toggleRandomEvents())),
                                     "aria-label": _ctx.t('randomEvents')
-                                  }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_429), [
+                                  }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_443), [
                                     [_vModelCheckbox, _ctx.settings.randomEventsEnabled]
                                   ]),
-                                  _cache[277] || (_cache[277] = _createElementVNode("span", { class: "taxi-home__realistic-switch" }, null, -1 /* CACHED */))
-                                ], 10 /* CLASS, PROPS */, _hoisted_428)
+                                  _cache[285] || (_cache[285] = _createElementVNode("span", { class: "taxi-home__realistic-switch" }, null, -1 /* CACHED */))
+                                ], 10 /* CLASS, PROPS */, _hoisted_442)
                               ]),
                               (_ctx.state.shift.last.rides > 0)
-                                ? (_openBlock(), _createElementBlock("div", _hoisted_430, [
+                                ? (_openBlock(), _createElementBlock("div", _hoisted_444, [
                                     _createElementVNode("strong", null, _toDisplayString(_ctx.t('lastShift')), 1 /* TEXT */),
                                     _createElementVNode("span", null, [
                                       _createTextVNode(_toDisplayString(_ctx.t('rides')) + " ", 1 /* TEXT */),
                                       _createElementVNode("b", {
                                         title: _ctx.state.shift.last.rides
-                                      }, _toDisplayString(_ctx.formatCount(_ctx.state.shift.last.rides)), 9 /* TEXT, PROPS */, _hoisted_431)
+                                      }, _toDisplayString(_ctx.formatCount(_ctx.state.shift.last.rides)), 9 /* TEXT, PROPS */, _hoisted_445)
                                     ]),
                                     _createElementVNode("span", null, [
                                       _createTextVNode(_toDisplayString(_ctx.t('netIncome')) + " ", 1 /* TEXT */),
                                       _createElementVNode("b", {
                                         title: _ctx.formatMoneyFull(_ctx.state.shift.last.netIncome)
-                                      }, _toDisplayString(_ctx.formatMoney(_ctx.state.shift.last.netIncome)), 9 /* TEXT, PROPS */, _hoisted_432)
+                                      }, _toDisplayString(_ctx.formatMoney(_ctx.state.shift.last.netIncome)), 9 /* TEXT, PROPS */, _hoisted_446)
                                     ]),
                                     _createElementVNode("span", null, [
                                       _createTextVNode(_toDisplayString(_ctx.t('averageRating')) + " ", 1 /* TEXT */),
@@ -3845,95 +3940,95 @@ export function render(_ctx, _cache) {
                                     ])
                                   ]))
                                 : _createCommentVNode("v-if", true),
-                              _createElementVNode("div", _hoisted_433, [
+                              _createElementVNode("div", _hoisted_447, [
                                 _createElementVNode("button", {
                                   type: "button",
                                   class: _normalizeClass(["taxi-start taxi-action taxi-action--primary", {'taxi-start--intro': _ctx.newShiftSheenActive}]),
-                                  onClick: _cache[161] || (_cache[161] = $event => (_ctx.hud.startMode()))
+                                  onClick: _cache[168] || (_cache[168] = $event => (_ctx.hud.startMode()))
                                 }, _toDisplayString(_ctx.t('newShift')), 3 /* TEXT, CLASS */),
                                 (_ctx.earth.available)
                                   ? (_openBlock(), _createElementBlock("button", {
                                       key: 0,
                                       type: "button",
                                       class: "taxi-earth-button taxi-action taxi-action--secondary",
-                                      onClick: _cache[162] || (_cache[162] = $event => (_ctx.hud.openEarth()))
+                                      onClick: _cache[169] || (_cache[169] = $event => (_ctx.hud.openEarth()))
                                     }, _toDisplayString(_ctx.t('earthTitle')), 1 /* TEXT */))
                                   : _createCommentVNode("v-if", true),
                                 _createElementVNode("button", {
                                   type: "button",
                                   class: "taxi-fleet-button taxi-action taxi-action--secondary",
-                                  onClick: _cache[163] || (_cache[163] = $event => (_ctx.hud.toggleFleet()))
+                                  onClick: _cache[170] || (_cache[170] = $event => (_ctx.hud.toggleFleet()))
                                 }, [
                                   _createElementVNode("span", {
                                     class: "taxi-action-label",
                                     title: _ctx.t('fleetTitle')
-                                  }, _toDisplayString(_ctx.t('fleetTitle')), 9 /* TEXT, PROPS */, _hoisted_434),
+                                  }, _toDisplayString(_ctx.t('fleetTitle')), 9 /* TEXT, PROPS */, _hoisted_448),
                                   (_ctx.state.fleet.activeDrivers)
                                     ? (_openBlock(), _createElementBlock("span", {
                                         key: 0,
                                         class: "taxi-count-badge",
                                         title: _ctx.state.fleet.activeDrivers
-                                      }, _toDisplayString(_ctx.formatCount(_ctx.state.fleet.activeDrivers)), 9 /* TEXT, PROPS */, _hoisted_435))
+                                      }, _toDisplayString(_ctx.formatCount(_ctx.state.fleet.activeDrivers)), 9 /* TEXT, PROPS */, _hoisted_449))
                                     : _createCommentVNode("v-if", true)
                                 ]),
                                 _createElementVNode("button", {
                                   type: "button",
                                   class: "taxi-shift-history-button taxi-action taxi-action--secondary",
-                                  onClick: _cache[164] || (_cache[164] = $event => (_ctx.hud.toggleShiftHistory())),
+                                  onClick: _cache[171] || (_cache[171] = $event => (_ctx.hud.toggleShiftHistory())),
                                   disabled: !_ctx.state.shiftHistory.items.length || _ctx.state.shiftHistory.restoring
                                 }, [
                                   _createElementVNode("span", {
                                     class: "taxi-action-label",
                                     title: _ctx.t('previousShift')
-                                  }, _toDisplayString(_ctx.t('previousShift')), 9 /* TEXT, PROPS */, _hoisted_437),
+                                  }, _toDisplayString(_ctx.t('previousShift')), 9 /* TEXT, PROPS */, _hoisted_451),
                                   (_ctx.state.shiftHistory.items.length)
                                     ? (_openBlock(), _createElementBlock("span", {
                                         key: 0,
                                         class: "taxi-count-badge",
                                         title: _ctx.state.shiftHistory.items.length
-                                      }, _toDisplayString(_ctx.formatCount(_ctx.state.shiftHistory.items.length)), 9 /* TEXT, PROPS */, _hoisted_438))
+                                      }, _toDisplayString(_ctx.formatCount(_ctx.state.shiftHistory.items.length)), 9 /* TEXT, PROPS */, _hoisted_452))
                                     : _createCommentVNode("v-if", true)
-                                ], 8 /* PROPS */, _hoisted_436)
+                                ], 8 /* PROPS */, _hoisted_450)
                               ]),
-                              _createElementVNode("div", _hoisted_439, [
+                              _createElementVNode("div", _hoisted_453, [
                                 _createElementVNode("span", null, [
                                   _createTextVNode(_toDisplayString(_ctx.t('balance')), 1 /* TEXT */),
-                                  _cache[278] || (_cache[278] = _createElementVNode("br", null, null, -1 /* CACHED */)),
+                                  _cache[286] || (_cache[286] = _createElementVNode("br", null, null, -1 /* CACHED */)),
                                   _createElementVNode("b", {
                                     title: _ctx.formatMoneyFull(_ctx.state.balance)
-                                  }, _toDisplayString(_ctx.formatMoney(_ctx.state.balance)), 9 /* TEXT, PROPS */, _hoisted_440)
+                                  }, _toDisplayString(_ctx.formatMoney(_ctx.state.balance)), 9 /* TEXT, PROPS */, _hoisted_454)
                                 ]),
                                 _createElementVNode("span", null, [
                                   _createTextVNode(_toDisplayString(_ctx.t('rides')), 1 /* TEXT */),
-                                  _cache[279] || (_cache[279] = _createElementVNode("br", null, null, -1 /* CACHED */)),
+                                  _cache[287] || (_cache[287] = _createElementVNode("br", null, null, -1 /* CACHED */)),
                                   _createElementVNode("b", {
                                     title: _ctx.state.completedRides
-                                  }, _toDisplayString(_ctx.formatCount(_ctx.state.completedRides)), 9 /* TEXT, PROPS */, _hoisted_441)
+                                  }, _toDisplayString(_ctx.formatCount(_ctx.state.completedRides)), 9 /* TEXT, PROPS */, _hoisted_455)
                                 ]),
                                 _createElementVNode("span", null, [
                                   _createTextVNode(_toDisplayString(_ctx.t('rating')), 1 /* TEXT */),
-                                  _cache[280] || (_cache[280] = _createElementVNode("br", null, null, -1 /* CACHED */)),
+                                  _cache[288] || (_cache[288] = _createElementVNode("br", null, null, -1 /* CACHED */)),
                                   _createElementVNode("b", null, _toDisplayString(_ctx.formatNumber(_ctx.state.rating, 2)) + " ★", 1 /* TEXT */)
                                 ])
                               ])
                             ]))
                           : _createCommentVNode("v-if", true),
                         (_ctx.shiftHistoryOpen)
-                          ? (_openBlock(), _createElementBlock("div", _hoisted_442, [
-                              _createElementVNode("div", _hoisted_443, [
+                          ? (_openBlock(), _createElementBlock("div", _hoisted_456, [
+                              _createElementVNode("div", _hoisted_457, [
                                 _createElementVNode("button", {
                                   type: "button",
                                   class: "taxi-action taxi-action--tertiary",
-                                  onClick: _cache[165] || (_cache[165] = $event => (_ctx.hud.toggleShiftHistory())),
+                                  onClick: _cache[172] || (_cache[172] = $event => (_ctx.hud.toggleShiftHistory())),
                                   disabled: _ctx.state.shiftHistory.restoring,
                                   "aria-label": _ctx.t('back')
-                                }, "‹", 8 /* PROPS */, _hoisted_444),
+                                }, "‹", 8 /* PROPS */, _hoisted_458),
                                 _createElementVNode("div", null, [
                                   _createElementVNode("h2", null, _toDisplayString(_ctx.t('shiftHistoryTitle')), 1 /* TEXT */),
                                   _createElementVNode("p", null, _toDisplayString(_ctx.t('shiftHistoryHelp')), 1 /* TEXT */)
                                 ])
                               ]),
-                              _createElementVNode("div", _hoisted_445, [
+                              _createElementVNode("div", _hoisted_459, [
                                 (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.state.shiftHistory.items.slice(0, _ctx.shiftHistoryVisibleCount), (shift, index) => {
                                   return (_openBlock(), _createElementBlock("button", {
                                     type: "button",
@@ -3942,49 +4037,49 @@ export function render(_ctx, _cache) {
                                     onClick: $event => (_ctx.hud.resumeShift(shift.id)),
                                     disabled: _ctx.state.shiftHistory.restoring
                                   }, [
-                                    _createElementVNode("div", _hoisted_447, [
-                                      _cache[282] || (_cache[282] = _createElementVNode("span", null, "🚗", -1 /* CACHED */)),
+                                    _createElementVNode("div", _hoisted_461, [
+                                      _cache[290] || (_cache[290] = _createElementVNode("span", null, "🚗", -1 /* CACHED */)),
                                       (shift.preview)
                                         ? (_openBlock(), _createElementBlock("img", {
                                             key: 0,
                                             src: shift.preview,
                                             alt: shift.vehicleName,
-                                            onError: _cache[166] || (_cache[166] = $event => ($event.target.style.display = 'none'))
-                                          }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_448))
+                                            onError: _cache[173] || (_cache[173] = $event => ($event.target.style.display = 'none'))
+                                          }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_462))
                                         : _createCommentVNode("v-if", true)
                                     ]),
-                                    _createElementVNode("div", _hoisted_449, [
+                                    _createElementVNode("div", _hoisted_463, [
                                       _createElementVNode("strong", {
                                         title: shift.vehicleName
-                                      }, _toDisplayString(shift.vehicleName), 9 /* TEXT, PROPS */, _hoisted_450),
+                                      }, _toDisplayString(shift.vehicleName), 9 /* TEXT, PROPS */, _hoisted_464),
                                       _createElementVNode("small", null, _toDisplayString(_ctx.formatShiftDate(shift.lastSavedAt || shift.startedAt)), 1 /* TEXT */),
                                       _createElementVNode("div", null, [
                                         _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(shift.energyPercent, 1)) + "%", 1 /* TEXT */),
                                         _createElementVNode("span", {
                                           title: shift.rides || 0
-                                        }, _toDisplayString(_ctx.t('rides')) + " " + _toDisplayString(_ctx.formatCount(shift.rides)), 9 /* TEXT, PROPS */, _hoisted_451),
+                                        }, _toDisplayString(_ctx.t('rides')) + " " + _toDisplayString(_ctx.formatCount(shift.rides)), 9 /* TEXT, PROPS */, _hoisted_465),
                                         _createElementVNode("span", {
                                           title: _ctx.formatMoneyFull(shift.netIncome)
-                                        }, _toDisplayString(_ctx.formatMoney(shift.netIncome)), 9 /* TEXT, PROPS */, _hoisted_452)
+                                        }, _toDisplayString(_ctx.formatMoney(shift.netIncome)), 9 /* TEXT, PROPS */, _hoisted_466)
                                       ])
                                     ]),
                                     (_ctx.state.shiftHistory.restoringId !== shift.id)
-                                      ? (_openBlock(), _createElementBlock("i", _hoisted_453, "›"))
+                                      ? (_openBlock(), _createElementBlock("i", _hoisted_467, "›"))
                                       : _createCommentVNode("v-if", true),
                                     (_ctx.state.shiftHistory.restoringId === shift.id)
-                                      ? (_openBlock(), _createElementBlock("div", _hoisted_454, [
-                                          _cache[283] || (_cache[283] = _createElementVNode("span", null, null, -1 /* CACHED */)),
+                                      ? (_openBlock(), _createElementBlock("div", _hoisted_468, [
+                                          _cache[291] || (_cache[291] = _createElementVNode("span", null, null, -1 /* CACHED */)),
                                           _createTextVNode(_toDisplayString(_ctx.t('restoringShift')), 1 /* TEXT */)
                                         ]))
                                       : _createCommentVNode("v-if", true)
-                                  ], 8 /* PROPS */, _hoisted_446))
+                                  ], 8 /* PROPS */, _hoisted_460))
                                 }), 128 /* KEYED_FRAGMENT */)),
                                 (_ctx.shiftHistoryVisibleCount < _ctx.state.shiftHistory.items.length)
                                   ? (_openBlock(), _createElementBlock("button", {
                                       key: 0,
                                       type: "button",
                                       class: "taxi-shift-history__more",
-                                      onClick: _cache[167] || (_cache[167] = $event => (_ctx.hud.loadMoreShifts()))
+                                      onClick: _cache[174] || (_cache[174] = $event => (_ctx.hud.loadMoreShifts()))
                                     }, _toDisplayString(_ctx.t('showMoreShifts', {shown: _ctx.shiftHistoryVisibleCount, total: _ctx.state.shiftHistory.items.length})), 1 /* TEXT */))
                                   : _createCommentVNode("v-if", true)
                               ])
@@ -3993,18 +4088,18 @@ export function render(_ctx, _cache) {
                       ], 2 /* CLASS */))
                     : _createCommentVNode("v-if", true),
                   (!_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === 'searching')
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_455, [
-                        _createElementVNode("div", _hoisted_456, [
-                          _createElementVNode("div", _hoisted_457, [
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_469, [
+                        _createElementVNode("div", _hoisted_470, [
+                          _createElementVNode("div", _hoisted_471, [
                             (_ctx.state.offers.length < _ctx.state.offerTargetCount)
-                              ? (_openBlock(), _createElementBlock("div", _hoisted_458))
+                              ? (_openBlock(), _createElementBlock("div", _hoisted_472))
                               : _createCommentVNode("v-if", true),
                             _createElementVNode("div", null, [
                               _createElementVNode("strong", null, _toDisplayString(_ctx.state.offers.length ? _ctx.t('chooseOrder') : _ctx.t('searchOrders')), 1 /* TEXT */),
                               _createElementVNode("span", null, _toDisplayString(_ctx.getStatusText()), 1 /* TEXT */)
                             ])
                           ]),
-                          _createElementVNode("div", _hoisted_459, [
+                          _createElementVNode("div", _hoisted_473, [
                             _createElementVNode("span", null, _toDisplayString(_ctx.t('sortBy')), 1 /* TEXT */),
                             _createElementVNode("div", {
                               class: _normalizeClass(["taxi-sort-menu", {'taxi-sort-menu--open': _ctx.offerSortMenuOpen}])
@@ -4012,47 +4107,47 @@ export function render(_ctx, _cache) {
                               _createElementVNode("button", {
                                 type: "button",
                                 class: "taxi-sort-menu__trigger",
-                                onClick: _cache[168] || (_cache[168] = $event => (_ctx.hud.toggleOfferSortMenu())),
+                                onClick: _cache[175] || (_cache[175] = $event => (_ctx.hud.toggleOfferSortMenu())),
                                 "aria-haspopup": "true",
                                 "aria-expanded": _ctx.offerSortMenuOpen
                               }, [
                                 _createElementVNode("span", null, _toDisplayString(_ctx.getOfferSortLabel()), 1 /* TEXT */),
-                                _cache[285] || (_cache[285] = _createElementVNode("i", null, "⌄", -1 /* CACHED */))
-                              ], 8 /* PROPS */, _hoisted_460),
+                                _cache[293] || (_cache[293] = _createElementVNode("i", null, "⌄", -1 /* CACHED */))
+                              ], 8 /* PROPS */, _hoisted_474),
                               (_ctx.offerSortMenuOpen)
-                                ? (_openBlock(), _createElementBlock("div", _hoisted_461, [
+                                ? (_openBlock(), _createElementBlock("div", _hoisted_475, [
                                     (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.offerSortOptions, (option, index) => {
                                       return (_openBlock(), _createElementBlock("button", {
                                         type: "button",
                                         key: option.value,
                                         class: _normalizeClass({'taxi-sort-menu__option--active': _ctx.offerSort === option.value}),
                                         onClick: $event => (_ctx.hud.selectOfferSort(option.value))
-                                      }, _toDisplayString(_ctx.t(option.label)), 11 /* TEXT, CLASS, PROPS */, _hoisted_462))
+                                      }, _toDisplayString(_ctx.t(option.label)), 11 /* TEXT, CLASS, PROPS */, _hoisted_476))
                                     }), 128 /* KEYED_FRAGMENT */))
                                   ]))
                                 : _createCommentVNode("v-if", true)
                             ], 2 /* CLASS */)
                           ]),
-                          _createElementVNode("div", _hoisted_463, [
+                          _createElementVNode("div", _hoisted_477, [
                             (!_ctx.state.offers.length)
-                              ? (_openBlock(), _createElementBlock("div", _hoisted_464, _toDisplayString(_ctx.t('emptyOffers')), 1 /* TEXT */))
+                              ? (_openBlock(), _createElementBlock("div", _hoisted_478, _toDisplayString(_ctx.t('emptyOffers')), 1 /* TEXT */))
                               : _createCommentVNode("v-if", true),
                             (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.getSortedOffers(), (offer, index) => {
                               return (_openBlock(), _createElementBlock("div", {
                                 class: _normalizeClass(["taxi-order-card", {'taxi-order-card--rush': offer.isRush, 'taxi-order-card--multi': offer.isMultiStop, 'taxi-order-card--delivery': offer.isDelivery}]),
                                 key: offer.id
                               }, [
-                                _createElementVNode("div", _hoisted_465, [
-                                  _createElementVNode("div", _hoisted_466, _toDisplayString(offer.isDelivery ? '📦' : _ctx.getInitials(offer.passengerName)), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_467, [
+                                _createElementVNode("div", _hoisted_479, [
+                                  _createElementVNode("div", _hoisted_480, _toDisplayString(offer.isDelivery ? '📦' : _ctx.getInitials(offer.passengerName)), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_481, [
                                     _createElementVNode("strong", {
                                       title: _ctx.getOfferName(offer)
-                                    }, _toDisplayString(_ctx.getOfferName(offer)), 9 /* TEXT, PROPS */, _hoisted_468),
+                                    }, _toDisplayString(_ctx.getOfferName(offer)), 9 /* TEXT, PROPS */, _hoisted_482),
                                     (!offer.isDelivery)
-                                      ? (_openBlock(), _createElementBlock("span", _hoisted_469, _toDisplayString(_ctx.t('toPassenger')) + " " + _toDisplayString(_ctx.formatEta(offer.pickupEtaMinutes)) + " · " + _toDisplayString(_ctx.t('pickupWindow', {time: _ctx.formatCountdown(offer.pickupWaitSeconds)})), 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("span", _hoisted_483, _toDisplayString(_ctx.t('toPassenger')) + " " + _toDisplayString(_ctx.formatEta(offer.pickupEtaMinutes)) + " · " + _toDisplayString(_ctx.t('pickupWindow', {time: _ctx.formatCountdown(offer.pickupWaitSeconds)})), 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true),
                                     (offer.isDelivery)
-                                      ? (_openBlock(), _createElementBlock("span", _hoisted_470, _toDisplayString(_ctx.t('toCargo')) + " " + _toDisplayString(_ctx.formatEta(offer.pickupEtaMinutes)) + " · " + _toDisplayString(_ctx.t('longDistance')), 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("span", _hoisted_484, _toDisplayString(_ctx.t('toCargo')) + " " + _toDisplayString(_ctx.formatEta(offer.pickupEtaMinutes)) + " · " + _toDisplayString(_ctx.t('longDistance')), 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true)
                                   ]),
                                   (!offer.isDelivery)
@@ -4064,20 +4159,20 @@ export function render(_ctx, _cache) {
                                         "aria-label": (_ctx.t('passengerCalmness')) + " · " + (_ctx.formatNumber(offer.passengerCalmness, 0)) + "%"
                                       }, [
                                         _createTextVNode(_toDisplayString(_ctx.getCalmnessEmoji(offer.passengerCalmness)) + " ", 1 /* TEXT */),
-                                        _createElementVNode("small", _hoisted_472, _toDisplayString(_ctx.formatNumber(offer.passengerCalmness, 0)) + "%", 1 /* TEXT */)
-                                      ], 8 /* PROPS */, _hoisted_471))
+                                        _createElementVNode("small", _hoisted_486, _toDisplayString(_ctx.formatNumber(offer.passengerCalmness, 0)) + "%", 1 /* TEXT */)
+                                      ], 8 /* PROPS */, _hoisted_485))
                                     : _createCommentVNode("v-if", true),
                                   (offer.isDelivery)
-                                    ? (_openBlock(), _createElementBlock("div", _hoisted_473, [
-                                        _cache[286] || (_cache[286] = _createElementVNode("span", null, "📦", -1 /* CACHED */)),
+                                    ? (_openBlock(), _createElementBlock("div", _hoisted_487, [
+                                        _cache[294] || (_cache[294] = _createElementVNode("span", null, "📦", -1 /* CACHED */)),
                                         _createElementVNode("strong", null, _toDisplayString(_ctx.formatCargoWeight(offer.cargoWeightKg)), 1 /* TEXT */)
                                       ]))
                                     : _createCommentVNode("v-if", true),
                                   (offer.isRush)
-                                    ? (_openBlock(), _createElementBlock("div", _hoisted_474, "+" + _toDisplayString(offer.bonusPercent) + "%", 1 /* TEXT */))
+                                    ? (_openBlock(), _createElementBlock("div", _hoisted_488, "+" + _toDisplayString(offer.bonusPercent) + "%", 1 /* TEXT */))
                                     : _createCommentVNode("v-if", true),
                                   (offer.isMultiStop)
-                                    ? (_openBlock(), _createElementBlock("div", _hoisted_475, _toDisplayString(_ctx.t('multiStopBadge', {count: offer.stopCount})), 1 /* TEXT */))
+                                    ? (_openBlock(), _createElementBlock("div", _hoisted_489, _toDisplayString(_ctx.t('multiStopBadge', {count: offer.stopCount})), 1 /* TEXT */))
                                     : _createCommentVNode("v-if", true)
                                 ]),
                                 (offer.earth && _ctx.earthOfferRoute(offer))
@@ -4085,64 +4180,64 @@ export function render(_ctx, _cache) {
                                       key: 0,
                                       class: "taxi-order-card__earth-route",
                                       title: _ctx.earthOfferRoute(offer)
-                                    }, _toDisplayString(_ctx.earthOfferRoute(offer)), 9 /* TEXT, PROPS */, _hoisted_476))
+                                    }, _toDisplayString(_ctx.earthOfferRoute(offer)), 9 /* TEXT, PROPS */, _hoisted_490))
                                   : _createCommentVNode("v-if", true),
-                                _createElementVNode("div", _hoisted_477, [
+                                _createElementVNode("div", _hoisted_491, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.formatMoney(_ctx.getOfferIncomePerMinute(offer))) + "/" + _toDisplayString(_ctx.t('minuteShort')), 1 /* TEXT */),
                                   _createElementVNode("span", null, _toDisplayString(_ctx.formatMoney(_ctx.getOfferIncomePerKm(offer))) + "/" + _toDisplayString(_ctx.settings.unitSystem === 'imperial' ? _ctx.t('unitMile') : _ctx.t('unitKm')), 1 /* TEXT */)
                                 ]),
-                                _createElementVNode("div", _hoisted_478, [
-                                  _createElementVNode("div", _hoisted_479, [
+                                _createElementVNode("div", _hoisted_492, [
+                                  _createElementVNode("div", _hoisted_493, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('trip')), 1 /* TEXT */),
                                     _createElementVNode("b", null, _toDisplayString(_ctx.formatEta(offer.etaMinutes)), 1 /* TEXT */)
                                   ]),
-                                  _createElementVNode("div", _hoisted_480, [
+                                  _createElementVNode("div", _hoisted_494, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('distance')), 1 /* TEXT */),
                                     _createElementVNode("b", null, _toDisplayString(_ctx.formatDistance(offer.rideDistance)), 1 /* TEXT */)
                                   ]),
-                                  _createElementVNode("div", _hoisted_481, [
+                                  _createElementVNode("div", _hoisted_495, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('payment')), 1 /* TEXT */),
                                     _createElementVNode("b", {
                                       title: _ctx.formatMoneyFull(offer.estimatedFare)
-                                    }, _toDisplayString(_ctx.formatMoneyFull(offer.estimatedFare)), 9 /* TEXT, PROPS */, _hoisted_482)
+                                    }, _toDisplayString(_ctx.formatMoneyFull(offer.estimatedFare)), 9 /* TEXT, PROPS */, _hoisted_496)
                                   ])
                                 ]),
                                 (offer.isRush)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_483, _toDisplayString(_ctx.t('rushDeliver', {time: _ctx.formatCountdown(offer.timeLimitMinutes * 60)})) + " · " + _toDisplayString(_ctx.t('bonus')) + " " + _toDisplayString(_ctx.formatMoney(offer.bonusAmount)), 1 /* TEXT */))
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_497, _toDisplayString(_ctx.t('rushDeliver', {time: _ctx.formatCountdown(offer.timeLimitMinutes * 60)})) + " · " + _toDisplayString(_ctx.t('bonus')) + " " + _toDisplayString(_ctx.formatMoney(offer.bonusAmount)), 1 /* TEXT */))
                                   : _createCommentVNode("v-if", true),
                                 (offer.isMultiStop)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_484, _toDisplayString(_ctx.t('multiStopRide')) + " · " + _toDisplayString(_ctx.t('multiStopSummary', {count: offer.stopCount, time: _ctx.formatCountdown(offer.stopWaitSeconds)})), 1 /* TEXT */))
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_498, _toDisplayString(_ctx.t('multiStopRide')) + " · " + _toDisplayString(_ctx.t('multiStopSummary', {count: offer.stopCount, time: _ctx.formatCountdown(offer.stopWaitSeconds)})), 1 /* TEXT */))
                                   : _createCommentVNode("v-if", true),
                                 (offer.isDelivery)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_485, [
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_499, [
                                       _createTextVNode(_toDisplayString(_ctx.t('deliverySummary', {weight: _ctx.formatCargoWeight(offer.cargoWeightKg)})) + " ", 1 /* TEXT */),
                                       (offer.cargoWeightBonusPercent > 0)
-                                        ? (_openBlock(), _createElementBlock("span", _hoisted_486, " · " + _toDisplayString(_ctx.t('bonus')) + " +" + _toDisplayString(_ctx.formatNumber(offer.cargoWeightBonusPercent, 0)) + "%", 1 /* TEXT */))
+                                        ? (_openBlock(), _createElementBlock("span", _hoisted_500, " · " + _toDisplayString(_ctx.t('bonus')) + " +" + _toDisplayString(_ctx.formatNumber(offer.cargoWeightBonusPercent, 0)) + "%", 1 /* TEXT */))
                                         : _createCommentVNode("v-if", true)
                                     ]))
                                   : _createCommentVNode("v-if", true),
                                 (offer.ratingBonusPercent > 0)
-                                  ? (_openBlock(), _createElementBlock("div", _hoisted_487, _toDisplayString(_ctx.t('ratingBonusLine', {percent: _ctx.formatBonusPercent(offer.ratingBonusPercent), amount: _ctx.formatMoney(offer.ratingBonusAmount)})), 1 /* TEXT */))
+                                  ? (_openBlock(), _createElementBlock("div", _hoisted_501, _toDisplayString(_ctx.t('ratingBonusLine', {percent: _ctx.formatBonusPercent(offer.ratingBonusPercent), amount: _ctx.formatMoney(offer.ratingBonusAmount)})), 1 /* TEXT */))
                                   : _createCommentVNode("v-if", true),
                                 _createElementVNode("button", {
                                   type: "button",
                                   class: "taxi-order-card__accept taxi-action taxi-action--primary",
                                   onClick: $event => (_ctx.hud.acceptOrder(offer.id))
-                                }, _toDisplayString(_ctx.t('accept')), 9 /* TEXT, PROPS */, _hoisted_488)
+                                }, _toDisplayString(_ctx.t('accept')), 9 /* TEXT, PROPS */, _hoisted_502)
                               ], 2 /* CLASS */))
                             }), 128 /* KEYED_FRAGMENT */))
                           ]),
-                          _createElementVNode("div", _hoisted_489, [
+                          _createElementVNode("div", _hoisted_503, [
                             _createElementVNode("span", null, _toDisplayString(_ctx.t('offersDynamic', {count: _ctx.state.offers.length, target: _ctx.state.offerTargetCount})), 1 /* TEXT */),
                             _createElementVNode("button", {
                               type: "button",
                               class: "taxi-offline-hold taxi-offline-hold--compact taxi-action taxi-action--danger-secondary",
-                              onMousedown: _cache[169] || (_cache[169] = $event => (_ctx.hud.beginOfflineHold($event))),
-                              onMouseup: _cache[170] || (_cache[170] = $event => (_ctx.hud.cancelOfflineHold())),
-                              onMouseleave: _cache[171] || (_cache[171] = $event => (_ctx.hud.cancelOfflineHold()))
+                              onMousedown: _cache[176] || (_cache[176] = $event => (_ctx.hud.beginOfflineHold($event))),
+                              onMouseup: _cache[177] || (_cache[177] = $event => (_ctx.hud.cancelOfflineHold())),
+                              onMouseleave: _cache[178] || (_cache[178] = $event => (_ctx.hud.cancelOfflineHold()))
                             }, [
-                              _cache[287] || (_cache[287] = _createElementVNode("span", { class: "taxi-offline-hold__fill" }, null, -1 /* CACHED */)),
-                              _createElementVNode("span", _hoisted_490, [
+                              _cache[295] || (_cache[295] = _createElementVNode("span", { class: "taxi-offline-hold__fill" }, null, -1 /* CACHED */)),
+                              _createElementVNode("span", _hoisted_504, [
                                 _createElementVNode("span", null, _toDisplayString(_ctx.t('holdOffline')), 1 /* TEXT */)
                               ])
                             ], 32 /* NEED_HYDRATION */)
@@ -4151,14 +4246,14 @@ export function render(_ctx, _cache) {
                       ]))
                     : _createCommentVNode("v-if", true),
                   (!_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && (_ctx.state.phase === 'boarding' || _ctx.state.phase === 'alighting'))
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_491, [
-                        _createElementVNode("div", _hoisted_492, [
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_505, [
+                        _createElementVNode("div", _hoisted_506, [
                           _createElementVNode("div", {
                             class: _normalizeClass(_ctx.state.isDelivery ? 'taxi-transfer__cargo' : 'taxi-transfer__door')
                           }, null, 2 /* CLASS */)
                         ]),
                         _createElementVNode("h2", null, _toDisplayString(_ctx.getPhaseLabel()), 1 /* TEXT */),
-                        _createElementVNode("div", _hoisted_493, _toDisplayString(_ctx.state.isDelivery ? _ctx.formatCargoWeight(_ctx.state.cargoWeightKg) : _ctx.state.passengerName), 1 /* TEXT */),
+                        _createElementVNode("div", _hoisted_507, _toDisplayString(_ctx.state.isDelivery ? _ctx.formatCargoWeight(_ctx.state.cargoWeightKg) : _ctx.state.passengerName), 1 /* TEXT */),
                         (_ctx.state.phase === 'boarding' && !_ctx.state.isDelivery)
                           ? (_openBlock(), _createElementBlock("div", {
                               key: 0,
@@ -4168,32 +4263,32 @@ export function render(_ctx, _cache) {
                               "aria-label": (_ctx.t('passengerCalmness')) + " · " + (_ctx.formatNumber(_ctx.state.passengerCalmness, 0)) + "%"
                             }, [
                               _createTextVNode(_toDisplayString(_ctx.getCalmnessEmoji(_ctx.state.passengerCalmness)) + " ", 1 /* TEXT */),
-                              _createElementVNode("small", _hoisted_495, _toDisplayString(_ctx.formatNumber(_ctx.state.passengerCalmness, 0)) + "%", 1 /* TEXT */)
-                            ], 8 /* PROPS */, _hoisted_494))
+                              _createElementVNode("small", _hoisted_509, _toDisplayString(_ctx.formatNumber(_ctx.state.passengerCalmness, 0)) + "%", 1 /* TEXT */)
+                            ], 8 /* PROPS */, _hoisted_508))
                           : _createCommentVNode("v-if", true),
                         _createElementVNode("p", null, _toDisplayString(_ctx.state.isDelivery ? (_ctx.state.phase === 'boarding' ? _ctx.t('loadingCargoDesc') : _ctx.t('unloadingCargoDesc')) : (_ctx.state.phase === 'boarding' ? _ctx.t('boardingDesc') : _ctx.t('alightingDesc'))), 1 /* TEXT */),
-                        _cache[288] || (_cache[288] = _createElementVNode("div", { class: "taxi-transfer__progress" }, null, -1 /* CACHED */))
+                        _cache[296] || (_cache[296] = _createElementVNode("div", { class: "taxi-transfer__progress" }, null, -1 /* CACHED */))
                       ]))
                     : _createCommentVNode("v-if", true),
                   (!_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === 'passengerStopDemand')
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_496, [
-                        _cache[289] || (_cache[289] = _createElementVNode("div", { class: "taxi-transfer__alert" }, "!", -1 /* CACHED */)),
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_510, [
+                        _cache[297] || (_cache[297] = _createElementVNode("div", { class: "taxi-transfer__alert" }, "!", -1 /* CACHED */)),
                         _createElementVNode("h2", null, _toDisplayString(_ctx.t('stopDemandTitle')), 1 /* TEXT */),
-                        _createElementVNode("div", _hoisted_497, _toDisplayString(_ctx.state.passengerName), 1 /* TEXT */),
+                        _createElementVNode("div", _hoisted_511, _toDisplayString(_ctx.state.passengerName), 1 /* TEXT */),
                         _createElementVNode("p", null, _toDisplayString(_ctx.t('stopDemandDesc')), 1 /* TEXT */),
-                        _cache[290] || (_cache[290] = _createElementVNode("div", { class: "taxi-transfer__progress" }, null, -1 /* CACHED */))
+                        _cache[298] || (_cache[298] = _createElementVNode("div", { class: "taxi-transfer__progress" }, null, -1 /* CACHED */))
                       ]))
                     : _createCommentVNode("v-if", true),
                   (!_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === 'passengerForcedExit')
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_498, [
-                        _cache[291] || (_cache[291] = _createElementVNode("div", { class: "taxi-transfer__loader" }, [
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_512, [
+                        _cache[299] || (_cache[299] = _createElementVNode("div", { class: "taxi-transfer__loader" }, [
                           _createElementVNode("div", { class: "taxi-transfer__door" })
                         ], -1 /* CACHED */)),
                         _createElementVNode("h2", null, _toDisplayString(_ctx.t('forcedExitTitle')), 1 /* TEXT */),
-                        _createElementVNode("div", _hoisted_499, _toDisplayString(_ctx.state.passengerName), 1 /* TEXT */),
+                        _createElementVNode("div", _hoisted_513, _toDisplayString(_ctx.state.passengerName), 1 /* TEXT */),
                         _createElementVNode("p", null, _toDisplayString(_ctx.t('forcedExitDesc')), 1 /* TEXT */),
-                        _createElementVNode("div", _hoisted_500, _toDisplayString(_ctx.t('ratingLoss', {percent: _ctx.formatBonusPercent(_ctx.state.earlyExitRatingLossPercent)})), 1 /* TEXT */),
-                        _createElementVNode("div", _hoisted_501, [
+                        _createElementVNode("div", _hoisted_514, _toDisplayString(_ctx.t('ratingLoss', {percent: _ctx.formatBonusPercent(_ctx.state.earlyExitRatingLossPercent)})), 1 /* TEXT */),
+                        _createElementVNode("div", _hoisted_515, [
                           _createElementVNode("div", {
                             class: "taxi-transfer__progress-fill",
                             style: _normalizeStyle({'width': ((_ctx.state.forcedExitDuration - _ctx.state.forcedExitRemaining) / _ctx.state.forcedExitDuration * 100) + '%'})
@@ -4202,15 +4297,15 @@ export function render(_ctx, _cache) {
                       ]))
                     : _createCommentVNode("v-if", true),
                   (!_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === 'driverAbandoning')
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_502, [
-                        _cache[292] || (_cache[292] = _createElementVNode("div", { class: "taxi-transfer__loader" }, [
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_516, [
+                        _cache[300] || (_cache[300] = _createElementVNode("div", { class: "taxi-transfer__loader" }, [
                           _createElementVNode("div", { class: "taxi-transfer__door" })
                         ], -1 /* CACHED */)),
                         _createElementVNode("h2", null, _toDisplayString(_ctx.t('driverAbandoningTitle')), 1 /* TEXT */),
-                        _createElementVNode("div", _hoisted_503, _toDisplayString(_ctx.state.passengerName), 1 /* TEXT */),
+                        _createElementVNode("div", _hoisted_517, _toDisplayString(_ctx.state.passengerName), 1 /* TEXT */),
                         _createElementVNode("p", null, _toDisplayString(_ctx.t('driverAbandoningDesc')), 1 /* TEXT */),
-                        _createElementVNode("div", _hoisted_504, _toDisplayString(_ctx.t('driverAbandoningPenalty', {loss: _ctx.formatBonusPercent(_ctx.state.driverAbandonmentRatingLoss), percent: _ctx.formatBonusPercent(_ctx.state.driverAbandonmentExtraPercent)})), 1 /* TEXT */),
-                        _createElementVNode("div", _hoisted_505, [
+                        _createElementVNode("div", _hoisted_518, _toDisplayString(_ctx.t('driverAbandoningPenalty', {loss: _ctx.formatBonusPercent(_ctx.state.driverAbandonmentRatingLoss), percent: _ctx.formatBonusPercent(_ctx.state.driverAbandonmentExtraPercent)})), 1 /* TEXT */),
+                        _createElementVNode("div", _hoisted_519, [
                           _createElementVNode("div", {
                             class: "taxi-transfer__progress-fill",
                             style: _normalizeStyle({'width': ((_ctx.state.forcedExitDuration - _ctx.state.forcedExitRemaining) / _ctx.state.forcedExitDuration * 100) + '%'})
@@ -4219,13 +4314,13 @@ export function render(_ctx, _cache) {
                       ]))
                     : _createCommentVNode("v-if", true),
                   (!_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === 'stopWaiting')
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_506, [
-                        _createElementVNode("div", _hoisted_507, _toDisplayString(_ctx.state.currentStopIndex), 1 /* TEXT */),
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_520, [
+                        _createElementVNode("div", _hoisted_521, _toDisplayString(_ctx.state.currentStopIndex), 1 /* TEXT */),
                         _createElementVNode("h2", null, _toDisplayString(_ctx.getPhaseLabel()), 1 /* TEXT */),
-                        _createElementVNode("div", _hoisted_508, _toDisplayString(_ctx.t('stopProgress', {current: _ctx.state.currentStopIndex, total: _ctx.state.stopCount})), 1 /* TEXT */),
+                        _createElementVNode("div", _hoisted_522, _toDisplayString(_ctx.t('stopProgress', {current: _ctx.state.currentStopIndex, total: _ctx.state.stopCount})), 1 /* TEXT */),
                         _createElementVNode("p", null, _toDisplayString(_ctx.t('stopWaitingDesc')), 1 /* TEXT */),
-                        _createElementVNode("div", _hoisted_509, _toDisplayString(_ctx.formatCountdown(_ctx.state.stopWaitRemaining)), 1 /* TEXT */),
-                        _createElementVNode("div", _hoisted_510, [
+                        _createElementVNode("div", _hoisted_523, _toDisplayString(_ctx.formatCountdown(_ctx.state.stopWaitRemaining)), 1 /* TEXT */),
+                        _createElementVNode("div", _hoisted_524, [
                           _createElementVNode("div", {
                             class: "taxi-transfer__progress-fill",
                             style: _normalizeStyle({'width': ((_ctx.state.stopWaitDuration - _ctx.state.stopWaitRemaining) / _ctx.state.stopWaitDuration * 100) + '%'})
@@ -4234,43 +4329,43 @@ export function render(_ctx, _cache) {
                       ]))
                     : _createCommentVNode("v-if", true),
                   (!_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === 'complete')
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_511, [
-                        _cache[293] || (_cache[293] = _createElementVNode("div", { class: "taxi-transfer__check" }, "✓", -1 /* CACHED */)),
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_525, [
+                        _cache[301] || (_cache[301] = _createElementVNode("div", { class: "taxi-transfer__check" }, "✓", -1 /* CACHED */)),
                         _createElementVNode("h2", null, _toDisplayString(_ctx.state.isDelivery ? _ctx.t('deliveryComplete') : _ctx.t('complete')), 1 /* TEXT */),
-                        _createElementVNode("div", _hoisted_512, _toDisplayString(_ctx.t('payout')) + " " + _toDisplayString(_ctx.formatMoney(_ctx.state.adjustedFare)), 1 /* TEXT */),
+                        _createElementVNode("div", _hoisted_526, _toDisplayString(_ctx.t('payout')) + " " + _toDisplayString(_ctx.formatMoney(_ctx.state.adjustedFare)), 1 /* TEXT */),
                         (!_ctx.state.isDelivery)
-                          ? (_openBlock(), _createElementBlock("p", _hoisted_513, _toDisplayString(_ctx.t('completeDesc', {rating: _ctx.formatRating(_ctx.state.rating)})), 1 /* TEXT */))
+                          ? (_openBlock(), _createElementBlock("p", _hoisted_527, _toDisplayString(_ctx.t('completeDesc', {rating: _ctx.formatRating(_ctx.state.rating)})), 1 /* TEXT */))
                           : _createCommentVNode("v-if", true),
                         (_ctx.state.isDelivery)
-                          ? (_openBlock(), _createElementBlock("p", _hoisted_514, _toDisplayString(_ctx.t('deliveryCompleteDesc', {rating: _ctx.formatRating(_ctx.state.rideRating), fare: _ctx.formatMoney(_ctx.state.finalFare)})), 1 /* TEXT */))
+                          ? (_openBlock(), _createElementBlock("p", _hoisted_528, _toDisplayString(_ctx.t('deliveryCompleteDesc', {rating: _ctx.formatRating(_ctx.state.rideRating), fare: _ctx.formatMoney(_ctx.state.finalFare)})), 1 /* TEXT */))
                           : _createCommentVNode("v-if", true),
-                        _cache[294] || (_cache[294] = _createElementVNode("div", { class: "taxi-transfer__progress" }, null, -1 /* CACHED */))
+                        _cache[302] || (_cache[302] = _createElementVNode("div", { class: "taxi-transfer__progress" }, null, -1 /* CACHED */))
                       ]))
                     : _createCommentVNode("v-if", true),
                   (!_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && _ctx.state.phase === 'toFuelStation')
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_515, [
-                        _createElementVNode("div", _hoisted_516, [
-                          _cache[297] || (_cache[297] = _createElementVNode("div", { class: "taxi-minimap-surface" }, null, -1 /* CACHED */)),
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_529, [
+                        _createElementVNode("div", _hoisted_530, [
+                          _cache[305] || (_cache[305] = _createElementVNode("div", { class: "taxi-minimap-surface" }, null, -1 /* CACHED */)),
                           (_ctx.externalPhoneMode)
-                            ? (_openBlock(), _createElementBlock("canvas", _hoisted_517))
+                            ? (_openBlock(), _createElementBlock("canvas", _hoisted_531))
                             : _createCommentVNode("v-if", true),
                           _createElementVNode("div", {
                             class: _normalizeClass(["taxi-map-interaction", {'taxi-map-interaction--panned': !_ctx.mapFollowing}]),
                             "aria-label": _ctx.t('mapDrag')
-                          }, null, 10 /* CLASS, PROPS */, _hoisted_518),
-                          _createElementVNode("div", _hoisted_519, [
+                          }, null, 10 /* CLASS, PROPS */, _hoisted_532),
+                          _createElementVNode("div", _hoisted_533, [
                             (_ctx.settings.aiDriver.enabled)
                               ? (_openBlock(), _createElementBlock("button", {
                                   key: 0,
                                   type: "button",
                                   class: _normalizeClass(["taxi-map__autopilot", {'taxi-map__autopilot--active': _ctx.state.autopilot.enabled, 'taxi-map__autopilot--recovering': _ctx.state.autopilot.status === 'recovering'}]),
-                                  onClick: _cache[172] || (_cache[172] = $event => (_ctx.hud.toggleAutopilot())),
+                                  onClick: _cache[179] || (_cache[179] = $event => (_ctx.hud.toggleAutopilot())),
                                   disabled: !_ctx.state.autopilot.available,
                                   title: _ctx.t(_ctx.state.autopilot.available ? (_ctx.state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable') : 'autopilotUnavailable')
                                 }, [
-                                  _cache[295] || (_cache[295] = _createElementVNode("strong", null, "AI", -1 /* CACHED */)),
+                                  _cache[303] || (_cache[303] = _createElementVNode("strong", null, "AI", -1 /* CACHED */)),
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t(_ctx.state.autopilot.status === 'recovering' ? 'autopilotRecovering' : (_ctx.state.autopilot.status === 'waitingTraffic' ? 'autopilotWaitingTraffic' : (_ctx.state.autopilot.status === 'waitingSignal' ? 'autopilotWaiting' : (_ctx.state.autopilot.status === 'planning' ? 'autopilotPlanning' : (_ctx.state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable')))))), 1 /* TEXT */)
-                                ], 10 /* CLASS, PROPS */, _hoisted_520))
+                                ], 10 /* CLASS, PROPS */, _hoisted_534))
                               : _createCommentVNode("v-if", true),
                             _createElementVNode("div", {
                               class: "taxi-map-controls",
@@ -4278,26 +4373,26 @@ export function render(_ctx, _cache) {
                             }, [
                               _createElementVNode("button", {
                                 type: "button",
-                                onClick: _cache[173] || (_cache[173] = $event => (_ctx.hud.zoomMap(0.8))),
+                                onClick: _cache[180] || (_cache[180] = $event => (_ctx.hud.zoomMap(0.8))),
                                 title: _ctx.t('mapZoomIn'),
                                 "aria-label": _ctx.t('mapZoomIn')
-                              }, "+", 8 /* PROPS */, _hoisted_522),
+                              }, "+", 8 /* PROPS */, _hoisted_536),
                               _createElementVNode("button", {
                                 type: "button",
-                                onClick: _cache[174] || (_cache[174] = $event => (_ctx.hud.zoomMap(1.25))),
+                                onClick: _cache[181] || (_cache[181] = $event => (_ctx.hud.zoomMap(1.25))),
                                 title: _ctx.t('mapZoomOut'),
                                 "aria-label": _ctx.t('mapZoomOut')
-                              }, "−", 8 /* PROPS */, _hoisted_523),
+                              }, "−", 8 /* PROPS */, _hoisted_537),
                               _createElementVNode("button", {
                                 type: "button",
-                                onClick: _cache[175] || (_cache[175] = $event => (_ctx.hud.followMap())),
+                                onClick: _cache[182] || (_cache[182] = $event => (_ctx.hud.followMap())),
                                 class: _normalizeClass({'taxi-map-controls--following': _ctx.mapFollowing}),
                                 title: _ctx.t('mapFollow'),
                                 "aria-label": _ctx.t('mapFollow')
-                              }, "◎", 10 /* CLASS, PROPS */, _hoisted_524)
-                            ], 8 /* PROPS */, _hoisted_521)
+                              }, "◎", 10 /* CLASS, PROPS */, _hoisted_538)
+                            ], 8 /* PROPS */, _hoisted_535)
                           ]),
-                          _createElementVNode("div", _hoisted_525, [
+                          _createElementVNode("div", _hoisted_539, [
                             _createElementVNode("span", null, _toDisplayString(_ctx.t('arrival')), 1 /* TEXT */),
                             _createElementVNode("strong", null, _toDisplayString(_ctx.getArrivalTime(_ctx.state.etaMinutes)), 1 /* TEXT */),
                             _createElementVNode("small", null, _toDisplayString(_ctx.formatEta(_ctx.state.etaMinutes)) + " · " + _toDisplayString(_ctx.formatDistance(_ctx.state.distanceToTarget)), 1 /* TEXT */)
@@ -4311,22 +4406,22 @@ export function render(_ctx, _cache) {
                           _createElementVNode("button", {
                             type: "button",
                             class: "taxi-map__fleet",
-                            onClick: _cache[176] || (_cache[176] = $event => (_ctx.hud.toggleFleet())),
+                            onClick: _cache[183] || (_cache[183] = $event => (_ctx.hud.toggleFleet())),
                             title: _ctx.t('fleetTitle'),
                             "aria-label": _ctx.t('fleetTitle')
                           }, [
-                            _cache[296] || (_cache[296] = _createElementVNode("strong", null, "F", -1 /* CACHED */)),
+                            _cache[304] || (_cache[304] = _createElementVNode("strong", null, "F", -1 /* CACHED */)),
                             _createElementVNode("span", null, _toDisplayString(_ctx.state.fleet.activeDrivers || 0), 1 /* TEXT */)
-                          ], 8 /* PROPS */, _hoisted_526)
+                          ], 8 /* PROPS */, _hoisted_540)
                         ]),
-                        _createElementVNode("div", _hoisted_527, [
-                          _createElementVNode("div", _hoisted_528, [
-                            _cache[298] || (_cache[298] = _createElementVNode("div", { class: "taxi-fuel-route__icon" }, "⛽", -1 /* CACHED */)),
-                            _createElementVNode("div", _hoisted_529, [
+                        _createElementVNode("div", _hoisted_541, [
+                          _createElementVNode("div", _hoisted_542, [
+                            _cache[306] || (_cache[306] = _createElementVNode("div", { class: "taxi-fuel-route__icon" }, "⛽", -1 /* CACHED */)),
+                            _createElementVNode("div", _hoisted_543, [
                               _createElementVNode("strong", null, _toDisplayString(_ctx.state.fuelDetour.stationName || _ctx.t('fuelRouteTitle')), 1 /* TEXT */),
                               _createElementVNode("span", null, _toDisplayString(_ctx.t('fuelRouteDesc', {station: _ctx.state.fuelDetour.stationName})), 1 /* TEXT */)
                             ]),
-                            _createElementVNode("div", _hoisted_530, _toDisplayString(_ctx.formatDistance(_ctx.state.distanceToTarget)), 1 /* TEXT */)
+                            _createElementVNode("div", _hoisted_544, _toDisplayString(_ctx.formatDistance(_ctx.state.distanceToTarget)), 1 /* TEXT */)
                           ]),
                           (_ctx.state.vehicleEnergy.available)
                             ? (_openBlock(), _createElementBlock("div", {
@@ -4335,45 +4430,45 @@ export function render(_ctx, _cache) {
                                 style: _normalizeStyle({'background': _ctx.getRouteFuelGaugeBackground()}),
                                 title: _ctx.t('estimatedRange')
                               }, [
-                                _createElementVNode("div", _hoisted_532, [
+                                _createElementVNode("div", _hoisted_546, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('fuelRemainingAmount')), 1 /* TEXT */),
                                   _createElementVNode("strong", null, _toDisplayString(_ctx.formatDashboardEnergy()), 1 /* TEXT */),
                                   _createElementVNode("small", null, _toDisplayString(_ctx.t('estimatedRange')) + " · " + _toDisplayString(_ctx.formatEnergyRange(_ctx.state.vehicleEnergy.estimatedRangeKm)), 1 /* TEXT */)
                                 ])
-                              ], 12 /* STYLE, PROPS */, _hoisted_531))
+                              ], 12 /* STYLE, PROPS */, _hoisted_545))
                             : _createCommentVNode("v-if", true),
                           (!_ctx.state.fuelDetour.hadTrip)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_533, _toDisplayString(_ctx.t('fuelRouteSearch')), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_547, _toDisplayString(_ctx.t('fuelRouteSearch')), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true),
                           (_ctx.state.fuelDetour.hadTrip && !_ctx.state.fuelDetour.passengerOnboard)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_534, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_548, [
                                 _createElementVNode("span", null, _toDisplayString(_ctx.state.isDelivery ? _ctx.t('toCargo') : _ctx.t('toPassenger')), 1 /* TEXT */),
                                 _createElementVNode("strong", null, _toDisplayString(_ctx.state.isDelivery ? _ctx.t('deliveryOrder') : _ctx.state.passengerName), 1 /* TEXT */)
                               ]))
                             : _createCommentVNode("v-if", true),
                           (_ctx.state.fuelDetour.passengerOnboard)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_535, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_549, [
                                 _createElementVNode("span", null, _toDisplayString(_ctx.t('fuelRoutePassenger')), 1 /* TEXT */),
                                 _createElementVNode("strong", null, "−" + _toDisplayString(_ctx.formatNumber(_ctx.state.fuelDetour.penaltyPercent, 2)) + "%", 1 /* TEXT */)
                               ]))
                             : _createCommentVNode("v-if", true),
-                          _createElementVNode("div", _hoisted_536, [
-                            _createElementVNode("div", _hoisted_537, [
+                          _createElementVNode("div", _hoisted_550, [
+                            _createElementVNode("div", _hoisted_551, [
                               _createElementVNode("span", null, _toDisplayString(_ctx.t('progress_fuel')), 1 /* TEXT */),
                               _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.getProgressPercent(), 0)) + "%", 1 /* TEXT */)
                             ]),
-                            _createElementVNode("div", _hoisted_538, [
+                            _createElementVNode("div", _hoisted_552, [
                               _createElementVNode("span", {
                                 style: _normalizeStyle({'width': _ctx.getProgressPercent() + '%'})
                               }, null, 4 /* STYLE */)
                             ])
                           ]),
-                          _createElementVNode("div", _hoisted_539, [
-                            _createElementVNode("div", _hoisted_540, [
+                          _createElementVNode("div", _hoisted_553, [
+                            _createElementVNode("div", _hoisted_554, [
                               _createElementVNode("span", null, _toDisplayString(_ctx.t('arrival')), 1 /* TEXT */),
                               _createElementVNode("strong", null, _toDisplayString(_ctx.getArrivalTime(_ctx.state.etaMinutes)), 1 /* TEXT */)
                             ]),
-                            _createElementVNode("div", _hoisted_541, [
+                            _createElementVNode("div", _hoisted_555, [
                               _createElementVNode("span", null, _toDisplayString(_ctx.t('balance')), 1 /* TEXT */),
                               _createElementVNode("strong", null, _toDisplayString(_ctx.formatMoney(_ctx.state.balance)), 1 /* TEXT */)
                             ])
@@ -4381,35 +4476,35 @@ export function render(_ctx, _cache) {
                           _createElementVNode("button", {
                             type: "button",
                             class: "taxi-fuel-route__cancel taxi-action taxi-action--secondary",
-                            onClick: _cache[177] || (_cache[177] = $event => (_ctx.hud.cancelFuelRoute()))
+                            onClick: _cache[184] || (_cache[184] = $event => (_ctx.hud.cancelFuelRoute()))
                           }, _toDisplayString(_ctx.t('cancelFuelRoute')), 1 /* TEXT */)
                         ])
                       ]))
                     : _createCommentVNode("v-if", true),
                   (!_ctx.earthOpen && !_ctx.settingsOpen && !_ctx.profileOpen && !_ctx.fuelStationOpen && !_ctx.fleetOpen && _ctx.state.active && (_ctx.state.phase === 'toPickup' || _ctx.state.phase === 'toStop' || _ctx.state.phase === 'toDestination'))
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_542, [
-                        _createElementVNode("div", _hoisted_543, [
-                          _cache[301] || (_cache[301] = _createElementVNode("div", { class: "taxi-minimap-surface" }, null, -1 /* CACHED */)),
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_556, [
+                        _createElementVNode("div", _hoisted_557, [
+                          _cache[309] || (_cache[309] = _createElementVNode("div", { class: "taxi-minimap-surface" }, null, -1 /* CACHED */)),
                           (_ctx.externalPhoneMode)
-                            ? (_openBlock(), _createElementBlock("canvas", _hoisted_544))
+                            ? (_openBlock(), _createElementBlock("canvas", _hoisted_558))
                             : _createCommentVNode("v-if", true),
                           _createElementVNode("div", {
                             class: _normalizeClass(["taxi-map-interaction", {'taxi-map-interaction--panned': !_ctx.mapFollowing}]),
                             "aria-label": _ctx.t('mapDrag')
-                          }, null, 10 /* CLASS, PROPS */, _hoisted_545),
-                          _createElementVNode("div", _hoisted_546, [
+                          }, null, 10 /* CLASS, PROPS */, _hoisted_559),
+                          _createElementVNode("div", _hoisted_560, [
                             (_ctx.settings.aiDriver.enabled)
                               ? (_openBlock(), _createElementBlock("button", {
                                   key: 0,
                                   type: "button",
                                   class: _normalizeClass(["taxi-map__autopilot", {'taxi-map__autopilot--active': _ctx.state.autopilot.enabled, 'taxi-map__autopilot--recovering': _ctx.state.autopilot.status === 'recovering'}]),
-                                  onClick: _cache[178] || (_cache[178] = $event => (_ctx.hud.toggleAutopilot())),
+                                  onClick: _cache[185] || (_cache[185] = $event => (_ctx.hud.toggleAutopilot())),
                                   disabled: !_ctx.state.autopilot.available,
                                   title: _ctx.t(_ctx.state.autopilot.available ? (_ctx.state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable') : 'autopilotUnavailable')
                                 }, [
-                                  _cache[299] || (_cache[299] = _createElementVNode("strong", null, "AI", -1 /* CACHED */)),
+                                  _cache[307] || (_cache[307] = _createElementVNode("strong", null, "AI", -1 /* CACHED */)),
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t(_ctx.state.autopilot.status === 'recovering' ? 'autopilotRecovering' : (_ctx.state.autopilot.status === 'waitingTraffic' ? 'autopilotWaitingTraffic' : (_ctx.state.autopilot.status === 'waitingSignal' ? 'autopilotWaiting' : (_ctx.state.autopilot.status === 'planning' ? 'autopilotPlanning' : (_ctx.state.autopilot.enabled ? 'autopilotDisable' : 'autopilotEnable')))))), 1 /* TEXT */)
-                                ], 10 /* CLASS, PROPS */, _hoisted_547))
+                                ], 10 /* CLASS, PROPS */, _hoisted_561))
                               : _createCommentVNode("v-if", true),
                             _createElementVNode("div", {
                               class: "taxi-map-controls",
@@ -4417,26 +4512,26 @@ export function render(_ctx, _cache) {
                             }, [
                               _createElementVNode("button", {
                                 type: "button",
-                                onClick: _cache[179] || (_cache[179] = $event => (_ctx.hud.zoomMap(0.8))),
+                                onClick: _cache[186] || (_cache[186] = $event => (_ctx.hud.zoomMap(0.8))),
                                 title: _ctx.t('mapZoomIn'),
                                 "aria-label": _ctx.t('mapZoomIn')
-                              }, "+", 8 /* PROPS */, _hoisted_549),
+                              }, "+", 8 /* PROPS */, _hoisted_563),
                               _createElementVNode("button", {
                                 type: "button",
-                                onClick: _cache[180] || (_cache[180] = $event => (_ctx.hud.zoomMap(1.25))),
+                                onClick: _cache[187] || (_cache[187] = $event => (_ctx.hud.zoomMap(1.25))),
                                 title: _ctx.t('mapZoomOut'),
                                 "aria-label": _ctx.t('mapZoomOut')
-                              }, "−", 8 /* PROPS */, _hoisted_550),
+                              }, "−", 8 /* PROPS */, _hoisted_564),
                               _createElementVNode("button", {
                                 type: "button",
-                                onClick: _cache[181] || (_cache[181] = $event => (_ctx.hud.followMap())),
+                                onClick: _cache[188] || (_cache[188] = $event => (_ctx.hud.followMap())),
                                 class: _normalizeClass({'taxi-map-controls--following': _ctx.mapFollowing}),
                                 title: _ctx.t('mapFollow'),
                                 "aria-label": _ctx.t('mapFollow')
-                              }, "◎", 10 /* CLASS, PROPS */, _hoisted_551)
-                            ], 8 /* PROPS */, _hoisted_548)
+                              }, "◎", 10 /* CLASS, PROPS */, _hoisted_565)
+                            ], 8 /* PROPS */, _hoisted_562)
                           ]),
-                          _createElementVNode("div", _hoisted_552, [
+                          _createElementVNode("div", _hoisted_566, [
                             _createElementVNode("span", null, _toDisplayString(_ctx.t('arrival')), 1 /* TEXT */),
                             _createElementVNode("strong", null, _toDisplayString(_ctx.getArrivalTime(_ctx.state.etaMinutes)), 1 /* TEXT */),
                             _createElementVNode("small", null, _toDisplayString(_ctx.formatEta(_ctx.state.etaMinutes)) + " · " + _toDisplayString(_ctx.formatDistance(_ctx.state.distanceToTarget)), 1 /* TEXT */)
@@ -4450,29 +4545,29 @@ export function render(_ctx, _cache) {
                           _createElementVNode("button", {
                             type: "button",
                             class: "taxi-map__fleet",
-                            onClick: _cache[182] || (_cache[182] = $event => (_ctx.hud.toggleFleet())),
+                            onClick: _cache[189] || (_cache[189] = $event => (_ctx.hud.toggleFleet())),
                             title: _ctx.t('fleetTitle'),
                             "aria-label": _ctx.t('fleetTitle')
                           }, [
-                            _cache[300] || (_cache[300] = _createElementVNode("strong", null, "F", -1 /* CACHED */)),
+                            _cache[308] || (_cache[308] = _createElementVNode("strong", null, "F", -1 /* CACHED */)),
                             _createElementVNode("span", null, _toDisplayString(_ctx.state.fleet.activeDrivers || 0), 1 /* TEXT */)
-                          ], 8 /* PROPS */, _hoisted_553)
+                          ], 8 /* PROPS */, _hoisted_567)
                         ]),
-                        _createElementVNode("div", _hoisted_554, [
-                          _createElementVNode("div", _hoisted_555, [
-                            _createElementVNode("div", _hoisted_556, _toDisplayString(_ctx.state.isDelivery ? '📦' : _ctx.getInitials(_ctx.state.passengerName)), 1 /* TEXT */),
-                            _createElementVNode("div", _hoisted_557, [
+                        _createElementVNode("div", _hoisted_568, [
+                          _createElementVNode("div", _hoisted_569, [
+                            _createElementVNode("div", _hoisted_570, _toDisplayString(_ctx.state.isDelivery ? '📦' : _ctx.getInitials(_ctx.state.passengerName)), 1 /* TEXT */),
+                            _createElementVNode("div", _hoisted_571, [
                               _createElementVNode("strong", {
                                 title: _ctx.state.isDelivery ? _ctx.t('deliveryOrder') : (_ctx.state.passengerName || _ctx.getPhaseLabel())
-                              }, _toDisplayString(_ctx.state.isDelivery ? _ctx.t('deliveryOrder') : (_ctx.state.passengerName || _ctx.getPhaseLabel())), 9 /* TEXT, PROPS */, _hoisted_558),
+                              }, _toDisplayString(_ctx.state.isDelivery ? _ctx.t('deliveryOrder') : (_ctx.state.passengerName || _ctx.getPhaseLabel())), 9 /* TEXT, PROPS */, _hoisted_572),
                               _createElementVNode("span", null, _toDisplayString(_ctx.getPhaseLabel()) + " · " + _toDisplayString(_ctx.getStatusText()), 1 /* TEXT */)
                             ]),
-                            _createElementVNode("div", _hoisted_559, _toDisplayString(_ctx.formatDistance(_ctx.state.distanceToTarget)), 1 /* TEXT */)
+                            _createElementVNode("div", _hoisted_573, _toDisplayString(_ctx.formatDistance(_ctx.state.distanceToTarget)), 1 /* TEXT */)
                           ]),
                           (_ctx.shouldShowQueuedOrder())
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_560, _toDisplayString(_ctx.t('nextOfferAccepted')) + " · " + _toDisplayString(_ctx.getOfferName(_ctx.state.nextOffer)), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_574, _toDisplayString(_ctx.t('nextOfferAccepted')) + " · " + _toDisplayString(_ctx.getOfferName(_ctx.state.nextOffer)), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true),
-                          _createElementVNode("div", _hoisted_561, [
+                          _createElementVNode("div", _hoisted_575, [
                             (!_ctx.state.isDelivery)
                               ? (_openBlock(), _createElementBlock("div", {
                                   key: 0,
@@ -4483,9 +4578,9 @@ export function render(_ctx, _cache) {
                                     class: "taxi-calmness-emoji",
                                     role: "img",
                                     "aria-label": (_ctx.t('passengerCalmness')) + " · " + (_ctx.formatNumber(_ctx.state.passengerCalmness, 0)) + "%"
-                                  }, _toDisplayString(_ctx.getCalmnessEmoji(_ctx.state.passengerCalmness)), 9 /* TEXT, PROPS */, _hoisted_563),
-                                  _createElementVNode("strong", _hoisted_564, _toDisplayString(_ctx.formatNumber(_ctx.state.passengerCalmness, 0)) + "%", 1 /* TEXT */)
-                                ], 10 /* CLASS, PROPS */, _hoisted_562))
+                                  }, _toDisplayString(_ctx.getCalmnessEmoji(_ctx.state.passengerCalmness)), 9 /* TEXT, PROPS */, _hoisted_577),
+                                  _createElementVNode("strong", _hoisted_578, _toDisplayString(_ctx.formatNumber(_ctx.state.passengerCalmness, 0)) + "%", 1 /* TEXT */)
+                                ], 10 /* CLASS, PROPS */, _hoisted_576))
                               : _createCommentVNode("v-if", true),
                             (_ctx.state.isDelivery)
                               ? (_openBlock(), _createElementBlock("div", {
@@ -4493,14 +4588,14 @@ export function render(_ctx, _cache) {
                                   class: "taxi-trip-dashboard__metric taxi-trip-dashboard__metric--cargo",
                                   title: _ctx.t('cargoWeight')
                                 }, [
-                                  _createElementVNode("span", _hoisted_566, _toDisplayString(_ctx.t('cargoWeight')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_567, [
+                                  _createElementVNode("span", _hoisted_580, _toDisplayString(_ctx.t('cargoWeight')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_581, [
                                     _createElementVNode("strong", null, _toDisplayString(_ctx.formatCargoWeight(_ctx.state.cargoWeightKg)), 1 /* TEXT */),
                                     (_ctx.state.cargoWeightBonusPercent > 0)
-                                      ? (_openBlock(), _createElementBlock("small", _hoisted_568, "+" + _toDisplayString(_ctx.formatNumber(_ctx.state.cargoWeightBonusPercent, 0)) + "%", 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("small", _hoisted_582, "+" + _toDisplayString(_ctx.formatNumber(_ctx.state.cargoWeightBonusPercent, 0)) + "%", 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true)
                                   ])
-                                ], 8 /* PROPS */, _hoisted_565))
+                                ], 8 /* PROPS */, _hoisted_579))
                               : _createCommentVNode("v-if", true),
                             (_ctx.state.isDelivery)
                               ? (_openBlock(), _createElementBlock("div", {
@@ -4508,11 +4603,11 @@ export function render(_ctx, _cache) {
                                   class: _normalizeClass(["taxi-trip-dashboard__metric", {'taxi-trip-dashboard__metric--danger': _ctx.state.cargoDamagePercent > 0}]),
                                   title: _ctx.t('cargoDamage')
                                 }, [
-                                  _createElementVNode("span", _hoisted_570, _toDisplayString(_ctx.t('cargoDamage')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_571, [
+                                  _createElementVNode("span", _hoisted_584, _toDisplayString(_ctx.t('cargoDamage')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_585, [
                                     _createElementVNode("strong", null, _toDisplayString(_ctx.formatNumber(_ctx.state.cargoDamagePercent, 1)) + "%", 1 /* TEXT */)
                                   ])
-                                ], 10 /* CLASS, PROPS */, _hoisted_569))
+                                ], 10 /* CLASS, PROPS */, _hoisted_583))
                               : _createCommentVNode("v-if", true),
                             (_ctx.state.phase === 'toPickup' && !_ctx.state.isDelivery)
                               ? (_openBlock(), _createElementBlock("div", {
@@ -4520,19 +4615,19 @@ export function render(_ctx, _cache) {
                                   class: _normalizeClass(["taxi-trip-dashboard__metric", {'taxi-trip-dashboard__metric--danger': _ctx.state.pickupLate}]),
                                   title: _ctx.state.pickupLate ? _ctx.t('pickupLate', {time: _ctx.formatCountdown(_ctx.state.pickupLateSeconds)}) : _ctx.t('pickupDeadline')
                                 }, [
-                                  _createElementVNode("span", _hoisted_573, _toDisplayString(_ctx.t('dashPickup')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_574, [
+                                  _createElementVNode("span", _hoisted_587, _toDisplayString(_ctx.t('dashPickup')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_588, [
                                     (!_ctx.state.pickupLate)
-                                      ? (_openBlock(), _createElementBlock("strong", _hoisted_575, _toDisplayString(_ctx.formatCountdown(_ctx.state.pickupTimeRemaining)), 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("strong", _hoisted_589, _toDisplayString(_ctx.formatCountdown(_ctx.state.pickupTimeRemaining)), 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true),
                                     (_ctx.state.pickupLate)
-                                      ? (_openBlock(), _createElementBlock("strong", _hoisted_576, "−" + _toDisplayString(_ctx.formatNumber(_ctx.state.penalties.pickupPercent, 1)) + "%", 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("strong", _hoisted_590, "−" + _toDisplayString(_ctx.formatNumber(_ctx.state.penalties.pickupPercent, 1)) + "%", 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true),
                                     (_ctx.state.pickupLate)
-                                      ? (_openBlock(), _createElementBlock("small", _hoisted_577, "+" + _toDisplayString(_ctx.formatCountdown(_ctx.state.pickupLateSeconds)), 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("small", _hoisted_591, "+" + _toDisplayString(_ctx.formatCountdown(_ctx.state.pickupLateSeconds)), 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true)
                                   ])
-                                ], 10 /* CLASS, PROPS */, _hoisted_572))
+                                ], 10 /* CLASS, PROPS */, _hoisted_586))
                               : _createCommentVNode("v-if", true),
                             (_ctx.state.phase === 'toStop')
                               ? (_openBlock(), _createElementBlock("div", {
@@ -4540,11 +4635,11 @@ export function render(_ctx, _cache) {
                                   class: "taxi-trip-dashboard__metric",
                                   title: _ctx.t('stopProgress', {current: _ctx.state.currentStopIndex, total: _ctx.state.stopCount})
                                 }, [
-                                  _createElementVNode("span", _hoisted_579, _toDisplayString(_ctx.t('dashStop')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_580, [
+                                  _createElementVNode("span", _hoisted_593, _toDisplayString(_ctx.t('dashStop')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_594, [
                                     _createElementVNode("strong", null, _toDisplayString(_ctx.state.currentStopIndex) + "/" + _toDisplayString(_ctx.state.stopCount), 1 /* TEXT */)
                                   ])
-                                ], 8 /* PROPS */, _hoisted_578))
+                                ], 8 /* PROPS */, _hoisted_592))
                               : _createCommentVNode("v-if", true),
                             (_ctx.state.rushOrder)
                               ? (_openBlock(), _createElementBlock("div", {
@@ -4552,19 +4647,19 @@ export function render(_ctx, _cache) {
                                   class: _normalizeClass(["taxi-trip-dashboard__metric", {'taxi-trip-dashboard__metric--danger': _ctx.state.rushBonusLost}]),
                                   title: _ctx.state.rushBonusLost ? _ctx.t('rushLost') : _ctx.t('rushBonus', {amount: _ctx.formatMoney(_ctx.state.rushBonusAmount)})
                                 }, [
-                                  _createElementVNode("span", _hoisted_582, _toDisplayString(_ctx.t('dashRush')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_583, [
+                                  _createElementVNode("span", _hoisted_596, _toDisplayString(_ctx.t('dashRush')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_597, [
                                     (!_ctx.state.rushBonusLost)
-                                      ? (_openBlock(), _createElementBlock("strong", _hoisted_584, _toDisplayString(_ctx.formatCountdown(_ctx.state.rushTimeRemaining)), 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("strong", _hoisted_598, _toDisplayString(_ctx.formatCountdown(_ctx.state.rushTimeRemaining)), 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true),
                                     (_ctx.state.rushBonusLost)
-                                      ? (_openBlock(), _createElementBlock("strong", _hoisted_585, _toDisplayString(_ctx.t('dashLost')), 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("strong", _hoisted_599, _toDisplayString(_ctx.t('dashLost')), 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true),
                                     (!_ctx.state.rushBonusLost)
-                                      ? (_openBlock(), _createElementBlock("small", _hoisted_586, "+" + _toDisplayString(_ctx.formatMoney(_ctx.state.rushBonusAmount)), 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("small", _hoisted_600, "+" + _toDisplayString(_ctx.formatMoney(_ctx.state.rushBonusAmount)), 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true)
                                   ])
-                                ], 10 /* CLASS, PROPS */, _hoisted_581))
+                                ], 10 /* CLASS, PROPS */, _hoisted_595))
                               : _createCommentVNode("v-if", true),
                             (_ctx.state.ratingBonusPercent > 0)
                               ? (_openBlock(), _createElementBlock("div", {
@@ -4572,40 +4667,40 @@ export function render(_ctx, _cache) {
                                   class: "taxi-trip-dashboard__metric",
                                   title: _ctx.t('ratingBonusLine', {percent: _ctx.formatBonusPercent(_ctx.state.ratingBonusPercent), amount: _ctx.formatMoney(_ctx.state.ratingBonusAmount)})
                                 }, [
-                                  _createElementVNode("span", _hoisted_588, _toDisplayString(_ctx.t('dashRating')), 1 /* TEXT */),
-                                  _createElementVNode("div", _hoisted_589, [
+                                  _createElementVNode("span", _hoisted_602, _toDisplayString(_ctx.t('dashRating')), 1 /* TEXT */),
+                                  _createElementVNode("div", _hoisted_603, [
                                     _createElementVNode("strong", null, "+" + _toDisplayString(_ctx.formatBonusPercent(_ctx.state.ratingBonusPercent)) + "%", 1 /* TEXT */),
                                     _createElementVNode("small", null, "+" + _toDisplayString(_ctx.formatMoney(_ctx.state.ratingBonusAmount)), 1 /* TEXT */)
                                   ])
-                                ], 8 /* PROPS */, _hoisted_587))
+                                ], 8 /* PROPS */, _hoisted_601))
                               : _createCommentVNode("v-if", true)
                           ]),
-                          _createElementVNode("div", _hoisted_590, [
-                            _createElementVNode("div", _hoisted_591, [
+                          _createElementVNode("div", _hoisted_604, [
+                            _createElementVNode("div", _hoisted_605, [
                               _createElementVNode("span", null, _toDisplayString(_ctx.getProgressLabel()), 1 /* TEXT */),
                               _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.getProgressPercent(), 0)) + "%", 1 /* TEXT */)
                             ]),
-                            _createElementVNode("div", _hoisted_592, [
+                            _createElementVNode("div", _hoisted_606, [
                               _createElementVNode("div", {
                                 class: "taxi-progress__fill",
                                 style: _normalizeStyle({'width': _ctx.getProgressPercent() + '%'})
                               }, null, 4 /* STYLE */),
                               (_ctx.state.isMultiStop && (_ctx.state.phase === 'toStop' || _ctx.state.phase === 'toDestination'))
-                                ? (_openBlock(), _createElementBlock("div", _hoisted_593, [
+                                ? (_openBlock(), _createElementBlock("div", _hoisted_607, [
                                     (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.state.stopProgressMarkers, (marker, index) => {
                                       return (_openBlock(), _createElementBlock("span", {
                                         class: _normalizeClass(["taxi-progress__marker", {'taxi-progress__marker--active': marker.active, 'taxi-progress__marker--completed': marker.completed}]),
                                         key: marker.index,
                                         style: _normalizeStyle({'left': marker.progressPercent + '%'}),
                                         title: _ctx.t('stopProgress', {current: marker.index, total: _ctx.state.stopCount})
-                                      }, null, 14 /* CLASS, STYLE, PROPS */, _hoisted_594))
+                                      }, null, 14 /* CLASS, STYLE, PROPS */, _hoisted_608))
                                     }), 128 /* KEYED_FRAGMENT */))
                                   ]))
                                 : _createCommentVNode("v-if", true)
                             ])
                           ]),
                           (_ctx.state.isMultiStop && _ctx.state.nextStopDistance > 0)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_595, _toDisplayString(_ctx.t('nextStop')) + " · " + _toDisplayString(_ctx.formatDistance(_ctx.state.nextStopDistance)), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_609, _toDisplayString(_ctx.t('nextStop')) + " · " + _toDisplayString(_ctx.formatDistance(_ctx.state.nextStopDistance)), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true),
                           (_ctx.state.vehicleEnergy.available)
                             ? (_openBlock(), _createElementBlock("div", {
@@ -4614,94 +4709,94 @@ export function render(_ctx, _cache) {
                               }, _toDisplayString(_ctx.state.fuelEnoughForTrip ? _ctx.t('fuelEnough') : _ctx.t('fuelNotEnough')), 3 /* TEXT, CLASS */))
                             : _createCommentVNode("v-if", true),
                           (_ctx.state.tripEvent.kind === 'fragileCargo')
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_596, _toDisplayString(_ctx.t('fragileCargo')), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_610, _toDisplayString(_ctx.t('fragileCargo')), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true),
                           _createElementVNode("button", {
                             type: "button",
                             class: "taxi-trip-primary-action taxi-offline-hold taxi-action taxi-action--danger-secondary",
-                            onMousedown: _cache[183] || (_cache[183] = $event => (_ctx.hud.beginOfflineHold($event))),
-                            onMouseup: _cache[184] || (_cache[184] = $event => (_ctx.hud.cancelOfflineHold())),
-                            onMouseleave: _cache[185] || (_cache[185] = $event => (_ctx.hud.cancelOfflineHold()))
+                            onMousedown: _cache[190] || (_cache[190] = $event => (_ctx.hud.beginOfflineHold($event))),
+                            onMouseup: _cache[191] || (_cache[191] = $event => (_ctx.hud.cancelOfflineHold())),
+                            onMouseleave: _cache[192] || (_cache[192] = $event => (_ctx.hud.cancelOfflineHold()))
                           }, [
-                            _cache[302] || (_cache[302] = _createElementVNode("span", { class: "taxi-offline-hold__fill" }, null, -1 /* CACHED */)),
-                            _createElementVNode("span", _hoisted_597, [
+                            _cache[310] || (_cache[310] = _createElementVNode("span", { class: "taxi-offline-hold__fill" }, null, -1 /* CACHED */)),
+                            _createElementVNode("span", _hoisted_611, [
                               _createElementVNode("span", null, _toDisplayString(_ctx.t('holdOffline')), 1 /* TEXT */)
                             ])
                           ], 32 /* NEED_HYDRATION */),
-                          _createElementVNode("div", _hoisted_598, [
-                            _createElementVNode("div", _hoisted_599, [
+                          _createElementVNode("div", _hoisted_612, [
+                            _createElementVNode("div", _hoisted_613, [
                               _createElementVNode("span", null, _toDisplayString(_ctx.t('projectedPayout')), 1 /* TEXT */),
                               _createElementVNode("strong", {
                                 title: _ctx.formatMoneyFull(_ctx.state.adjustedFare + _ctx.state.tipAmount)
-                              }, _toDisplayString(_ctx.formatMoneyFull(_ctx.state.adjustedFare + _ctx.state.tipAmount)), 9 /* TEXT, PROPS */, _hoisted_600)
+                              }, _toDisplayString(_ctx.formatMoneyFull(_ctx.state.adjustedFare + _ctx.state.tipAmount)), 9 /* TEXT, PROPS */, _hoisted_614)
                             ]),
-                            _createElementVNode("div", _hoisted_601, [
+                            _createElementVNode("div", _hoisted_615, [
                               _createElementVNode("span", null, _toDisplayString(_ctx.t('estimate')), 1 /* TEXT */),
                               _createElementVNode("strong", {
                                 title: _ctx.formatMoneyFull(_ctx.state.estimatedFare)
-                              }, _toDisplayString(_ctx.formatMoneyFull(_ctx.state.estimatedFare)), 9 /* TEXT, PROPS */, _hoisted_602)
+                              }, _toDisplayString(_ctx.formatMoneyFull(_ctx.state.estimatedFare)), 9 /* TEXT, PROPS */, _hoisted_616)
                             ]),
-                            _createElementVNode("div", _hoisted_603, [
+                            _createElementVNode("div", _hoisted_617, [
                               _createElementVNode("span", null, _toDisplayString(_ctx.state.isDelivery ? _ctx.t('cargoDamage') : _ctx.t('reduction')), 1 /* TEXT */),
                               _createElementVNode("strong", null, "−" + _toDisplayString(_ctx.formatNumber(_ctx.state.penaltyPercent, 1)) + "%", 1 /* TEXT */)
                             ])
                           ]),
-                          _createElementVNode("div", _hoisted_604, [
+                          _createElementVNode("div", _hoisted_618, [
                             _createElementVNode("button", {
                               type: "button",
                               class: "taxi-penalty-log__header taxi-disclosure taxi-action taxi-action--tertiary",
-                              onClick: _cache[186] || (_cache[186] = $event => (_ctx.penaltiesExpanded = !_ctx.penaltiesExpanded)),
+                              onClick: _cache[193] || (_cache[193] = $event => (_ctx.penaltiesExpanded = !_ctx.penaltiesExpanded)),
                               "aria-expanded": _ctx.penaltiesExpanded,
                               "aria-controls": "taxi-penalty-events"
                             }, [
                               _createElementVNode("strong", null, _toDisplayString(_ctx.t('violationSummary', {count: _ctx.state.penaltyEvents.length, amount: _ctx.formatMoney(_ctx.getPenaltyFareLoss())})), 1 /* TEXT */),
                               _createElementVNode("span", null, _toDisplayString(_ctx.penaltiesExpanded ? '−' : '+'), 1 /* TEXT */)
-                            ], 8 /* PROPS */, _hoisted_605),
+                            ], 8 /* PROPS */, _hoisted_619),
                             (_ctx.penaltiesExpanded && !_ctx.state.penaltyEvents.length)
-                              ? (_openBlock(), _createElementBlock("div", _hoisted_606, _toDisplayString(_ctx.state.isDelivery ? _ctx.t('noCargoDamage') : _ctx.t('noViolations')), 1 /* TEXT */))
+                              ? (_openBlock(), _createElementBlock("div", _hoisted_620, _toDisplayString(_ctx.state.isDelivery ? _ctx.t('noCargoDamage') : _ctx.t('noViolations')), 1 /* TEXT */))
                               : _createCommentVNode("v-if", true),
                             (_ctx.penaltiesExpanded && _ctx.state.penaltyEvents.length)
-                              ? (_openBlock(), _createElementBlock("div", _hoisted_607, [
+                              ? (_openBlock(), _createElementBlock("div", _hoisted_621, [
                                   (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.state.penaltyEvents, (event, index) => {
                                     return (_openBlock(), _createElementBlock("div", {
                                       class: "taxi-penalty-event",
                                       key: event.id
                                     }, [
-                                      _cache[303] || (_cache[303] = _createElementVNode("div", { class: "taxi-penalty-event__icon" }, "!", -1 /* CACHED */)),
-                                      _createElementVNode("div", _hoisted_608, [
+                                      _cache[311] || (_cache[311] = _createElementVNode("div", { class: "taxi-penalty-event__icon" }, "!", -1 /* CACHED */)),
+                                      _createElementVNode("div", _hoisted_622, [
                                         _createElementVNode("strong", null, _toDisplayString(_ctx.getPenaltyLabel(event)), 1 /* TEXT */),
                                         _createElementVNode("span", null, _toDisplayString(_ctx.getPenaltyDetail(event)), 1 /* TEXT */)
                                       ]),
                                       (event.fareAmount > 0)
-                                        ? (_openBlock(), _createElementBlock("div", _hoisted_609, "−" + _toDisplayString(_ctx.formatMoney(event.fareAmount)), 1 /* TEXT */))
+                                        ? (_openBlock(), _createElementBlock("div", _hoisted_623, "−" + _toDisplayString(_ctx.formatMoney(event.fareAmount)), 1 /* TEXT */))
                                         : _createCommentVNode("v-if", true),
                                       (!event.fareAmount)
-                                        ? (_openBlock(), _createElementBlock("div", _hoisted_610, "−" + _toDisplayString(_ctx.formatNumber(event.penaltyPercent, 2)) + "%", 1 /* TEXT */))
+                                        ? (_openBlock(), _createElementBlock("div", _hoisted_624, "−" + _toDisplayString(_ctx.formatNumber(event.penaltyPercent, 2)) + "%", 1 /* TEXT */))
                                         : _createCommentVNode("v-if", true)
                                     ]))
                                   }), 128 /* KEYED_FRAGMENT */))
                                 ]))
                               : _createCommentVNode("v-if", true)
                           ]),
-                          _createElementVNode("div", _hoisted_611, [
-                            _createElementVNode("div", _hoisted_612, [
+                          _createElementVNode("div", _hoisted_625, [
+                            _createElementVNode("div", _hoisted_626, [
                               _createElementVNode("strong", null, _toDisplayString(_ctx.t('yourRating')), 1 /* TEXT */),
                               _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.state.rating, 2)) + " / 5.00", 1 /* TEXT */)
                             ]),
-                            _createElementVNode("div", _hoisted_613, [
-                              _createElementVNode("div", _hoisted_614, [
+                            _createElementVNode("div", _hoisted_627, [
+                              _createElementVNode("div", _hoisted_628, [
                                 _createElementVNode("div", {
                                   class: "taxi-ride-footer__rating-fill",
                                   style: _normalizeStyle({'width': _ctx.getRatingPercent() + '%'})
                                 }, null, 4 /* STYLE */)
                               ]),
-                              _createElementVNode("div", _hoisted_615, [
+                              _createElementVNode("div", _hoisted_629, [
                                 (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.stars, (star, index) => {
                                   return (_openBlock(), _createElementBlock("span", {
                                     class: "taxi-star",
                                     key: star
                                   }, [
-                                    _cache[304] || (_cache[304] = _createTextVNode("★", -1 /* CACHED */)),
+                                    _cache[312] || (_cache[312] = _createTextVNode("★", -1 /* CACHED */)),
                                     _createElementVNode("span", {
                                       class: "taxi-star__fill",
                                       style: _normalizeStyle({'width': _ctx.getStarFill(star) + '%'})
@@ -4716,34 +4811,34 @@ export function render(_ctx, _cache) {
                                   class: "taxi-ride-footer__energy",
                                   title: _ctx.t('estimatedRange')
                                 }, [
-                                  _cache[305] || (_cache[305] = _createElementVNode("span", { class: "taxi-ride-footer__energy-icon" }, "⛽", -1 /* CACHED */)),
-                                  _createElementVNode("span", _hoisted_617, _toDisplayString(_ctx.t('fuel_' + _ctx.state.vehicleEnergy.energyType)), 1 /* TEXT */),
+                                  _cache[313] || (_cache[313] = _createElementVNode("span", { class: "taxi-ride-footer__energy-icon" }, "⛽", -1 /* CACHED */)),
+                                  _createElementVNode("span", _hoisted_631, _toDisplayString(_ctx.t('fuel_' + _ctx.state.vehicleEnergy.energyType)), 1 /* TEXT */),
                                   _createElementVNode("strong", null, _toDisplayString(_ctx.formatDashboardEnergy()), 1 /* TEXT */),
-                                  _createElementVNode("span", _hoisted_618, "≈ " + _toDisplayString(_ctx.formatEnergyRange(_ctx.state.vehicleEnergy.estimatedRangeKm)), 1 /* TEXT */)
-                                ], 8 /* PROPS */, _hoisted_616))
+                                  _createElementVNode("span", _hoisted_632, "≈ " + _toDisplayString(_ctx.formatEnergyRange(_ctx.state.vehicleEnergy.estimatedRangeKm)), 1 /* TEXT */)
+                                ], 8 /* PROPS */, _hoisted_630))
                               : _createCommentVNode("v-if", true),
-                            _createElementVNode("div", _hoisted_619, [
-                              _createElementVNode("div", _hoisted_620, [
-                                _createElementVNode("div", _hoisted_621, [
+                            _createElementVNode("div", _hoisted_633, [
+                              _createElementVNode("div", _hoisted_634, [
+                                _createElementVNode("div", _hoisted_635, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('balance')), 1 /* TEXT */),
                                   _createElementVNode("strong", null, _toDisplayString(_ctx.formatMoney(_ctx.state.balance)), 1 /* TEXT */)
                                 ]),
-                                _createElementVNode("div", _hoisted_622, [
+                                _createElementVNode("div", _hoisted_636, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('rides')), 1 /* TEXT */),
                                   _createElementVNode("strong", {
                                     title: _ctx.state.completedRides
-                                  }, _toDisplayString(_ctx.formatCount(_ctx.state.completedRides)), 9 /* TEXT, PROPS */, _hoisted_623)
+                                  }, _toDisplayString(_ctx.formatCount(_ctx.state.completedRides)), 9 /* TEXT, PROPS */, _hoisted_637)
                                 ])
                               ]),
                               _createElementVNode("button", {
                                 type: "button",
                                 class: "taxi-offline-hold taxi-action taxi-action--danger-secondary",
-                                onMousedown: _cache[187] || (_cache[187] = $event => (_ctx.hud.beginOfflineHold($event))),
-                                onMouseup: _cache[188] || (_cache[188] = $event => (_ctx.hud.cancelOfflineHold())),
-                                onMouseleave: _cache[189] || (_cache[189] = $event => (_ctx.hud.cancelOfflineHold()))
+                                onMousedown: _cache[194] || (_cache[194] = $event => (_ctx.hud.beginOfflineHold($event))),
+                                onMouseup: _cache[195] || (_cache[195] = $event => (_ctx.hud.cancelOfflineHold())),
+                                onMouseleave: _cache[196] || (_cache[196] = $event => (_ctx.hud.cancelOfflineHold()))
                               }, [
-                                _cache[306] || (_cache[306] = _createElementVNode("span", { class: "taxi-offline-hold__fill" }, null, -1 /* CACHED */)),
-                                _createElementVNode("span", _hoisted_624, [
+                                _cache[314] || (_cache[314] = _createElementVNode("span", { class: "taxi-offline-hold__fill" }, null, -1 /* CACHED */)),
+                                _createElementVNode("span", _hoisted_638, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('holdOffline')), 1 /* TEXT */)
                                 ])
                               ], 32 /* NEED_HYDRATION */)
@@ -4754,46 +4849,46 @@ export function render(_ctx, _cache) {
                     : _createCommentVNode("v-if", true),
                   (_ctx.fuelStationOpen && (_ctx.state.fuelStation.available || _ctx.state.repairStation.available))
                     ? (_openBlock(), _createElementBlock("div", {
-                        key: 17,
+                        key: 18,
                         class: _normalizeClass(["taxi-fuel", {'taxi-fuel--magic': _ctx.state.fuelStation.magic}])
                       }, [
-                        _createElementVNode("div", _hoisted_625, [
-                          _cache[307] || (_cache[307] = _createElementVNode("div", { class: "taxi-fuel__icon" }, "⛽", -1 /* CACHED */)),
-                          _createElementVNode("div", _hoisted_626, [
+                        _createElementVNode("div", _hoisted_639, [
+                          _cache[315] || (_cache[315] = _createElementVNode("div", { class: "taxi-fuel__icon" }, "⛽", -1 /* CACHED */)),
+                          _createElementVNode("div", _hoisted_640, [
                             _createElementVNode("strong", null, _toDisplayString(_ctx.state.fuelStation.available ? (_ctx.state.fuelStation.magic ? _ctx.t('magicFuelTitle') : (_ctx.state.fuelStation.name || _ctx.t('refuelTitle'))) : _ctx.t('repairTitle')), 1 /* TEXT */)
                           ]),
                           _createElementVNode("button", {
                             type: "button",
                             class: "taxi-fuel__close taxi-action taxi-action--tertiary",
-                            onClick: _cache[190] || (_cache[190] = $event => (_ctx.hud.closeFuelStation())),
+                            onClick: _cache[197] || (_cache[197] = $event => (_ctx.hud.closeFuelStation())),
                             disabled: _ctx.state.fuelStation.refueling.active || _ctx.state.repairStation.repairing.active,
                             "aria-label": _ctx.t('refuelClose')
-                          }, "×", 8 /* PROPS */, _hoisted_627)
+                          }, "×", 8 /* PROPS */, _hoisted_641)
                         ]),
                         (_ctx.state.fuelStation.magic)
-                          ? (_openBlock(), _createElementBlock("div", _hoisted_628, [
+                          ? (_openBlock(), _createElementBlock("div", _hoisted_642, [
                               _createElementVNode("strong", null, _toDisplayString(_ctx.t('magicFuelNoStations')), 1 /* TEXT */),
                               _createElementVNode("span", null, _toDisplayString(_ctx.t('magicFuelDesc')), 1 /* TEXT */)
                             ]))
                           : _createCommentVNode("v-if", true),
                         (_ctx.getSelectedFuelOption())
-                          ? (_openBlock(), _createElementBlock("div", _hoisted_629, [
-                              _createElementVNode("div", _hoisted_630, [
+                          ? (_openBlock(), _createElementBlock("div", _hoisted_643, [
+                              _createElementVNode("div", _hoisted_644, [
                                 _createElementVNode("span", null, _toDisplayString(_ctx.t('refuelBalance')), 1 /* TEXT */),
                                 _createElementVNode("strong", null, _toDisplayString(_ctx.formatMoney(_ctx.state.balance)), 1 /* TEXT */)
                               ]),
-                              _createElementVNode("div", _hoisted_631, [
+                              _createElementVNode("div", _hoisted_645, [
                                 _createElementVNode("span", null, _toDisplayString(_ctx.t('fuel_' + _ctx.selectedFuelType)), 1 /* TEXT */),
                                 _createElementVNode("strong", null, _toDisplayString(_ctx.formatNumber(_ctx.getDisplayedFuelPercent(), 0)) + "%", 1 /* TEXT */)
                               ]),
-                              _createElementVNode("div", _hoisted_632, [
+                              _createElementVNode("div", _hoisted_646, [
                                 _createElementVNode("span", null, _toDisplayString(_ctx.t('refuelPrice')), 1 /* TEXT */),
                                 _createElementVNode("strong", null, _toDisplayString(_ctx.formatMoney(_ctx.getFuelDisplayPrice(_ctx.getSelectedFuelOption()))) + "/" + _toDisplayString(_ctx.getFuelDisplayUnit(_ctx.getSelectedFuelOption())), 1 /* TEXT */)
                               ])
                             ]))
                           : _createCommentVNode("v-if", true),
                         (_ctx.state.fuelStation.options.length > 1)
-                          ? (_openBlock(), _createElementBlock("div", _hoisted_633, [
+                          ? (_openBlock(), _createElementBlock("div", _hoisted_647, [
                               (_openBlock(true), _createElementBlock(_Fragment, null, _renderList(_ctx.state.fuelStation.options, (option, index) => {
                                 return (_openBlock(), _createElementBlock("button", {
                                   type: "button",
@@ -4801,13 +4896,13 @@ export function render(_ctx, _cache) {
                                   key: option.energyType,
                                   onClick: $event => (_ctx.hud.selectFuelType(option.energyType)),
                                   disabled: _ctx.state.fuelStation.refueling.active
-                                }, _toDisplayString(_ctx.t('fuel_' + option.energyType)), 11 /* TEXT, CLASS, PROPS */, _hoisted_634))
+                                }, _toDisplayString(_ctx.t('fuel_' + option.energyType)), 11 /* TEXT, CLASS, PROPS */, _hoisted_648))
                               }), 128 /* KEYED_FRAGMENT */))
                             ]))
                           : _createCommentVNode("v-if", true),
                         (_ctx.getSelectedFuelOption())
-                          ? (_openBlock(), _createElementBlock("div", _hoisted_635, [
-                              _createElementVNode("div", _hoisted_636, [
+                          ? (_openBlock(), _createElementBlock("div", _hoisted_649, [
+                              _createElementVNode("div", _hoisted_650, [
                                 _createElementVNode("span", null, _toDisplayString(_ctx.state.fuelStation.refueling.active ? _ctx.t('refuelProgress') : _ctx.t('refuelAmount')), 1 /* TEXT */),
                                 _createElementVNode("strong", null, _toDisplayString(_ctx.formatNumber(_ctx.getFuelDisplayQuantity((_ctx.state.fuelStation.refueling.active ? _ctx.state.fuelStation.refueling.quantity : _ctx.refuel.amount), _ctx.getSelectedFuelOption()), 1)) + " " + _toDisplayString(_ctx.getFuelDisplayUnit(_ctx.getSelectedFuelOption())), 1 /* TEXT */)
                               ]),
@@ -4815,26 +4910,26 @@ export function render(_ctx, _cache) {
                                 [_vShow, !_ctx.state.fuelStation.refueling.active]
                               ]),
                               _withDirectives(_createElementVNode("div", null, [
-                                _createElementVNode("div", _hoisted_637, [
+                                _createElementVNode("div", _hoisted_651, [
                                   _createElementVNode("button", {
                                     type: "button",
-                                    onClick: _cache[191] || (_cache[191] = $event => (_ctx.hud.setRefuelPreset(5)))
+                                    onClick: _cache[198] || (_cache[198] = $event => (_ctx.hud.setRefuelPreset(5)))
                                   }, "+5 " + _toDisplayString(_ctx.getFuelDisplayUnit(_ctx.getSelectedFuelOption())), 1 /* TEXT */),
                                   _createElementVNode("button", {
                                     type: "button",
-                                    onClick: _cache[192] || (_cache[192] = $event => (_ctx.hud.setRefuelPreset(10)))
+                                    onClick: _cache[199] || (_cache[199] = $event => (_ctx.hud.setRefuelPreset(10)))
                                   }, "+10 " + _toDisplayString(_ctx.getFuelDisplayUnit(_ctx.getSelectedFuelOption())), 1 /* TEXT */),
                                   _createElementVNode("button", {
                                     type: "button",
-                                    onClick: _cache[193] || (_cache[193] = $event => (_ctx.hud.setRefuelPreset('half')))
+                                    onClick: _cache[200] || (_cache[200] = $event => (_ctx.hud.setRefuelPreset('half')))
                                   }, "50%"),
                                   _createElementVNode("button", {
                                     type: "button",
-                                    onClick: _cache[194] || (_cache[194] = $event => (_ctx.hud.setRefuelPreset('full')))
+                                    onClick: _cache[201] || (_cache[201] = $event => (_ctx.hud.setRefuelPreset('full')))
                                   }, _toDisplayString(_ctx.t('refuelFullPreset')), 1 /* TEXT */)
                                 ]),
-                                _createElementVNode("div", _hoisted_638, [
-                                  _createElementVNode("div", _hoisted_639, [
+                                _createElementVNode("div", _hoisted_652, [
+                                  _createElementVNode("div", _hoisted_653, [
                                     _createElementVNode("span", {
                                       class: "taxi-fuel__selector-fill",
                                       style: _normalizeStyle({'width': _ctx.getRefuelSelectionPercent() + '%'})
@@ -4850,10 +4945,10 @@ export function render(_ctx, _cache) {
                                     min: "0",
                                     max: _ctx.getRefuelMaximum(),
                                     step: "0.1",
-                                    "onUpdate:modelValue": _cache[195] || (_cache[195] = $event => ((_ctx.refuel.amount) = $event)),
-                                    onInput: _cache[196] || (_cache[196] = $event => (_ctx.hud.updateRefuelAmount())),
+                                    "onUpdate:modelValue": _cache[202] || (_cache[202] = $event => ((_ctx.refuel.amount) = $event)),
+                                    onInput: _cache[203] || (_cache[203] = $event => (_ctx.hud.updateRefuelAmount())),
                                     disabled: !_ctx.state.fuelStation.vehicleStopped
-                                  }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_640), [
+                                  }, null, 40 /* PROPS, NEED_HYDRATION */, _hoisted_654), [
                                     [
                                       _vModelText,
                                       _ctx.refuel.amount,
@@ -4862,13 +4957,13 @@ export function render(_ctx, _cache) {
                                     ]
                                   ])
                                 ]),
-                                _createElementVNode("div", _hoisted_641, [
+                                _createElementVNode("div", _hoisted_655, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('refuelAvailable')) + " · " + _toDisplayString(_ctx.formatNumber(_ctx.getFuelDisplayQuantity(_ctx.getRefuelMaximum(), _ctx.getSelectedFuelOption()), 1)) + " " + _toDisplayString(_ctx.getFuelDisplayUnit(_ctx.getSelectedFuelOption())), 1 /* TEXT */),
                                   _createElementVNode("strong", {
                                     title: _ctx.formatMoneyFull(_ctx.getRefuelCost())
-                                  }, _toDisplayString(_ctx.formatMoneyFull(_ctx.getRefuelCost())), 9 /* TEXT, PROPS */, _hoisted_642)
+                                  }, _toDisplayString(_ctx.formatMoneyFull(_ctx.getRefuelCost())), 9 /* TEXT, PROPS */, _hoisted_656)
                                 ]),
-                                _createElementVNode("div", _hoisted_643, [
+                                _createElementVNode("div", _hoisted_657, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('projectedRange')), 1 /* TEXT */),
                                   _createElementVNode("strong", null, "≈ " + _toDisplayString(_ctx.formatEnergyRange(_ctx.getProjectedFuelRange())), 1 /* TEXT */),
                                   (_ctx.state.distanceToTarget > 0)
@@ -4881,13 +4976,13 @@ export function render(_ctx, _cache) {
                               ], 512 /* NEED_PATCH */), [
                                 [_vShow, !_ctx.state.fuelStation.refueling.active]
                               ]),
-                              _withDirectives(_createElementVNode("div", _hoisted_644, [
-                                _createElementVNode("div", _hoisted_645, [
+                              _withDirectives(_createElementVNode("div", _hoisted_658, [
+                                _createElementVNode("div", _hoisted_659, [
                                   _createElementVNode("span", {
                                     style: _normalizeStyle({'width': (_ctx.state.fuelStation.refueling.progress * 100) + '%'})
                                   }, null, 4 /* STYLE */)
                                 ]),
-                                _createElementVNode("div", _hoisted_646, [
+                                _createElementVNode("div", _hoisted_660, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.state.fuelStation.refueling.progress * 100, 0)) + "%", 1 /* TEXT */),
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('refuelRemaining')) + " · " + _toDisplayString(_ctx.formatNumber(_ctx.state.fuelStation.refueling.remainingSeconds, 1)) + " s", 1 /* TEXT */)
                                 ])
@@ -4897,49 +4992,49 @@ export function render(_ctx, _cache) {
                             ]))
                           : _createCommentVNode("v-if", true),
                         (!_ctx.state.fuelStation.options.length)
-                          ? (_openBlock(), _createElementBlock("div", _hoisted_647, "…"))
+                          ? (_openBlock(), _createElementBlock("div", _hoisted_661, "…"))
                           : _createCommentVNode("v-if", true),
                         _createElementVNode("button", {
                           type: "button",
                           class: "taxi-fuel__buy taxi-action taxi-action--primary",
-                          onClick: _cache[197] || (_cache[197] = $event => (_ctx.hud.purchaseFuel())),
+                          onClick: _cache[204] || (_cache[204] = $event => (_ctx.hud.purchaseFuel())),
                           disabled: _ctx.state.fuelStation.refueling.active || _ctx.state.repairStation.repairing.active || !_ctx.state.fuelStation.vehicleStopped || !_ctx.getSelectedFuelOption() || _ctx.refuel.amount <= 0
                         }, [
                           (_ctx.state.fuelStation.refueling.active)
-                            ? (_openBlock(), _createElementBlock("span", _hoisted_649, _toDisplayString(_ctx.t('refuelProgress')) + " · " + _toDisplayString(_ctx.formatNumber(_ctx.state.fuelStation.refueling.progress * 100, 0)) + "%", 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("span", _hoisted_663, _toDisplayString(_ctx.t('refuelProgress')) + " · " + _toDisplayString(_ctx.formatNumber(_ctx.state.fuelStation.refueling.progress * 100, 0)) + "%", 1 /* TEXT */))
                             : _createCommentVNode("v-if", true),
                           (!_ctx.state.fuelStation.refueling.active && !_ctx.state.fuelStation.vehicleStopped)
-                            ? (_openBlock(), _createElementBlock("span", _hoisted_650, _toDisplayString(_ctx.t('refuelStayStopped')), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("span", _hoisted_664, _toDisplayString(_ctx.t('refuelStayStopped')), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true),
                           (!_ctx.state.fuelStation.refueling.active && _ctx.state.fuelStation.vehicleStopped && _ctx.getSelectedFuelOption() && _ctx.getSelectedFuelOption().missingQuantity <= 0.01)
-                            ? (_openBlock(), _createElementBlock("span", _hoisted_651, _toDisplayString(_ctx.t('refuelFull')), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("span", _hoisted_665, _toDisplayString(_ctx.t('refuelFull')), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true),
                           (!_ctx.state.fuelStation.refueling.active && _ctx.state.fuelStation.vehicleStopped && _ctx.getSelectedFuelOption() && _ctx.getSelectedFuelOption().missingQuantity > 0.01 && _ctx.getRefuelMaximum() <= 0)
-                            ? (_openBlock(), _createElementBlock("span", _hoisted_652, _toDisplayString(_ctx.t('refuelNoMoney')), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("span", _hoisted_666, _toDisplayString(_ctx.t('refuelNoMoney')), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true),
                           (!_ctx.state.fuelStation.refueling.active && _ctx.state.fuelStation.vehicleStopped && (!_ctx.getSelectedFuelOption() || (_ctx.getSelectedFuelOption().missingQuantity > 0.01 && _ctx.getRefuelMaximum() > 0)))
-                            ? (_openBlock(), _createElementBlock("span", _hoisted_653, _toDisplayString(_ctx.t('refuelBuy')), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("span", _hoisted_667, _toDisplayString(_ctx.t('refuelBuy')), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true)
-                        ], 8 /* PROPS */, _hoisted_648),
+                        ], 8 /* PROPS */, _hoisted_662),
                         (_ctx.state.repairStation.available)
-                          ? (_openBlock(), _createElementBlock("div", _hoisted_654, [
-                              _createElementVNode("div", _hoisted_655, [
+                          ? (_openBlock(), _createElementBlock("div", _hoisted_668, [
+                              _createElementVNode("div", _hoisted_669, [
                                 _createElementVNode("span", null, _toDisplayString(_ctx.t('repairDamage')), 1 /* TEXT */),
                                 _createElementVNode("strong", null, _toDisplayString(_ctx.formatNumber(_ctx.state.repairStation.damagePercent, 0)) + "%", 1 /* TEXT */)
                               ]),
                               (_ctx.state.repairStation.canRepair)
-                                ? (_openBlock(), _createElementBlock("div", _hoisted_656, [
+                                ? (_openBlock(), _createElementBlock("div", _hoisted_670, [
                                     _createElementVNode("span", null, _toDisplayString(_ctx.t('repairPrice')), 1 /* TEXT */),
                                     _createElementVNode("strong", null, _toDisplayString(_ctx.formatMoney(_ctx.state.repairStation.price)), 1 /* TEXT */)
                                   ]))
                                 : _createCommentVNode("v-if", true),
-                              _withDirectives(_createElementVNode("div", _hoisted_657, [
-                                _createElementVNode("div", _hoisted_658, [
+                              _withDirectives(_createElementVNode("div", _hoisted_671, [
+                                _createElementVNode("div", _hoisted_672, [
                                   _createElementVNode("span", {
                                     style: _normalizeStyle({'width': (_ctx.state.repairStation.repairing.progress * 100) + '%'})
                                   }, null, 4 /* STYLE */)
                                 ]),
-                                _createElementVNode("div", _hoisted_659, [
+                                _createElementVNode("div", _hoisted_673, [
                                   _createElementVNode("span", null, _toDisplayString(_ctx.formatNumber(_ctx.state.repairStation.repairing.progress * 100, 0)) + "%", 1 /* TEXT */),
                                   _createElementVNode("span", null, _toDisplayString(_ctx.t('refuelRemaining')) + " · " + _toDisplayString(_ctx.formatNumber(_ctx.state.repairStation.repairing.remainingSeconds, 1)) + " s", 1 /* TEXT */)
                                 ])
@@ -4951,108 +5046,108 @@ export function render(_ctx, _cache) {
                                     key: 1,
                                     type: "button",
                                     class: "taxi-fuel__buy",
-                                    onClick: _cache[198] || (_cache[198] = $event => (_ctx.hud.purchaseRepair())),
+                                    onClick: _cache[205] || (_cache[205] = $event => (_ctx.hud.purchaseRepair())),
                                     disabled: _ctx.state.repairStation.repairing.active || _ctx.state.fuelStation.refueling.active || !_ctx.state.repairStation.vehicleStopped || _ctx.state.repairStation.balance < _ctx.state.repairStation.price
                                   }, [
                                     (_ctx.state.repairStation.repairing.active)
-                                      ? (_openBlock(), _createElementBlock("span", _hoisted_661, _toDisplayString(_ctx.t('repairProgress')) + " · " + _toDisplayString(_ctx.formatNumber(_ctx.state.repairStation.repairing.progress * 100, 0)) + "%", 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("span", _hoisted_675, _toDisplayString(_ctx.t('repairProgress')) + " · " + _toDisplayString(_ctx.formatNumber(_ctx.state.repairStation.repairing.progress * 100, 0)) + "%", 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true),
                                     (!_ctx.state.repairStation.repairing.active && !_ctx.state.repairStation.vehicleStopped)
-                                      ? (_openBlock(), _createElementBlock("span", _hoisted_662, _toDisplayString(_ctx.t('refuelStayStopped')), 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("span", _hoisted_676, _toDisplayString(_ctx.t('refuelStayStopped')), 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true),
                                     (!_ctx.state.repairStation.repairing.active && _ctx.state.repairStation.vehicleStopped && _ctx.state.repairStation.balance < _ctx.state.repairStation.price)
-                                      ? (_openBlock(), _createElementBlock("span", _hoisted_663, _toDisplayString(_ctx.t('repairNoMoney')), 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("span", _hoisted_677, _toDisplayString(_ctx.t('repairNoMoney')), 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true),
                                     (!_ctx.state.repairStation.repairing.active && _ctx.state.repairStation.vehicleStopped && _ctx.state.repairStation.balance >= _ctx.state.repairStation.price)
-                                      ? (_openBlock(), _createElementBlock("span", _hoisted_664, _toDisplayString(_ctx.t('repairBuy')), 1 /* TEXT */))
+                                      ? (_openBlock(), _createElementBlock("span", _hoisted_678, _toDisplayString(_ctx.t('repairBuy')), 1 /* TEXT */))
                                       : _createCommentVNode("v-if", true)
-                                  ], 8 /* PROPS */, _hoisted_660))
+                                  ], 8 /* PROPS */, _hoisted_674))
                                 : _createCommentVNode("v-if", true)
                             ]))
                           : _createCommentVNode("v-if", true)
                       ], 2 /* CLASS */))
                     : _createCommentVNode("v-if", true),
                   (_ctx.offlineConfirmOpen)
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_665, [
-                        _createElementVNode("div", _hoisted_666, [
-                          _cache[308] || (_cache[308] = _createElementVNode("div", { class: "taxi-offline-confirm__icon" }, "⚠️", -1 /* CACHED */)),
-                          _createElementVNode("h2", _hoisted_667, _toDisplayString(_ctx.state.deliveryOnboard ? _ctx.t('offlineDeliveryTitle') : _ctx.t('offlineConfirmTitle')), 1 /* TEXT */),
-                          _createElementVNode("p", _hoisted_668, _toDisplayString(_ctx.state.deliveryOnboard ? _ctx.t('offlineDeliveryDesc') : _ctx.t('offlineConfirmDesc')), 1 /* TEXT */),
-                          _createElementVNode("div", _hoisted_669, _toDisplayString(_ctx.t('offlinePenaltyWarning', {percent: _ctx.formatBonusPercent(_ctx.state.offlinePenaltyExtraPercent), rating: _ctx.formatRating(_ctx.state.offlinePenaltyFinalRating)})), 1 /* TEXT */),
-                          _createElementVNode("div", _hoisted_670, [
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_679, [
+                        _createElementVNode("div", _hoisted_680, [
+                          _cache[316] || (_cache[316] = _createElementVNode("div", { class: "taxi-offline-confirm__icon" }, "⚠️", -1 /* CACHED */)),
+                          _createElementVNode("h2", _hoisted_681, _toDisplayString(_ctx.state.deliveryOnboard ? _ctx.t('offlineDeliveryTitle') : _ctx.t('offlineConfirmTitle')), 1 /* TEXT */),
+                          _createElementVNode("p", _hoisted_682, _toDisplayString(_ctx.state.deliveryOnboard ? _ctx.t('offlineDeliveryDesc') : _ctx.t('offlineConfirmDesc')), 1 /* TEXT */),
+                          _createElementVNode("div", _hoisted_683, _toDisplayString(_ctx.t('offlinePenaltyWarning', {percent: _ctx.formatBonusPercent(_ctx.state.offlinePenaltyExtraPercent), rating: _ctx.formatRating(_ctx.state.offlinePenaltyFinalRating)})), 1 /* TEXT */),
+                          _createElementVNode("div", _hoisted_684, [
                             _createElementVNode("button", {
                               type: "button",
                               class: "taxi-offline-confirm__cancel",
-                              onClick: _cache[199] || (_cache[199] = $event => (_ctx.hud.cancelOfflineConfirmation()))
+                              onClick: _cache[206] || (_cache[206] = $event => (_ctx.hud.cancelOfflineConfirmation()))
                             }, _toDisplayString(_ctx.t('cancel')), 1 /* TEXT */),
                             _createElementVNode("button", {
                               type: "button",
                               class: "taxi-offline-confirm__confirm",
-                              onClick: _cache[200] || (_cache[200] = $event => (_ctx.hud.confirmOfflineWithPassenger()))
+                              onClick: _cache[207] || (_cache[207] = $event => (_ctx.hud.confirmOfflineWithPassenger()))
                             }, _toDisplayString(_ctx.t('confirmOffline')), 1 /* TEXT */)
                           ])
                         ])
                       ]))
                     : _createCommentVNode("v-if", true),
                   (_ctx.policeCheckConfirmOpen)
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_671, [
-                        _createElementVNode("div", _hoisted_672, [
-                          _cache[309] || (_cache[309] = _createElementVNode("div", { class: "taxi-offline-confirm__icon" }, "🚓", -1 /* CACHED */)),
-                          _createElementVNode("h2", _hoisted_673, _toDisplayString(_ctx.t('policeCheckEnableTitle')), 1 /* TEXT */),
-                          _createElementVNode("p", _hoisted_674, _toDisplayString(_ctx.t('policeCheckEnableDesc')), 1 /* TEXT */),
-                          _createElementVNode("div", _hoisted_675, [
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_685, [
+                        _createElementVNode("div", _hoisted_686, [
+                          _cache[317] || (_cache[317] = _createElementVNode("div", { class: "taxi-offline-confirm__icon" }, "🚓", -1 /* CACHED */)),
+                          _createElementVNode("h2", _hoisted_687, _toDisplayString(_ctx.t('policeCheckEnableTitle')), 1 /* TEXT */),
+                          _createElementVNode("p", _hoisted_688, _toDisplayString(_ctx.t('policeCheckEnableDesc')), 1 /* TEXT */),
+                          _createElementVNode("div", _hoisted_689, [
                             _createElementVNode("button", {
                               type: "button",
                               class: "taxi-offline-confirm__cancel",
-                              onClick: _cache[201] || (_cache[201] = $event => (_ctx.hud.cancelPoliceCheckEnable()))
+                              onClick: _cache[208] || (_cache[208] = $event => (_ctx.hud.cancelPoliceCheckEnable()))
                             }, _toDisplayString(_ctx.t('cancel')), 1 /* TEXT */),
                             _createElementVNode("button", {
                               type: "button",
                               class: "taxi-offline-confirm__confirm",
-                              onClick: _cache[202] || (_cache[202] = $event => (_ctx.hud.confirmPoliceCheckEnable()))
+                              onClick: _cache[209] || (_cache[209] = $event => (_ctx.hud.confirmPoliceCheckEnable()))
                             }, _toDisplayString(_ctx.t('policeCheckEnableConfirm')), 1 /* TEXT */)
                           ])
                         ])
                       ]))
                     : _createCommentVNode("v-if", true),
                   (_ctx.aiDriverConfirmOpen)
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_676, [
-                        _createElementVNode("div", _hoisted_677, [
-                          _cache[310] || (_cache[310] = _createElementVNode("div", { class: "taxi-offline-confirm__icon" }, "AI", -1 /* CACHED */)),
-                          _createElementVNode("h2", _hoisted_678, _toDisplayString(_ctx.t('aiDriverConfirmTitle')), 1 /* TEXT */),
-                          _createElementVNode("p", _hoisted_679, _toDisplayString(_ctx.t('aiDriverConfirmDesc')), 1 /* TEXT */),
-                          _createElementVNode("div", _hoisted_680, [
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_690, [
+                        _createElementVNode("div", _hoisted_691, [
+                          _cache[318] || (_cache[318] = _createElementVNode("div", { class: "taxi-offline-confirm__icon" }, "AI", -1 /* CACHED */)),
+                          _createElementVNode("h2", _hoisted_692, _toDisplayString(_ctx.t('aiDriverConfirmTitle')), 1 /* TEXT */),
+                          _createElementVNode("p", _hoisted_693, _toDisplayString(_ctx.t('aiDriverConfirmDesc')), 1 /* TEXT */),
+                          _createElementVNode("div", _hoisted_694, [
                             _createElementVNode("button", {
                               type: "button",
                               class: "taxi-offline-confirm__cancel",
-                              onClick: _cache[203] || (_cache[203] = $event => (_ctx.hud.cancelAiDriverEnable()))
+                              onClick: _cache[210] || (_cache[210] = $event => (_ctx.hud.cancelAiDriverEnable()))
                             }, _toDisplayString(_ctx.t('cancel')), 1 /* TEXT */),
                             _createElementVNode("button", {
                               type: "button",
                               class: "taxi-offline-confirm__confirm",
-                              onClick: _cache[204] || (_cache[204] = $event => (_ctx.hud.confirmAiDriverEnable()))
+                              onClick: _cache[211] || (_cache[211] = $event => (_ctx.hud.confirmAiDriverEnable()))
                             }, _toDisplayString(_ctx.t('aiDriverConfirmEnable')), 1 /* TEXT */)
                           ])
                         ])
                       ]))
                     : _createCommentVNode("v-if", true),
                   (_ctx.shouldShowNextOffer())
-                    ? (_openBlock(), _createElementBlock("div", _hoisted_681, [
-                        _createElementVNode("div", _hoisted_682, [
+                    ? (_openBlock(), _createElementBlock("div", _hoisted_695, [
+                        _createElementVNode("div", _hoisted_696, [
                           (!_ctx.state.nextOffer.accepted)
                             ? (_openBlock(), _createElementBlock("button", {
                                 key: 0,
                                 type: "button",
                                 class: "taxi-next-offer__close taxi-action taxi-action--tertiary",
-                                onClick: _cache[205] || (_cache[205] = $event => (_ctx.hud.dismissNextOffer(_ctx.state.nextOffer.id))),
+                                onClick: _cache[212] || (_cache[212] = $event => (_ctx.hud.dismissNextOffer(_ctx.state.nextOffer.id))),
                                 title: _ctx.t('dismissNextOffer'),
                                 "aria-label": _ctx.t('dismissNextOffer')
-                              }, "×", 8 /* PROPS */, _hoisted_683))
+                              }, "×", 8 /* PROPS */, _hoisted_697))
                             : _createCommentVNode("v-if", true),
-                          _createElementVNode("div", _hoisted_684, _toDisplayString(_ctx.t('nextOfferTitle')), 1 /* TEXT */),
-                          _createElementVNode("div", _hoisted_685, [
-                            _createElementVNode("div", _hoisted_686, _toDisplayString(_ctx.state.nextOffer.isDelivery ? '📦' : _ctx.getInitials(_ctx.state.nextOffer.passengerName)), 1 /* TEXT */),
-                            _createElementVNode("div", _hoisted_687, [
+                          _createElementVNode("div", _hoisted_698, _toDisplayString(_ctx.t('nextOfferTitle')), 1 /* TEXT */),
+                          _createElementVNode("div", _hoisted_699, [
+                            _createElementVNode("div", _hoisted_700, _toDisplayString(_ctx.state.nextOffer.isDelivery ? '📦' : _ctx.getInitials(_ctx.state.nextOffer.passengerName)), 1 /* TEXT */),
+                            _createElementVNode("div", _hoisted_701, [
                               _createElementVNode("strong", null, _toDisplayString(_ctx.getOfferName(_ctx.state.nextOffer)), 1 /* TEXT */),
                               _createElementVNode("span", null, _toDisplayString(_ctx.t('nextOfferDesc')), 1 /* TEXT */)
                             ]),
@@ -5065,43 +5160,43 @@ export function render(_ctx, _cache) {
                                   "aria-label": (_ctx.t('passengerCalmness')) + " · " + (_ctx.formatNumber(_ctx.state.nextOffer.passengerCalmness, 0)) + "%"
                                 }, [
                                   _createTextVNode(_toDisplayString(_ctx.getCalmnessEmoji(_ctx.state.nextOffer.passengerCalmness)) + " ", 1 /* TEXT */),
-                                  _createElementVNode("small", _hoisted_689, _toDisplayString(_ctx.formatNumber(_ctx.state.nextOffer.passengerCalmness, 0)) + "%", 1 /* TEXT */)
-                                ], 8 /* PROPS */, _hoisted_688))
+                                  _createElementVNode("small", _hoisted_703, _toDisplayString(_ctx.formatNumber(_ctx.state.nextOffer.passengerCalmness, 0)) + "%", 1 /* TEXT */)
+                                ], 8 /* PROPS */, _hoisted_702))
                               : _createCommentVNode("v-if", true),
                             (_ctx.state.nextOffer.isDelivery)
-                              ? (_openBlock(), _createElementBlock("div", _hoisted_690, [
-                                  _cache[311] || (_cache[311] = _createElementVNode("span", null, "📦", -1 /* CACHED */)),
+                              ? (_openBlock(), _createElementBlock("div", _hoisted_704, [
+                                  _cache[319] || (_cache[319] = _createElementVNode("span", null, "📦", -1 /* CACHED */)),
                                   _createElementVNode("strong", null, _toDisplayString(_ctx.formatCargoWeight(_ctx.state.nextOffer.cargoWeightKg)), 1 /* TEXT */)
                                 ]))
                               : _createCommentVNode("v-if", true),
                             (!_ctx.state.nextOffer.accepted)
-                              ? (_openBlock(), _createElementBlock("div", _hoisted_691, _toDisplayString(_ctx.formatNumber(_ctx.nextOfferUiRemaining, 1)), 1 /* TEXT */))
+                              ? (_openBlock(), _createElementBlock("div", _hoisted_705, _toDisplayString(_ctx.formatNumber(_ctx.nextOfferUiRemaining, 1)), 1 /* TEXT */))
                               : _createCommentVNode("v-if", true)
                           ]),
-                          _createElementVNode("div", _hoisted_692, [
-                            _createElementVNode("div", _hoisted_693, [
+                          _createElementVNode("div", _hoisted_706, [
+                            _createElementVNode("div", _hoisted_707, [
                               _createElementVNode("span", null, _toDisplayString(_ctx.state.nextOffer.isDelivery ? _ctx.t('cargoWeight') : _ctx.t('pickupDeadline')), 1 /* TEXT */),
                               _createElementVNode("strong", null, _toDisplayString(_ctx.state.nextOffer.isDelivery ? _ctx.formatCargoWeight(_ctx.state.nextOffer.cargoWeightKg) : _ctx.formatCountdown(_ctx.state.nextOffer.pickupWaitSeconds)), 1 /* TEXT */)
                             ]),
-                            _createElementVNode("div", _hoisted_694, [
+                            _createElementVNode("div", _hoisted_708, [
                               _createElementVNode("span", null, _toDisplayString(_ctx.t('distance')), 1 /* TEXT */),
                               _createElementVNode("strong", null, _toDisplayString(_ctx.formatDistance(_ctx.state.nextOffer.rideDistance)), 1 /* TEXT */)
                             ]),
-                            _createElementVNode("div", _hoisted_695, [
+                            _createElementVNode("div", _hoisted_709, [
                               _createElementVNode("span", null, _toDisplayString(_ctx.t('payment')), 1 /* TEXT */),
                               _createElementVNode("strong", {
                                 title: _ctx.formatMoneyFull(_ctx.state.nextOffer.estimatedFare)
-                              }, _toDisplayString(_ctx.formatMoneyFull(_ctx.state.nextOffer.estimatedFare)), 9 /* TEXT, PROPS */, _hoisted_696)
+                              }, _toDisplayString(_ctx.formatMoneyFull(_ctx.state.nextOffer.estimatedFare)), 9 /* TEXT, PROPS */, _hoisted_710)
                             ])
                           ]),
                           (_ctx.state.nextOffer.isMultiStop)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_697, _toDisplayString(_ctx.t('multiStopSummary', {count: _ctx.state.nextOffer.stopCount, time: _ctx.formatCountdown(_ctx.state.nextOffer.stopWaitSeconds)})), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_711, _toDisplayString(_ctx.t('multiStopSummary', {count: _ctx.state.nextOffer.stopCount, time: _ctx.formatCountdown(_ctx.state.nextOffer.stopWaitSeconds)})), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true),
                           (_ctx.state.nextOffer.ratingBonusPercent > 0)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_698, _toDisplayString(_ctx.t('ratingBonusLine', {percent: _ctx.formatBonusPercent(_ctx.state.nextOffer.ratingBonusPercent), amount: _ctx.formatMoney(_ctx.state.nextOffer.ratingBonusAmount)})), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_712, _toDisplayString(_ctx.t('ratingBonusLine', {percent: _ctx.formatBonusPercent(_ctx.state.nextOffer.ratingBonusPercent), amount: _ctx.formatMoney(_ctx.state.nextOffer.ratingBonusAmount)})), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true),
                           (!_ctx.state.nextOffer.accepted)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_699, [
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_713, [
                                 _createElementVNode("span", {
                                   style: _normalizeStyle({'width': (_ctx.nextOfferUiRemaining / _ctx.state.nextOffer.duration * 100) + '%'})
                                 }, null, 4 /* STYLE */)
@@ -5112,11 +5207,11 @@ export function render(_ctx, _cache) {
                                 key: 4,
                                 type: "button",
                                 class: "taxi-next-offer__accept taxi-action taxi-action--primary",
-                                onClick: _cache[206] || (_cache[206] = $event => (_ctx.hud.acceptNextOffer(_ctx.state.nextOffer.id)))
+                                onClick: _cache[213] || (_cache[213] = $event => (_ctx.hud.acceptNextOffer(_ctx.state.nextOffer.id)))
                               }, _toDisplayString(_ctx.t('accept')), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true),
                           (_ctx.state.nextOffer.accepted)
-                            ? (_openBlock(), _createElementBlock("div", _hoisted_700, _toDisplayString(_ctx.t('nextOfferAccepted')), 1 /* TEXT */))
+                            ? (_openBlock(), _createElementBlock("div", _hoisted_714, _toDisplayString(_ctx.t('nextOfferAccepted')), 1 /* TEXT */))
                             : _createCommentVNode("v-if", true)
                         ])
                       ]))

@@ -35,6 +35,8 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Install [BeamNG.Earth](https://github.com/tecnagamer/beamng.earth) separately and start its companion server. TaxiDriver enables Earth functions only on the active Earth map; ordinary maps retain their local dispatcher.
 - Generate world-map passenger and cargo orders, or choose arbitrary **A → B** / **current vehicle → B** points through city and address search.
 - Preview the road distance and time, explicitly teleport to A if desired, and press the blue **Start trip** button to create a paid taxi ride.
+- Select **Without a passenger** for a personal GPS trip in either route mode. In A → B mode, GPS first leads to A when needed, then continues to B. Personal routes do not start a taxi shift or change fares, penalties or rating.
+- The compact HUD shows the current street from Earth's existing location data. Its private map follows Earth's streamed road updates independently of the stock navigation widget, including while taxi mode is off.
 - Set a **1–600 km** maximum for random Earth routes. Explicitly selected A → B routes do not have that cap. Destination discovery and route/address requests run asynchronously with bounded queues and caches.
 - Experimental, verified with Earth **1.9.1-beta**. Earth AI Driver, fleet world jobs, multi-stop/route-changing events and follow-up offers are not enabled by this integration.
 

@@ -293,6 +293,9 @@ function M.new(options)
     return nativeMinimap:getModules()
   end
 
+  function service:invalidateRoads() nativeMinimap:invalidateRoads() end
+  function service:getMinimapStats() return nativeMinimap:stats() end
+
   function service:hideMinimap()
     restoreDynamicZoom()
     if ui_apps_minimap_minimap then

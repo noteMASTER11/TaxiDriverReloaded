@@ -625,7 +625,10 @@
     "earthRandomAttempt": "Attempt {attempt}/4",
     "earthStartTrip": "Start trip",
     "earthStartingTrip": "Starting trip…",
-    "earthStartTimeout": "The trip has not been confirmed. Check the current trip before trying again."
+    "earthStartTimeout": "The trip has not been confirmed. Check the current trip before trying again.",
+    "earthWithoutPassenger": "Without a passenger",
+    "earthPersonalRoute": "Personal route",
+    "earthStopRoute": "End route"
   },
   "ru": {
     "fleetTitle": "Мой таксопарк",
@@ -1253,7 +1256,10 @@
     "earthRandomAttempt": "Попытка {attempt}/4",
     "earthStartTrip": "Начать поездку",
     "earthStartingTrip": "Начало поездки…",
-    "earthStartTimeout": "Начало поездки не подтверждено. Проверьте текущую поездку перед повторной попыткой."
+    "earthStartTimeout": "Начало поездки не подтверждено. Проверьте текущую поездку перед повторной попыткой.",
+    "earthWithoutPassenger": "Без пассажира",
+    "earthPersonalRoute": "Личная поездка",
+    "earthStopRoute": "Завершить маршрут"
   },
   "de": {
     "fleetTitle": "Mein Fuhrpark",

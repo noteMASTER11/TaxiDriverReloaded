@@ -4972,3 +4972,9 @@
 .taxi-shell .taxi-earth-limit input:focus-visible { outline: 2px solid var(--td-focus); outline-offset: 2px; }
 .taxi-shell .taxi-earth__start { width: 100%; margin-top: 12px; }
 .taxi-shell .taxi-order-card__earth-route { margin: 10px 0 6px; color: var(--td-text-secondary); font-size: max(13px, var(--taxi-caption)); line-height: 1.4; overflow-wrap: anywhere; }
+.taxi-shell .taxi-compact__location { flex: 0 0 auto; padding: 7px 14px; color: var(--td-text-secondary); background: var(--td-surface-1); border-top: 1px solid var(--td-border); text-align: center; font-size: 14px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.taxi-shell .taxi-earth__personal { display: flex; align-items: center; gap: 10px; margin: 16px 0 6px; min-height: 40px; font-size: 16px; cursor: pointer; }
+.taxi-shell .taxi-earth__personal input { width: 20px; height: 20px; accent-color: #39baff; }
+.taxi-shell .taxi-personal-route__details { padding: 18px; }
+.taxi-shell .taxi-personal-route__details button { width: 100%; min-height: 46px; margin-top: 10px; }
+.taxi-shell .taxi-compact__map-status { inset: 12px auto auto 12px; max-width: calc(100% - 160px); padding: 8px 12px; background: rgba(16, 20, 25, .86); border-radius: 6px; pointer-events: none; align-items: flex-start; text-align: left; }

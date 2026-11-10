@@ -73,13 +73,15 @@ function M.new(options)
   local generation, requestId, transport, transportPort, currentSession = 0,0,nil,nil,nil
   local cache, cacheOrder, history = {},{},{}
   local api
+  local lastRuntimeKey=''
 
   local function publish()
     if not destroyed and emit then emit(state) end
   end
   local function persist()
     local ok, result = pcall(write,{schemaVersion=1,mode=state.mode,
-      a=place(state.a.selected),b=place(state.b.selected),history=history,maxRandomKm=state.maxRandomKm})
+      a=place(state.a.selected),b=place(state.b.selected),history=history,maxRandomKm=state.maxRandomKm,
+      withoutPassenger=state.withoutPassenger==true})
     if not ok or result == false then state.error="Could not save Earth places" end
   end
   local function remember(selected)
@@ -115,6 +117,13 @@ function M.new(options)
     local beforeStatus,beforeCan=state.status,state.canNavigate
     state.available=inWorld and status~="unsupported"
     state.status=status
+    local location=inWorld and invoke(api,'place') or nil
+    state.location=type(location)=='table' and text(type(location.street)=='string' and location.street~='' and location.street or location.place,200) or ''
+    state.freeRoute=options.getFreeRoute and options.getFreeRoute() or {active=false}
+    local f=state.freeRoute
+    local runtimeKey=table.concat({state.location,tostring(f.active),f.leg or '',f.status or '',
+      tostring(math.floor(f.remainingM or 0)),tostring(math.floor(f.etaS or 0))},'|')
+    local runtimeChanged=runtimeKey~=lastRuntimeKey;lastRuntimeKey=runtimeKey
     local p=invoke(api,"pose")
     state.canNavigate=status=="ready" and p~=nil and p.camera~=true and not isTripActive() and
       not (state.route.status=="pending" and state.route.teleport)
@@ -129,7 +138,7 @@ function M.new(options)
     elseif beforeStatus~=status then
       cancel();state.route=idleRoute();state.gps=nil
     end
-    return beforeStatus~=status or beforeCan~=state.canNavigate
+    return beforeStatus~=status or beforeCan~=state.canNavigate or runtimeChanged
   end
   local function available()
     detect()
@@ -287,6 +296,7 @@ function M.new(options)
 
   local ok,saved=pcall(read)
   if ok and type(saved)=="table" then
+    state.withoutPassenger=saved.withoutPassenger==true
     state.maxRandomKm=randomLimit(saved.maxRandomKm)
     state.mode=saved.mode=="points" and "points" or "vehicle"
     state.a.selected,state.b.selected=place(saved.a),place(saved.b)
@@ -314,6 +324,7 @@ function M.new(options)
     elseif action=="heartbeat" then return state
     elseif action=="started" then state.startedTripId=tonumber(args.tripId) or 0
     elseif action=="startFailed" then state.error=text(args.error or "Earth trip could not start",400)
+    elseif action=="setWithoutPassenger" then state.withoutPassenger=args.value==true;persist()
     elseif action=="mode" then
       cancel();state.route=idleRoute();state.mode=args.mode=="points" and "points" or "vehicle";persist()
     elseif action=="setRandomLimit" then

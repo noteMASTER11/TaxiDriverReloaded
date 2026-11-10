@@ -43,6 +43,8 @@ local mod={_earthRouting={snapshot=function()return snapshot end,
 mod.startMode=function()started=started+1;manualState.active=true;manualState.phase="searching"end
 local start=extracted("function M.startEarthTrip(args)","function M.onExtensionLoaded()",{
   M=mod,state=manualState,phases={searching="searching"},getPlayerVehicle=function()return vehicle end,
+  stopModeInternal=function()manualState.active=false end,
+  notifyHud=function()end,
   createOffer=create,startAcceptedOffer=function(o)accepted=o;return true end},"M.startEarthTrip")
 assert(start({owner="ui"}) and started==1 and accepted.earth)
 assert(accepted.pickup.geo.lat==45.001 and accepted.destination.geo.lat==43.601,
@@ -57,6 +59,12 @@ snapshot.route.to.detail="Downing Street 10, London"
 assert(start({owner="ui"}) and accepted.destination.address=="Downing Street 10, London",
   "known house numbers from a selected address must survive background address enrichment")
 local restarts,updates=0,0
+local paidOffer=accepted
+mod._earthFree={start=function(_,r,mode)assert(r==snapshot.route);return true end,stop=function()end}
+manualState.active=true;manualState.phase='searching'
+assert(start({owner='ui',withoutPassenger=true}))
+assert(not manualState.active and accepted==paidOffer and started==1,
+  'passenger-free routes must not create a paid order or start taxi economy')
 local dispatcher={status=function()return "cancelled"end,update=function()updates=updates+1 end}
 local recoverMod={_earthDispatcher=dispatcher,_earthTrip={pose=function()return {lat=45,lon=39}end}}
 local recover=extracted("function M.updateEarthDispatcher(dtReal)","function M.getEarthPickupStop()",{

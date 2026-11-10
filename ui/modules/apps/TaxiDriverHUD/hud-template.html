@@ -45,8 +45,8 @@
         </div>
       <div class="taxi-compact__route-info" v-if="isNavigationPhase()">
         <span>{{ t('arrival') }}</span>
-        <strong>{{ getArrivalTime(state.etaMinutes) }}</strong>
-        <small>{{ formatEta(state.etaMinutes) }} · {{ formatDistance(state.distanceToTarget) }}</small>
+        <strong>{{ getArrivalTime(getNavigationEta()) }}</strong>
+        <small>{{ formatEta(getNavigationEta()) }} · {{ formatDistance(getNavigationRemaining()) }}</small>
       </div>
       <div class="taxi-compact__speed" :class="{'taxi-compact__speed--warning': overspeedWarningActive}" v-if="isNavigationPhase() &amp;&amp; state.speedLimit > 0">{{ formatSpeedValue(state.speedLimit) }}</div>
       <div class="taxi-compact__map-status" v-if="!isNavigationPhase()">
@@ -61,7 +61,7 @@
           <strong>{{ getCompactTitle() }}</strong>
           <span>{{ getPhaseLabel() }}</span>
         </div>
-        <strong class="taxi-compact__distance" v-if="isNavigationPhase()">{{ formatDistance(state.distanceToTarget) }}</strong>
+        <strong class="taxi-compact__distance" v-if="isNavigationPhase()">{{ formatDistance(getNavigationRemaining()) }}</strong>
       </div>
       <div class="taxi-compact__progress">
         <div class="taxi-compact__progress-labels"><span>{{ getProgressLabel() }}</span><strong>{{ formatNumber(getProgressPercent(), 0) }}%</strong></div>
@@ -79,6 +79,7 @@
         <div class="taxi-compact__metric" v-if="!state.isDelivery"><span>{{ t('rides') }}</span><strong>{{ state.completedRides }}</strong></div>
       </div>
     </div>
+    <div class="taxi-compact__location" v-if="earth.available &amp;&amp; earth.location" :title="earth.location">{{ earth.location }}</div>
   </div>
 
   <div class="taxi-phone" v-if="externalPhoneMode || (!phoneMinimized &amp;&amp; !phoneSuperMinimized &amp;&amp; (state.lan.connected < 1 || localPhoneOpen))">
@@ -840,6 +841,7 @@
           <div><span>{{ t('earthDistance') }}</span><strong>{{ formatDistance(earth.route.distanceM) }}</strong></div>
           <div><span>{{ t('earthDuration') }}</span><strong>{{ formatEta(earth.route.durationS / 60) }}</strong></div>
         </div>
+        <label class="taxi-earth__personal"><input id="taxi-earth-without-passenger" type="checkbox" v-model="earth.withoutPassenger" :disabled="earthStarting" @change="hud.setEarthWithoutPassenger()"><span>{{ t('earthWithoutPassenger') }}</span></label>
         <button type="button" class="taxi-earth__start taxi-earth-button taxi-action taxi-action--secondary" :disabled="!canStartEarthTrip()" @click="hud.earthStartTrip()">{{ t(earthStarting ? 'earthStartingTrip' : 'earthStartTrip') }}</button>
         <p class="taxi-earth__error" role="alert" v-if="earth.route.error || earth.error">{{ earth.route.error || earth.error }}</p>
         <div class="taxi-earth__navigate">
@@ -851,7 +853,21 @@
       </div>
     </section>
 
-    <div class="taxi-home" :class="{'taxi-home--presets': !shiftHistoryOpen}" v-if="!earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; !state.active">
+    <div class="taxi-personal-route taxi-trip-layout" v-if="hasPersonalRoute() &amp;&amp; !earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen">
+      <div class="taxi-map">
+        <div class="taxi-minimap-surface"></div>
+        <canvas class="taxi-external-minimap" v-if="externalPhoneMode"></canvas>
+        <div class="taxi-map-interaction" :class="{'taxi-map-interaction--panned': !mapFollowing}" :aria-label="t('mapDrag')"></div>
+        <div class="taxi-map-toolbar"><div class="taxi-map-controls" :aria-label="t('mapControls')">
+          <button type="button" @click="hud.zoomMap(0.8)" :aria-label="t('mapZoomIn')">+</button>
+          <button type="button" @click="hud.zoomMap(1.25)" :aria-label="t('mapZoomOut')">−</button>
+          <button type="button" @click="hud.followMap()" :aria-label="t('mapFollow')">◎</button>
+        </div></div>
+        <div class="taxi-map__route-info"><span>{{ t('arrival') }}</span><strong>{{ getArrivalTime(getNavigationEta()) }}</strong><small>{{ formatEta(getNavigationEta()) }} · {{ formatDistance(getNavigationRemaining()) }}</small></div>
+      </div>
+      <div class="taxi-personal-route__details"><span>{{ getPhaseLabel() }}</span><h2>{{ getCompactTitle() }}</h2><p>{{ t('earthWithoutPassenger') }}</p><button type="button" class="taxi-action taxi-action--secondary" @click="hud.openEarth()">{{ t('earthTitle') }}</button><button type="button" class="taxi-action taxi-action--danger-secondary" @click="hud.stopEarthFreeRoute()">{{ t('earthStopRoute') }}</button></div>
+    </div>
+    <div class="taxi-home" :class="{'taxi-home--presets': !shiftHistoryOpen}" v-if="!hasPersonalRoute() &amp;&amp; !earthOpen &amp;&amp; !settingsOpen &amp;&amp; !profileOpen &amp;&amp; !fuelStationOpen &amp;&amp; !fleetOpen &amp;&amp; !state.active">
       <div class="taxi-home__shade"></div>
       <div class="taxi-home__content" v-if="!shiftHistoryOpen">
         <section class="taxi-home__presets" :aria-label="t('homeDifficultyTitle')">

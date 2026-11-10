@@ -8,6 +8,7 @@ function M.new(options)
   local service = {}
   local modules, environment = nil, nil
   local loadFailed = false
+  local earthRoads,earthFailed,lastNodes=nil,false,nil
   local names = {"utils", "roads", "vehicles", "route", "topomap", "additionalInfo", "minimap"}
 
   local function loadNative(name, env)
@@ -94,10 +95,50 @@ function M.new(options)
 
   function service:update(dtReal, dtSim)
     local renderer = modules and modules.minimap
+    if renderer and renderer.onUpdate then
+      local graph=map and map.getMap and map.getMap()
+      local nodes=graph and graph.nodes
+      if nodes~=lastNodes then self:invalidateRoads();lastNodes=nodes end
+      local api=rawget(_G,'beamngEarth_api')
+      if api and api.inWorld and api.inWorld() then
+        if not earthRoads and not earthFailed then
+          -- Earth's stock hook closes over the stock texture's utilities.
+          -- Load its existing renderer in our private environment instead.
+          local ok,value=pcall(function()
+            if options.loadEarthModule then return options.loadEarthModule(environment) end
+            local source=assert(readFile('/lua/ge/extensions/beamngEarth/minimaproads.lua'))
+            local chunk=assert(loadstring(source,'@beamngEarth/minimaproads.lua'))
+            setfenv(chunk,environment)
+            return chunk()
+          end)
+          if ok then earthRoads=value else earthFailed=true end
+        end
+        if earthRoads then
+          local ok,err=pcall(function()
+            local graph=options.getEarthGraph and options.getEarthGraph() or require('beamngEarth/navgraph').currentGraph()
+            earthRoads.hook();earthRoads.update(graph)
+          end)
+          if not ok then
+            earthRoads.unhook();earthRoads=nil;earthFailed=true
+            log('W','taxiDriver.nativeMinimap',tostring(err))
+          end
+        end
+      elseif earthRoads then earthRoads.unhook();earthRoads=nil end
+    end
     if renderer and renderer.onUpdate then renderer.onUpdate(dtReal, dtSim) end
   end
 
+  function service:invalidateRoads()
+    if modules and modules.roads.reset then modules.roads.reset() end
+  end
+
+  function service:stats()
+    return {earth=earthRoads and earthRoads.status() or nil,earthFailed=earthFailed}
+  end
+
   function service:reset()
+    if earthRoads then earthRoads.unhook() end
+    earthRoads,earthFailed,lastNodes=nil,false,nil
     if modules and modules.minimap.hide then modules.minimap.hide() end
     modules, environment, loadFailed = nil, nil, false
   end
