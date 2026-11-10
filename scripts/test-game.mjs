@@ -21,7 +21,7 @@ async function lua(code) {
   return JSON.parse(result.content[0].text);
 }
 await rpc('initialize', {protocolVersion: '2025-11-25', capabilities: {},
-  clientInfo: {name: 'TaxiDriver regressions', version: '5.0.0'}});
+  clientInfo: {name: 'TaxiDriver regressions', version: '5.0.1'}});
 const sources = {};
 async function collect(relative) {
   for (const entry of await fs.readdir(path.join(root, relative), {withFileTypes: true})) {

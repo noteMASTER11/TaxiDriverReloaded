@@ -1,5 +1,42 @@
 # Changelog
 
+## 5.0.1 — Earth Support and Readable JavaScript
+
+This release adds experimental BeamNG.Earth support and replaces minified JavaScript with readable, unminified code for source review. It includes the native Vue 3 interface and BeamNG.drive 0.40.5 compatibility improvements introduced in 5.0.0, which this release supersedes.
+
+### BeamNG.Earth integration
+
+- Automatically use world routing for ordinary taxi orders on an active Earth map. Hide Earth controls and keep the normal local dispatcher on ordinary maps, even when Earth remains installed and its API is loaded.
+- Add the blue Earth routes screen with both arbitrary **A → B** and **current vehicle → B** planning, road-distance and travel-time previews, and a blue **Start trip** button that creates a paid taxi order.
+- Provide an explicit **Teleport to A** action with road snapping. Selecting a place or previewing a route does not teleport the vehicle.
+- Support city and full-address search through Earth's existing geocoder, including English place names when available. Show pickup/drop-off streets, house numbers and settlements when supplied; enrich order cards asynchronously without delaying their publication.
+- Add a persistent **1–600 km** maximum for random Earth routes. Unlimited ordinary order generation uses that configured cap; explicitly chosen A → B routes have no 600 km cap.
+- Prioritise cached city/town candidates, mix route distances and issue one asynchronous world-route request at a time. Bound candidate scans, retries, queues and caches; keep distant road geometry out of the regular HUD snapshots and local graph cache.
+- Delegate full-route remaining distance and ETA to Earth GPS. Keep geographic stops authoritative when Earth rebases the local world; pause trip timers while Earth is not ready.
+- Capture keyboard input in native text fields so typing addresses does not trigger driving bindings. Cancel pending panel work and heartbeats when leaving Earth or losing panel ownership.
+
+### JavaScript deobfuscation and repository review
+
+- Replace the minified Connected Phone JavaScript with a formatted, unminified bundle. Preserve application function names and source-module labels; retain Vue's production configuration and the existing precompiled renderer.
+- Include **README.md in the mod archive**, with library versions, purposes, licenses, upstream source links and an explanation of bundled components versus game-provided dependencies and developer-only build/test tools.
+- Keep Vue's full MIT license and per-module notices alongside the bundle. Include original HUD modules and the template for inspection; no JavaScript CDN is required.
+- Explain that the long strings in `sounds-data.js` are Base64 MP3 media, not encoded executable code. Format that generated data file and add a regression check against reintroducing a minified UI bundle.
+- Refresh cached HUD and Connected Phone assets with resource revision **510**.
+
+### Compatibility and validation
+
+- Target: **BeamNG.drive 0.40.5**. Earth integration was tested with **BeamNG.Earth 1.9.1-beta**, installed separately with its companion server.
+- Ordinary-map validation on East Coast USA populated **10 local orders with zero Earth route requests**. Earth validation populated **11 world orders**, approximately **53–473 km**, and previewed Krasnodar → Sochi at **292.8 km**.
+- Release preflight: **78 JavaScript/UI tests passed**; **51 runtime Lua files compiled** and **41 isolated Lua regression files passed in the running game's LuaJIT**. Live UI checks covered Earth visibility, route previews and a paid-trip start.
+- Earth integration remains experimental. Earth AI Driver, fleet world jobs, multi-stop/route-changing events and follow-up offers are not enabled by this integration. This release does not claim full Career support or compatibility with every third-party map or vehicle.
+- Existing settings, profiles, progress and histories retain their schemas. AI Driver and Connected Phone retain their experimental status.
+
+### Acknowledgements
+
+Thanks to the maintainer for live-game testing and to the BeamNG Repo moderator for the JavaScript readability feedback. Original TaxiDriver concept credit remains with Incognito; see `CREDITS.txt`. Earth integration uses [BeamNG.Earth](https://github.com/tecnagamer/beamng.earth)'s existing API and providers.
+
+Release: [TaxiDriver Reloaded 5.0.1](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v5.0.1)
+
 ## 5.0.0 — Vue 3 and BeamNG 0.40
 
 This major update moves TaxiDriver to BeamNG.drive 0.40.5 and a native Vue 3 interface, with dispatcher, minimap, AI Driver, difficulty and persistence fixes verified against the running game.
@@ -47,7 +84,7 @@ This major update moves TaxiDriver to BeamNG.drive 0.40.5 and a native Vue 3 int
 
 Thanks to the maintainer for the live-game reports, screenshots and repeated testing of loading, maps, orders, difficulty and AI Driver behavior. Original TaxiDriver concept credit remains with Incognito; see `CREDITS.txt`.
 
-Release: [TaxiDriver Reloaded 5.0.0](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v5.0.0)
+Superseded by [TaxiDriver Reloaded 5.0.1](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v5.0.1). The 5.0.0 release download has been withdrawn; its source tag remains in Git history.
 
 ## 4.0.3 — Fuel Persistence and Player Feedback Fixes
 

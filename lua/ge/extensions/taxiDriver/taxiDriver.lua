@@ -34,7 +34,7 @@ local hudPublisher = require("taxiDriver/hudPublisher")
 local logger = require("taxiDriver/logger")
 local runtimeBoundary = require("taxiDriver/faultBoundary").new({retrySeconds = 1})
 local aiLoggerModule = require("taxiDriver/aiLogger")
-local modVersion = "5.0.0"
+local modVersion = "5.0.1"
 local fleet = require("taxiDriver/fleetManager").new({modVersion = modVersion})
 local logTag = "taxiDriver"
 local supportedLanguages = taxiConfig.supportedLanguages
