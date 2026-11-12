@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v5.0.1"><img src="https://img.shields.io/badge/release-v5.0.1-ff6600?style=flat-square" alt="Release v5.0.1"></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v5.0.2"><img src="https://img.shields.io/badge/release-v5.0.2-ff6600?style=flat-square" alt="Release v5.0.2"></a>
   <img src="https://img.shields.io/badge/BeamNG.drive-0.40.5-f28c28?style=flat-square" alt="BeamNG.drive 0.40.5">
   <img src="https://img.shields.io/badge/mode-free%20roam-5de18d?style=flat-square" alt="Free-roam mode">
   <img src="https://img.shields.io/badge/UI-TaxiDriverHUD-55c7e8?style=flat-square" alt="TaxiDriverHUD UI App">
 </p>
 
 <p align="center">
-  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v5.0.1"><strong>Download 5.0.1</strong></a>
+  <a href="https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v5.0.2"><strong>Download 5.0.2</strong></a>
 </p>
 
 ---
 
-> **5.0.1 — Earth Support and Readable JavaScript:** Experimental BeamNG.Earth world routes, arbitrary A → B planning, paid Earth trips and readable, unminified JavaScript with a library inventory inside the archive. Includes the native Vue 3 UI and BeamNG.drive 0.40.5 improvements from 5.0.0. Existing settings, profiles and histories are retained. See the [changelog](CHANGELOG.md) and [Wiki](https://github.com/noteMASTER11/TaxiDriverReloaded/wiki) for details.
+> **5.0.2 — Earth Maps and Passenger-free Routes:** Updated Earth road rendering, passenger-free A → B and vehicle → B trips, a compact street label, and fuel/repair access during personal navigation. Includes the native Vue 3 UI, readable JavaScript and library inventory from the preceding releases. Existing settings, profiles and histories are retained. See the [changelog](CHANGELOG.md) and [Wiki](https://github.com/noteMASTER11/TaxiDriverReloaded/wiki) for details.
 
 TaxiDriver Reloaded turns ordinary free roam into a complete driving-work loop. Go online from the in-game phone, choose a passenger ride or cargo delivery, complete the route, protect your rating, and continue into the next queued order.
 
@@ -36,6 +36,7 @@ It is not a fixed scenario and does not depend on hardcoded pickup lists for one
 - Generate world-map passenger and cargo orders, or choose arbitrary **A → B** / **current vehicle → B** points through city and address search.
 - Preview the road distance and time, explicitly teleport to A if desired, and press the blue **Start trip** button to create a paid taxi ride.
 - Select **Without a passenger** for a personal GPS trip in either route mode. In A → B mode, GPS first leads to A when needed, then continues to B. Personal routes do not start a taxi shift or change fares, penalties or rating.
+- Use **Refuel** in the phone header or the compact fuel icon to open fuel and repair services during personal travel. The form preserves GPS; Realistic Mode uses normal prices, and non-realistic service is free.
 - The compact HUD shows the current street from Earth's existing location data. Its private map follows Earth's streamed road updates independently of the stock navigation widget, including while taxi mode is off.
 - Set a **1–600 km** maximum for random Earth routes. Explicitly selected A → B routes do not have that cap. Destination discovery and route/address requests run asynchronously with bounded queues and caches.
 - Experimental, verified with Earth **1.9.1-beta**. Earth AI Driver, fleet world jobs, multi-stop/route-changing events and follow-up offers are not enabled by this integration.
@@ -285,7 +286,7 @@ The main extension is guarded by a regression check for LuaJIT's 200-local main-
 
 ## Installation
 
-1. Download `taxidriver.zip` from the [5.0.1 release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v5.0.1).
+1. Download `taxidriver.zip` from the [5.0.2 release](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v5.0.2).
 2. Place the archive directly in:
 
    ```text

@@ -1,7 +1,7 @@
 {
   "name": "taxidriver-reloaded",
   "private": true,
-  "version": "5.0.1",
+  "version": "5.0.2",
   "type": "module",
   "scripts": {
     "test": "node scripts/build-ui.mjs && node --test tests/ui/game-bridge.test.mjs tests/ui/vue-model.test.mjs tests/ui/vue-template.test.mjs tests/ui/vue-scenarios.test.mjs tests/ui/external-lifecycle.test.mjs tests/ui/assets.test.mjs",
