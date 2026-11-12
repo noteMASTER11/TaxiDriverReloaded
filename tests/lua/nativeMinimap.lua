@@ -40,6 +40,10 @@ local function loadNative(name, env)
 end
 local private = require("taxiDriver/nativeMinimap").new({loadModule = loadNative})
 local modules = assert(private:getModules())
+local resets=0
+modules.roads.reset=function()resets=resets+1 end
+private:invalidateRoads()
+assert(resets==1, "streamed graph changes must invalidate the private road cache")
 assert(modules.minimap ~= globalMap)
 assert(ui_apps_minimap_minimap == globalMap, "must not replace the stock widget")
 modules.minimap.setDrawTransform(0.1, 0.1, 0.4, 0.4)
@@ -55,4 +59,21 @@ private:reset()
 assert(ui_apps_minimap_minimap == globalMap)
 local unavailable = require("taxiDriver/nativeMinimap").new({loadModule = function() error("missing API") end})
 assert(unavailable:getModules() == nil, "missing native APIs must fail without touching stock map")
+local graph={edges={}}
+local updates,unhooks=0,0
+local stockRoads={sentinel=true};ui_apps_minimap_roads=stockRoads
+beamngEarth_api={inWorld=function()return true end}
+local earthPrivate=require('taxiDriver/nativeMinimap').new({loadModule=loadNative,
+  getEarthGraph=function()return graph end,
+  loadEarthModule=function(env)
+    assert(env._G==env and env.ui_apps_minimap_roads~=stockRoads)
+    return {hook=function()assert(ui_apps_minimap_roads==stockRoads)end,
+      update=function(g)assert(g==graph);updates=updates+1 end,
+      unhook=function()unhooks=unhooks+1 end,status=function()return {links=4}end}
+  end})
+earthPrivate:getModules();earthPrivate:update(.016,.016)
+graph={edges={{1,2}}};earthPrivate:update(.016,.016)
+assert(updates==2 and earthPrivate:stats().earth.links==4,
+  'private Earth roads must follow each streamed graph without modifying the stock renderer')
+earthPrivate:reset();assert(unhooks==1 and ui_apps_minimap_roads==stockRoads)
 print("TaxiDriver private native minimap regressions passed")

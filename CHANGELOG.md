@@ -1,5 +1,45 @@
 # Changelog
 
+## 5.0.2 — Earth Maps and Passenger-free Routes
+
+This patch keeps TaxiDriver's Earth map current, adds personal routes without a passenger, and makes fuel and repair services available during those trips. It retains the readable, unminified JavaScript and library documentation introduced in 5.0.1.
+
+### Earth map and compact HUD
+
+- Draw Earth's streamed road network in TaxiDriver's private minimap, with its own utilities, texture and incremental road index. Keep the stock navigation widget independent when both maps are visible.
+- Follow replacement and rebased Earth graphs as OSM road data updates. Invalidate the private native road cache when the local node table changes instead of retaining stale or incomplete roads.
+- Keep the compact map visible when taxi mode is off. Replace the full-map inactive overlay with a small status badge so it no longer covers the roads.
+- Show the current street at the bottom centre of the compact HUD, falling back to the settlement when no street is known. Read Earth's existing location data once per second without extra geocoder requests; clear the label outside Earth.
+
+### Passenger-free Earth routes
+
+- Add a persistent **Without a passenger** checkbox for both **A → B** and **current vehicle → B** routes.
+- Personal navigation runs independently of taxi orders: no passenger or cargo, fare, trip penalty or rating change is created by the route itself.
+- In A → B mode, guide the vehicle to A first when necessary, then continue to B. Require geographic proximity and low vehicle speed to advance or finish.
+- Add a personal-route screen with distance, ETA, progress, map controls and **End route**. Show the destination and progress in the compact HUD as well.
+- Preserve a manually selected replacement GPS destination when ending the owned route. Pause progress while Earth is loading and retire the route when leaving Earth.
+
+### Fuel and repair during personal trips
+
+- Restore the **Refuel** button in the phone header and add a fuel-service shortcut to the compact HUD during passenger-free travel.
+- Open the combined fuel/repair form without starting a taxi shift, creating a fuel detour or replacing the personal GPS destination. Closing the form returns to the existing route.
+- On Earth maps without native stations, use the existing **Magic Fuel** service for the current vehicle. Filling and repairs retain their stopped-vehicle and mutual-exclusion rules.
+- Charge normal fuel/repair prices with Realistic Mode enabled; provide free service when it is disabled. Preserve purchased fuel and reject cancelled or stale asynchronous purchase callbacks after closing the form or replacing the vehicle.
+
+### Compatibility and validation
+
+- Target: **BeamNG.drive 0.40.5**; Earth integration verified during development with **BeamNG.Earth 1.9.1-beta**, installed separately with its companion server.
+- Release preflight: **80 JavaScript/UI tests passed**, **52 runtime Lua files compiled**, and **43 isolated Lua regression files passed** in the local Lua compatibility runner. The game was closed during publication, so this release preflight does not report a new in-game LuaJIT run.
+- Earlier live-game verification compiled the same **52 runtime Lua files** and passed **43 isolated regressions in game LuaJIT**. Live checks covered simultaneous maps, streamed road/street updates while driving, both personal route modes, fuel/repair form access from both window sizes, and preservation of GPS, balance and rating while opening/closing that form.
+- Refresh HUD and Connected Phone assets with resource revision **513**. Existing settings, profiles, fuel, progress and histories retain their schemas.
+- Earth integration, AI Driver and Connected Phone remain experimental. Earth AI Driver, fleet world jobs, multi-stop/route-changing events and follow-up orders remain outside this integration's supported scope.
+
+### Acknowledgements
+
+Thanks to the maintainer for the map, personal-route and service-access reports and live-game verification. Original TaxiDriver concept credit remains with Incognito; see `CREDITS.txt`. Earth support uses [BeamNG.Earth](https://github.com/tecnagamer/beamng.earth)'s installed API and road renderer.
+
+Release: [TaxiDriver Reloaded 5.0.2](https://github.com/noteMASTER11/TaxiDriverReloaded/releases/tag/v5.0.2)
+
 ## 5.0.1 — Earth Support and Readable JavaScript
 
 This release adds experimental BeamNG.Earth support and replaces minified JavaScript with readable, unminified code for source review. It includes the native Vue 3 interface and BeamNG.drive 0.40.5 compatibility improvements introduced in 5.0.0, which this release supersedes.

@@ -1,6 +1,7 @@
 local file = assert(io.open("lua/ge/extensions/taxiDriver/taxiDriver.lua", "r"))
 local source = file:read("*a"):gsub("\r\n", "\n"); file:close()
-local production = assert(source:match("(function realisticFuel.resetRefueling.-)\nfunction realisticFuel.clearStation")) .. "\n" ..
+local production = assert(source:match("(function realisticFuel.serviceVehicle.-)\nfunction realisticFuel.buildHud")) .. "\n" ..
+  assert(source:match("(function realisticFuel.resetRefueling.-)\nfunction realisticFuel.clearStation")) .. "\n" ..
   assert(source:match("(function realisticFuel.resetRepairing.-)\nfunction realisticFuel.clearRepairStation")) .. "\n" ..
   assert(source:match("(function realisticFuel.finishPurchase.-)\nfunction realisticFuel.updateRefueling")) .. "\n" ..
   assert(source:match("(function realisticFuel.repairVehiclePhysically.-)\nfunction realisticFuel.updateRepairing"))

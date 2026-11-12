@@ -60,6 +60,7 @@ $requiredEntries = @(
   "lua/ge/extensions/taxiDriver/offerPlan.lua",
   "lua/ge/extensions/taxiDriver/optionalLanBridge.lua",
   "lua/ge/extensions/taxiDriver/earthRouting.lua",
+  "lua/ge/extensions/taxiDriver/earthFreeRoute.lua",
   "lua/ge/extensions/taxiDriver/earthTransport.lua",
   "lua/ge/extensions/taxiDriver/earthCandidates.lua",
   "lua/ge/extensions/taxiDriver/earthDispatcher.lua",

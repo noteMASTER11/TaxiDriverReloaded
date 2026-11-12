@@ -273,3 +273,51 @@ test('Earth offer captions update when full addresses arrive asynchronously', as
     window.__taxiHudHandle?.unmount(); await window.happyDOM.cancelAsync(); window.close();
   }
 });
+
+test('Earth personal routes have an explicit checkbox, separate navigation and a live compact street', async () => {
+  const {window, errors}=await openHarness('home',false);
+  try {
+    const {view,hud}=window.__taxiHudModel;
+    window.__taxiSetState({earth:{available:true,status:'ready',mode:'points',route:{status:'ready',distanceM:200000,durationS:10000}}});
+    hud.openEarth();await new Promise(r=>setTimeout(r,0));
+    const checkbox=window.document.querySelector('#taxi-earth-without-passenger');assert(checkbox);
+    checkbox.checked=true;checkbox.dispatchEvent(new window.Event('change',{bubbles:true}));
+    await new Promise(r=>setTimeout(r,0));
+    hud.earthStartTrip();assert(window.__taxiEngineLuaCommands.some(c=>/startTrip/.test(c)&&/"withoutPassenger":true/.test(c)));
+    window.__taxiSetState({earth:{available:true,status:'ready',startedTripId:1,location:'Kuban Embankment',freeRoute:{active:true,leg:'b',name:'Sochi',remainingM:190000,etaS:9500,progress:.05}}});
+    await new Promise(r=>setTimeout(r,0));
+    assert(window.document.querySelector('.taxi-personal-route'));assert(!window.document.querySelector('.taxi-home'));
+    assert.equal(view.state.active,false,'personal navigation must not activate paid taxi gameplay');
+    hud.toggleMinimized();await new Promise(r=>setTimeout(r,0));
+    assert.equal(window.document.querySelector('.taxi-compact__location').textContent.trim(),'Kuban Embankment');
+    window.__taxiSetState({earth:{available:true,status:'ready',location:'New Street'}});await new Promise(r=>setTimeout(r,0));
+    assert.equal(window.document.querySelector('.taxi-compact__location').textContent.trim(),'New Street');
+    window.__taxiSetState({earth:{available:false,status:'outsideWorld',location:''}});await new Promise(r=>setTimeout(r,0));
+    assert.equal(window.document.querySelector('.taxi-compact__location'),null);
+    assert.deepEqual(errors,[]);
+  } finally {window.__taxiHudHandle?.unmount();await window.happyDOM.cancelAsync();window.close()}
+});
+
+test('a personal route exposes fuel and repair without activating a taxi shift', async () => {
+  const {window,errors}=await openHarness('magicFuel',false);
+  try {
+    const {view,hud}=window.__taxiHudModel;
+    const station=JSON.parse(JSON.stringify(view.state.fuelStation));
+    const repair=JSON.parse(JSON.stringify(view.state.repairStation));
+    window.__taxiSetState({active:false,phase:'inactive',realisticMode:false,
+      fuelStation:{...station,available:false},repairStation:{...repair,available:false},
+      earth:{available:true,status:'ready',freeRoute:{active:true,leg:'b',name:'Destination',remainingM:50000,etaS:2000}}});
+    await new Promise(r=>setTimeout(r,0));
+    const button=window.document.querySelector('.taxi-appbar__fuel');assert(button);
+    button.click();await new Promise(r=>setTimeout(r,0));
+    assert(window.__taxiEngineLuaCommands.some(c=>c.includes('requestFuelStop')));
+    window.__taxiSetState({fuelStation:{...station,available:true},repairStation:{...repair,available:true}});
+    await new Promise(r=>setTimeout(r,0));
+    assert(window.document.querySelector('.taxi-fuel'));
+    assert(window.document.querySelector('.taxi-fuel__repair'));
+    hud.closeFuelStation();await new Promise(r=>setTimeout(r,0));
+    assert(window.document.querySelector('.taxi-personal-route'));
+    assert.equal(view.state.active,false);assert.equal(view.earth.freeRoute.active,true);
+    assert.deepEqual(errors,[]);
+  } finally {window.__taxiHudHandle?.unmount();await window.happyDOM.cancelAsync();window.close()}
+});

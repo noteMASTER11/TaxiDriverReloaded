@@ -167,4 +167,16 @@ assert(bounded:stats().searchCache==32 and bounded:stats().history==12,
   "repeated searches and selections must reach a fixed memory bound")
 bounded:command("close",{})
 assert(not bounded:stats().opened)
+local preference=service({withoutPassenger=true});preference:update(0)
+assert(preference:snapshot().withoutPassenger==true, 'passenger-free preference survives service recreation')
+preference:command('open',{})
+local beforeWrite=writes;preference:command('setWithoutPassenger',{value=false})
+assert(not preference:snapshot().withoutPassenger and writes==beforeWrite+1)
+api.place=function()return {street='Old Street',place='City'}end
+preference:update(1);assert(preference:snapshot().location=='Old Street')
+api.place=function()return {street='New Street',place='City'}end
+preference:update(1);assert(preference:snapshot().location=='New Street')
+api.inWorld=function()return false end
+preference:update(1);assert(preference:snapshot().location=='')
+preference:destroy()
 print("Earth route lifecycle, long-distance, persistence and GPS ownership regressions passed")
